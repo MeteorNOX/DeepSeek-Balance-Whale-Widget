@@ -1,0 +1,26 @@
+{
+  "name": "dsh-whale-widget",
+  "version": "0.1.0",
+  "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "balance",
+    "widget"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
