@@ -119,3 +119,9 @@ curl http://127.0.0.1:3080/dsh-whale/balance.json
 ## 开发与维护
 
 完整规格、视觉参数、架构结论和生成提示词见 `whale-widget-prompt.md`。修改文字位置、颜色、动画、吸附逻辑时参考该文件。
+
+---
+
+## 桌面版（WinForms，免 DSH）
+
+不想装 DSH、想直接双击常驻桌面的用户，用 `desktop/` 目录里的独立桌面版：纯 WinForms + GDI+，零依赖。解压后双击 `start-widget.vbs` 启动，右键鲸鱼填自己的 DeepSeek API Key 即可。详见 `desktop/README.md`。
