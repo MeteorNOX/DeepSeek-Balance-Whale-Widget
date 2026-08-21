@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小鲸鱼设置</title>
+    <link rel="stylesheet" href="config.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>小鲸鱼设置</h1>
+        <a id="tutorial" class="tutorial-link" href="#">使用教程</a>
+      </header>
+
+      <main class="content">
+        <!-- 余额概览 -->
+        <section class="overview-row">
+          <div class="card overview-card">
+            <div class="overview-label">可用额度</div>
+            <div class="overview-value" id="availableBalance">--</div>
+          </div>
+          <div class="card overview-card">
+            <div class="overview-label">今日已用</div>
+            <div class="overview-value" id="todayUsage">--</div>
+          </div>
+        </section>
+
+        <!-- 基础配置 -->
+        <section class="card">
+          <h2>基础配置</h2>
+          <label class="field">
+            <span class="field-label">DeepSeek API Key</span>
+            <input id="apiKey" type="password" placeholder="sk-…" autocomplete="off" />
+            <button id="toggleKey" type="button" class="toggle-eye">显示</button>
+          </label>
+        </section>
+
+        <!-- 模型配置 -->
+        <section class="card">
+          <div class="model-head">
+            <h2>模型配置</h2>
+            <div class="provider-toggle">
+              <button id="provClaude" type="button" class="prov-btn active" title="Claude">
+                <img src="assets/claude.svg" alt="Claude" />
+              </button>
+              <button id="provCodex" type="button" class="prov-btn" title="OpenAI Codex">
+                <img src="assets/openai.svg" alt="OpenAI Codex" />
+              </button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label short">请求地址</span>
+            <input id="baseUrl" type="text" placeholder="https://api.deepseek.com/anthropic" />
+          </label>
+
+          <div class="model-row" data-model="primary">
+            <span class="model-name">主模型</span>
+            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
+            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
+            <span class="ctx-unit">token</span>
+          </div>
+          <div class="model-row" data-model="haiku">
+            <span class="model-name">Haiku</span>
+            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
+            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
+            <span class="ctx-unit">token</span>
+          </div>
+          <div class="model-row" data-model="sonnet">
+            <span class="model-name">Sonnet</span>
+            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
+            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
+            <span class="ctx-unit">token</span>
+          </div>
+          <div class="model-row" data-model="opus">
+            <span class="model-name">Opus</span>
+            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
+            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
+            <span class="ctx-unit">token</span>
+          </div>
+        </section>
+
+        <!-- 挂件显示 -->
+        <section class="card">
+          <h2>挂件显示</h2>
+          <label class="field">
+            <span class="field-label short">大小</span>
+            <input id="widgetScale" type="range" min="1" max="20" step="1" />
+            <span id="widgetScaleVal" class="scale-val">10</span>
+          </label>
+          <label class="field">
+            <span class="field-label short">音效</span>
+            <select id="widgetSoundSet">
+              <option value="duck">小黄鸭</option>
+              <option value="fx1">音效1</option>
+            </select>
+            <button id="addCustomSound" type="button" class="toggle-eye">自定义音效</button>
+          </label>
+          <label class="field">
+            <span class="field-label short">音量</span>
+            <input id="widgetVol" type="range" min="0" max="1" step="0.01" />
+            <span id="widgetVolPct">90%</span>
+          </label>
+        </section>
+
+        <!-- 台词管理 -->
+        <section class="card dialogue-card collapsed" id="dialogueCard">
+          <div class="model-head">
+            <h2>台词管理</h2>
+            <div class="dialogue-actions">
+              <button id="addLine" type="button" class="toggle-eye">添加台词</button>
+              <button id="resetLines" type="button" class="toggle-eye">恢复默认台词</button>
+              <button id="toggleDialogue" type="button" class="toggle-eye">展开</button>
+            </div>
+          </div>
+          <div class="dialogue-body" id="dialogueBody">
+            <div id="dialogueList" class="dialogue-list"></div>
+            <label class="field">
+              <span class="field-label short">播放模式</span>
+              <select id="dialogueMode">
+                <option value="carousel">轮播</option>
+                <option value="random">随机</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label short">间隔时长</span>
+              <input id="dialogueInterval" type="number" min="1" step="1" />
+              <span class="ctx-unit">分钟</span>
+            </label>
+            <label class="field">
+              <span class="field-label short">波动幅度</span>
+              <input id="dialogueJitter" type="range" min="0" max="100" step="1" />
+              <span id="dialogueJitterVal" class="scale-val">0%</span>
+            </label>
+          </div>
+        </section>
+
+        <!-- 系统配置 -->
+        <section class="card">
+          <div class="model-head">
+            <h2>系统配置</h2>
+            <div class="dialogue-actions">
+              <button id="resetColor" type="button" class="toggle-eye">重置颜色</button>
+              <button id="checkUpdate" type="button" class="toggle-eye">检查更新</button>
+            </div>
+          </div>
+          <div class="sys-row">
+            <div class="sys-title">开机自启</div>
+            <label class="switch">
+              <input id="autostart" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="field">
+            <span class="field-label">全局颜色</span>
+            <input id="globalColor" type="range" min="0" max="360" step="1" class="color-slider" />
+          </div>
+          <div class="field">
+            <span class="field-label">气泡颜色</span>
+            <input id="bubbleColor" type="range" min="0" max="360" step="1" class="color-slider" />
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" hidden>
+      <div class="modal tip-modal" id="tipModal" hidden>
+        <div class="modal-title">提示</div>
+        <div class="modal-msg" id="tipMsg"></div>
+        <div class="modal-actions">
+          <button id="tipOk" type="button" class="modal-btn modal-btn-primary">确定</button>
+        </div>
+      </div>
+      <div class="modal confirm-modal" id="confirmModal" hidden>
+        <div class="modal-title">确认</div>
+        <div class="modal-msg" id="confirmMsg"></div>
+        <div class="modal-actions">
+          <button id="confirmYes" type="button" class="modal-btn modal-btn-primary">是</button>
+          <button id="confirmNo" type="button" class="modal-btn">否</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="config.js"></script>
+  </body>
+</html>

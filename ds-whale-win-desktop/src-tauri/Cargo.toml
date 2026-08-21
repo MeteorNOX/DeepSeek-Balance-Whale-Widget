@@ -1,0 +1,38 @@
+[package]
+name = "ds-desktop-whale"
+version = "1.0.0"
+description = "DS Desktop Whale · DeepSeek 余额查询与记账 · 独立 Windows 桌面版"
+authors = ["DSW"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "ds_desktop_whale_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.4.0", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.8.2", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2"
+dirs = "5"
+reqwest = { version = "0.12", features = ["rustls-tls", "json"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+auto-launch = "0.5"
+chrono = { version = "0.4", features = ["clock"] }
+log = "0.4"
+env_logger = "0.11"
+raw-window-handle = "0.6"
+windows = { version = "0.58", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }
+rfd = "0.15"
+base64 = "0.22"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "unwind"
+strip = true

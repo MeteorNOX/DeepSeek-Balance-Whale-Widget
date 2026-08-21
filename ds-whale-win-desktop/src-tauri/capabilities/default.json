@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "小鲸鱼挂件默认能力（自定义命令通过 IPC 直接调用，无需额外权限）",
+  "windows": ["widget", "config"],
+  "permissions": ["core:default"]
+}
