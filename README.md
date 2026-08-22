@@ -14,9 +14,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 - 💬 **每轮对话消耗统计**：监听本机会话事件，每轮对话结束后弹出本轮消耗金额（精确 usage，非估算）
   - 菜单可开关「每轮对话后自动显示消耗金额」；「自动关闭时间」可自定义秒数（填 0 表示不自动关闭）
   - 消耗金额泡泡显示期间，余额变动不弹普通泡泡
-- 💰 **投喂（内置充值）**：余额不足不用再手动去官网——菜单里左侧「投喂」按钮 + 右侧自定义金额（默认 ¥10，范围 ¥1–¥100000），点击后在菜单面板内展示微信 / 支付宝均可扫码支付的银联聚合码（右上角可返回），支付成功自动刷新余额并弹「已到账」气泡
-  - 余额低于平台预警阈值时鲸鱼会主动弹出「余额不足啦」提示，点气泡直接打开菜单；阈值与开关实时读取自平台 `users/current` 的 `balance_alert.CNY`（`enabled` / `alert_bound`），未配置平台令牌则不提示
-  - 复刻官网 top_up 页同一套充值接口，凭据复用 `DEEPSEEK_PLATFORM_TOKEN`，二维码本地生成、支付链接不外发
+- 💰 **投喂（余额充值）**：填入平台会话令牌后，点击「投喂」按钮，将展示微信 / 支付宝均可扫码支付的银联聚合码，支付成功自动刷新余额并提示
+  - 余额低于平台预警阈值时自动提示，提示阈值与开关来自平台的用户设置
+  - 直接调用官网同一套充值接口，不是“中转充值”
 - 🖱️ **拖拽 + 四边四分之一吸附**（左/右/上/下，角落可组合）
 - 🔄 左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
 - 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）
@@ -34,7 +34,7 @@ dsh-whale-widget/
 ├── cordis.patch.yml      # 插件挂载声明
 ├── lib/
 │   ├── index.js          # 宿主侧插件本体
-│   └── qrcode-generator.js # 内嵌二维码编码库（MIT，Kazuhiko Arase；由 /dsh-whale/qrlib.js 原样伺服给前端渲染充值码）
+│   └── qrcode-generator.js # 内嵌二维码编码库（MIT，Kazuhiko Arase）
 ├── assets/
 │   ├── DSH2.png          # README 顶部展示图
 │   ├── DSniang1.png      # 小鲸鱼本体（cut-out，气泡由代码绘制）
@@ -101,7 +101,7 @@ dsh plugin --profile web add dsh-whale-widget
 
 > **默认不需要任何令牌。** 安装后只需配置 `DEEPSEEK_API_KEY`（拉取余额必需），「今日已用」会自动使用默认的**小鲸鱼记账**模式（余额差值本地记账），开箱即用。
 >
-> 「实时·令牌」用量模式和「投喂」充值功能需要 `DEEPSEEK_PLATFORM_TOKEN`（DeepSeek 平台网页会话令牌）。它是**可选的**：不配置时仅「实时·令牌」用量换算与「投喂」充值不可用，其余功能不受影响。获取方式见下方「用量模式使用教程」与「投喂使用教程」。
+> 「实时·令牌」用量模式和「投喂」充值功能需要 `DEEPSEEK_PLATFORM_TOKEN`（DeepSeek 平台网页会话令牌）。它是**可选的**：不配置时仅「实时·令牌」用量换算与「投喂」充值不可用，其余功能不受影响。获取方式见下方「用量模式使用教程」。
 
 ## 卸载
 
@@ -181,25 +181,6 @@ Remove-Item "$web\DSniang02.png" -ErrorAction SilentlyContinue
 
 「每轮对话消耗统计」直接监听 DSH 本机会话事件，按模型真实 usage 换算金额（与今日已用同一套峰谷定价表），**不需要** `DEEPSEEK_PLATFORM_TOKEN`。
 
-### 投喂（充值）使用教程 —— 需要 `DEEPSEEK_PLATFORM_TOKEN`
-
-余额不足时不用再手动打开官网：挂件内置了官网 top_up 页的充值流程，生成**微信 / 支付宝扫码均可支付**的银联聚合码。
-
-**使用步骤：**
-1. 配置 `DEEPSEEK_PLATFORM_TOKEN`（获取方式同上，两者共用同一个令牌）
-2. 打开挂件**菜单**：左侧「投喂」按钮 + 右侧金额输入框（默认 ¥10，范围 **¥1 – ¥100000**）
-3. 点「投喂」→ 弹出充值二维码（15 分钟有效），用微信或支付宝 App 扫码付款
-4. 支付成功后弹窗自动关闭，余额自动刷新并弹出「已到账」气泡；若余额接口有延迟，60 秒内自动刷新到位
-
-**余额过低提醒：** 余额低于**平台预警阈值**时鲸鱼会弹出「余额不足啦」气泡，点击气泡直接打开菜单（每 10 分钟最多提示一次）。阈值与开关实时读取平台 `users/current` 返回的 `balance_alert.CNY`：`enabled` 为预警开关、`alert_bound` 为阈值金额，在官网「账户设置」里修改即可；未配置 `DEEPSEEK_PLATFORM_TOKEN` 时不提示。
-
-**说明：**
-- ⚠️ **非官方文档化接口**：复刻的是官网前端调用的内部接口（`POST /api/v1/payments` + 每 5 秒轮询 `capture`）。DeepSeek 可能调整接口或临时暂停充值，失败时提示里会附「去官网充值」链接兜底
-- **二维码纯本地生成**（内嵌 qrcode-generator，MIT），支付链接不会发送给任何第三方
-- 仅支持 **CNY（人民币）** 账户；美元账户走信用卡/Apple Pay/Google Pay 等通道，不在本功能范围
-- 款项由扫码者直接支付给 DeepSeek 官方平台，挂件不接触任何资金
-- 令牌失效（如重新登录平台后）会提示重新获取；重复点击「投喂」有防抖保护，不会重复下单
-
 ## 验证
 
 ```powershell
@@ -209,17 +190,14 @@ curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/balance.json
 curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/last-turn.json
-curl http://127.0.0.1:3080/dsh-whale/qrlib.js
 curl -X POST http://127.0.0.1:3080/dsh-whale/topup.json -H "Content-Type: application/json" -d '{"amount":10}'
-curl -X POST http://127.0.0.1:3080/dsh-whale/topup-poll.json -H "Content-Type: application/json" -d '{"orderId":"<payment_order_id>"}'
 ```
 
 - `/dsh-whale/image.png` → 200 `image/png`
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
-- `/dsh-whale/qrlib.js` → 200 `application/javascript`（qrcode-generator 源码）
-- `/dsh-whale/topup.json` POST → 200，返回 `{ok, paymentOrderId, qrUrl, amount}`；`topup-poll.json` → 200，返回 `{ok, status}`
+- `/dsh-whale/topup.json` POST → 200，返回 `{ok, paymentOrderId, qrUrl, amount}`
 - 浏览器 F5 后右下角出现挂件
 
 ## 常见问题
@@ -229,9 +207,7 @@ curl -X POST http://127.0.0.1:3080/dsh-whale/topup-poll.json -H "Content-Type: a
 - **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 配置凭据。
 - **今日已用显示 --**：记账模式下需要先跑一次余额观测（60 秒内自动完成）；令牌模式需要配置 `DEEPSEEK_PLATFORM_TOKEN`。
 - **每轮消耗不显示**：确认菜单「每轮对话后自动显示消耗金额」已勾选；一轮对话必须完整结束（turn/end）才会结算。
-- **投喂提示「未配置平台令牌」**：需要配置 `DEEPSEEK_PLATFORM_TOKEN`（见「投喂使用教程」）；重新登录平台网页后令牌可能失效，需重新获取。
-- **投喂二维码不显示**：确认 `lib/qrcode-generator.js` 在插件包内且 `/dsh-whale/qrlib.js` 可访问（重启 `dsh web` 后 F5）。
-- **投喂后余额没变**：必须扫码完成支付才会入账；到账后余额自动刷新，若余额接口延迟 60 秒内也会自动刷新到位。
+- **投喂功能不可用**：去 DSH 配置凭据。
 - **没有声音**：确认 `assets/*.mp3` 在包内；若不想带音效文件，静默降级为无声音。
 - **本地开发改了代码不生效**：使用 `link:` 安装时，修改源码后重启 `dsh web`（ESM 模块缓存）；如果用已发布版本，需要 `npm publish` 新版本后 `dsh plugin --profile web update dsh-whale-widget`。
 - **自定义图片**：气泡由代码绘制（SVG），鲸鱼本体为 cut-out PNG，放在右下角 59.45%；换图需保证透明背景 cut-out，否则按 `whale-widget-prompt.md` 调整几何参数。
