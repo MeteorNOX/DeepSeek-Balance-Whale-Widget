@@ -22,6 +22,54 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 - 💬 **随机台词**：点击气泡切换随机台词段（加权随机，含峰谷提示/今日已用/gif 动图/卖萌吐槽），再点一次关闭；气泡总显示 5 秒自动收起
 - 📐 随浏览器窗口自动缩放；文字位置/字号与图片联动
 
+## 对话功能（内置 AI，DeepSeek娘）
+
+右键鲸鱼（或汉堡菜单 →「和 DeepSeek娘 聊天」）打开对话面板，与内置 AI 聊天。
+
+- **人设**：默认「爱吃白饭的蓝色大肥鱼女仆娘（DeepSeek娘）」人设，可通过人设文件完全自定义：
+  - 放 `$DSH_HOME/.dshw-persona.md`（或 `.dshw-persona.txt`）即覆盖默认人设；**每个请求实时读取，改完即生效，无需重启**
+- **模型**：`deepseek-v4-flash-vision-exp`（可在 `lib/index.js` 对话请求的 `model:` 处换为 `deepseek-v4-pro` / `deepseek-v4-flash` / `deepseek-chat`）
+- **流式输出**：回复逐字显示；发送中按钮变成「停止」，随时可打断（保留已生成部分）
+- **新会话**：面板标题旁「新会话」按钮清空当前谈话（刷新页面时亦自动开始新会话，不累积上下文）
+- **实时数据**：每次自动注入余额 / 今日已用 / 高峰时段，鲸鱼能回答「今天用了多少钱」「现在是不是高峰」
+- **接口**：`POST /dsh-whale/chat`（接收最近 20 条消息作为上下文）
+
+## 实时·令牌升级：真实计费（/cost）
+
+「今日已用」的令牌模式从「token 分桶 + 内置价目表估算」升级为 **DeepSeek 平台 `/cost` 接口的真实结算金额**：
+
+- 直接对每个时间桶的 `cost` 求和，不再依赖内置峰谷价目表（`PEAK_HOURS` / `PRICING` 常量仅保留给「每轮对话消耗」的估算）
+- DeepSeek 调价也无需改代码，显示值始终为平台真实账单
+
+## 主题（浅色 / 深色 / 跟随系统）
+
+- 设置菜单新增「主题」：**跟随系统（默认）/ 浅色 / 深色**
+- 设置菜单、对话面板、下拉框（**含原生下拉弹层**）全部同步换肤；深色采用墨水蓝配色
+- 选择保存在浏览器 `localStorage`（`dshwv-theme`）
+
+## Key 隔离（可选，推荐）
+
+对话与余额默认使用主凭据 `DEEPSEEK_API_KEY`；若想与主对话分开计费，在 DSH 凭据中新增：
+
+```yaml
+DEEPSEEK_WHALE_API_KEY: sk-你的挂件专用key
+```
+
+挂件会**优先**使用它，缺失时回退 `DEEPSEEK_API_KEY`，主对话不受影响。
+
+## 验证
+
+```powershell
+curl http://127.0.0.1:3080/dsh-whale/balance.json          # usageMode 为 token 时按 /cost 真实计费
+curl -X POST http://127.0.0.1:3080/dsh-whale/chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"你今天吃饭了吗"}]}'
+```
+
+## 常见问题（新增）
+
+- **对话没反应**：确认配置了 `DEEPSEEK_API_KEY`（或 `DEEPSEEK_WHALE_API_KEY`）；缺失时接口返回 `未配置挂件 API Key`
+- **主题不生效**：确认浏览器未禁用 localStorage；「跟随系统」请检查系统深色模式开关
+- **对话花费控制**：对话按 API 计费，可关掉「气泡」减少打扰；用量数据仍走记账/令牌两模式
+
 ## 目录结构
 
 ```text
