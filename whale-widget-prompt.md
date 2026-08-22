@@ -3,7 +3,7 @@
 > 用途：在 DeepSeek Harness（DSH）的 Web 界面右下角常驻一个「小鲸鱼余额挂件」。
 > 本提示词汇总了完整需求、架构、全部行为规格、视觉参数与踩坑结论，可直接交给 AI 复现或维护。
 > 文中 `C:\Users\Meteor\.dsh\profiles\web\`、`D:\TestBox\deepseek\` 等为本机示例路径，迁移时请替换为你环境中的实际路径。
-> 当前版本：v0.2.0（含今日已用双模式、峰谷定价、随机台词、音效与汉堡菜单）。
+> 当前版本：v0.2.5（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单与每轮对话消耗统计）。
 
 ---
 
@@ -16,7 +16,8 @@
 - **今日已用**双模式（菜单可选）：
   - 小鲸鱼记账（默认，免令牌）：观测余额差值自动记账，持久化到 `.dshw-usage.json`，跨天归零归档。
   - 实时·令牌：读 `DEEPSEEK_PLATFORM_TOKEN`，调平台用量接口按峰谷定价换算。
-- 支持：拖拽、四分之一区域吸附（上下左右四边）、左吸附整体水平翻转（文字同步）、汉堡菜单（大小/音效/音量/用量模式）、按压 Q 弹 + 音效、余额数字滚动动画、60 秒自动刷新 + 点击手动刷新、随机台词气泡（点击切换/关闭）、**每次打开界面自动启用（常驻自启）**。
+- **每轮对话消耗统计**：宿主插件监听 `session/event`，捕获 `assistant/message` 的真实 usage（input/cache/output/reasoning tokens），按 `turn` 聚合；`turn/end` 时结算本轮金额（复用峰谷定价表）写入 `/dsh-whale/last-turn.json`（seq 递增）。前端每秒轮询，出现新 seq 且「每轮对话后自动显示消耗金额」开启时弹出消耗金额泡泡（居中两行：A 样式「上一轮对话消耗:」+ 红色 B 样式「¥X.XX」）；自动关闭时间可设秒数（0=不自动关闭）；消耗泡泡显示期间余额变动不弹普通泡泡。
+- 支持：拖拽、四分之一区域吸附（上下左右四边）、左吸附整体水平翻转（文字同步）、汉堡菜单（大小/音效/音量/用量模式/峰谷文案/气泡开关/每轮消耗开关与自动关闭时间）、按压 Q 弹 + 音效、余额数字滚动动画、60 秒自动刷新 + 点击手动刷新、随机台词气泡（点击切换/关闭）、**每次打开界面自动启用（常驻自启）**。
 
 ## 二、架构（务必先读）
 
@@ -38,7 +39,9 @@
 |---|---|---|
 | `/dsh-whale/image.png` | GET | 读取插件包内 `assets/DSniang1.png`（回退本机旧绝对路径，内存缓存字节），`Content-Type: image/png`、`Cache-Control: no-store`；读取失败返回 404。 |
 | `/dsh-whale/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
-| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
+| `/dsh-whale/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
+| `/dsh-whale/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
+| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
 | `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
 | `/dsh-whale/sound/release.mp3` | GET | 同上，松手音效（`Ya2.mp3` / `D2.mp3`）。 |
 | `/dsh-whale/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
@@ -68,6 +71,16 @@
   - 定价表在 `lib/index.js` 顶部 `PEAK_HOURS` / `BASE_PRICE` / `PRICING` 常量，DeepSeek 调价时改这里。
 - 无令牌或令牌失效时自动回落记账模式（`usageMode` 仍标记为 'ledger'）。
 
+### 每轮对话消耗（Host，会话事件监听）
+
+- 宿主插件 `ctx.on('session/event', ...)` 监听所有会话的追加事件流（Cordis 全局监听可收到，scope 默认向上传播）。
+- 捕获 `type === 'assistant/message'` 且带 `data.usage` 的事件：`usage = { inputTokens, cacheReadTokens, outputTokens, reasoningTokens }`（模型返回的真实 token 计数，非估算）。
+- 按 `data.turn` 聚合：同一 turn 的多步（step）usage 累加；成本换算复用峰谷定价表：`cacheRead→p.hit[off]`、`input→p.miss[off]`、`output+reasoning→p.out[off]`（off = 当前是否高峰）。
+- `type === 'turn/end'` 时结算本轮：写 `lastTurn = { turn, amount, tokens, ts }`，`lastTurnSeq++`。
+- 前端 `/dsh-whale/last-turn.json` 每秒轮询：首次拿到数据只对齐 seq（不弹旧轮次），此后 `seq` 变大即「新的一轮」→ 弹消耗金额泡泡。
+- 消耗金额泡泡显示期间：`render()` / `animateAmount()` 均被 `costBubbleActive` 保护跳过（余额渲染/滚动不覆盖金额行）；余额变动也不弹普通泡泡（`showBubble()` 内 `if (costBubbleActive) return`）。
+- 关闭方式：点击泡泡确认关闭，或按 `turnCostCloseMs`（秒×1000）自动关闭；填 0 表示不自动关闭。
+
 ## 四、页面挂件（widget.js，原生 JS）
 
 页面上下文（无沙箱），IIFE 包裹，首行幂等守卫 `if (window.__dshWhaleWidget) return; window.__dshWhaleWidget = true`。
@@ -79,9 +92,10 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 ├─ div.dshwv-body（绝对定位铺满，承载按压 Q 弹缩放）
 │  ├─ img.dshwv-img（src=/dsh-whale/image.png，cut-out 鲸鱼，右下角 59.45%）
 │  └─ div.dshwv-bubble（SVG 气泡：大椭圆 + 尾巴 + 两个小气泡，z-index:1）
+│     ├─ img.dshwv-gif（随机台词 gif，默认隐藏）
 │     └─ div.dshwv-text（三行：label / amount / hint，绝对定位居中）
 ├─ button.dshwv-menu-btn（右上角三点，悬停显示）
-└─ div.dshwv-menu（汉堡菜单：大小滑块 + 数字、音效 select、音量滑块、用量 select）
+└─ div.dshwv-menu（汉堡菜单：大小/音效/音量/用量/峰谷/气泡开关 + 分割线 + 每轮消耗开关/自动关闭时间）
 ```
 
 - 菜单挂在 `document.body` 下（`position:fixed`），打开时定位到按钮上方（右侧贴按钮右上角，左吸附镜像时贴左上角）。
