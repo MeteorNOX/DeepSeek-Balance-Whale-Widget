@@ -68,15 +68,16 @@
 - **峰谷定价换算**：按每个小时桶的整点（北京时间 UTC+8）判定空闲/高峰，套用 `PRICING` 表（每百万 token 单价）求和：
   - 高峰时段：每日 9:00–12:00 与 14:00–18:00。
   - 单价（空闲 / 高峰）：缓存命中输入 0.05 / 0.10 元；缓存未命中输入 1.5 / 3.0 元；输出 4.5 / 9.0 元。
-  - 定价表在 `lib/index.js` 顶部 `PEAK_HOURS` / `BASE_PRICE` / `PRICING` 常量，DeepSeek 调价时改这里。
+  - `deepseek-v4-pro` 是上述价格的 **3 倍**（命中 0.15 / 0.30、未命中 4.5 / 9.0、输出 13.5 / 27.0，官方价目 2026-08-17 生效）；`v4-flash-vision-exp` 与 flash 同价（靠前缀 `deepseek-v4-flash` 命中）。
+  - 定价表在 `lib/index.js` 顶部 `PEAK_HOURS` / `BASE_PRICE` / `PRO_PRICE` / `PRICING` 常量，DeepSeek 调价时改这里。
 - 无令牌或令牌失效时自动回落记账模式（`usageMode` 仍标记为 'ledger'）。
 
 ### 每轮对话消耗（Host，会话事件监听）
 
 - 宿主插件 `ctx.on('session/event', ...)` 监听所有会话的追加事件流（Cordis 全局监听可收到，scope 默认向上传播）。
 - 捕获 `type === 'assistant/message'` 且带 `data.usage` 的事件：`usage = { inputTokens, cacheReadTokens, outputTokens, reasoningTokens }`（模型返回的真实 token 计数，非估算）。
-- 按 `data.turn` 聚合：同一 turn 的多步（step）usage 累加；成本换算复用峰谷定价表：`cacheRead→p.hit[off]`、`input→p.miss[off]`、`output+reasoning→p.out[off]`（off = 当前是否高峰）。
-- `type === 'turn/end'` 时结算本轮：写 `lastTurn = { turn, amount, tokens, ts }`，`lastTurnSeq++`。
+- 按 `(session.id, data.turn)` 分桶聚合：并发会话（主会话/子代理）的 turn 号各自独立，单桶按 turn 号聚合会串账；同一 turn 的多步（step）usage 累加；成本换算复用峰谷定价表：`cacheRead→p.hit[off]`、`input→p.miss[off]`、`output+reasoning→p.out[off]`（off = 当前是否高峰）。
+- `type === 'turn/end'` 时结算**该会话**本轮：写 `lastTurn = { turn, amount, tokens, ts }`，`lastTurnSeq++`；另监听 `session/disposed` 清理残留桶（并有桶数超限淘汰兜底）。
 - 前端 `/dsh-whale/last-turn.json` 每秒轮询：首次拿到数据只对齐 seq（不弹旧轮次），此后 `seq` 变大即「新的一轮」→ 弹消耗金额泡泡。
 - 消耗金额泡泡显示期间：`render()` / `animateAmount()` 均被 `costBubbleActive` 保护跳过（余额渲染/滚动不覆盖金额行）；余额变动也不弹普通泡泡（`showBubble()` 内 `if (costBubbleActive) return`）。
 - 关闭方式：点击泡泡确认关闭，或按 `turnCostCloseMs`（秒×1000）自动关闭；填 0 表示不自动关闭。
