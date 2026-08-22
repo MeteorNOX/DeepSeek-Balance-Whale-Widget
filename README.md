@@ -48,7 +48,7 @@ dsh-whale-widget/
 在项目根目录（`DeepSeek-Balance-Whale-Widget-main`）执行：
 
 ```powershell
-dsh plugin --profile web add link:.\dsh-whale-widget
+dsh plugin --profile web add link:.
 ```
 
 说明：
@@ -58,7 +58,7 @@ dsh plugin --profile web add link:.\dsh-whale-widget
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
 - **如果之后移动了源码目录**，必须重新到新的项目根目录执行一次：
   ```powershell
-  dsh plugin --profile web add link:.\dsh-whale-widget
+  dsh plugin --profile web add link:.
   ```
   因为 `link:` 记录的是源目录的绝对路径；移动后旧链接会失效。若提示已存在/冲突，可先 `dsh plugin --profile web remove dsh-whale-widget` 再重新 add。
 
@@ -67,7 +67,6 @@ dsh plugin --profile web add link:.\dsh-whale-widget
 如果你把这个包发布到 npm：
 
 ```powershell
-cd dsh-whale-widget
 npm publish
 ```
 
