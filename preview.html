@@ -17,7 +17,7 @@
   .btxt .amount{font-size:calc(var(--u)*128);font-weight:800;line-height:1.05}
   .btxt .period{font-size:calc(var(--u)*76);font-weight:700;color:#7a92c9}
   /* 角色（跳跳喵） */
-  .char{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;animation:bob 2.8s ease-in-out infinite;transform-origin:50% 100%;cursor:grab;pointer-events:auto;-webkit-user-drag:none}
+  .char{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;object-fit:contain;animation:bob 2.8s ease-in-out infinite;transform-origin:50% 100%;cursor:grab;pointer-events:auto;-webkit-user-drag:none}
   .char:active{cursor:grabbing;animation:none;transform:scale(.92);transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
   @keyframes bob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1.5%) scale(1.012)}}
   /* 菜单按钮（装饰） */
