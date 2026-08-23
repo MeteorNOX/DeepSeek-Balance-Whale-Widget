@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>DSH 余额挂件 · 跳跳喵预览</title>
+<style>
+  html,body{margin:0;height:100%;background:#1b2130;font-family:"Microsoft YaHei",sans-serif;overflow:hidden}
+  .hint{position:fixed;top:14px;left:16px;color:#8fa0c8;font-size:13px;line-height:1.8;pointer-events:none}
+  .hint b{color:#cfe0ff}
+  /* ===== 挂件 ===== */
+  .whale{position:fixed;right:0;bottom:0;width:min(250px,min(100vw,100vh)*.28);height:min(250px,min(100vw,100vh)*.28);--u:calc(min(250px,min(100vw,100vh)*.28) / 1026);pointer-events:none;user-select:none;z-index:9}
+  /* 气泡 */
+  .bubble{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;z-index:1}
+  .bubble svg{width:100%;height:100%;display:block}
+  .btxt{position:absolute;left:44.25%;top:38%;transform:translate(-50%,-50%);text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap}
+  .btxt .label{font-size:calc(var(--u)*66);font-weight:600;letter-spacing:.06em}
+  .btxt .amount{font-size:calc(var(--u)*128);font-weight:800;line-height:1.05}
+  .btxt .period{font-size:calc(var(--u)*76);font-weight:700;color:#7a92c9}
+  /* 角色（跳跳喵） */
+  .char{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;animation:bob 2.8s ease-in-out infinite;transform-origin:50% 100%;cursor:grab;pointer-events:auto;-webkit-user-drag:none}
+  .char:active{cursor:grabbing;animation:none;transform:scale(.92);transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes bob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-1.5%) scale(1.012)}}
+  /* 菜单按钮（装饰） */
+  .menu-btn{position:absolute;top:calc(40.55% + 4px);right:4px;width:26px;height:26px;border:none;border-radius:6px;background:rgba(32,49,112,.85);cursor:pointer;pointer-events:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+  .menu-btn span{display:block;width:14px;height:2px;background:#fff;border-radius:1px}
+</style>
+</head>
+<body>
+<div class="hint">
+  这是本地预览页（不用重启 DSH）<br>
+  <b>点一下小猫咪</b>：按压回弹 + 猫喵音效（E1/E2）<br>
+  正式进 DSH：重启后鲸鱼娘将变成 <b>跳跳喵</b>，菜单多一个「猫喵」音效
+</div>
+
+<div class="whale">
+  <div class="bubble">
+    <svg viewBox="0 0 1026 700" xmlns="http://www.w3.org/2000/svg">
+      <path id="bshape" d="M180 90 Q16 90 16 250 L16 470 Q16 500 46 500 L150 500 L208 596 Q232 632 268 600 L330 500 L980 500 Q1010 500 1010 470 L1010 250 Q1010 90 846 90 Z"
+            fill="#f4f7ff" stroke="#203170" stroke-width="16" stroke-linejoin="round"/>
+      <ellipse cx="178" cy="300" rx="118" ry="86" fill="none" stroke="#203170" stroke-width="16" transform="rotate(-14 178 300)"/>
+      <ellipse cx="196" cy="248" rx="112" ry="64" fill="none" stroke="#203170" stroke-width="14" transform="rotate(-16 196 248)"/>
+      <ellipse cx="742" cy="392" rx="92" ry="58" fill="none" stroke="#203170" stroke-width="14" transform="rotate(-8 742 392)"/>
+      <ellipse cx="878" cy="452" rx="62" ry="38" fill="none" stroke="#203170" stroke-width="12" transform="rotate(-6 878 452)"/>
+    </svg>
+    <div class="btxt">
+      <div class="label">DeepSeek 余额</div>
+      <div class="amount">¥ 2570.43</div>
+      <div class="period">今日已用 ¥ 0.13</div>
+    </div>
+  </div>
+  <img class="char" src="assets/DSniang1.png" alt="跳跳喵" draggable="false">
+  <button class="menu-btn" type="button"><span></span><span></span><span></span></button>
+</div>
+
+<script>
+  var char = document.querySelector('.char')
+  var press = new Audio('assets/E1.mp3')
+  var release = new Audio('assets/E2.mp3')
+  char.addEventListener('pointerdown', function(){ press.currentTime = 0; press.play() })
+  char.addEventListener('pointerup', function(){ release.currentTime = 0; release.play() })
+</script>
+</body>
+</html>
