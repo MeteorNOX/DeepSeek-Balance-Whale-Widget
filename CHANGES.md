@@ -1,39 +1,39 @@
-# 跳跳喵皮肤（fork 修改说明）
+# 皮肤化改造说明（fork 分支 feature/tiaotiao → feature/skins）
 
-> 基于 MeteorNOX/DeepSeek-Balance-Whale-Widget 的本地定制分支（`feature/tiaotiao`）。
-> 本改动只影响挂件外观/音效，不改 DSH 本体、不影响余额/记账逻辑。
+> 基于 MeteorNOX/DeepSeek-Balance-Whale-Widget 的本地定制。
+> 原则：**默认仍是鲸鱼娘，皮肤全部可选**（assets/skin/ 目录，不替换默认资源），这样对上游友好、可直接提 PR。
 
 ## 改动清单
 
-1. **形象：鲸鱼娘 → 跳跳喵**
-   - `assets/DSniang1.png` 替换为跳跳（像素风坐姿小猫，蓝底经颜色键抠图 → 全透明背景）
-   - 原图备份为 `assets/DSniang1.orig.png`
-   - 透明背景解决了原图矩形硬边问题（挂件左下角不再有棱角）
-   - 抠图脚本：`make_tiaotiao_cutout.py`（PIL：颜色键 + 高斯羽化 + 内容裁剪）
+### 1. 皮肤机制（核心）
+- 宿主端：`/dsh-whale/image.png?skin=<name>` —— 先查 `assets/skin/<name>/DSniang1.png`，不存在则回退默认鲸鱼娘
+- 前端：菜单新增「形象」选择项（鲸鱼娘(默认) / 跳跳喵 / 奶龙 / 奶龙·大笑），localStorage 记忆选择，切换即时生效
+- 默认资源未动：`assets/DSniang1.png` 仍是原版鲸鱼娘（`DSniang1.orig.png` 副本保留）
 
-2. **待机动画：idle bob**
-   - `lib/index.js` 追加规则：`.dshwv-img` 2.8s 循环轻微上下浮动 + 微缩放（呼吸感）
-   - 不影响按压 Q 弹（按压在 `.dshwv-body`）与左吸附翻转（在 `.dshwv-root`）
+### 2. 三款皮肤素材（assets/skin/）
+| skin | 内容 | 制作方式 |
+|---|---|---|
+| `tiaotiao` | 跳跳（像素风坐姿猫） | `tiaotiao-base.png` 蓝底颜色键抠图（glob 色键会打穿白肚皮，故用 flood-fill 方案见下） |
+| `naillong` | 奶龙（跳跃姿势） | 白底泛洪填充抠图（flood-fill 从边缘扩展，避免吃掉乳白肚皮） |
+| `naiwa` | 奶龙·大笑（拍肚大笑姿势） | 从应用截图 crop + 白底泛洪填充 |
 
-3. **新增音效组「猫喵」**
-   - `assets/E1.mp3`（按压：上扬啁啾 pip!）/ `assets/E2.mp3`（回弹：下滑 boop）
-   - 用 ffmpeg `aevalsrc` 合成（无版权音源）
-   - `lib/index.js`：`SOUND_SETS` 新增 `cat` 组；音效选择菜单新增「猫喵」选项
+抠图脚本：`make_skins.py`（PIL + scipy.ndimage 连通域 flood-fill + 边缘羽化 + 内容裁剪）
 
-4. **本地预览**：`preview.html`（双击打开即可看效果，无需重启 DSH）
+### 3. 待机动画
+- `.dshwv-img` 2.8s 循环呼吸浮动（上下 1.5% + 微缩放）；不与按压（`.dshwv-body`）、左吸附翻转（`.dshwv-root`）冲突
 
-## 怎么进 DSH
+### 4. 音效
+- 新增「猫喵」音效组：`assets/E1.mp3`（按压 pip）/ `assets/E2.mp3`（回弹 boop），ffmpeg 合成
+- 音效选择菜单新增「猫喵」项
+- ⚠️ "我是奶龙"/"雷霆奶龙笑" 为官方配音/版权音效，**不放入本仓库**；个人本地使用可从剪映音效库等平台获取（平台内使用约定），或自行录制
 
-重启 DSH（关 "DSH Server" 窗口 → 重新双击启动脚本）→ 浏览器 F5，右下角即跳跳喵。
-菜单里音效可切「猫喵」。
+### 5. 预览
+- `preview.html`：本地双击预览，`?skin=tiaotiao|naillong|naiwa|default` 切换，无需重启 DSH
+- `preview-<skin>.png`：各皮肤预览截图
 
-## 换成别的形象（奶龙等）
+## 进 DSH 使用
+重启 DSH（关 "DSH Server" 窗口 → 重新启动脚本）→ F5 → 菜单「形象」选择。
 
-准备一张**透明背景 PNG**，替换 `assets/DSniang1.png` 即可（比例建议接近 707x894 的纵向构图；
-参考 `assets/tiaotiao-widget.png`）。也可以先看 `make_tiaotiao_cutout.py` 换源图重新抠。
-
-## 给上游提 PR（可选）
-
-本次改动集中在：`lib/index.js`（3 处）、`assets/`（新增 E1/E2.mp3、tiaotiao-widget.png）、`preview.html`。
-若上游愿意接纳"皮肤机制"，更友好的做法是把角色/音效做成可选 skin（不影响默认鲸鱼娘），
-即在 `assets/` 下加 `skin/` 覆盖目录，代码里把查找顺序改为"skin 优先、包内兜底"。
+## 提 PR 建议
+上游若愿接纳：本分支保持了"默认不动、皮肤可选"的姿势，commit 信息建议同为
+`feat: optional skins (tiaotiao / naillong / naiwa) via /dsh-whale/image.png?skin=`

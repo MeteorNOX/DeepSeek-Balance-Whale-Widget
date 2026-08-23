@@ -27,9 +27,9 @@
 </head>
 <body>
 <div class="hint">
-  这是本地预览页（不用重启 DSH）<br>
-  <b>点一下小猫咪</b>：按压回弹 + 猫喵音效（E1/E2）<br>
-  正式进 DSH：重启后鲸鱼娘将变成 <b>跳跳喵</b>，菜单多一个「猫喵」音效
+  这是本地预览页（不用重启 DSH）· <b>点一下小猫咪</b>：按压回弹 + 音效<br>
+  换形象：<a href="?skin=tiaotiao">跳跳喵</a> · <a href="?skin=naillong">奶龙</a> · <a href="?skin=naiwa">奶龙·大笑</a> · <a href="?skin=default">鲸鱼娘</a><br>
+  正式进 DSH：重启后菜单「形象」可切 4 款
 </div>
 
 <div class="whale">
@@ -56,6 +56,8 @@
   var char = document.querySelector('.char')
   var press = new Audio('assets/E1.mp3')
   var release = new Audio('assets/E2.mp3')
+  var skin = new URLSearchParams(location.search).get('skin') || 'tiaotiao'
+  char.src = 'assets/skin/' + skin + '/DSniang1.png'
   char.addEventListener('pointerdown', function(){ press.currentTime = 0; press.play() })
   char.addEventListener('pointerup', function(){ release.currentTime = 0; release.play() })
 </script>
