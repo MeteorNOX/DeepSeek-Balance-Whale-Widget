@@ -200,3 +200,45 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
 3. 浏览器 **F5 刷新页面**后出现挂件。
 4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量）、按压 Q 弹 + 音效、点击鲸鱼弹气泡 → 首次点击切台词 → 再点关闭、5 秒自动收起、60s 自动刷新、余额变化数字滚动、记账模式跨天归档。
+
+## 八、对话功能（鲸鱼娘）
+
+### 需求
+
+右键鲸鱼或汉堡菜单「和 DeepSeek娘 聊天」打开对话面板；回复流式输出、可打断（保留已生成部分）；标题旁「新会话」按钮清空上下文；人设可外部覆盖，内置默认兜底。
+
+### Host 侧路由
+
+- `POST /dsh-whale/chat`
+  - 请求体 `{ messages: [{role:'user'|'assistant', content}] }`；最多取最近 20 条，单条截断 1500 字；空消息返回 `{ok:false,error:'empty messages'}`
+  - 人设加载：`$DSH_HOME/.dshw-persona.md` → `.dshw-persona.txt` → 内置 `DEFAULT_PERSONA`；每次请求实时读取，改人设无需重启
+  - system 提示词 = 人设 + 自动追加「当前数据」（余额/今日已用/是否高峰），可回答「今天花了多少钱」
+  - Key：`DEEPSEEK_WHALE_API_KEY` 优先，缺失回退 `DEEPSEEK_API_KEY`（可选隔离，未配置时行为同旧版）
+  - 模型 `deepseek-v4-flash-vision-exp`；`stream:true`；`max_tokens:1024`；`temperature:0.9`；60s 超时
+  - 成功：`text/plain; charset=utf-8`，把 DeepSeek 的 SSE `delta.content` 逐块转发；失败：`application/json` 错误体（sendJson）
+  - `readBody` 沿用 8KB 上限；调用 `ctx.webServer.register`，与其它路由一致
+
+### 页面挂件（widget.js）
+
+- **面板** `.dshwv-chat`：304×380（max 视口-24），背景 `rgba(255,255,255,.92)`，边框 `rgba(32,49,112,.35)`，圆角 12，`color-scheme: light`
+- **布局**：head（标题 flex:1 + 「新会话」+「×」）→ 消息区 → foot（textarea + 发送）
+- **定位**：贴鲸鱼头——`top = root.top + root.height*0.4055 - h - 2`；空间不足翻到下方 `+4`；左吸附 `transform-origin: bottom left`
+- **流式**：`fetch` + `ReadableStream` reader + `TextDecoder({stream:true})` 逐块写气泡并滚动到底
+- **打断**：发送中按钮变「停止」，`AbortController.abort()`，已生成文本保留进历史
+- **等待动画**：首字前三点跳动 `.dshwv-chat-dots`（5px 圆点 ×3，`@keyframes dshwv-dot` 1.2s 错峰 150ms，上浮 4px）
+- **新会话**：清空 `chatHistory` 与消息区并重新问候；刷新页面天然开新会话（历史仅内存）
+- **入口**：右键 = document `contextmenu` 捕获 + `isWhaleHit` 命中（面板内豁免，保输入框右键粘贴）；菜单底部「和 DeepSeek娘 聊天」行
+- **交互豁免**：`.dshwv-chat` 加入 pointerdown/click/pointermove 豁免清单（防误拖拽/误关）；`toggleMenu` 打开时自动 `closeChat()`
+
+### 关键结论
+
+- Host 代码改动需重启 dsh web（ESM 缓存）；人设文件改动即时生效
+- 对话按 API 计费；气泡/频率控制沿用「每轮消耗提示」开关逻辑
+- 停止/新会话不清服务端状态（服务端无会话状态，纯转发）
+
+### 验证
+
+1. `curl -X POST http://127.0.0.1:3080/dsh-whale/chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"你好"}]}'` → 200 `text/plain` 流式
+2. 未配置 Key → `{"ok":false,"error":"未配置挂件 API Key，无法聊天"}`
+3. 右键鲸鱼开面板；发送后三点跳动→逐字出现；发送中「停止」→ 保留半截；「新会话」清空
+4. 汉堡菜单 →「和 DeepSeek娘 聊天」；打开设置自动收起对话

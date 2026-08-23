@@ -22,6 +22,18 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 - 💬 **随机台词**：点击气泡切换随机台词段（加权随机，含峰谷提示/今日已用/gif 动图/卖萌吐槽），再点一次关闭；气泡总显示 5 秒自动收起
 - 📐 随浏览器窗口自动缩放；文字位置/字号与图片联动
 
+## 对话功能（鲸鱼娘）
+
+右键鲸鱼（或汉堡菜单 →「和 DeepSeek娘 聊天」）打开对话面板，与内置 AI 聊天。
+
+- **人设**：默认「DeepSeek / 蓝色大肥鱼 / 傲娇」内置人设；可放 `$DSH_HOME/.dshw-persona.md`（或 `.txt`）覆盖，**每次请求实时读取，改人设无需重启**
+- **流式输出**：回复逐字显示；发送中按钮变「停止」，可随时打断（保留已生成部分）
+- **新会话**：标题旁「新会话」按钮清空当前谈话；刷新页面自动开新会话（历史仅内存）
+- **实时数据**：自动注入余额 / 今日已用 / 高峰时段，可回答「今天花了多少钱」
+- **Key 隔离（可选）**：配置 DSH 凭据 `DEEPSEEK_WHALE_API_KEY` 后，挂件优先使用它与主对话分开计费；未配置时回退 `DEEPSEEK_API_KEY`，行为同旧版
+- **模型**：`deepseek-v4-flash-vision-exp`（可在 `lib/index.js` 对话请求处换）
+- 接口：`POST /dsh-whale/chat`（接收最近 20 条消息）
+
 ## 目录结构
 
 ```text
@@ -192,6 +204,7 @@ curl http://127.0.0.1:3080/dsh-whale/last-turn.json
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
+- `POST /dsh-whale/chat`（body `{"messages":[{"role":"user","content":"你好"}]}`）→ 200 `text/plain` 流式回复
 - 浏览器 F5 后右下角出现挂件
 
 ## 常见问题
