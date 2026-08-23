@@ -1,7 +1,10 @@
-# 皮肤化改造说明（fork 分支 feature/tiaotiao → feature/skins）
+# 皮肤化改造说明（PR 分支 pr-skins）
 
-> 基于 MeteorNOX/DeepSeek-Balance-Whale-Widget 的本地定制。
-> 原则：**默认仍是鲸鱼娘，皮肤全部可选**（assets/skin/ 目录，不替换默认资源），这样对上游友好、可直接提 PR。
+> 基于 MeteorNOX/DeepSeek-Balance-Whale-Widget 的定制。
+> 原则：**默认仍是鲸鱼娘，皮肤全部可选**（assets/skin/ 目录，不替换默认资源）。
+> **PR 范围说明**：随仓库分发的皮肤仅含 `tiaotiao`（原创像素画，作者本人素材）；
+> 第三方 IP 形象皮肤（奶龙等）刻意**不在**仓库内 —— 作为机制示例，使用者自行放入
+> `assets/skin/<name>/DSniang1.png` 即可生效（版权原因，见下文"本地扩展皮肤"）。
 
 ## 改动清单
 
