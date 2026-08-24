@@ -2,6 +2,16 @@
 
 > DeepSeek API 余额悬浮窗小鲸鱼 —— Android 原生悬浮窗移植版
 
+## 📥 下载安装
+
+最新版 APK 已发布到 GitHub Release（v1.4）：
+
+- **Release 页面**：https://github.com/a0979283788-ctrl/whale-widget-android/releases/tag/v1.4
+- **APK 直链**：https://github.com/a0979283788-ctrl/whale-widget-android/releases/download/v1.4/whale-v14.apk
+
+安装后打开 App，按「📖 引导与素材声明」卡片三步上手：
+① 粘贴 DeepSeek API Key（sk- 开头）→ ② 点「🐳 开启悬浮窗挂件」授权 → ③ 小鲸鱼就位！
+
 ## 来源与致谢
 
 本项目是 **Android 原生悬浮窗版本**，完全参照以下开源项目的桌面版（Tauri v2）实现移植：
