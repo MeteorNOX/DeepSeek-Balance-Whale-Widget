@@ -271,17 +271,21 @@ describe('服务端编排（mock ctx）', () => {
     expect(newapi.balance).toBeUndefined()
     expect(newapi.used).toBeCloseTo(2, 6) // token 已用仍可读
     expect(newapi.currencyOptions).toEqual([])
-    expect(p.totalBalance).toBe(null)
+    // 未配置访问令牌：余额卡回退到 token 级已用额度（顶层 totalBalance 同样回退）
+    expect(p.totalBalance).toBe(2)
+    expect(p.todayUsage).toBe(2)
     expect(userSelfCalls).toBe(0) // 未配置令牌 → 不请求 user/self
   })
 
-  it('已用配额态：displayProvider=:usage 时顶层别名到 used', async () => {
+  it('「已用配额」独立模式已移除：历史 :usage 配置归一化为余额态，未配置令牌回退已用', async () => {
     writeSize({ displayProvider: 'newapi:usage' })
     const handlers = await startPlugin()
     const res = await request(handlers['/dsh-whale/balance.json'])
     const p = JSON.parse(res.body)
 
-    expect(p.displayProvider).toBe('newapi:usage')
+    // 遗留 ':usage' 归一化为余额态：displayProvider 不带后缀
+    expect(p.displayProvider).toBe('newapi')
+    // 未配置访问令牌 → 余额卡回退到 token 级已用（2）
     expect(p.totalBalance).toBe(2)
     expect(p.todayUsage).toBe(2)
   })
@@ -328,8 +332,8 @@ describe('服务端编排（mock ctx）', () => {
     expect(newapi.unlimited).toBe(true)
     expect(newapi.balance).toBeUndefined()
     expect(newapi.used).toBeCloseTo(28.76783, 6) // 14383915 × (1/500000)
-    // 余额态顶层：无余额可别名 → null（前端按 unlimited 分支展示已用）
-    expect(p.totalBalance).toBe(null)
+    // 余额态顶层：无用户余额时回退到 token 级已用（不限额度 → 同样显示已用）
+    expect(p.totalBalance).toBeCloseTo(28.76783, 6)
     expect(p.todayUsage).toBeCloseTo(28.76783, 6)
   })
 
