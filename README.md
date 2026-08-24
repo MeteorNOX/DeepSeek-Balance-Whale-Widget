@@ -44,7 +44,24 @@ dsh-whale-widget/
 
 ## 安装
 
-### 方式 A：本地安装（推荐，从当前仓库）
+### 方式 A：直接从 GitHub 安装（推荐）
+
+无需本地克隆，一条命令安装：
+
+```powershell
+dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+```
+
+说明：
+
+- 装完后插件会出现在 DSH 的**插件管理页面**里，之后可以直接在页面里更新，无需再手动执行命令
+- 网络环境需要代理时，先设置代理环境变量再执行：
+  ```powershell
+  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; $env:all_proxy="socks5://<ip>:<port>"; dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+  ```
+- 安装完成后重启 `dsh web`，再 F5 刷新浏览器
+
+### 方式 B：本地安装（从当前仓库）
 
 在**仓库根目录**（`DeepSeek-Balance-Whale-Widget`，即 `package.json` 所在目录）执行：
 
@@ -63,7 +80,7 @@ dsh plugin --profile web add link:.
 - 安装完成后重启 `dsh web`，再 F5 刷新浏览器
 - **如果之后移动了源码目录**，必须重新执行一次 `dsh plugin --profile web add link:.<新路径>`。若提示已存在/冲突，先 `dsh plugin --profile web remove dsh-whale-widget` 再重新 add
 
-### 方式 B：发布到 npm 后安装
+### 方式 C：发布到 npm 后安装
 
 ```powershell
 dsh plugin --profile web add dsh-whale-widget
@@ -78,10 +95,11 @@ dsh plugin --profile web add dsh-whale-widget
 
 步骤：
 1. 确保 pnpm 可用（没有就先：npm install -g pnpm）
-2. 在 Web profile 安装：
-   dsh plugin --profile web add dsh-whale-widget
-   如果要从本地仓库链接安装（例如本地克隆的仓库根目录），则用：
-   dsh plugin --profile web add link:.<仓库绝对路径>
+2. 在 Web profile 安装（任选一种来源）：
+   首选，直接从 GitHub 安装（无需本地克隆，装完可在插件管理页面里更新）：
+     dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget
+   或从本地仓库链接安装（例如本地克隆的仓库根目录）：
+     dsh plugin --profile web add link:.<仓库绝对路径>
    （注意：仓库根目录就是插件包，不要写成 link:.\dsh-whale-widget 这种带子目录的路径）
 3. 如果报 pnpm 阻止构建脚本（allowBuilds 相关），在 C:\Users\<用户名>\.dsh\profiles\web\pnpm-workspace.yaml 的 allowBuilds 下加对应的包 key，然后重跑
 4. 重启 dsh web，然后 F5 刷新浏览器
