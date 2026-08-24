@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "checkJs": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "types": ["node"]
+  },
+  // 最小可用：只对新代码做类型检查。
+  // lib/index.js 是已发布的 DSH 插件入口（包含大量 `function (req, res)` 回调、空 catch、
+  // JSON 响应解构的隐式 any），后续要让它也通过 typecheck，请在文件顶部加 JSDoc
+  // 类型注解（@param、@typedef）或拆为独立模块；再把 `"lib/**/*.js"` 加回 include 即可。
+  "include": ["test/**/*.js"],
+  "exclude": ["node_modules", "dist", "build", "coverage"]
+}
