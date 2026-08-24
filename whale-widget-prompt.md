@@ -3,7 +3,7 @@
 > 用途：在 DeepSeek Harness（DSH）的 Web 界面右下角常驻一个「小鲸鱼余额挂件」。
 > 本提示词汇总了完整需求、架构、全部行为规格、视觉参数与踩坑结论，可直接交给 AI 复现或维护。
 > 文中 `C:\Users\Meteor\.dsh\profiles\web\`、`D:\TestBox\deepseek\` 等为本机示例路径，迁移时请替换为你环境中的实际路径。
-> 当前版本：v0.2.5（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单与每轮对话消耗统计）。
+> 当前版本：v0.3.0（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单、每轮对话消耗统计与白饭余额图标）。
 
 ---
 
@@ -18,6 +18,9 @@
   - 实时·令牌：读 `DEEPSEEK_PLATFORM_TOKEN`，调平台用量接口按峰谷定价换算。
 - **每轮对话消耗统计**：宿主插件监听 `session/event`，捕获 `assistant/message` 的真实 usage（input/cache/output/reasoning tokens），按 `turn` 聚合；`turn/end` 时结算本轮金额（复用峰谷定价表）写入 `/dsh-whale/last-turn.json`（seq 递增）。前端每秒轮询，出现新 seq 且「每轮对话后自动显示消耗金额」开启时弹出消耗金额泡泡（居中两行：A 样式「上一轮对话消耗:」+ 红色 B 样式「¥X.XX」）；自动关闭时间可设秒数（0=不自动关闭）；消耗泡泡显示期间余额变动不弹普通泡泡。
 - 支持：拖拽、四分之一区域吸附（上下左右四边）、左吸附整体水平翻转（文字同步）、汉堡菜单（大小/音效/音量/用量模式/峰谷文案/气泡开关/每轮消耗开关与自动关闭时间）、按压 Q 弹 + 音效、余额数字滚动动画、60 秒自动刷新 + 点击手动刷新、随机台词气泡（点击切换/关闭）、**每次打开界面自动启用（常驻自启）**。
+- **白饭余额图标**（`assets/rice/{full,half,empty}.png`，Issue #34）：鲸鱼左侧底部常驻，三态显示余额充裕度——余额 ≥ 2×底线 → 满碗；底线 ≤ 余额 < 2×底线 → 半碗；余额 < 底线 → 空碗。底线来源两种，菜单自由切换：
+  - **手动「余额底线」**（默认 ¥10，填 0 恒满碗）：默认方式，输入框可编辑，持久化到 size.json。
+  - **「使用平台预警阈值」开关**：开启后调 `/dsh-whale/alert.json`（`users/current` → `balance_alert[币种].alert_bound`，需 `DEEPSEEK_PLATFORM_TOKEN`）拉取平台阈值，填入输入框并锁定（disabled + title 说明）；关闭恢复手动编辑。开关状态持久化，重启页面自动恢复并重新拉取。
 
 ## 二、架构（务必先读）
 
@@ -41,7 +44,9 @@
 | `/dsh-whale/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
 | `/dsh-whale/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
 | `/dsh-whale/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
-| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
+| `/dsh-whale/rice.png` | GET | 读取插件包内 `assets/rice/{full,half,empty}.png`（按 `?level=full|half|empty`，缺省 full，内存缓存），`Content-Type: image/png`、`Cache-Control: no-store`；读取失败返回 404。 |
+| `/dsh-whale/alert.json` | GET | 平台余额预警阈值：读 `DEEPSEEK_PLATFORM_TOKEN` 调 `https://platform.deepseek.com/auth-api/v0/users/current`，取 `biz_data.balance_alert[账户币种]`（缺该币种回退任意可用币种）的 `{enabled, alert_bound}`；返回 `{ok, enabled, alertBound}` 或 `{ok:false, code: NO_TOKEN|TOKEN_EXPIRED|HTTP|SHAPE…}`。60 秒内存缓存；401/403 清缓存。无令牌/失败由前端回退菜单手动阈值。 |
+| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs, scrollGapOn, scrollGapPx, threshold}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
 | `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
 | `/dsh-whale/sound/release.mp3` | GET | 同上，松手音效（`Ya2.mp3` / `D2.mp3`）。 |
 | `/dsh-whale/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
@@ -92,11 +97,12 @@
 div.dshwv-root（position:fixed，承载定位与翻转）
 ├─ div.dshwv-body（绝对定位铺满，承载按压 Q 弹缩放）
 │  ├─ img.dshwv-img（src=/dsh-whale/image.png，cut-out 鲸鱼，右下角 59.45%）
+│  ├─ img.dshwv-rice（src=/dsh-whale/rice.png?level=full|half|empty，白饭余额图标，鲸鱼左侧底部；档位切换淡出淡入）
 │  └─ div.dshwv-bubble（SVG 气泡：大椭圆 + 尾巴 + 两个小气泡，z-index:1）
 │     ├─ img.dshwv-gif（随机台词 gif，默认隐藏）
 │     └─ div.dshwv-text（三行：label / amount / hint，绝对定位居中）
 ├─ button.dshwv-menu-btn（右上角三点，悬停显示）
-└─ div.dshwv-menu（汉堡菜单：大小/音效/音量/用量/峰谷/气泡开关 + 分割线 + 每轮消耗开关/自动关闭时间）
+└─ div.dshwv-menu（汉堡菜单：大小/音效/音量/用量/峰谷/气泡开关 + 分割线 + 每轮消耗开关/自动关闭时间 + 余额底线）
 ```
 
 - 菜单挂在 `document.body` 下（`position:fixed`），打开时定位到按钮上方（右侧贴按钮右上角，左吸附镜像时贴左上角）。
@@ -177,6 +183,7 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 | 配置持久化 | `$DSH_HOME/.dshw-size.json`（回退 profile 下）；账本 `$DSH_HOME/.dshw-usage.json` |
 | 峰值判定 | 北京时间：工作日高峰 9–12 与 14–18 点；2026-08-23 起周末全天谷价 |
 | 音效 | press=Ya1/D1、release=Ya2/D2；按请求读盘，no-store |
+| 白饭图标 | `assets/rice/{full,half,empty}.png` 2048×2048 cut-out，`left:7%; bottom:5%; width:29%`；档位切换 `opacity .25s` |
 | z-index | 9999，`position: fixed`；菜单 10000 |
 
 ## 六、关键技术结论（踩坑记录，供复用）
