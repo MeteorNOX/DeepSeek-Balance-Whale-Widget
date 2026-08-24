@@ -3,7 +3,7 @@
 > 用途：在 DeepSeek Harness（DSH）的 Web 界面右下角常驻一个「小鲸鱼余额挂件」。
 > 本提示词汇总了完整需求、架构、全部行为规格、视觉参数与踩坑结论，可直接交给 AI 复现或维护。
 > 文中 `C:\Users\Meteor\.dsh\profiles\web\`、`D:\TestBox\deepseek\` 等为本机示例路径，迁移时请替换为你环境中的实际路径。
-> 当前版本：v0.2.5（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单与每轮对话消耗统计）。
+> 当前版本：v0.3.0（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单、每轮对话消耗统计、多中转站、New API 用户余额、设置弹窗、货币符号选择与自适应限流）。
 
 ---
 
@@ -41,7 +41,9 @@
 | `/dsh-whale/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
 | `/dsh-whale/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
 | `/dsh-whale/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
-| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
+| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs, providers, displayProvider, displayCurrency, scrollGapOn, scrollGapPx}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。**PUT 必须保留旧文件里已有的 `providers`**（用户手配的中转站配置，UI 不回写 key 相关配置）。写入 UTF-8 **无 BOM**（插件用 `JSON.parse(fs.readFileSync(p,'utf8'))`，BOM 会让解析失败回退到仅官方账户）。 |
+| `/dsh-whale/user-token.json` | POST | 设置弹窗保存 New API 用户余额凭据：`{accountId, userId, token}` → 校验为 newapi 账户后 `ctx.credentials.set` 写入 DSH 凭据服务（默认 `NEWAPI_USER_ID` / `NEWAPI_USER_TOKEN`）；粘贴值自动剥除 `Bearer ` 前缀与空白；响应仅 `{ok}` / `{ok:false,error}`，**绝不回显值**。保存后清余额缓存与失败负缓存。 |
+| `/dsh-whale/platform-token.json` | POST | 同上，直接写 `DEEPSEEK_PLATFORM_TOKEN`（实时·令牌模式用），≤8192 字符。 |
 | `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
 | `/dsh-whale/sound/release.mp3` | GET | 同上，松手音效（`Ya2.mp3` / `D2.mp3`）。 |
 | `/dsh-whale/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
@@ -109,7 +111,7 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 - **为什么必须用 left/top 像素**：若右吸附切换成 `left:auto; right:0`，CSS 过渡无法在 `auto` 与数值间插值，右侧吸附会瞬间跳变（闪现）。
 - **锚点保持**：吸附信息（`state.h/v` + 偏移）存入状态；`settle()` 在窗口 resize 与尺寸调整时按锚点重算，已吸附的挂件保持贴边；未锚定轴仅做视口钳制。
 - **角落固定缩放**：调整大小时以鲸鱼所在角为固定点（未翻转=右下角，翻转=左下角），保证鲸鱼不"乱跑"。
-- 拖拽用 pointer 事件 + `setPointerCapture`；位移平方 ≥ 9（>3px）判定拖动，否则为点击（点击鲸鱼=打开气泡+刷新）；拖拽中 `transition:none` 1:1 跟手，松手后 `settle()` 带动画滑向吸附位。
+- 拖拽用 pointer 事件 + `setPointerCapture`；位移平方 ≥ 9（>3px）判定拖动，否则为点击（点击鲸鱼=打开气泡，**不触发手动刷新**——刷新交给自动调度与菜单切换）；拖拽中 `transition:none` 1:1 跟手，松手后 `settle()` 带动画滑向吸附位。
 
 ### 左吸附水平翻转
 
@@ -132,12 +134,18 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 - 行2 音效：select `小黄鸭`(duck, Ya1/Ya2) / `音效1`(fx1, D1/D2)。
 - 行3 音量：range 0–1；音量 0 时自动关声音。
 - 行4 用量：select `小鲸鱼记账 (推荐)`(ledger) / `实时·令牌 (用法：去问dsh)`(token)。
+- 行5 峰谷：select `默认` / `梁文峰谷` / `!?强强?!`（只改提示文案）。
+- 行6 显示：select，选项 = 每个账户 ×（`余额` | `已用配额`），值 `{accountId}` / `{accountId}:usage`（多选+循环方案已回滚，保持单选）。
+- 行7 货币：select `自动` / `CNY` / `USD`，仅切换显示符号（¥/$ 前缀，数值不变、不虚构汇率）。
+- 行8 气泡：checkbox 开关思考气泡。
+- 分割线；行9 每轮消耗提示 checkbox + 自动关闭秒数；行10 避让滚动条 checkbox + 宽度。
+- 行11 凭据 → 「设置」按钮：打开设置弹窗（见第八节）。
 - 所有设置 PUT `/dsh-whale/size.json` 持久化；打开页面时 GET 恢复。
 - 菜单 `color-scheme:light`，保证暗色主题下可读。
 
 ### 余额刷新与状态机
 
-- **自动刷新**：`setInterval(refresh, 60000)`；**手动刷新**：点击鲸鱼（同时打开气泡）。
+- **自动刷新**：动态调度 `scheduleNextRefresh()`（每次刷新结束后按 `state.refreshMs` 重新安排下一次；间隔由服务端 `rateLimit.recommendedRefreshMs` 决定 = 每周期查询次数 × 5 分钟 ÷ 当前上限，夹在 15 秒~5 分钟，缺省 60 秒）。**点击鲸鱼只打开气泡，不手动刷新**。
 - 请求期间提示行显示「加载中…」（金额保持显示）；数据到达后**淡出淡入**切换到「今日已用 …」。
 - 自动刷新：静默，**仅当余额实际变化**时弹气泡 + 数字滚动（700ms ease-out 三次方）+ 300ms 后开始滚动；900ms 后落定。
 - 客户端 fetch 带 25 秒 AbortController 超时。
@@ -174,10 +182,10 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 | 按压 Q 弹 | scaleY(0.88) scaleX(1.05)，origin 50% 100%，0.22s cubic-bezier(.34,1.56,.64,1) |
 | 数字动画 | 700ms ease-out 三次方（requestAnimationFrame） |
 | 自动刷新 | 60s；变化提示 900ms；气泡 5s 自动收起 |
-| 配置持久化 | `$DSH_HOME/.dshw-size.json`（回退 profile 下）；账本 `$DSH_HOME/.dshw-usage.json` |
+| 配置持久化 | `$DSH_HOME/.dshw-size.json`（回退 profile 下）；账本 `$DSH_HOME/.dshw-usage.json`；自适应限流学习 `$DSH_HOME/.dshw-ratelimit.json`（均 UTF-8 **无 BOM**） |
 | 峰值判定 | 北京时间：工作日高峰 9–12 与 14–18 点；2026-08-23 起周末全天谷价 |
 | 音效 | press=Ya1/D1、release=Ya2/D2；按请求读盘，no-store |
-| z-index | 9999，`position: fixed`；菜单 10000 |
+| z-index | 9999，`position: fixed`；菜单 10000；设置弹窗 overlay 20000 |
 
 ## 六、关键技术结论（踩坑记录，供复用）
 
@@ -193,10 +201,51 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 10. **记账模式误差说明**：靠"观测到的余额下降"累计，DSH 关闭期间的消耗会漏记（从下次观测的新基准开始）；精确数字只有令牌模式能给。
 11. **tapIndex 幂等**：注入脚本标签前先检查是否已存在，disposer 挂 ctx.effect，避免 HMR 后重复注入。
 12. **音效缓存**：音频文件每次请求读盘 + no-store，避免更换 mp3 后浏览器缓存旧字节。
+13. **`.dshw-size.json` 必须无 BOM**：插件用 `JSON.parse(fs.readFileSync(p,'utf8'))`，BOM 会导致解析失败回退到仅官方账户；写入时保留旧文件里已有的 `providers`（菜单 PUT 不回写 key 相关配置）。
+14. **status 接口失败不能把配额整数当金额**：`/api/status` 被限流/抖动失败时若丢失 `quota_per_unit`，金额会回退成原始配额整数（实测出现过 65755622.00 这类 `total_used` 原值）。对策：宿主按 origin 缓存上次成功的换算率（`statusScaleCache`），reader 失败时用 `scaleFallback` 兜底换算。
+15. **429 负缓存要加余量**：按站点 `retry-after` 封禁时长 + 30 秒做负缓存——到点立即重试容易因窗口未完全重置再吃 429（自适应上限收紧后可用次数更宝贵）。
+16. **新 API 访问令牌会过期/被撤销**：`userBalanceError=http-401` 时需在站点 个人设置 → 安全设置 重新生成，经设置弹窗重新保存；粘贴值带 `Bearer ` 前缀/空白会在路由与适配器两层剥除。
 
 ## 七、部署与验证
 
 1. 将 `dsh-whale-widget` 作为本地包安装：在仓库根目录 `dsh plugin --profile web add link:.`（或发布后 `dsh plugin --profile web add dsh-whale-widget`），然后重启 `dsh web`。
-2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
+2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/user-token.json`（POST 保存凭据，响应不含值）、`/dsh-whale/platform-token.json`（同上）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
 3. 浏览器 **F5 刷新页面**后出现挂件。
-4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量）、按压 Q 弹 + 音效、点击鲸鱼弹气泡 → 首次点击切台词 → 再点关闭、5 秒自动收起、60s 自动刷新、余额变化数字滚动、记账模式跨天归档。
+4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量/峰谷/显示/货币/气泡/设置）、按压 Q 弹 + 音效、点击鲸鱼弹气泡（**不手动刷新**）→ 首次点击切台词 → 再点关闭、5 秒自动收起、自动刷新（间隔动态）、余额变化数字滚动、记账模式跨天归档。
+
+## 八、多中转站与 New API 用户余额（v0.3.0 新增）
+
+### 8.1 适配器层（`lib/providers.js`）
+
+- 统一入口 `readAccount({ type, baseUrl, credential, label, credentialName, fetch, timeoutMs, maxBytes, userToken, userId, scaleFallback, guard })`，reader 按 `SCHEMES[type]` 注册表分发（`deepseek` / `newapi` / `sub2api`），统一输出 `{ ok, error?, message?, total?, granted?, used?, unlimited?, isAvailable?, currency?, windows?, label?, keyName?, expiresAt?, provider?, userTokenConfigured?, userUnlimited?, userBalanceError?, balanceCurrency?, currencyOptions?, statusScale?, retryAfterMs? }`。字段缺失 = 「未上报」，绝不当作 0。
+- **newapi**：`GET /api/usage/token/`（`sk-` key，路径末尾 `/` 必需——去掉会 301 丢认证头）给 token 使用额度 `total_granted/total_used/total_available/unlimited_quota`；`GET /api/user/self`（`Authorization: Bearer <系统访问令牌>` + `New-Api-User: <用户ID>`）给用户余额：`data.quota` = 用户余额（配额整数 ÷ `quota_per_unit` = 网站额度，币种按 `quota_display_type`）、`data.used_quota` = 已使用量。`GET /api/status`（匿名）读 `quota_per_unit`（500000）与 `quota_display_type`（如 CNY）。
+- **信封校验**：New API 恒回 HTTP 200，拒绝在 body `success:false`——`get()` 栅栏先查信封再交给 reader，避免把拒绝当「账户为空」。
+- **不限额讲真话**：token 级 `unlimited_quota:true` 且无真实 quota → 只报已用、绝不读负的 `total_available`；但**用户有真实余额时余额态仍显示用户余额**（token 级 unlimited 只作用于已用配额态与无用户余额的回退）。
+- **用户余额降级**：未配置令牌 → `total` 缺省 + `userTokenConfigured:false`；读取失败只降级 `userBalanceError`，token 数据不受影响；用户 `unlimited_quota` → `userUnlimited`。
+- **换算率缓存**：状态接口成功时返回 `statusScale:{scale,siteCurrency}`，宿主按 origin 缓存；失败时用 `scaleFallback` 兜底（见踩坑 14）。
+- **查询 gate**：`createRateLimiter({windowMs, max, now})` 按 origin 固定窗口计数，`guard(origin)` 每请求前判定，超限抛 `rate-limited` 不发请求；`setMax(origin,n)` 收紧单站上限、`stats()` 给 `{used,max,remaining,learned}`、`historyCount(origin,ms)` 供 429 学习取样。`learnRateLimitCap(recent, retryAfterMs)` 纯函数：`floor(recent × 5min ÷ retryAfter × 0.8)`，样本 <5 不学习。
+- **429 retry-after**：非 2xx 时解析 `retry-after` 头，`failureFrom` 带出 `retryAfterMs`（毫秒）。
+
+### 8.2 编排层（`lib/index.js` Host）
+
+- `normalizeProviders`：`.dshw-size.json` 的 `providers[]`，字段 `type/label/baseUrl/credential/userToken/userId`（后两者仅 newapi，缺省 `NEWAPI_USER_TOKEN`/`NEWAPI_USER_ID`）；无配置 = 仅官方账户（回归红线：顶层字段与 0.2.9 一致，新字段仅追加）。
+- `readRelayAccount`：解析凭据（令牌剥 `Bearer ` 前缀）→ `readAccount`（带 gate）→ 429 时 `learnRateLimit(origin, retryAfterMs)`（学习结果持久化 `.dshw-ratelimit.json`）→ 瞬时失败负缓存（429 按 `retry-after + 30 秒`，rate-limited 按窗口 +30 秒，其余 60 秒）。
+- `getBalancePayload`：并行读取各账户，错误隔离；顶层字段别名到当前 `displayProvider`；`displayCurrency`（auto/CNY/USD）仅切换符号；`balanceCurrency` 决定余额态 auto 币种；`rateLimit` 载荷 = `{windowMs, mode:'adaptive', origins:{origin:{used,max,remaining,learned}}, perCycleCalls, recommendedRefreshMs}`（推荐间隔 = 每周期次数 × 5min ÷ 最严上限，夹 15s~5min）。
+- 新路由：`POST /dsh-whale/user-token.json`（`{accountId,userId,token}` → 校验 newapi 账户后写凭据服务，剥 Bearer 前缀，值不回显）；`POST /dsh-whale/platform-token.json`（写 `DEEPSEEK_PLATFORM_TOKEN`）。
+
+### 8.3 前端（WIDGET_JS）
+
+- 「显示」下拉：每个账户 ×（余额 | 已用配额），值 `{accountId}` / `{accountId}:usage`（多选+循环方案已回滚，保持单选）。
+- 「货币」下拉：自动/CNY/USD，仅切换 `¥`/`$` 符号前缀（数值不变、尾部不带币种代码）。
+- 「设置」弹窗（唯一新增浮层，overlay z-index 20000）：New API 用户余额（**下拉选站点** + 用户 ID/访问令牌输入 + 保存）、实时·令牌（教程折叠 + 输入保存）、接口查询次数（自适应，只读展示各站 已用/上限/剩余/已学习 + 自动刷新间隔）。
+- 余额态金额 = 用户余额（未配置时 `--` + 提示「未配置访问令牌 · 设置」）；已用配额态 = token `total_used`。错误提示截断 14 字符，完整错误码在 `balance.json`。
+- 点击鲸鱼只打开气泡，**不手动刷新**；自动刷新用 `scheduleNextRefresh()` 按 `recommendedRefreshMs` 动态排程（每次刷新结束重排）。
+
+### 8.4 配置与凭据
+
+- 凭据一律走 DSH 凭据服务（`$DSH_HOME/.credentials.yaml` 的 `refs:`），只按引用名引用，**绝不**写入 `.dshw-size.json`/localStorage/任何返回浏览器的 payload；凭据名也不进 payload。
+- `.dshw-size.json` 必须 UTF-8 无 BOM；菜单 PUT 保留旧 `providers`。
+
+### 8.5 错误码（`accounts[].error`）
+
+`no-credential` / `http-401|403`（普通 key 无效或权限不足） / `unreachable` / `timeout` / `rate-limited`（本地自适应 gate 超限） / `upstream-<message>`（New API 200 信封拒绝） / `invalid-response` / `shape` / `cross-origin-redirect` / `too-large`。用户余额行另有 `userBalanceError`（http-401 → 「访问令牌无效」、upstream-* → 「访问令牌被拒」、rate-limited → 「查询频率超限」等）。

@@ -61,6 +61,7 @@ function jsonResponse(body, status = 200, extraHeaders = {}) {
 let failSub = false
 let failSubNet = false
 let failSub429 = false
+let statusFail = false
 let unlimitedNewapi = false
 let userTokenOn = false
 let v1Calls = 0
@@ -76,7 +77,10 @@ async function fakeFetch(url) {
     return jsonResponse(NEWAPI_USER_SELF)
   }
   if (u.includes('/api/usage/token/')) return jsonResponse(unlimitedNewapi ? NEWAPI_TOKEN_UNLIMITED : NEWAPI_TOKEN_LIMITED)
-  if (u.includes('/api/status')) return jsonResponse(NEWAPI_STATUS)
+  if (u.includes('/api/status')) {
+    if (statusFail) throw new Error('status down')
+    return jsonResponse(NEWAPI_STATUS)
+  }
   if (u.includes('/v1/usage')) {
     v1Calls++
     if (failSubNet) throw new Error('network down')
@@ -167,6 +171,7 @@ beforeEach(() => {
   failSub = false
   failSubNet = false
   failSub429 = false
+  statusFail = false
   unlimitedNewapi = false
   userTokenOn = false
   v1Calls = 0
@@ -461,6 +466,32 @@ describe('服务端编排（mock ctx）', () => {
     const p2 = JSON.parse(r2.body)
     expect(p2.ok).toBe(false)
     expect(v1Calls).toBe(1) // retry-after 20 分钟内的重复读取不再触碰上游
+  })
+
+  it('换算率缓存：/api/status 失败时用上次成功的 quota_per_unit 兜底换算（不显示原始整数）', async () => {
+    writeSize({ displayProvider: 'deepseek' })
+    const handlers = await startPlugin()
+
+    // 第一次读取：status 正常 → 换算率入缓存，payload 入 25s 缓存
+    const r1 = await request(handlers['/dsh-whale/balance.json'])
+    const p1 = JSON.parse(r1.body)
+    expect(p1.accounts.find((a) => a.accountId === 'newapi').used).toBeCloseTo(2, 6)
+
+    // 让 /api/status 失败，并通过 usageMode 变化失效余额缓存，强制重新读上游
+    statusFail = true
+    const put = await request(
+      handlers['/dsh-whale/size.json'],
+      'PUT',
+      JSON.stringify({ scale: 1.5, usageMode: 'token' }),
+    )
+    expect(JSON.parse(put.body).ok).toBe(true)
+
+    const r2 = await request(handlers['/dsh-whale/balance.json'])
+    const p2 = JSON.parse(r2.body)
+    const newapi2 = p2.accounts.find((a) => a.accountId === 'newapi')
+    // status 失败 → 用缓存换算率：仍是 2.0 金额，而不是 1000000 原始整数
+    expect(newapi2.used).toBeCloseTo(2, 6)
+    expect(newapi2.currency).toBe('USD')
   })
 
   it('货币偏好：displayCurrency=USD → 仅切换币种符号，金额数值不变', async () => {

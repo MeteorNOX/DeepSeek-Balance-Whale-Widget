@@ -637,6 +637,44 @@ describe('newapi 用户余额（/api/user/self + 访问令牌 + 用户 ID）', (
     expect(result.total).toBeUndefined()
   })
 
+  it('status 被限流拒绝 + scaleFallback：用缓存换算率换算金额（不显示天文数字）', async () => {
+    // 实测 bug：/api/status 被 gate 拒掉后 scale 丢失，used 以原始配额整数
+    // 展示（如 65755622.00）。有缓存换算率时必须照常换算。
+    const fetch = routeFetch([
+      { match: '/api/usage/token/', response: jsonResponse({ success: true, data: { total_granted: 4000000, total_used: 1000000, total_available: 3000000, unlimited_quota: false } }) },
+      { match: '/api/status', response: jsonResponse({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'CNY' } }) },
+      { match: '/api/user/self', response: jsonResponse(USER_SELF) },
+    ])
+    let n = 0
+    const result = await readAccount({
+      type: 'newapi', baseUrl: RELAY, credential: 'sk-abc', userToken: 'ak-user-token',
+      // token 放行、status 与 user/self 拒绝（gate 中途耗尽）
+      guard: () => { n++; return n < 2 },
+      scaleFallback: { scale: 1 / 500000, siteCurrency: 'CNY' },
+      fetch,
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.userBalanceError).toBe('rate-limited') // user/self 仍被拒，余额缺省
+    expect(result.used).toBeCloseTo(2, 6) // 1000000 × (1/500000)，不是 1000000.00
+    expect(result.granted).toBeCloseTo(8, 6)
+    expect(result.currency).toBe('USD')
+  })
+
+  it('status 成功且拿到换算率：结果带 statusScale 供宿主缓存', async () => {
+    const fetch = routeFetch([
+      { match: '/api/usage/token/', response: jsonResponse({ success: true, data: { total_used: 1000000, unlimited_quota: false } }) },
+      { match: '/api/status', response: jsonResponse({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'CNY' } }) },
+      { match: '/api/user/self', response: jsonResponse(USER_SELF) },
+    ])
+
+    const result = await readAccount({
+      type: 'newapi', baseUrl: RELAY, credential: 'sk-abc', userToken: 'ak-user-token', fetch,
+    })
+
+    expect(result.statusScale).toEqual({ scale: 1 / 500000, siteCurrency: 'CNY' })
+  })
+
   it('token 级 unlimited_quota=true 但用户有真实余额：total 仍给出用户余额（余额态不被已用盖掉）', async () => {
     // 实测场景（api.hohai.eu.org）：sk- key 不限额度（used=123.28），
     // 用户钱包有真实余额（quota=40.93 CNY）；余额态必须显示用户余额。

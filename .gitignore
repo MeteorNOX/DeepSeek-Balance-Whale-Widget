@@ -44,5 +44,5 @@ desktop.ini
 .tmp/
 *.tgz
 
-# 限流探测脚本产物（本机统计，不入库）
-probe-rate-limit.result.json
+# 限流探测开发记录（脚本 + 结果，仅本机调试用，不进上游）
+probe-rate-limit.*
