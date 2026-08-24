@@ -14,6 +14,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 - 💬 **每轮对话消耗统计**：监听本机会话事件，每轮对话结束后弹出本轮消耗金额（精确 usage，非估算）
   - 菜单可开关「每轮对话后自动显示消耗金额」；「自动关闭时间」可自定义秒数（填 0 表示不自动关闭）
   - 消耗金额泡泡显示期间，余额变动不弹普通泡泡
+- 💰 **投喂（余额充值）**：填入平台会话令牌后，点击「投喂」按钮，将展示微信 / 支付宝均可扫码支付的银联聚合码，支付成功自动刷新余额并提示
+  - 余额低于平台预警阈值时自动提示，提示阈值与开关来自平台的用户设置
+  - 直接调用官网同一套充值接口，不是“中转充值”
 - 🖱️ **拖拽 + 四边四分之一吸附**（左/右/上/下，角落可组合）
 - 🔄 左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
 - 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）
@@ -30,7 +33,8 @@ dsh-whale-widget/
 ├── README.md             # 本文件
 ├── cordis.patch.yml      # 插件挂载声明
 ├── lib/
-│   └── index.js          # 宿主侧插件本体
+│   ├── index.js          # 宿主侧插件本体
+│   └── qrcode-generator.js # 内嵌二维码编码库（MIT，Kazuhiko Arase）
 ├── assets/
 │   ├── DSH2.png          # README 顶部展示图
 │   ├── DSniang1.png      # 小鲸鱼本体（cut-out，气泡由代码绘制）
@@ -115,7 +119,7 @@ dsh plugin --profile web add dsh-whale-widget
 
 > **默认不需要任何令牌。** 安装后只需配置 `DEEPSEEK_API_KEY`（拉取余额必需），「今日已用」会自动使用默认的**小鲸鱼记账**模式（余额差值本地记账），开箱即用。
 >
-> 「实时·令牌」模式用到的 `DEEPSEEK_PLATFORM_TOKEN`（DeepSeek 平台网页会话令牌）是**可选的**，仅在你想要更精确的实时用量换算时才需要配置。获取方式见下方「用量模式使用教程」。
+> 「实时·令牌」用量模式和「投喂」充值功能需要 `DEEPSEEK_PLATFORM_TOKEN`（DeepSeek 平台网页会话令牌）。它是**可选的**：不配置时仅「实时·令牌」用量换算与「投喂」充值不可用，其余功能不受影响。获取方式见下方「用量模式使用教程」。
 
 ## 卸载
 
@@ -204,12 +208,14 @@ curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/balance.json
 curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/last-turn.json
+curl -X POST http://127.0.0.1:3080/dsh-whale/topup.json -H "Content-Type: application/json" -d '{"amount":10}'
 ```
 
 - `/dsh-whale/image.png` → 200 `image/png`
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
+- `/dsh-whale/topup.json` POST → 200，返回 `{ok, paymentOrderId, qrUrl, amount}`
 - 浏览器 F5 后右下角出现挂件
 
 ## 常见问题
@@ -219,6 +225,7 @@ curl http://127.0.0.1:3080/dsh-whale/last-turn.json
 - **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 配置凭据。
 - **今日已用显示 --**：记账模式下需要先跑一次余额观测（60 秒内自动完成）；令牌模式需要配置 `DEEPSEEK_PLATFORM_TOKEN`。
 - **每轮消耗不显示**：确认菜单「每轮对话后自动显示消耗金额」已勾选；一轮对话必须完整结束（turn/end）才会结算。
+- **投喂功能不可用**：去 DSH 配置凭据。
 - **没有声音**：确认 `assets/*.mp3` 在包内；若不想带音效文件，静默降级为无声音。
 - **本地开发改了代码不生效**：使用 `link:` 安装时，修改源码后重启 `dsh web`（ESM 模块缓存）；如果用已发布版本，需要 `npm publish` 新版本后 `dsh plugin --profile web update dsh-whale-widget`。
 - **自定义图片**：气泡由代码绘制（SVG），鲸鱼本体为 cut-out PNG，放在右下角 59.45%；换图需保证透明背景 cut-out，否则按 `whale-widget-prompt.md` 调整几何参数。
