@@ -11,7 +11,7 @@
  *   4. 不限额 newapi：不出现负假余额，只输出已用
  *   5. size.json PUT 保留 providers 并持久化 displayProvider
  */
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -67,12 +67,20 @@ let userTokenOn = false
 let v1Calls = 0
 let userSelfCalls = 0
 let setCalls = []
+// 跟随 DSH / 作用域令牌测试辅助：settings 命名空间描述函数（null=无 settings 服务）、
+// 按凭据名叠加的解析结果、/api/user/self 最近一次见到的 Authorization 头。
+let mockSettingsDescribe = null
+let scopedCreds = {}
+let dynamicCreds = {}
+let authSelfByOrigin = {}
 
 /** 路由 mock：官方余额 + newapi（token/status/user/self）+ sub2api（可注入故障）。 */
-async function fakeFetch(url) {
+async function fakeFetch(url, init) {
   const u = String(url)
   if (u.includes('api.deepseek.com/user/balance')) return jsonResponse(OFFICIAL_BALANCE)
   if (u.includes('/api/user/self')) {
+    const om = /^https?:\/\/[^/]+/.exec(u)
+    authSelfByOrigin[om ? om[0] : u] = String((init && init.headers && (init.headers.authorization || init.headers.Authorization)) || '')
     userSelfCalls++
     return jsonResponse(NEWAPI_USER_SELF)
   }
@@ -94,6 +102,12 @@ async function fakeFetch(url) {
 /** 构造 mock ctx 并调用 apply()，返回按 path 索引的 route handler。 */
 async function startPlugin() {
   const handlers = {}
+  // 事件监听器注册表：测试用 __fireCredentialUpdate / __fireSettingsUpdate 手动派发
+  const listeners = {}
+  const addListener = (event, fn) => {
+    ;(listeners[event] = listeners[event] || []).push(fn)
+    return () => {}
+  }
   const ctx = {
     webServer: {
       register: (opts) => {
@@ -104,6 +118,9 @@ async function startPlugin() {
     },
     credentials: {
       resolve: async (name) => {
+        // 写入路径与读取路径共用一张表（模拟真实凭据服务语义），再落回固定值
+        if (Object.prototype.hasOwnProperty.call(dynamicCreds, name)) return dynamicCreds[name]
+        if (Object.prototype.hasOwnProperty.call(scopedCreds, name)) return scopedCreds[name]
         if (name === 'DEEPSEEK_API_KEY') return { value: 'sk-official-test' }
         if (name === 'NEWAPI_API_KEY') return { value: 'sk-newapi-test' }
         if (name === 'SUB2API_API_KEY') return { value: 'sub2api-key-test' }
@@ -113,10 +130,25 @@ async function startPlugin() {
       },
       set: async (name, value) => {
         setCalls.push({ name, value })
+        dynamicCreds[name] = { value }
       },
     },
-    on: () => () => {},
+    on: addListener,
+    inject: (deps, cb) => {
+      // settings 可选注入：mockSettingsDescribe 非空时模拟服务存在，
+      // 并向插件暴露 settings 作用域的事件总线（监听器进同一张表）
+      if (Array.isArray(deps) && deps.indexOf('settings') !== -1 && typeof mockSettingsDescribe === 'function') {
+        // 晚绑定：描述函数按调用时点的模块变量取值，允许测试中途改配置
+        cb({ settings: { describe: (...a) => mockSettingsDescribe(...a) }, on: addListener })
+      }
+    },
     effect: () => {},
+  }
+  handlers.__fireCredentialUpdate = (ref) => {
+    for (const fn of listeners['credentials/reference-updated'] || []) fn(ref)
+  }
+  handlers.__fireSettingsUpdate = (ns) => {
+    for (const fn of listeners['settings/document-updated'] || []) fn(ns)
   }
   const mod = await import(pathToFileURL(path.join(REPO_ROOT, 'lib', 'index.js')).href)
   mod.apply(ctx)
@@ -177,18 +209,26 @@ beforeEach(() => {
   v1Calls = 0
   userSelfCalls = 0
   setCalls = []
+  mockSettingsDescribe = null
+  scopedCreds = {}
+  dynamicCreds = {}
+  authSelfByOrigin = {}
   for (const f of [SIZE_FILE, USAGE_FILE]) {
     try {
       fs.unlinkSync(f)
     } catch (err) {}
   }
+  try { fs.unlinkSync(path.join(TMP, '.dshw-ratelimit.json')) } catch (err) {}
   globalThis.fetch = fakeFetch
 })
 
 describe('服务端编排（mock ctx）', () => {
   it('无 providers 配置：顶层字段与 0.2.9 一致，新字段仅追加（回归红线）', async () => {
+    // isPeak 断言需确定性：冻结在 2026-08-23（周日）北京时间 12:00 = 周末全天谷价
+    vi.useFakeTimers({ now: new Date('2026-08-23T04:00:00Z') })
     const handlers = await startPlugin()
     const res = await request(handlers['/dsh-whale/balance.json'])
+    vi.useRealTimers()
     expect(res.statusCode).toBe(200)
     const p = JSON.parse(res.body)
 
@@ -204,10 +244,11 @@ describe('服务端编排（mock ctx）', () => {
     // 新字段仅追加：键集 = 0.2.9 键集 + 新键
     const keys = Object.keys(p).sort()
     expect(keys).toEqual(
-      ['accounts', 'currency', 'currencyOptions', 'displayCurrency', 'displayProvider', 'isPeak', 'ok', 'providers', 'rateLimit', 'todayUsage', 'totalBalance', 'updatedAt', 'usageMode'].sort(),
+      ['accounts', 'credVersion', 'currency', 'currencyOptions', 'displayCurrency', 'displayProvider', 'isPeak', 'ok', 'providers', 'rateLimit', 'todayUsage', 'totalBalance', 'updatedAt', 'usageMode'].sort(),
     )
     expect(p.displayProvider).toBe('deepseek')
     expect(p.displayCurrency).toBe('auto')
+    expect(typeof p.credVersion).toBe('number')
     expect(p.rateLimit).toEqual({
       windowMs: 300000,
       mode: 'adaptive',
@@ -220,6 +261,255 @@ describe('服务端编排（mock ctx）', () => {
     ])
     expect(p.accounts.length).toBe(1)
     expect(p.accounts[0].accountId).toBe('deepseek')
+  })
+
+  it('多选下拉：balance.json 回显 selectedProviders，PUT 持久化且未携带时保留旧值', async () => {
+    writeSize({ displayProvider: 'deepseek', selectedProviders: ['newapi', 'sub2api'] })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    expect(p.selectedProviders).toEqual(['newapi', 'sub2api'])
+
+    // PUT 未携带 selectedProviders（如缩放拖拽触发的高频写入）→ 保留旧值
+    const r1 = await request(handlers['/dsh-whale/size.json'], 'PUT', JSON.stringify({ scale: 1.6, displayProvider: 'newapi' }))
+    expect(r1.statusCode).toBe(200)
+    const saved = JSON.parse(fs.readFileSync(SIZE_FILE, 'utf8'))
+    expect(saved.selectedProviders).toEqual(['newapi', 'sub2api'])
+    expect(saved.displayProvider).toBe('newapi')
+
+    // PUT 携带新集合 → 覆盖持久化
+    const r2 = await request(handlers['/dsh-whale/size.json'], 'PUT', JSON.stringify({ scale: 1.6, selectedProviders: ['deepseek'] }))
+    expect(r2.statusCode).toBe(200)
+    expect(JSON.parse(fs.readFileSync(SIZE_FILE, 'utf8')).selectedProviders).toEqual(['deepseek'])
+
+    // 下一轮 balance.json 按新集合回显
+    const p2 = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    expect(p2.selectedProviders).toEqual(['deepseek'])
+  })
+
+  it('凭据变更事件：credVersion 递增并透出到 balance.json / last-turn.json（显示随 DSH API 密钥自动更新）', async () => {
+    const handlers = await startPlugin()
+    const before = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    const lt0 = JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body)
+    expect(lt0.credVersion).toBe(before.credVersion)
+
+    // 用户在 DSH 设置里改了 API 密钥 → 凭据服务提交事件（连续两次写入）
+    handlers.__fireCredentialUpdate('HOHAI_API_KEY')
+    handlers.__fireCredentialUpdate('HOHAI_API_KEY')
+
+    const after = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    const lt1 = JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body)
+    expect(after.credVersion).toBe(before.credVersion + 2)
+    expect(lt1.credVersion).toBe(after.credVersion)
+  })
+
+  it('DSH 镜像同步（恒开）：DSH 行即账户；手工中转站历史自动从 size.json 删除', async () => {
+    mockSettingsDescribe = () => [
+      {
+        ns: 'llm-pi-ai',
+        value: {
+          providers: {
+            hohai: { displayName: 'hohai', apiKeyEnv: 'HOHAI_API_KEY', baseURL: 'https://api.hohai.eu.org/v1' },
+            local: { displayName: 'ollama', apiKeyEnv: 'OLLAMA_API_KEY', baseURL: 'http://127.0.0.1:11434/v1' },
+          },
+        },
+      },
+    ]
+    writeSize({ displayProvider: 'deepseek' })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    // 手工 relay.example.com 已被清除；派生 hohai 在；本机 ollama 跳过
+    const bases = p.accounts.map((a) => a.baseUrl || '').filter((x) => x !== '')
+    expect(bases).toEqual(['https://api.hohai.eu.org'])
+    // 派生账户带标记
+    const derived = p.providers.filter((x) => x.derivedFromDsh === true)
+    expect(derived.length).toBe(1)
+    expect(derived[0].label).toBe('hohai')
+    // size.json 的手工中转站历史已被真实删除（文件级断言），官方条目保留
+    const after = JSON.parse(fs.readFileSync(SIZE_FILE, 'utf8'))
+    expect(after.providers).toEqual([{ type: 'deepseek' }])
+  })
+
+  it('DSH 行按站点自动选上游适配器：moonshot/kimi-coding/zhipu/openrouter 各归其位', async () => {
+    mockSettingsDescribe = () => [
+      {
+        ns: 'llm-pi-ai',
+        value: {
+          providers: {
+            kimiOpen: { displayName: 'Kimi 开放平台', apiKeyEnv: 'MOONSHOT_API_KEY', baseURL: 'https://api.moonshot.cn/v1' },
+            kimiCode: { displayName: 'Kimi For Coding', apiKeyEnv: 'KIMI_CODING_API_KEY', baseURL: 'https://api.kimi.com/coding/v1' },
+            glm: { displayName: '智谱', apiKeyEnv: 'ZHIPU_API_KEY', baseURL: 'https://open.bigmodel.cn/api/paas/v4' },
+            router: { displayName: 'OpenRouter', apiKeyEnv: 'OPENROUTER_MANAGEMENT_KEY', baseURL: 'https://openrouter.ai/api/v1' },
+          },
+        },
+      },
+    ]
+    writeSize({ providers: [{ type: 'deepseek' }] })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    // 类型唯一 → accountId 即类型名；派生行各自命中正确的 reader
+    const byId = Object.fromEntries(p.accounts.map((a) => [a.accountId, a]))
+    expect(byId.moonshot?.type).toBe('moonshot')
+    expect(byId['kimi-coding']?.type).toBe('kimi-coding')
+    expect(byId.zhipu?.type).toBe('zhipu')
+    expect(byId.openrouter?.type).toBe('openrouter')
+    expect(byId.deepseek?.type).toBe('deepseek')
+  })
+
+  it('内置预设行（无 baseURL）：厂商映射 + 区域取向（智谱默认国内站）', async () => {
+    mockSettingsDescribe = () => [
+      {
+        ns: 'llm-pi-ai',
+        value: {
+          providers: {
+            // llm-pi-ai 的 zai 内置预设：只有 apiKeyEnv，没有 baseURL。
+            // 国内账号为主流 → 默认 open.bigmodel.cn（修「国内 key 打国际站 404」）
+            zai: { apiKeyEnv: 'ZAI_API_KEY', models: [{ id: 'glm-5.3-flash' }] },
+            // 显式标记国际站：显示名带 z.ai 字样才走 api.z.ai
+            zaiIntl: { displayName: 'Z.ai Global', apiKeyEnv: 'ZAI_INTL_KEY' },
+            kimiPayg: { apiKeyEnv: 'MOONSHOT_API_KEY' },
+            selfhost: { apiKeyEnv: 'SELF_HOSTED_KEY' },
+          },
+        },
+      },
+    ]
+    writeSize({ providers: [{ type: 'deepseek' }] })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    const derived = p.accounts.filter((a) => a.derivedFromDsh === true)
+    const byLabel = Object.fromEntries(derived.map((a) => [a.label, a]))
+    expect(byLabel.zai.type).toBe('zhipu')
+    expect(byLabel.zai.baseUrl).toBe('https://open.bigmodel.cn')
+    expect(byLabel['Z.ai Global'].type).toBe('zhipu')
+    expect(byLabel['Z.ai Global'].baseUrl).toBe('https://api.z.ai')
+    expect(Object.values(byLabel).some((a) => a.type === 'moonshot' && a.baseUrl === 'https://api.moonshot.cn')).toBe(true)
+  })
+
+  it('DSH 镜像同步：每个 DSH 提供商行 = 一个账户（同站多 key 配多行）', async () => {
+    mockSettingsDescribe = () => [
+      {
+        ns: 'llm-pi-ai',
+        value: {
+          providers: {
+            hohaiA: { apiKeyEnv: 'HOHAI_API_KEY', baseURL: 'https://api.hohai.eu.org/v1' },
+            hohaiB: { apiKeyEnv: 'PACKYAPI_API_KEY', baseURL: 'https://api.hohai.eu.org' },
+            packy: { displayName: 'PackyAPI', apiKeyEnv: 'SUB2API_API_KEY', baseURL: 'https://www.packyapi.ai' },
+          },
+        },
+      },
+    ]
+    writeSize({ providers: [{ type: 'deepseek' }] })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    const derived = p.accounts.filter((a) => a.derivedFromDsh === true)
+    // 三行 → 三账户：两行同站不同 key 各自成账，displayName 缺省时同名标签消歧
+    expect(derived.length).toBe(3)
+    expect(derived[0].baseUrl).toBe('https://api.hohai.eu.org')
+    expect(derived[1].baseUrl).toBe('https://api.hohai.eu.org')
+    expect(derived[2].label).toBe('PackyAPI')
+    expect(new Set(derived.map((a) => a.accountId)).size).toBe(3)
+  })
+
+  it('settings 服务缺席：护栏生效，不删除手工配置、不派生', async () => {
+    // mockSettingsDescribe=null → 无 settings 注入；镜像恒开也不能清
+    writeSize({ displayProvider: 'deepseek' })
+    const handlers = await startPlugin()
+    const p = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    expect(p.accounts.some((a) => a.derivedFromDsh === true)).toBe(false)
+    expect(p.accounts.some((a) => a.baseUrl === 'https://relay.example.com')).toBe(true)
+    const file = JSON.parse(fs.readFileSync(SIZE_FILE, 'utf8'))
+    expect(file.providers.length).toBe(3)
+  })
+
+  it('每站点独立访问令牌：专属凭据名保存与解析，不再共用 NEWAPI_USER_TOKEN', async () => {
+    // 两个手工 newapi（不同站、不同 key）：newapi / newapi-1。
+    // 不给全局 NEWAPI_USER_TOKEN —— 各账户的 user/self 兜底先用站点 key；
+    // 给 newapi-1 保存专属令牌后，只有它的鉴权头变化 → 证明不共用。
+    writeSize({
+      displayProvider: 'deepseek',
+      providers: [
+        { type: 'newapi', baseUrl: 'https://relay.example.com' },
+        { type: 'newapi', baseUrl: 'https://relay2.example.com', credential: 'HOHAI_API_KEY' },
+      ],
+    })
+    scopedCreds.NEWAPI_API_KEY = { value: 'sk-relay-a' }
+    scopedCreds.HOHAI_API_KEY = { value: 'sk-relay-b' }
+    const handlers = await startPlugin()
+    const beforePayload = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    // 基线：没有任何用户令牌 → 不发 /api/user/self，两账户都「未配置令牌」
+    expect(Object.keys(authSelfByOrigin)).toEqual([])
+    expect(beforePayload.accounts.find((a) => a.accountId === 'newapi').userTokenConfigured).toBe(false)
+    expect(beforePayload.accounts.find((a) => a.accountId === 'newapi-1').userTokenConfigured).toBe(false)
+
+    // 设置弹窗给 newapi-1 单独保存令牌 → 写入该账户专属凭据名
+    const saveRes = await request(
+      handlers['/dsh-whale/user-token.json'],
+      'POST',
+      JSON.stringify({ accountId: 'newapi-1', userId: '42', token: 'Bearer ak-scope-42' }),
+    )
+    expect(saveRes.statusCode).toBe(200)
+    const names = setCalls.map((c) => c.name)
+    expect(names).toContain('NEWAPI_USER_ID_NEWAPI_1')
+    expect(names).toContain('NEWAPI_USER_TOKEN_NEWAPI_1')
+
+    // 再查一轮：只有 relay2（newapi-1）发出 user/self 且鉴权头是专属令牌
+    await request(handlers['/dsh-whale/balance.json'])
+    expect(authSelfByOrigin['https://relay2.example.com']).toBe('Bearer ak-scope-42')
+    expect(authSelfByOrigin['https://relay.example.com']).toBeUndefined()
+  })
+
+  it('DSH 设置即时同步：模型提供商变更事件 → credVersion 递增、新站点立即出现', async () => {
+    mockSettingsDescribe = () => [
+      { ns: 'llm-pi-ai', value: { providers: { hohai: { apiKeyEnv: 'HOHAI_API_KEY', baseURL: 'https://api.hohai.eu.org/v1' } } } },
+    ]
+    writeSize({ displayProvider: 'deepseek' })
+    const handlers = await startPlugin()
+    await request(handlers['/dsh-whale/balance.json'])
+    const v0 = JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body).credVersion
+
+    // 用户在 DSH 设置里新增了一个中转站（模拟 settings 文档更新提交）
+    mockSettingsDescribe = () => [
+      {
+        ns: 'llm-pi-ai',
+        value: {
+          providers: {
+            hohai: { apiKeyEnv: 'HOHAI_API_KEY', baseURL: 'https://api.hohai.eu.org/v1' },
+            packy: { displayName: 'PackyAPI', apiKeyEnv: 'PACKYAPI_API_KEY', baseURL: 'https://www.packyapi.ai/v1' },
+          },
+        },
+      },
+    ]
+    handlers.__fireSettingsUpdate('llm-pi-ai')
+
+    // 版本号已递增 → 前端轮询会即时刷新；余额缓存已清 → 下一次读取就是新清单
+    const lt1 = JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body)
+    expect(lt1.credVersion).toBe(v0 + 1)
+    const p1 = JSON.parse((await request(handlers['/dsh-whale/balance.json'])).body)
+    expect(p1.accounts.some((a) => a.label === 'PackyAPI' && a.derivedFromDsh === true)).toBe(true)
+
+    // 非模型提供商命名空间的更新不触发版本递增
+    const v2 = JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body).credVersion
+    handlers.__fireSettingsUpdate('ui-conversation')
+    expect(JSON.parse((await request(handlers['/dsh-whale/last-turn.json'])).body).credVersion).toBe(v2)
+  })
+
+  it('历史自动清理：消失站点的学习限流上限与换算率缓存被移除', async () => {
+    fs.writeFileSync(
+      path.join(TMP, '.dshw-ratelimit.json'),
+      JSON.stringify({
+        'https://api.hohai.eu.org': { max: 8, observedCap: 8, learnedAt: 1 },
+        'https://gone.example.com': { max: 5, observedCap: 5, learnedAt: 2 },
+      }),
+    )
+    mockSettingsDescribe = () => [
+      { ns: 'llm-pi-ai', value: { providers: { hohai: { apiKeyEnv: 'HOHAI_API_KEY', baseURL: 'https://api.hohai.eu.org/v1' } } } },
+    ]
+    writeSize({ displayProvider: 'deepseek' })
+    const handlers = await startPlugin()
+    await request(handlers['/dsh-whale/balance.json'])
+
+    // gone 站点已不存在于任何来源 → 学习记录被清；存续站点保留
+    const stored = JSON.parse(fs.readFileSync(path.join(TMP, '.dshw-ratelimit.json'), 'utf8'))
+    expect(Object.keys(stored)).toEqual(['https://api.hohai.eu.org'])
   })
 
   it('多账户：并行读取 + 顶层别名到 displayProvider（余额态 = 用户余额）', async () => {

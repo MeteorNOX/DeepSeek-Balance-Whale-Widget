@@ -817,3 +817,306 @@ describe('查询限流（自适应：默认 15 次 / 5 分钟 + 429 retry-after 
     expect(result.retryAfterMs).toBe(1200000) // 1200 秒 → 20 分钟
   })
 })
+
+// ==================== v1.3 多上游对接（Moonshot / 智谱 / OpenRouter / 订阅型） ====================
+
+describe('moonshot 适配器（/v1/users/me/balance）', () => {
+  it('正常：available_balance → CNY 余额；≤0 时 isAvailable=false', async () => {
+    const fetch = routeFetch([
+      { match: '/v1/users/me/balance', response: jsonResponse({ code: 0, status: true, data: { available_balance: 49.58894, voucher_balance: 46.58893, cash_balance: 3.00001 }, scode: '0x0' }) },
+    ])
+    const result = await readAccount({ type: 'moonshot', baseUrl: 'https://api.moonshot.cn', credential: 'sk-kimi', fetch })
+    expect(result.ok).toBe(true)
+    expect(result.currency).toBe('CNY')
+    expect(result.total).toBeCloseTo(49.58894, 4)
+    expect(result.isAvailable).toBe(true)
+
+    const broke = await readAccount({
+      type: 'moonshot',
+      baseUrl: 'https://api.moonshot.cn',
+      credential: 'sk-kimi',
+      fetch: routeFetch([{ match: '/v1/users/me/balance', response: jsonResponse({ code: 0, status: true, data: { available_balance: -1.2, voucher_balance: 0, cash_balance: -1.2 } }) }]),
+    })
+    expect(broke.ok).toBe(true)
+    expect(broke.isAvailable).toBe(false)
+  })
+
+  it('拒绝信封：code != 0 → upstream-* 错误', async () => {
+    const fetch = routeFetch([
+      { match: '/v1/users/me/balance', response: jsonResponse({ code: 1003, message: 'invalid api key', status: false }) },
+    ])
+    const result = await readAccount({ type: 'moonshot', baseUrl: 'https://api.moonshot.cn', credential: 'bad', fetch })
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('upstream-')
+  })
+})
+
+describe('kimi-coding 适配器（/coding/v1/usages）', () => {
+  it('usage=周窗口 + limits[].window.duration 秒映射其它窗口；字符串数字可解析', async () => {
+    const body = {
+      usage: { limit: '700', used: '210', reset_at: '2026-08-30T00:00:00Z' },
+      limits: [
+        { detail: { limit: 50, used: 10 }, window: { duration: 18000 } }, // 5h → session
+        { detail: { limit: 2000, remaining: 1500 }, window: { duration: '2592000' } }, // 月
+      ],
+    }
+    const fetch = routeFetch([{ match: '/coding/v1/usages', response: jsonResponse(body) }])
+    const result = await readAccount({ type: 'kimi-coding', baseUrl: 'https://api.kimi.com', credential: 'kc-1', fetch })
+    expect(result.ok).toBe(true)
+    const kinds = Object.fromEntries(result.windows.map((w) => [w.kind, w]))
+    expect(kinds.weekly.used).toBe(210)
+    expect(kinds.weekly.limit).toBe(700)
+    expect(kinds.session.used).toBe(10)
+    expect(kinds.monthly.used).toBe(500) // 2000 − remaining 1500
+    expect(kinds.weekly.resetsAt).toBeTruthy()
+  })
+
+  it('error.message 且无 usage/limits → upstream-*；空窗口 → shape 错误', async () => {
+    const bad = await readAccount({
+      type: 'kimi-coding',
+      baseUrl: 'https://api.kimi.com',
+      credential: 'kc',
+      fetch: routeFetch([{ match: '/coding/v1/usages', response: jsonResponse({ error: { message: 'token expired' } }) }]),
+    })
+    expect(bad.ok).toBe(false)
+    expect(bad.error).toContain('upstream-token expired')
+
+    const empty = await readAccount({
+      type: 'kimi-coding',
+      baseUrl: 'https://api.kimi.com',
+      credential: 'kc',
+      fetch: routeFetch([{ match: '/coding/v1/usages', response: jsonResponse({ usage: null, limits: [] }) }]),
+    })
+    expect(empty.ok).toBe(false)
+    expect(empty.error).toBe('shape')
+  })
+})
+
+describe('zhipu 适配器（国内报表接口 + 国际 paas/v4 分流）', () => {
+  it('国内站：/api/biz/account/query-customer-account-report，total/granted/used 按实测契约映射', async () => {
+    const fetch = routeFetch([
+      {
+        match: '/api/biz/account/query-customer-account-report',
+        response: jsonResponse({
+          code: '200',
+          data: { availableBalance: '88.5', rechargeAmount: 50, giveAmount: 38.5, totalSpendAmount: 11.5 },
+        }),
+      },
+    ])
+    const result = await readAccount({ type: 'zhipu', baseUrl: 'https://open.bigmodel.cn', credential: 'zh-key', fetch })
+    expect(result.ok).toBe(true)
+    expect(fetch.calls[0].url).toContain('open.bigmodel.cn/api/biz/account/query-customer-account-report')
+    expect(result.currency).toBe('CNY')
+    expect(result.total).toBe(88.5)
+    // granted = rechargeAmount + giveAmount
+    expect(result.granted).toBeCloseTo(88.5, 6)
+    expect(result.used).toBe(11.5)
+    expect(result.isAvailable).toBe(true)
+  })
+
+  it('国内站字段回退与负余额：balance 兜底；total ≤ 0 → isAvailable=false', async () => {
+    const fallback = await readAccount({
+      type: 'zhipu',
+      baseUrl: 'https://open.bigmodel.cn',
+      credential: 'k',
+      fetch: routeFetch([{ match: '/api/biz/account/query-customer-account-report', response: jsonResponse({ data: { balance: 3.2 } }) }]),
+    })
+    expect(fallback.total).toBe(3.2)
+    expect(fallback.granted ?? undefined).toBeUndefined()
+
+    const broke = await readAccount({
+      type: 'zhipu',
+      baseUrl: 'https://open.bigmodel.cn',
+      credential: 'k',
+      fetch: routeFetch([{ match: '/api/biz/account/query-customer-account-report', response: jsonResponse({ data: { availableBalance: -0.01, totalSpendAmount: 5 } }) }]),
+    })
+    expect(broke.ok).toBe(true)
+    expect(broke.isAvailable).toBe(false)
+    expect(broke.used).toBe(5)
+  })
+
+  it('国际站 api.z.ai：report 优先成功（不再打 paas/v4）', async () => {
+    const fetch = routeFetch([
+      { match: '/api/biz/account/query-customer-account-report', response: jsonResponse({ data: { availableBalance: 66.6, rechargeAmount: 60, giveAmount: 6.6, totalSpendAmount: 7.7 } }) },
+      { match: '/api/paas/v4/balance', response: jsonResponse({ code: 200, success: true, data: { available_balance: 999 } }) },
+    ])
+    const result = await readAccount({ type: 'zhipu', baseUrl: 'https://api.z.ai', credential: 'zh-key', fetch })
+    expect(result.ok).toBe(true)
+    expect(result.total).toBe(66.6)
+    expect(result.granted).toBeCloseTo(66.6, 6)
+    expect(result.used).toBe(7.7)
+    expect(fetch.calls.some((c) => c.url.includes('/api/paas/v4/balance'))).toBe(false)
+  })
+
+  it('国际站兜底：报表 404 → /api/paas/v4/balance 宽容提取（调用顺序可证）', async () => {
+    const fetch = routeFetch([
+      { match: '/api/biz/account/query-customer-account-report', response: jsonResponse({ error: 'not found' }, { status: 404 }) },
+      { match: '/api/paas/v4/balance', response: jsonResponse({ code: 200, msg: 'ok', success: true, data: { totalBalance: 56.7 } }) },
+    ])
+    const result = await readAccount({ type: 'zhipu', baseUrl: 'https://api.z.ai', credential: 'zh-key', fetch })
+    expect(result.ok).toBe(true)
+    expect(result.currency).toBe('CNY')
+    expect(fetch.calls.length).toBe(2)
+    expect(fetch.calls[0].url).toContain('/api/biz/account/query-customer-account-report')
+    expect(fetch.calls[1].url).toContain('/api/paas/v4/balance')
+  })
+
+  it('信封拒绝不兜底：直接透传主探错误（不再打 paas/v4）', async () => {
+    const fetch = routeFetch([
+      { match: '/api/biz/account/query-customer-account-report', response: jsonResponse({ msg: '鉴权失败', success: false, code: 1002 }) },
+      { match: '/api/paas/v4/balance', response: jsonResponse({ data: { available_balance: 1 } }) },
+    ])
+    const result = await readAccount({
+      type: 'zhipu',
+      baseUrl: 'https://open.bigmodel.cn',
+      credential: 'k',
+      fetch,
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('鉴权失败')
+    expect(fetch.calls.length).toBe(1)
+  })
+
+  it('两连败（兜底端点自身报错）→ 抛兜底端点错误', async () => {
+    // 仅 404/网络级失败会进入兜底；此处主探用「连接被拒」（unreachable）
+    const fetch = routeFetch([
+      { match: '/api/biz/account/query-customer-account-report', response: () => { throw new Error('conn refused') } },
+      { match: '/api/paas/v4/balance', response: jsonResponse({ error: 'boom' }, { status: 500 }) },
+    ])
+    const result = await readAccount({
+      type: 'zhipu',
+      baseUrl: 'https://api.z.ai',
+      credential: 'k',
+      fetch,
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('http-500')
+  })
+
+describe('openrouter 适配器（Management Key /api/v1/credits）', () => {
+  it('remaining = total_credits − total_usage（USD）', async () => {
+    const fetch = routeFetch([
+      { match: '/api/v1/credits', response: jsonResponse({ data: { total_credits: 100.5, total_usage: 25.75 } }) },
+    ])
+    const result = await readAccount({ type: 'openrouter', credential: 'mgmt-key', fetch })
+    expect(result.ok).toBe(true)
+    expect(result.provider).toBe('openrouter')
+    expect(result.currency).toBe('USD')
+    expect(result.granted).toBe(100.5)
+    expect(result.used).toBe(25.75)
+    expect(result.total).toBeCloseTo(74.75, 6)
+    expect(result.isAvailable).toBe(true)
+  })
+
+  it('默认 origin 是 openrouter.ai：不传 baseUrl 也打到 /api/v1/credits', async () => {
+    const fetch = routeFetch([{ match: 'openrouter.ai/api/v1/credits', response: jsonResponse({ data: { total_credits: 2, total_usage: 2 } }) }])
+    const result = await readAccount({ type: 'openrouter', credential: 'mk', fetch })
+    expect(fetch.calls[0].url).toContain('https://openrouter.ai/api/v1/credits')
+    expect(result.total).toBe(0)
+    expect(result.isAvailable).toBe(false)
+  })
+})
+
+describe('opencode-go 适配器（/zen/go/v1/usage）', () => {
+  it('rolling→session、weekly、monthly 三窗口；只有 percent+resetsAt（used/limit 缺省）', async () => {
+    const body = {
+      usage: {
+        rolling: { percent: 62.5, resetsAt: '2026-08-27T18:00:00Z' },
+        weekly: { percent: 40, resetsAt: '2026-08-31T00:00:00Z' },
+        monthly: { percent: 10, resetsAt: '2026-09-01T00:00:00Z' },
+      },
+    }
+    const fetch = routeFetch([{ match: '/zen/go/v1/usage', response: jsonResponse(body) }])
+    const result = await readAccount({ type: 'opencode-go', credential: 'go-key', fetch })
+    expect(result.ok).toBe(true)
+    const byKind = Object.fromEntries(result.windows.map((w) => [w.kind, w]))
+    expect(byKind.session.usedPercent).toBe(62.5)
+    expect(byKind.session.resetsAt).toBe('2026-08-27T18:00:00Z')
+    expect(byKind.weekly.usedPercent).toBe(40)
+    expect(byKind.monthly.usedPercent).toBe(10)
+    expect(byKind.session.limit ?? undefined).toBeUndefined()
+  })
+})
+
+describe('minimax 适配器（/v1/token_plan/remains）', () => {
+  it('多模型行取消耗占比最差者；remains_time 折算重置时刻（now 注入）', async () => {
+    const now = Date.parse('2026-08-27T10:00:00Z')
+    const body = {
+      model_remains: [
+        { model_name: 'A', current_interval_total_count: 100, current_interval_usage_count: 50, remains_time: 600, current_interval_status: 1, current_weekly_total_count: 1000, current_weekly_usage_count: 100, weekly_remains_time: 86400, current_weekly_status: 1 },
+        { model_name: 'B', current_interval_total_count: 80, current_interval_usage_count: 76, remains_time: 300, current_interval_status: 1, current_weekly_total_count: 800, current_weekly_usage_count: 20, weekly_remains_time: 90000, current_weekly_status: 1 },
+      ],
+    }
+    const fetch = routeFetch([{ match: '/v1/token_plan/remains', response: jsonResponse(body) }])
+    const result = await readAccount({ type: 'minimax', baseUrl: 'https://api.minimax.io', credential: 'sub-key', fetch, now })
+    expect(result.ok).toBe(true)
+    const s = result.windows.find((w) => w.kind === 'session')
+    const w = result.windows.find((w) => w.kind === 'weekly')
+    // session 取 B 行（76/80 占比更高），weekly 取 A 行（100/1000）
+    expect(s.used).toBe(76)
+    expect(s.limit).toBe(80)
+    expect(new Date(s.resetsAt).toISOString()).toBe(new Date(now + 300 * 1000).toISOString())
+    expect(w.used).toBe(100)
+    expect(w.limit).toBe(1000)
+  })
+
+  it('全部 status=3 → unlimited（无窗口）；任一耗尽 → isAvailable=false', async () => {
+    const unlimitedBody = { model_remains: [{ current_interval_status: 3, current_weekly_status: 3 }] }
+    const r1 = await readAccount({
+      type: 'minimax',
+      baseUrl: 'https://api.minimax.io',
+      credential: 'k',
+      fetch: routeFetch([{ match: '/v1/token_plan/remains', response: jsonResponse(unlimitedBody) }]),
+    })
+    expect(r1.unlimited).toBe(true)
+    expect(r1.windows).toBeUndefined()
+
+    const exhaustBody = { model_remains: [{ current_interval_total_count: 10, current_interval_usage_count: 10, current_interval_status: 2, current_weekly_status: 1, current_weekly_total_count: 10, current_weekly_usage_count: 1 }] }
+    const r2 = await readAccount({
+      type: 'minimax',
+      baseUrl: 'https://api.minimax.io',
+      credential: 'k',
+      fetch: routeFetch([{ match: '/v1/token_plan/remains', response: jsonResponse(exhaustBody) }]),
+    })
+    expect(r2.isAvailable).toBe(false)
+  })
+})
+
+describe('zhipu-coding 适配器（/api/monitor/usage/quota/limit）', () => {
+  it('limits[]：number>0 输出已用/限额，纯 percentage 输出百分比窗口，nextResetTime(ms) → resetsAt', async () => {
+    const body = {
+      code: 200,
+      success: true,
+      data: {
+        level: 'pro',
+        limits: [
+          { type: 'prompt_5m', unit: 1, number: 120, usage: 45, percentage: 37.5, nextResetTime: Date.parse('2026-08-27T11:05:00Z') },
+          { type: 'tokens_monthly', unit: 2, currentValue: 123456, percentage: 80 },
+        ],
+      },
+    }
+    const fetch = routeFetch([{ match: '/api/monitor/usage/quota/limit', response: jsonResponse(body) }])
+    const result = await readAccount({ type: 'zhipu-coding', baseUrl: 'https://api.z.ai', credential: 'zc-key', fetch })
+    expect(result.ok).toBe(true)
+    expect(result.level).toBe('pro')
+    const s = result.windows.find((w) => w.kind === 'session')
+    const m = result.windows.find((w) => w.kind === 'monthly')
+    expect(s.used).toBe(45)
+    expect(s.limit).toBe(120)
+    expect(s.resetsAt).toBe(new Date(Date.parse('2026-08-27T11:05:00Z')).toISOString())
+    expect(m.usedPercent).toBe(80)
+    expect(m.limit ?? undefined).toBeUndefined()
+  })
+
+  it('success=false 信封拒绝', async () => {
+    const result = await readAccount({
+      type: 'zhipu-coding',
+      baseUrl: 'https://api.z.ai',
+      credential: 'k',
+      fetch: routeFetch([{ match: '/api/monitor/usage/quota/limit', response: jsonResponse({ code: 401, success: false, msg: '请登录' }) }]),
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toContain('请登录')
+  })
+})
+})
