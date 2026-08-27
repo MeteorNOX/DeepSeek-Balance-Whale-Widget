@@ -7,7 +7,8 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 ## 特性
 
 - 🐋 **常驻自启**：随 DSH Web 界面每次打开自动出现（标准 DSH bundle 插件）
-- 💰 **余额**：60 秒自动刷新 + 点击鲸鱼手动刷新；余额变化时数字**滚动动画**；瞬时网络抖动自动沿用最近余额不报错
+- 💰 **余额**：自动刷新（间隔按查询次数动态安排，默认基准 60 秒）；余额变化时数字**滚动动画**；瞬时网络抖动自动沿用最近余额不报错
+- 🌐 **多中转站**：一个挂件同时支持 DeepSeek 官方 / New API / Sub2API 三类账户的归属、余额/已用与订阅配额展示（菜单「显示」下拉切换）
 - 📊 **今日已用**：两种模式任选（见下），显示今日消耗金额
   - **小鲸鱼记账（推荐，免令牌）**：不需要任何会话令牌，鲸鱼娘每次观测余额后用余额差值自动记账（`.dshw-usage.json`，跨天自动归零归档）
   - **实时·令牌**：填入平台会话令牌后直接调用平台用量接口，按**峰谷定价**（工作日高峰 9:00–12:00 与 14:00–18:00，其余空闲；2026-08-23 起周末全天按谷价）实时换算今日已用
@@ -207,8 +208,8 @@ curl http://127.0.0.1:3080/dsh-whale/last-turn.json
 ```
 
 - `/dsh-whale/image.png` → 200 `image/png`
-- `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
-- `/dsh-whale/size.json` → GET 返回配置；PUT 写入
+- `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`；多中转站时另含 `providers`（账户摘要）、`accounts`（各账户完整数据）、`displayProvider`（当前「显示」选择）
+- `/dsh-whale/size.json` → GET 返回配置（含 `providers` 与 `displayProvider`）；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
 - 浏览器 F5 后右下角出现挂件
 

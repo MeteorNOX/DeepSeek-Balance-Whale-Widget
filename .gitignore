@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output (unused for now; future-proof when TS/Bundler is added)
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.vitest/
+*.lcov
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Husky runtime
+.husky/_/
+
+# Misc
+.cache/
+.tmp/
+*.tgz
+
+# 限流探测开发记录（脚本 + 结果，仅本机调试用，不进上游）
+probe-rate-limit.*
