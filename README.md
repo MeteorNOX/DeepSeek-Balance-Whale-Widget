@@ -2,7 +2,7 @@
 
 ![DSH 小鲸鱼余额挂件](assets/DSH2.png)
 
-DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗统计，每次打开界面自动启用。本项目是标准 DSH 插件包，可通过 `dsh plugin` 安装/卸载。
+DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗统计 + GLM Coding Plan 用量，每次打开界面自动启用。本项目是标准 DSH 插件包，可通过 `dsh plugin` 安装/卸载。
 
 ## 特性
 
@@ -14,10 +14,11 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
 - 💬 **每轮对话消耗统计**：监听本机会话事件，每轮对话结束后弹出本轮消耗金额（精确 usage，非估算）
   - 菜单可开关「每轮对话后自动显示消耗金额」；「自动关闭时间」可自定义秒数（填 0 表示不自动关闭）
   - 消耗金额泡泡显示期间，余额变动不弹普通泡泡
+- 🧮 **GLM Coding Plan 用量**：当前模型是 GLM 时显示智谱官方配额（5 小时窗口 / 本周窗口 token 百分比 + 重置倒计时），跟随模型自动切换，详见下方「GLM 用量」
 - 🖱️ **拖拽 + 四边四分之一吸附**（左/右/上/下，角落可组合）
 - 🔄 左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
 - 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）
-- 🎚️ **汉堡菜单**（悬停鲸鱼右上角出现）：大小滑块（0.6–2.5 倍）、音效切换（小黄鸭 / 音效1）、音量调节、用量模式、峰谷提示文案（默认 / 梁文峰谷 / !?强强?!）、气泡开关、每轮消耗开关与自动关闭时间
+- 🎚️ **汉堡菜单**（悬停鲸鱼右上角出现）：大小滑块（0.6–2.5 倍）、音效切换（小黄鸭 / 音效1）、音量调节、用量模式、峰谷提示文案（默认 / 梁文峰谷 / !?强强?!）、显示模式（自动 / GLM / DeepSeek）、GLM 窗口（5 小时 / 本周）、气泡开关、每轮消耗开关与自动关闭时间
 - 🔊 **音效**：按压/松手音效（可选包内 mp3，缺失时静默降级）
 - 💬 **随机台词**：点击气泡切换随机台词段（加权随机，含峰谷提示/今日已用/gif 动图/卖萌吐槽），再点一次关闭；气泡总显示 5 秒自动收起
 - 📐 随浏览器窗口自动缩放；文字位置/字号与图片联动
@@ -195,6 +196,23 @@ Remove-Item "$web\DSniang02.png" -ErrorAction SilentlyContinue
 
 「每轮对话消耗统计」直接监听 DSH 本机会话事件，按模型真实 usage 换算金额（与今日已用同一套峰谷定价表），**不需要** `DEEPSEEK_PLATFORM_TOKEN`。
 
+### GLM 用量（多模型自动切换）
+
+挂件支持按 **DSH 当前默认模型** 自动切换显示内容：
+
+- 当前模型是 **DeepSeek** → 显示余额 / 今日已用
+- 当前模型是 **GLM**（zai / bigmodel 渠道）→ 显示 **GLM Coding Plan token 用量**：大数字为用量百分比，提示行为本周 token 消耗（新版套餐）与重置倒计时
+
+**模型识别**：优先读取 DSH 运行中的 `agentDefaultModel` 服务（实时反映默认模型选择），失败时回退解析 `settings.yaml` 的 `agent-default-model` 段。
+
+**必需的凭据**：`ZAI_CODING_CN_API_KEY`（智谱 GLM Coding Plan 的 API Key）。在 DSH 凭据服务中配置即可；未配置时切到 GLM 显示域会提示「未配置」，DeepSeek 相关功能不受影响。
+
+**用量接口**：智谱官方配额接口 `api/monitor/usage/quota/limit`，与官方 Claude Code 插件 [glm-plan-usage](https://docs.bigmodel.cn/cn/coding-plan/extension/usage-query-plugin) 的 usage-query 同源（仅支持个人版套餐）。挂件 30 秒缓存一次结果，瞬时网络抖动沿用上次数据。
+
+**手动切换**：菜单「显示」可选 `自动 (跟随模型)` / `GLM 用量` / `DeepSeek 余额`；「GLM窗口」可在 `5 小时窗口` / `本周窗口` 间切换（两项设置均持久化）。
+
+**配色**：GLM 显示域下气泡文字自动切换为青绿色系，便于区分当前显示的是哪家配额。
+
 ## 验证
 
 ```powershell
@@ -202,12 +220,16 @@ dsh --profile web --dump-config | Select-String -Pattern "whale"
 
 curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/balance.json
+curl http://127.0.0.1:3080/dsh-whale/glm-usage.json
+curl http://127.0.0.1:3080/dsh-whale/provider.json
 curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/last-turn.json
 ```
 
 - `/dsh-whale/image.png` → 200 `image/png`
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
+- `/dsh-whale/glm-usage.json` → 200，含 `{"ok":true,"plan":...,"fiveHour":{...},"weekly":{...}}`（需配置 `ZAI_CODING_CN_API_KEY`）
+- `/dsh-whale/provider.json` → 200，含 `{"ok":true,"mode":"auto","detected":"glm","provider":"glm","model":"...","source":"live"}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
 - 浏览器 F5 后右下角出现挂件
@@ -219,6 +241,9 @@ curl http://127.0.0.1:3080/dsh-whale/last-turn.json
 - **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 配置凭据。
 - **今日已用显示 --**：记账模式下需要先跑一次余额观测（60 秒内自动完成）；令牌模式需要配置 `DEEPSEEK_PLATFORM_TOKEN`。
 - **每轮消耗不显示**：确认菜单「每轮对话后自动显示消耗金额」已勾选；一轮对话必须完整结束（turn/end）才会结算。
+- **GLM 用量显示「未配置 ZAI_CODING_CN_API_KEY」**：去 DSH 凭据服务配置智谱 API Key；仅想看 DeepSeek 余额时可在菜单「显示」里手动选 `DeepSeek 余额`。
+- **GLM 用量显示「GLM Key 无效或无权限(HTTP 401/403)」**：检查 `ZAI_CODING_CN_API_KEY` 是否为有效的智谱 API Key；该接口仅支持 GLM Coding Plan 个人版套餐。
+- **当前明明是 GLM 模型却显示余额**：菜单「显示」确认在 `自动 (跟随模型)`；若仍不切换，查看 `/dsh-whale/provider.json` 的 `detected` 字段确认模型识别结果。
 - **没有声音**：确认 `assets/*.mp3` 在包内；若不想带音效文件，静默降级为无声音。
 - **本地开发改了代码不生效**：使用 `link:` 安装时，修改源码后重启 `dsh web`（ESM 模块缓存）；如果用已发布版本，需要 `npm publish` 新版本后 `dsh plugin --profile web update dsh-whale-widget`。
 - **自定义图片**：气泡由代码绘制（SVG），鲸鱼本体为 cut-out PNG，放在右下角 59.45%；换图需保证透明背景 cut-out，否则按 `whale-widget-prompt.md` 调整几何参数。
