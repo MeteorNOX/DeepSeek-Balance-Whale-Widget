@@ -32,7 +32,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件。基于 [Mete
 ## 目录结构
 
 ```text
-DeepSeek-Whale-Naijing/
+DSH-Whale-Widget/
 ├── package.json            # DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml        # 插件挂载声明（id: dsh-whale-naijing）
 ├── lib/
@@ -64,13 +64,13 @@ DeepSeek-Whale-Naijing/
 无需本地克隆，一条命令安装：
 
 ```powershell
-dsh plugin --profile web add github:kirintea/DeepSeek-Whale-Naijing
+dsh plugin --profile web add github:kirintea/DSH-Whale-Widget
 ```
 
 - 装完后插件会出现在 DSH 的**插件管理页面**里，可直接在页面里更新
 - 网络环境需要代理时，先设置代理环境变量再执行：
   ```powershell
-  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; dsh plugin --profile web add github:kirintea/DeepSeek-Whale-Naijing
+  $env:http_proxy="http://<ip>:<port>"; $env:https_proxy="http://<ip>:<port>"; dsh plugin --profile web add github:kirintea/DSH-Whale-Widget
   ```
 
 ### 方式 B：本地 link 安装（开发用）

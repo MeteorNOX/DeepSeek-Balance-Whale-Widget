@@ -35,7 +35,7 @@
 1. **插件包**：`dsh-whale-naijing/package.json` 声明 `dsh.bundle.patch`，`lib/index.js` 为宿主插件入口（ESM）。
 2. **导出形式**：`const name = 'dsh-whale-naijing'; const inject = ['webServer', 'credentials']; function apply(ctx) {...}; export { name, inject, apply }`（具名导出，与 `package.json` 的 `name` 一致）。
 3. **挂载声明**：包内 `cordis.patch.yml` 用 `name: dsh-whale-naijing` 把插件插入配置树——**不要**用 `name: ./xxx.mjs?v=N` 形式（那是手动复制到 profile 时的热更写法，发布给他人会因路径不存在而破坏启动）。
-4. **安装/更新**：GitHub 安装 `dsh plugin --profile web add github:kirintea/DeepSeek-Whale-Naijing`（npm 源安装 `dsh plugin --profile web add dsh-whale-naijing` 需先 `npm publish`，当前未发布）；本地开发在**仓库根目录**（即 `package.json` 所在目录）用 `dsh plugin --profile web add link:.`（注意：根目录就是插件包，**不要**写成 `link:.\dsh-whale-naijing` 这种带子目录的路径，否则会被 pnpm 装成普通依赖而非 bundle 层）。安装后重启 `dsh web`。
+4. **安装/更新**：GitHub 安装 `dsh plugin --profile web add github:kirintea/DSH-Whale-Widget`（npm 源安装 `dsh plugin --profile web add dsh-whale-naijing` 需先 `npm publish`，当前未发布）；本地开发在**仓库根目录**（即 `package.json` 所在目录）用 `dsh plugin --profile web add link:.`（注意：根目录就是插件包，**不要**写成 `link:.\dsh-whale-naijing` 这种带子目录的路径，否则会被 pnpm 装成普通依赖而非 bundle 层）。安装后重启 `dsh web`。
 5. **可迁移路径**：`lib/index.js` 顶部用 `fileURLToPath(import.meta.url)` 推得 `PACKAGE_ROOT`，图片/音效优先 `path.join(PACKAGE_ROOT, 'assets', ...)`；尺寸/账本写 `$DSH_HOME`（`process.env.DSH_HOME || ~/.dsh`）下。本机旧绝对路径仅作 fallback，方便旧手动安装平滑升级。
 6. **宿主上下文**：宿主插件运行在宿主进程（非动态沙箱），可直接使用全局 `fetch`（可带自定义请求头）、`node:fs`、`AbortSignal.timeout` 等 Node API。
 7. **生命周期**：把所有 `webServer.register` / `tapIndex` 返回的 disposer 收集进数组，挂到 `ctx.effect(() => () => { for (const d of disposers) try { d() } catch {} })`，HMR 重载时自动清理。
