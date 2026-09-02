@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ZZZ 位置调试器</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#1a1a2e; display:flex; justify-content:center; align-items:center; min-height:100vh; font-family:system-ui; color:#fff; }
+.container { position:relative; width:400px; height:400px; border:2px dashed rgba(255,255,255,0.2); border-radius:12px; overflow:hidden; }
+/* 角色图：模仿挂件的 right:0;bottom:0;width:59.45%;height:59.45% */
+.char { position:absolute; right:0; bottom:0; width:59.45%; height:59.45%; background-size:contain; background-repeat:no-repeat; background-position:center bottom; border:1px dashed rgba(0,255,100,0.3); box-sizing:border-box; }
+/* ZZZ */
+.zzz { position:absolute; transform:translate(-50%,-50%); font-size:28px; font-weight:800; color:#9fb0d9; z-index:3; pointer-events:none; }
+.zzz span { display:inline-block; animation:zzz-float 2s ease-in-out infinite; }
+.zzz span:nth-child(2) { animation-delay:0.4s; font-size:0.8em; }
+.zzz span:nth-child(3) { animation-delay:0.8s; font-size:0.6em; }
+@keyframes zzz-float {
+  0%,100% { transform:translateY(0) rotate(-10deg); opacity:0.6; }
+  50% { transform:translateY(-14px) rotate(10deg); opacity:1; }
+}
+/* 控制面板 */
+.panel { position:fixed; top:16px; right:16px; background:rgba(0,0,0,0.85); padding:16px 20px; border-radius:10px; font-size:14px; line-height:1.8; min-width:260px; }
+.panel label { display:block; margin-bottom:4px; }
+.panel input[type=range] { width:100%; margin:0 0 4px 0; }
+.val { color:#9fb0d9; font-weight:600; font-family:monospace; }
+.copy-btn { margin-top:12px; padding:8px 16px; background:#9fb0d9; color:#1a1a2e; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px; width:100%; }
+.copy-btn:hover { background:#b8c9e8; }
+.copied { background:#2fa24c !important; color:#fff !important; }
+/* 坐标十字参考线 */
+.crosshair { position:absolute; pointer-events:none; z-index:2; }
+.crosshair-h { position:absolute; width:100%; height:1px; background:rgba(255,255,0,0.25); left:0; }
+.crosshair-v { position:absolute; height:100%; width:1px; background:rgba(255,255,0,0.25); top:0; }
+</style>
+</head>
+<body>
+
+<div class="container" id="container">
+  <div class="char" id="char"></div>
+  <div class="zzz" id="zzz"><span>Z</span><span>Z</span><span>Z</span></div>
+  <!-- 十字参考线 -->
+  <div class="crosshair" id="crosshair" style="display:none">
+    <div class="crosshair-h" id="ch" style="top:0"></div>
+    <div class="crosshair-v" id="cv" style="left:0"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div style="margin-bottom:12px;font-weight:600;font-size:15px;">🎯 ZZZ 位置调试器</div>
+
+  <label>水平 (left%): <span class="val" id="leftVal">70</span>%</label>
+  <input type="range" id="leftSlider" min="0" max="100" value="70" step="0.5">
+
+  <label>垂直 (top%): <span class="val" id="topVal">39</span>%</label>
+  <input type="range" id="topSlider" min="0" max="100" value="39" step="0.5">
+
+  <label>大小 (u×): <span class="val" id="sizeVal">80</span></label>
+  <input type="range" id="sizeSlider" min="40" max="160" value="80" step="5">
+
+  <label style="margin-top:10px;font-size:12px;color:#aaa;">角色参考范围: left 40-100% / top 40-100%</label>
+  <label style="font-size:12px;color:#aaa;">角色头顶约: left ~70% / top ~41%</label>
+
+  <button class="copy-btn" id="copyBtn">📋 复制最终 CSS</button>
+  <div id="result" style="margin-top:8px;font-size:12px;color:#9fb0d9;word-break:break-all;"></div>
+</div>
+
+<script>
+var leftSlider = document.getElementById('leftSlider');
+var topSlider  = document.getElementById('topSlider');
+var leftVal    = document.getElementById('leftVal');
+var topVal     = document.getElementById('topVal');
+var zzz        = document.getElementById('zzz');
+var container  = document.getElementById('container');
+var crosshair  = document.getElementById('crosshair');
+var ch         = document.getElementById('ch');
+var cv         = document.getElementById('cv');
+
+var sizeSlider = document.getElementById('sizeSlider');
+var sizeVal    = document.getElementById('sizeVal');
+
+function update() {
+  var l = leftSlider.value;
+  var t = topSlider.value;
+  var s = sizeSlider.value;
+  leftVal.textContent = l;
+  topVal.textContent  = t;
+  sizeVal.textContent = s;
+  zzz.style.left     = l + '%';
+  zzz.style.top      = t + '%';
+  zzz.style.fontSize = s + 'px'; // 预览用 px，复制时转为 calc(var(--dshw-u) * N)
+  // 十字参考线
+  crosshair.style.display = 'block';
+  ch.style.top  = t + '%';
+  cv.style.left = l + '%';
+}
+leftSlider.addEventListener('input', update);
+topSlider.addEventListener('input', update);
+sizeSlider.addEventListener('input', update);
+
+// 点击容器直接定位
+container.addEventListener('click', function(e) {
+  var rect = container.getBoundingClientRect();
+  var x = (e.clientX - rect.left) / rect.width * 100;
+  var y = (e.clientY - rect.top)  / rect.height * 100;
+  leftSlider.value = Math.round(x * 2) / 2;
+  topSlider.value  = Math.round(y * 2) / 2;
+  update();
+});
+
+// 复制按钮
+document.getElementById('copyBtn').addEventListener('click', function() {
+  var css = ".dshwv-zzz{position:absolute;left:" + leftSlider.value + "%;top:" + topSlider.value + "%;transform:translate(-50%,-50%);font-size:calc(var(--dshw-u) * " + sizeSlider.value + ");font-weight:800;color:#9fb0d9;pointer-events:none;opacity:0;z-index:3}";
+  navigator.clipboard.writeText(css).then(function() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ 已复制';
+    btn.classList.add('copied');
+    document.getElementById('result').textContent = css;
+    setTimeout(function() { btn.textContent = '📋 复制最终 CSS'; btn.classList.remove('copied'); }, 1500);
+  });
+});
+
+// 尝试加载角色图片（相对路径），失败则用占位色块
+var charEl = document.getElementById('char');
+var img = new Image();
+img.onload = function() { charEl.style.backgroundImage = "url('../assets/DSniang-sleep.png')"; };
+img.onerror = function() { charEl.style.background = 'linear-gradient(135deg, #4a6fa5 0%, #7b9cc2 100%)'; };
+img.src = '../assets/DSniang-sleep.png';
+
+update();
+</script>
+</body>
+</html>

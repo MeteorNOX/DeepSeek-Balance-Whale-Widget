@@ -3,7 +3,16 @@
 > 用途：在 DeepSeek Harness（DSH）的 Web 界面右下角常驻一个「小鲸鱼余额挂件」。
 > 本提示词汇总了完整需求、架构、全部行为规格、视觉参数与踩坑结论，可直接交给 AI 复现或维护。
 > 文中 `C:\Users\Meteor\.dsh\profiles\web\`、`D:\TestBox\deepseek\` 等为本机示例路径，迁移时请替换为你环境中的实际路径。
-> 当前版本：v0.2.5（含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单与每轮对话消耗统计）。
+> 当前版本：v1.0.0（奶鲸版；含今日已用双模式、峰谷定价、随机台词、音效、汉堡菜单、每轮对话消耗统计，以及形象切换与多套音效）。
+
+> **v1.0.0 奶鲸版新增规格**
+>
+> 1. **形象切换**：菜单第一行「形象」下拉，选项 `default`（默认，原版鲸鱼娘）/ `naijing`（奶鲸）/ `tangjing`（糖鲸）。
+>    - 宿主 `SKIN_FILES` 注册表：`naijing → assets/DSniang-naijing.png`、`tangjing → assets/DSniang-tangjing.png`；`default` 走 `IMAGE_CANDIDATES`（`assets/DSniang1.png`）。`normalizeSkin()` 把非法值归一为 `default`。
+>    - 路由 `GET /dsh-whale-naijing/image.png?skin=<id>` 按 skin 返回对应 PNG；按 skin 分桶内存缓存（`imageCache`）。
+>    - 持久化：`size.json` 新增 `skin` 字段（`readSizeConfig`/`writeSizeConfig` 均带 `skin`，`normalizeSkin` 归一）；前端启动读取后经 `setSkin()` 恢复（会触发一次 `saveConfig`）。
+>    - 图片规格：**正方形透明画布、人物底部对齐水平居中**（挂件 CSS 对 `.dshwv-img` 强制 `width/height:59.45%` 正方形拉伸，非正方形会变形）。多形象之间按**人物主体（脸部宽度）**对齐，而非图片总高。
+> 2. 菜单行顺序：形象 → 大小 → 音效 → 音量 → 用量 → 峰谷 → 气泡 → 分隔线 → 每轮消耗 → 避让滚动条。
 
 ---
 
@@ -16,17 +25,17 @@
 - **今日已用**双模式（菜单可选）：
   - 小鲸鱼记账（默认，免令牌）：观测余额差值自动记账，持久化到 `.dshw-usage.json`，跨天归零归档。
   - 实时·令牌：读 `DEEPSEEK_PLATFORM_TOKEN`，调平台用量接口按峰谷定价换算。
-- **每轮对话消耗统计**：宿主插件监听 `session/event`，捕获 `assistant/message` 的真实 usage（input/cache/output/reasoning tokens），按 `turn` 聚合；`turn/end` 时结算本轮金额（复用峰谷定价表）写入 `/dsh-whale/last-turn.json`（seq 递增）。前端每秒轮询，出现新 seq 且「每轮对话后自动显示消耗金额」开启时弹出消耗金额泡泡（居中两行：A 样式「上一轮对话消耗:」+ 红色 B 样式「¥X.XX」）；自动关闭时间可设秒数（0=不自动关闭）；消耗泡泡显示期间余额变动不弹普通泡泡。
+- **每轮对话消耗统计**：宿主插件监听 `session/event`，捕获 `assistant/message` 的真实 usage（input/cache/output/reasoning tokens），按 `turn` 聚合；`turn/end` 时结算本轮金额（复用峰谷定价表）写入 `/dsh-whale-naijing/last-turn.json`（seq 递增）。前端每秒轮询，出现新 seq 且「每轮对话后自动显示消耗金额」开启时弹出消耗金额泡泡（居中两行：A 样式「上一轮对话消耗:」+ 红色 B 样式「¥X.XX」）；自动关闭时间可设秒数（0=不自动关闭）；消耗泡泡显示期间余额变动不弹普通泡泡。
 - 支持：拖拽、四分之一区域吸附（上下左右四边）、左吸附整体水平翻转（文字同步）、汉堡菜单（大小/音效/音量/用量模式/峰谷文案/气泡开关/每轮消耗开关与自动关闭时间）、按压 Q 弹 + 音效、余额数字滚动动画、60 秒自动刷新 + 点击手动刷新、随机台词气泡（点击切换/关闭）、**每次打开界面自动启用（常驻自启）**。
 
 ## 二、架构（务必先读）
 
 动态 Cordis 插件（`cordis_define`/`cordis_run`）的定义存在进程内存中，页面重载后需要重新 run，**无法**满足「每打开界面就自动启用」。因此采用**标准 DSH bundle 插件**（npm 包 + `dsh.bundle.patch`）挂进 Web 组合：
 
-1. **插件包**：`dsh-whale-widget/package.json` 声明 `dsh.bundle.patch`，`lib/index.js` 为宿主插件入口（ESM）。
-2. **导出形式**：`const name = 'dsh-whale-widget'; const inject = ['webServer', 'credentials']; function apply(ctx) {...}; export { name, inject, apply }`（具名导出，与 `package.json` 的 `name` 一致）。
-3. **挂载声明**：包内 `cordis.patch.yml` 用 `name: dsh-whale-widget` 把插件插入配置树——**不要**用 `name: ./xxx.mjs?v=N` 形式（那是手动复制到 profile 时的热更写法，发布给他人会因路径不存在而破坏启动）。
-4. **安装/更新**：`dsh plugin --profile web add dsh-whale-widget`；本地开发在**仓库根目录**（即 `package.json` 所在目录）用 `dsh plugin --profile web add link:.`（注意：根目录就是插件包，**不要**写成 `link:.\dsh-whale-widget` 这种带子目录的路径，否则会被 pnpm 装成普通依赖而非 bundle 层）。安装后重启 `dsh web`。
+1. **插件包**：`dsh-whale-naijing/package.json` 声明 `dsh.bundle.patch`，`lib/index.js` 为宿主插件入口（ESM）。
+2. **导出形式**：`const name = 'dsh-whale-naijing'; const inject = ['webServer', 'credentials']; function apply(ctx) {...}; export { name, inject, apply }`（具名导出，与 `package.json` 的 `name` 一致）。
+3. **挂载声明**：包内 `cordis.patch.yml` 用 `name: dsh-whale-naijing` 把插件插入配置树——**不要**用 `name: ./xxx.mjs?v=N` 形式（那是手动复制到 profile 时的热更写法，发布给他人会因路径不存在而破坏启动）。
+4. **安装/更新**：GitHub 安装 `dsh plugin --profile web add github:kirintea/DSH-Whale-Widget`（npm 源安装 `dsh plugin --profile web add dsh-whale-naijing` 需先 `npm publish`，当前未发布）；本地开发在**仓库根目录**（即 `package.json` 所在目录）用 `dsh plugin --profile web add link:.`（注意：根目录就是插件包，**不要**写成 `link:.\dsh-whale-naijing` 这种带子目录的路径，否则会被 pnpm 装成普通依赖而非 bundle 层）。安装后重启 `dsh web`。
 5. **可迁移路径**：`lib/index.js` 顶部用 `fileURLToPath(import.meta.url)` 推得 `PACKAGE_ROOT`，图片/音效优先 `path.join(PACKAGE_ROOT, 'assets', ...)`；尺寸/账本写 `$DSH_HOME`（`process.env.DSH_HOME || ~/.dsh`）下。本机旧绝对路径仅作 fallback，方便旧手动安装平滑升级。
 6. **宿主上下文**：宿主插件运行在宿主进程（非动态沙箱），可直接使用全局 `fetch`（可带自定义请求头）、`node:fs`、`AbortSignal.timeout` 等 Node API。
 7. **生命周期**：把所有 `webServer.register` / `tapIndex` 返回的 disposer 收集进数组，挂到 `ctx.effect(() => () => { for (const d of disposers) try { d() } catch {} })`，HMR 重载时自动清理。
@@ -37,15 +46,15 @@
 
 | 路由 | 方法 | 行为 |
 |---|---|---|
-| `/dsh-whale/image.png` | GET | 读取插件包内 `assets/DSniang1.png`（回退本机旧绝对路径，内存缓存字节），`Content-Type: image/png`、`Cache-Control: no-store`；读取失败返回 404。 |
-| `/dsh-whale/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
-| `/dsh-whale/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
-| `/dsh-whale/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
-| `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
-| `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
-| `/dsh-whale/sound/release.mp3` | GET | 同上，松手音效（`Ya2.mp3` / `D2.mp3`）。 |
-| `/dsh-whale/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
-| `tapIndex` | — | 对每次 index.html 注入 `<script defer src="/dsh-whale/widget.js"></script>`（置于 `</body>` 前，幂等判断 `html.indexOf('/dsh-whale/widget.js') !== -1` 则跳过）。 |
+| `/dsh-whale-naijing/image.png` | GET | 按 `?skin=default|naijing|tangjing` 返回对应形象 PNG（default=`assets/DSniang1.png`，naijing/tangjing 见 `SKIN_FILES`；按 skin 分桶内存缓存），`Content-Type: image/png`、`Cache-Control: no-store`；读取失败返回 404。 |
+| `/dsh-whale-naijing/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
+| `/dsh-whale-naijing/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
+| `/dsh-whale-naijing/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
+| `/dsh-whale-naijing/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs, skin}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
+| `/dsh-whale-naijing/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（duck=`Ya1.mp3` / fx1=`D1.mp3`），每请求读盘、`no-store`。 |
+| `/dsh-whale-naijing/sound/release.mp3` | GET | 同上，松手音效（duck=`Ya2.mp3` / fx1=`D2.mp3`）。 |
+| `/dsh-whale-naijing/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
+| `tapIndex` | — | 对每次 index.html 注入 `<script defer src="/dsh-whale-naijing/widget.js"></script>`（置于 `</body>` 前，幂等判断 `html.indexOf('/dsh-whale-naijing/widget.js') !== -1` 则跳过）。 |
 
 ### 余额拉取（Host）的健壮性要求
 
@@ -78,7 +87,7 @@
 - 捕获 `type === 'assistant/message'` 且带 `data.usage` 的事件：`usage = { inputTokens, cacheReadTokens, outputTokens, reasoningTokens }`（模型返回的真实 token 计数，非估算）。
 - 按 `data.turn` 聚合：同一 turn 的多步（step）usage 累加；成本换算复用峰谷定价表：`cacheRead→p.hit[off]`、`input→p.miss[off]`、`output+reasoning→p.out[off]`（off = 当前是否高峰）。
 - `type === 'turn/end'` 时结算本轮：写 `lastTurn = { turn, amount, tokens, ts }`，`lastTurnSeq++`。
-- 前端 `/dsh-whale/last-turn.json` 每秒轮询：首次拿到数据只对齐 seq（不弹旧轮次），此后 `seq` 变大即「新的一轮」→ 弹消耗金额泡泡。
+- 前端 `/dsh-whale-naijing/last-turn.json` 每秒轮询：首次拿到数据只对齐 seq（不弹旧轮次），此后 `seq` 变大即「新的一轮」→ 弹消耗金额泡泡。
 - 消耗金额泡泡显示期间：`render()` / `animateAmount()` 均被 `costBubbleActive` 保护跳过（余额渲染/滚动不覆盖金额行）；余额变动也不弹普通泡泡（`showBubble()` 内 `if (costBubbleActive) return`）。
 - 关闭方式：点击泡泡确认关闭，或按 `turnCostCloseMs`（秒×1000）自动关闭；填 0 表示不自动关闭。
 
@@ -91,7 +100,7 @@
 ```
 div.dshwv-root（position:fixed，承载定位与翻转）
 ├─ div.dshwv-body（绝对定位铺满，承载按压 Q 弹缩放）
-│  ├─ img.dshwv-img（src=/dsh-whale/image.png，cut-out 鲸鱼，右下角 59.45%）
+│  ├─ img.dshwv-img（src=/dsh-whale-naijing/image.png，cut-out 鲸鱼，右下角 59.45%）
 │  └─ div.dshwv-bubble（SVG 气泡：大椭圆 + 尾巴 + 两个小气泡，z-index:1）
 │     ├─ img.dshwv-gif（随机台词 gif，默认隐藏）
 │     └─ div.dshwv-text（三行：label / amount / hint，绝对定位居中）
@@ -132,7 +141,7 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 - 行2 音效：select `小黄鸭`(duck, Ya1/Ya2) / `音效1`(fx1, D1/D2)。
 - 行3 音量：range 0–1；音量 0 时自动关声音。
 - 行4 用量：select `小鲸鱼记账 (推荐)`(ledger) / `实时·令牌 (用法：去问dsh)`(token)。
-- 所有设置 PUT `/dsh-whale/size.json` 持久化；打开页面时 GET 恢复。
+- 所有设置 PUT `/dsh-whale-naijing/size.json` 持久化；打开页面时 GET 恢复。
 - 菜单 `color-scheme:light`，保证暗色主题下可读。
 
 ### 余额刷新与状态机
@@ -182,7 +191,7 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 ## 六、关键技术结论（踩坑记录，供复用）
 
 1. **动态插件无法自启**：定义在进程内存、页面重载需重 run；要常驻自启必须静态化挂进 profile 组合。
-2. **发布包 patch 不用 `?v=`**：`cordis.patch.yml` 写 `name: dsh-whale-widget`（bundle 插件名）；`?v=N` 只用于手动复制到 profile 的本机热更（`.mjs` ESM 缓存需查询串破缓存），发布给他人会因路径不存在破坏启动。
+2. **发布包 patch 不用 `?v=`**：`cordis.patch.yml` 写 `name: dsh-whale-naijing`（bundle 插件名）；`?v=N` 只用于手动复制到 profile 的本机热更（`.mjs` ESM 缓存需查询串破缓存），发布给他人会因路径不存在破坏启动。
 3. **profile 补丁热更新**：本机开发时 `cordis.patch.yml` 被 `watchUserPatches` 实时监视，改文件即生效、无需重启。
 4. **热更新破缓存**：本机插件必须用 `.mjs` + `name: ./xxx.mjs?v=N`，每次改代码 N+1；`.cjs` 的 require 缓存忽略查询串，实测无法热更。
 5. **webServer handler 抛错**：异步 handler 抛异常会被 dispatcher 捕获并回 400 空响应；务必让路由永远返回 JSON（try/catch 全包）。
@@ -196,7 +205,7 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 
 ## 七、部署与验证
 
-1. 将 `dsh-whale-widget` 作为本地包安装：在仓库根目录 `dsh plugin --profile web add link:.`（或发布后 `dsh plugin --profile web add dsh-whale-widget`），然后重启 `dsh web`。
-2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
+1. 将 `dsh-whale-naijing` 作为本地包安装：在仓库根目录 `dsh plugin --profile web add link:.`（或发布后 `dsh plugin --profile web add dsh-whale-naijing`），然后重启 `dsh web`。
+2. 验证：`curl http://127.0.0.1:3080/dsh-whale-naijing/image.png`（200 image/png）、`/dsh-whale-naijing/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale-naijing/size.json`（GET/PUT 读写回路）、`/dsh-whale-naijing/widget.js`（200 JS）、`/dsh-whale-naijing/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
 3. 浏览器 **F5 刷新页面**后出现挂件。
 4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量）、按压 Q 弹 + 音效、点击鲸鱼弹气泡 → 首次点击切台词 → 再点关闭、5 秒自动收起、60s 自动刷新、余额变化数字滚动、记账模式跨天归档。

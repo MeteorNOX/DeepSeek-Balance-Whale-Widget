@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# logs
+*.log
+debug.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# drafts (local working notes, not published)
+drafts/
+
+# runtime config (size.json written by the widget at runtime)
+.dshw-size.json
+.dshw-usage.json

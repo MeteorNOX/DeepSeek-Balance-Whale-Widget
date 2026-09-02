@@ -1,34 +1,42 @@
 {
-  "name": "dsh-whale-widget",
-  "version": "0.2.10",
-  "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件（含今日已用、峰谷定价、随机台词、音效与每轮消耗统计）",
+  "name": "dsh-whale-naijing",
+  "version": "1.0.0",
+  "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件 · 奶鲸版（含默认/奶鲸/糖鲸/睡觉四套形象切换、六套音效、空闲睡觉+zzz动画、今日已用、峰谷定价、随机台词与每轮消耗统计）。独立项目。",
   "keywords": [
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
     "balance",
-    "widget"
+    "widget",
+    "naijing"
   ],
   "type": "module",
   "main": "lib/index.js",
+  "scripts": {
+    "test": "node test/helpers.test.mjs"
+  },
   "files": [
     "lib",
     "assets",
     "cordis.patch.yml",
     "README.md"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget.git"
+  "engines": {
+    "node": ">=18"
   },
-  "bugs": {
-    "url": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues"
-  },
-  "homepage": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget#readme",
+  "author": "kirintea",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kirintea/DeepSeek-Whale-Naijing.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kirintea/DeepSeek-Whale-Naijing/issues"
+  },
+  "homepage": "https://github.com/kirintea/DeepSeek-Whale-Naijing#readme"
 }
