@@ -1,13 +1,18 @@
 {
   "name": "dsh-whale-widget",
-  "version": "0.2.10",
-  "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件（含今日已用、峰谷定价、随机台词、音效与每轮消耗统计）",
+  "version": "0.2.11",
+  "description": "DSH Web 右下角小鲸鱼挂件：DeepSeek 余额/今日已用/峰谷定价，外加阿里云百炼 Token Plan（Qwen）周 Credits 用量估算与超额告警（含随机台词、音效与每轮消耗统计）",
   "keywords": [
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
     "balance",
-    "widget"
+    "widget",
+    "token-plan",
+    "qwen",
+    "aliyun",
+    "bailian",
+    "usage"
   ],
   "type": "module",
   "main": "lib/index.js",
@@ -30,5 +35,9 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/tokenplan-usage.test.mjs && node test/whale-host-sim.test.mjs && node test/whale-widget-client.test.mjs",
+    "check": "node scripts/check-qwen.mjs"
+  }
 }

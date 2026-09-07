@@ -200,3 +200,85 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
 3. 浏览器 **F5 刷新页面**后出现挂件。
 4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量）、按压 Q 弹 + 音效、点击鲸鱼弹气泡 → 首次点击切台词 → 再点关闭、5 秒自动收起、60s 自动刷新、余额变化数字滚动、记账模式跨天归档。
+
+## 八、阿里 Token Plan（Qwen）用量检测（v0.2.11 新增）
+
+需求：小鲸鱼除了 DeepSeek 余额，还要能盯阿里云百炼 **Token Plan** 套餐（Standard ¥139/30 天，
+每 7 天一个 10,000 Credits 的固定周期）的消耗，超阈值要主动提醒。
+
+### 为什么只能本地估算（别再走 API 的弯路）
+
+2026-09-05 实测：Token Plan 网关 `https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1`
+只有 chat/models 是活的；`/v1/usage`、`/v1/quota`、`/v1/subscription`、`/v1/dashboard/subscribe/detail`
+全部被兜底成 `400 InvalidParameter "Required parameter \"model\" missing"`，POST `/v1/usage` 报
+`url error, please check url`；一次成功 chat 的响应头只有 `x-request-id / req-cost-time /
+resp-start-time / x-envoy-upstream-service-time`，没有任何额度字段。官方 `bl usage token-plan`
+用的是**控制台 Cookie**（`bailian-cs.console.aliyun.com/.../tokenplan/personal/api/v2/usage`），
+与本插件「只填 API Key、不进浏览器」的前提冲突。结论：本地估，UI 明写「估算」。
+
+### 口径必须与 Python 报表同源
+
+`lib/tokenplan-usage.js` 的 `PRICE_CNY_PER_M` 是外部按量报表脚本（`token_plan_report.py`）里
+`RATES` 的镜像，`Credits = ¥ × 100`，`reasoning` 并入输出、`cacheRead+cacheWrite` 并入缓存，
+`inputTokens` 按 harness 语义就是「非缓存输入」（不再减一次 cache）。改价必须两处一起改，
+`scripts/check-qwen.mjs` 的 `[3]` 会逐日对账（容差 1%）把不一致钉死。
+
+### 归属：provider 优先于模型名
+
+`tokenplan` 与 `bailian` 两条路由上的模型 id 完全同名（`qwen3.8-flash`…），只看模型名必串账。
+宿主在每次请求前会 append `request/context {provider, model}`，因此：
+
+- host 用 `sessionRoute`（sessionId → {provider, model}）记住这一会话当前走哪条路由；
+- `assistant/message` 的 `usage` 用 `TP.isTokenPlanCall(cfg, provider, model)` 判定：
+  有 provider 就以 provider 为准，没有才按模型名/白名单兜底；
+- 命中套餐 → 记 `agg.credits`；否则仍走原来的 DeepSeek 峰谷价目记 `agg.cost`。
+  两条轨道在 `last-turn.json` 里分别是 `credits` 与 `amount`（互斥，另一个为 `null`）。
+
+### 两份账本按天取 max
+
+`~/.dsh/dsh-usage/usage-ledger.json`（跨重启、含子代理）与挂件自维护的
+`~/.dsh/.dshw-qwen.json`（事件流实时增量）描述的是同一批调用，**相加会翻倍**，
+所以 `mergeDays` 逐日逐模型取较大值，`source` 字段暴露实际用了哪份。
+实时账本 2s 去抖落盘，`ctx.effect` 卸载时强制 flush 一次，避免重启丢账。
+
+### 窗口锚点
+
+官方口径是「自首次调用起 7 天」，本地看不到真实锚点，所以 `resolveAnchor` 依次尝试：
+配置 `qwenWindowAnchor` → 账本里第一个有量的一天 → 现在。`anchorSource` 一定回给前端，别让用户以为这是官方数。
+
+### 气泡文字必须自适应（长读数会顶出白区）
+
+三行文字的字号是 66 / 128 / 56 个 `--dshw-u`（`--dshw-u = 底座像素/1026`），泡泡白区约 560u 宽。
+余额态最长是 `¥ 123.45`（8 字）刚好，套餐态一句 `Cr · 剩 2750 · 4天12h后重置` 直接溢出框外。
+两层处理：① 文案按字号收敛长度（金额行只 `7250 Cr`，单位放标题行）；
+② 每次写完文字（`applyBubbleLines`/`setHint`/`restoreBubbleLines`/`showCostBubble`/`showQwenAlert`/`render`/`resize`）
+调 `scheduleFit()`，rAF 合并后取三行 `scrollWidth` 最大值算 `k = 白区宽/实测宽` 写进 `--dshw-fit`（下限 .62），
+CSS 用 `transform: translate(-50%,-50%) scale(var(--dshw-fit,1))`（左吸附分支带 `scaleX(-1)`）；
+仍放不下就给提示行加 `dshwv-wrap` 折行。jsdom 里 `getBoundingClientRect().width===0` → `fitBubbleText` 早退，
+所以这条不影响单测，只有真浏览器会触发。
+
+### 显示与告警
+
+- `display` 两态：`ds` / `qwen`，存进原有 `.dshw-size.json`（原先还做过 20s 轮换 `rotate`，用户说不要，
+  已删；宿主 `normalizeDisplay` 把老配置里的 `rotate` 归一成 `ds`，不会因为读到一个陌生值就整块配置崩掉）。
+  菜单里换成**账户列表**：每行「当前值 + 累计值」，点行选中等气泡显示哪个。
+  （`writeSizeConfig` 已从 12 个位置参数改成对象入参，加字段不再疼）。
+- Qwen 态金额行放 Credits、提示行放 `剩 N · X天Yh后重置`，超阈值转橙、触顶/≥90% 转红；
+  `state.currency` 那条动画在 Qwen 态只更新缓存值不动 DOM（`animateAmount` 顶部有守卫）。
+- 告警只在服务端「现算不缓存」：`getQwenPayload()` 把汇总结果缓存 30s，但 `shouldAnnounce`
+  是每次请求单独算并写回 `alert` 状态的 —— 曾经把 `shouldAnnounce=true` 连同 payload 一起塞进缓存，
+  结果缓存期内每个客户端都以为自己该弹，这是个真踩过的坑。
+- 触顶检测：`turn/end` 的 `reason.kind==='error'` 里 message/code 含 quota/额度/exhausted，
+  记 `quotaHitAt`（48h 过期），`free quota` 除外（那是百炼免费额度，不是套餐）。
+- 套餐轮次的消耗泡泡显示 `≈ x Cr` + 「估算 · 实际以控制台为准」。
+
+### 测试
+
+- `test/tokenplan-usage.test.mjs`：纯逻辑（价目、窗口数学、max 合并、阈值、去重、脏配置）。
+- `test/whale-host-sim.test.mjs`：假 ctx 跑真 `apply()`，临时 `DSH_HOME` 隔离真账本；
+  覆盖 tokenplan 112 Cr 精确值、bailian 同名不串账、触顶告警、size 往返、落盘、空环境降级。
+- `test/whale-widget-client.test.mjs`：jsdom 真跑 widget.js。注意两件坑：
+  (1) 必须给 `HTMLCanvasElement.getContext` 与 `Image` 打桩，否则 `isWhaleHit` 恒真，
+  document 捕获阶段的 click 拦截器会把合成 click 全吃掉；
+  (2) 桩 canvas 要回 alpha=255 且给 `.dshwv-img` 一个 610×610 的 rect，
+  点鲸鱼（pointerdown/pointerup）与点气泡（框外坐标 click）才是两条不同的路。
