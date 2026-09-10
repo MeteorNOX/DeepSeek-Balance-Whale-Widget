@@ -1,6 +1,6 @@
 {
   "name": "dsh-whale-widget",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "DSH Web 界面右下角的 DeepSeek 余额小鲸鱼挂件（含今日已用、峰谷定价、随机台词、音效、每轮消耗统计与侧边栏每会话消耗显示）",
   "keywords": [
     "dsh",
