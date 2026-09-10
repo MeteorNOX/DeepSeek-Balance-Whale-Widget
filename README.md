@@ -18,6 +18,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻余额挂件：小鲸鱼气
   - **模型感知计价**：按日志里**每个事件真实模型**（flash / pro 分档）+ **事件时刻的峰谷**精确换算，与「每轮消耗」完全同一口径；混合模型会话按各自模型分别计价（悬停显示全部模型）
   - 进行中的会话直接读内存事件表实时计算（每轮结束自动更新：轮询 8 秒 + 新轮次即时刷新）；历史会话在 `dsh web` 启动时**后台预热扫描**，打开页面即有大部分金额（其余几秒内补齐，先显示已就绪的）
   - **子代理费用自动聚合**：胶囊金额 = 会话自身 + 全部子代理（spawn/fork 子会话及其孙辈）消耗；悬停显示拆分（如「含子代理 ¥0.37（1 个）」）
+  - **web 检索费用也计入**：`web_search` 每轮都会用本账号真实调用一次模型，但 DSH 不会把这次调用的 token 写进会话事件 —— 早期版本因此漏掉长任务里最大的一笔（实测某会话 775 轮检索 ≈ ¥21 完全没显示）。现在按轮次计入，悬停显示「其中 web 检索 N 轮 ≈ ¥X」；单价默认 ¥0.027/轮（由账号账本反推校准），可在 `.dshw-size.json` 里用 `searchUnitCost` 覆盖
   - 无需任何凭据，无需平台令牌
 - 🖱️ **拖拽 + 四边四分之一吸附**（左/右/上/下，角落可组合）
 - 🔄 左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
@@ -207,9 +208,13 @@ Remove-Item "$web\DSniang02.png" -ErrorAction SilentlyContinue
 - 数据源：本插件自带接口 `/dsh-whale/session-costs.json`（实时会话直接读 DSH 内存事件表；历史会话一次全量扫描后缓存）
 - 计价：**模型感知**——按日志里每个 usage 事件携带的真实模型（flash / pro 档位）+ 事件发生时刻的峰谷定价逐条换算，与「每轮消耗」完全同口径；混合模型会话按各自模型分别计价
 - **子代理聚合**：徽标金额 = 主子会话 + 其全部子代理（`origin=subagent` 的子会话，含孙辈）消耗之和；悬停可见「含子代理 ¥N（M 个）」拆分；子代理自身的 `web 查询`/工具等消耗都计入各自子会话，再并入父会话胶囊
+- **web 检索（不落 token 账单的调用）也计入**：DSH 的 `web_search` 工具**每一轮**都会用本账号向 Anthropic 兼容端点发一次 `deepseek-v4-flash` 请求（会话事件 `web/deepseek-search-llm-request`），但这次调用的 token 用量**不会**写进 `assistant/message`，只数 usage 的账会漏掉大头。插件按**轮次**计价并计入胶囊与子代理聚合：
+  - 默认单价 **¥0.027/轮**，由账号账本（小鲸鱼记账）反推校准：2026-09-08 账本 ¥31.67 − 会话 usage ¥9.32 = ¥22.35 ÷ 811 轮 ≈ ¥0.0276；2026-08-28 账本 ¥3.46 − usage ¥1.41 = ¥2.05 ÷ 79 轮 ≈ ¥0.0259。校准后 09-08 会话侧合计 ¥31.22 vs 账本 ¥31.67（差 1.4%）
+  - 也会计入会话标题生成（`session/title-llm-request`，约 ¥0.0015/次）
+  - 悬停显示「其中 web 检索 N 轮 ≈ ¥X」；想改单价就在 `$DSH_HOME/.dshw-size.json` 里加 `searchUnitCost`（元/轮，改完重启 `dsh web`）
 - 实时性：会话进行中随每轮结束自动更新（轮询 8 秒 + 新轮次触发即时刷新）；历史会话数量较多时首轮逐个后台扫描补齐
 - 开关：鲸鱼菜单 →「会话消耗」（localStorage 记忆，不依赖服务端配置）
-- 说明：金额按 DeepSeek 官方定价的 token 用量精确换算，与真实 API 计费可能存在毫分级差异（峰谷边界顿、不足百万分之 0.01 元）；胶囊为会话累计值，非当日；当日总消耗看鲸鱼气泡「今日已用」
+- 说明：token 部分按 DeepSeek 官方定价的 usage 精确换算（峰谷边界、不足百万分之 0.01 元会有毫分级差异）；web 检索部分因 DSH 不落 usage，只能按轮次 × 标定单价估算（单价可用 `searchUnitCost` 调整）。胶囊为会话累计值，非当日；当日总消耗看鲸鱼气泡「今日已用」
 
 ## 验证
 
@@ -227,7 +232,7 @@ curl http://127.0.0.1:3080/dsh-whale/session-costs.json
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
-- `/dsh-whale/session-costs.json` → 200，含 `{"ok":true,"costs":{"<sessionId>":{"amount":...,"hit":...,"miss":...,"out":...,"models":{...}}}}`（首次请求后历史会话在后台扫描，几轮轮询内补齐）
+- `/dsh-whale/session-costs.json` → 200，含 `{"ok":true,"searchUnit":0.027,"costs":{"<sessionId>":{"amount":...,"own":...,"sub":...,"subCount":...,"usage":...,"aux":...,"search":...,"hit":...,"miss":...,"out":...,"models":{...}}}}`（`amount = usage + aux`；`search` 为 web 检索轮次；首次请求后历史会话在后台扫描，几轮轮询内补齐）
 - 浏览器 F5 后右下角出现挂件
 
 ## 常见问题
@@ -238,6 +243,7 @@ curl http://127.0.0.1:3080/dsh-whale/session-costs.json
 - **今日已用显示 --**：记账模式下需要先跑一次余额观测（60 秒内自动完成）；令牌模式需要配置 `DEEPSEEK_PLATFORM_TOKEN`。
 - **每轮消耗不显示**：确认菜单「每轮对话后自动显示消耗金额」已勾选；一轮对话必须完整结束（turn/end）才会结算。
 - **侧边栏不显示每会话消耗**：确认菜单「会话消耗」已勾选；whale 脚本需要在会话列表渲染后运行（约 1–2 秒后自动出现）；个别会话始终为空时，看 `dsh web` 终端里 `[whale-session-costs] 会话扫描失败:` 日志（60 秒自动重试，单会话失败不影响其他会话）；若 DSH 更新了会话列表的 DOM 结构，徽标会自动跳过，可在鲸鱼菜单里关闭。
+- **胶囊金额和账号实际扣费对不上**：先看会话有没有跑 web 检索（悬停提示里的「其中 web 检索 N 轮」）——这段 DSH 不落 usage，只能按轮次估算；默认 ¥0.027/轮，若你的实际单价不同，改 `$DSH_HOME/.dshw-size.json` 的 `searchUnitCost` 后重启 `dsh web`。另外注意胶囊是**会话累计**（含子代理），当日总额看鲸鱼气泡「今日已用」；账本模式下「今日已用」统计的是**整个账号**的余额下降（同一账号在别的机器/程序上花的钱也在内）。
 - **没有声音**：确认 `assets/*.mp3` 在包内；若不想带音效文件，静默降级为无声音。
 - **本地开发改了代码不生效**：使用 `link:` 安装时，修改源码后重启 `dsh web`（ESM 模块缓存）；如果用已发布版本，需要 `npm publish` 新版本后 `dsh plugin --profile web update dsh-whale-widget`。
 - **自定义图片**：气泡由代码绘制（SVG），鲸鱼本体为 cut-out PNG，放在右下角 59.45%；换图需保证透明背景 cut-out，否则按 `whale-widget-prompt.md` 调整几何参数。
