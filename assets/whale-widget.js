@@ -18,21 +18,39 @@ try {
   if (dshwIsChatRoot(dshwRoot)) {
     dshwEnabled = true
   } else {
-    // 尚未渲染：轮询等待（主界面异步挂载），超过 5s 视为非主界面（市场/设置等）放弃
-    var dshwPollTries = 0
-    var dshwPoll = setInterval(function () {
-      dshwPollTries++
-      if (dshwIsChatRoot(document.getElementById('root'))) {
-        clearInterval(dshwPoll)
-        dshwEnabled = true
-        try { dshwInit() } catch (err) {}
-        return
+    // 尚未渲染：持续等待主界面 composer 出现再初始化。
+    // 原实现只轮询 5s（10×500ms）就永久放弃；桌面端冷启动要等会话与客户端插件全部加载完
+    // composer 才挂载，经常超过 5s（实测本机 window.__dshWhaleWidget=true 而
+    // window.__dshWhaleInit 始终为 false），于是整个页面生命周期都不再出现挂件。
+    // 改为 MutationObserver + 定时兜底一直等：非主界面（市场/设置等）本来就没有 composer，
+    // 不会误挂；一旦 composer 出现（含从市场页返回主界面）就挂载一次。
+    var dshwWatchStop = null
+    var dshwTryMount = function () {
+      if (dshwEnabled) return
+      if (!dshwIsChatRoot(document.getElementById('root'))) return
+      dshwEnabled = true
+      if (dshwWatchStop) { try { dshwWatchStop() } catch (err) {} dshwWatchStop = null }
+      try { dshwInit() } catch (err) {}
+    }
+    var dshwStartWatch = function () {
+      // 同步就绪：只置标志，真正的 dshwInit 交给文件末尾那次调用（与原有立即挂载路径一致）
+      if (dshwIsChatRoot(document.getElementById('root'))) { dshwEnabled = true; return }
+      var dshwObs = null
+      try {
+        dshwObs = new MutationObserver(function () { dshwTryMount() })
+        dshwObs.observe(document.documentElement, { childList: true, subtree: true })
+      } catch (err) {}
+      var dshwTimer = setInterval(dshwTryMount, 500)
+      dshwWatchStop = function () {
+        try { if (dshwObs) dshwObs.disconnect() } catch (err) {}
+        clearInterval(dshwTimer)
       }
-      if (dshwPollTries >= 10) {
-        clearInterval(dshwPoll)
-        // 非主界面：直接退出，不初始化
-      }
-    }, 500)
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', dshwStartWatch)
+    } else {
+      dshwStartWatch()
+    }
   }
 } catch (err) {}
 if (!dshwEnabled) {
