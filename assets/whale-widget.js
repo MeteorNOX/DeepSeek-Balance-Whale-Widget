@@ -175,6 +175,15 @@ var css = [
   '.dshwv-root.dshwv-dragging{cursor:grabbing;transition:none}',
   '.dshwv-body{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}',
   '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  // 命中鲸鱼不透明像素时（setWidgetCursor 挂类）让鲸鱼图接过指针并显示 grab / grabbing：
+  // 鲸鱼区域本来就在吞指针事件（见 onDocPointerDown 的 isWhaleHit），这不是新增拦截；
+  // 新增影响的只有滚轮，由 onWhaleWheel 转交给指针下方真正可滚动的容器；判定之外仍是穿透层。
+  '.dshwv-root.dshwv-cursor-grab .dshwv-img{pointer-events:auto;cursor:grab}',
+  '.dshwv-root.dshwv-cursor-grabbing .dshwv-img{pointer-events:auto;cursor:grabbing}',
+  // 拖动期间握点相对挂件固定（state.left/top = 按下位置 + 位移），指针基本一直落在盒内，
+  // 让整个盒接过指针以保持 grabbing；类由 onDocPointerDown 加、endDrag 摘，
+  // 摘掉后 .dshwv-body 重新继承 root 的 pointer-events:none。
+  '.dshwv-root.dshwv-dragging .dshwv-body{pointer-events:auto;cursor:grabbing}',
   '.dshwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026)}',
   // 纵深防御：泡泡容器必须透明，形状由内部 SVG 绘制；用 !important 压掉外部
   // 插件“类名子串匹配”选择器（如 aqua 的 [class*=bubble]）注入的玻璃/边框样式
@@ -10152,7 +10161,11 @@ function measureBubbleCenter() {
     dshwCenterX = cx
     dshwCenterY = cy
     try {
-      var s = document.documentElement.style
+      // 写到挂件自己的 root 上，不写 document.documentElement：未注册的自定义属性写在 <html> 上
+      // 会让 Blink 保守失效整棵子树样式（实测 12k 节点会话一次约 160ms），而本函数在初始化、rAF、
+      // load 以及每次窗口 resize 都会跑。挂件自己的 .dshwv-text/.dshwv-gif 都在 root 内，
+      // 编辑器预览在 root 之外，见 bubblePreviewInto 里补写的那两行。
+      var s = root.style
       s.setProperty('--dshw-vx', cx + '%')
       s.setProperty('--dshw-vy', cy + '%')
     } catch (err) {}
@@ -11884,6 +11897,9 @@ function bubblePreviewInto(container, mods, widthPx) {
     container.style.transform = 'none'
     container.style.transformOrigin = ''
     container.style.setProperty('--dshw-u', (W / 1026) + 'px')
+    // 预览节点在挂件 root 之外，拿不到 root 上的 --dshw-vx/--dshw-vy，这里补一份保证预览与真实泡泡同排版
+    container.style.setProperty('--dshw-vx', dshwCenterX + '%')
+    container.style.setProperty('--dshw-vy', dshwCenterY + '%')
     // 视觉右移 10px:用左右 margin 的非对称(右侧少让),避免溢出撑出横向滚动条
     var halfGap = Math.max(0, (hostW - W) / 2)
     var shiftR = Math.min(10, Math.max(0, Math.round(halfGap)))
@@ -14547,13 +14563,58 @@ document.addEventListener('touchstart', onDocTouchStart, { capture: true, passiv
 
 var widgetCursor = ''
 function setWidgetCursor(v) {
-  if (v !== widgetCursor) {
-    widgetCursor = v
-    try { document.body.style.cursor = v } catch (err) {}
-  }
+  if (v === widgetCursor) return
+  widgetCursor = v
+  // 光标不写 document.body.style.cursor：cursor 是可继承属性，写 <body> 会让 Blink 失效整棵文档树
+  // 的样式；而本函数在点击链路上按下/抬手各写一次，紧接着 isWhaleHit() 的 getBoundingClientRect()
+  // 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局 —— 整页重算就被算进了点击里。
+  // 实测：5.7k 节点会话 35ms/次、13.4k 节点会话 179ms/次，且只有桌宠卡（其它 UI 不写页面级样式）；
+  // 同样一次写入只落在挂件自己子树上只要 1.3ms，所以这里改成切换挂件自己的类，光标由 CSS 承担。
+  // 两个类必须互斥切换（只 add 不摘旧类会让光标一直停在 grabbing）。
+  try {
+    root.classList.toggle('dshwv-cursor-grab', v === 'grab')
+    root.classList.toggle('dshwv-cursor-grabbing', v === 'grabbing')
+  } catch (err) {}
 }
+// 鲸鱼图接过指针期间（见上面的 dshwv-cursor-* 类），滚轮要转交给「指针下方真正可滚动的容器」，
+// 否则桌宠会变成一块滚不动的实心区域。只做一次临时让位取元素，全程只写挂件自己的内联样式，
+// 不碰页面级样式；找不到可滚动祖先时什么都不做。
+function onWhaleWheel(e) {
+  try {
+    if (e.target !== img || !widgetCursor) return
+    var prev = img.style.pointerEvents
+    var under = null
+    try {
+      img.style.pointerEvents = 'none' // 临时让开，取出指针下方真正的页面元素
+      under = document.elementFromPoint(e.clientX, e.clientY)
+    } catch (err) {}
+    img.style.pointerEvents = prev
+    var sc = under
+    for (var hop = 0; sc && sc !== document.body && sc !== document.documentElement && hop < 12; hop++) {
+      var st = null
+      try { st = window.getComputedStyle(sc) } catch (err) {}
+      if (st && (st.overflowY === 'auto' || st.overflowY === 'scroll' || st.overflowY === 'overlay') &&
+          sc.scrollHeight > sc.clientHeight + 1) break
+      sc = sc.parentElement
+    }
+    if (sc && sc !== document.body && sc !== document.documentElement) {
+      var k = (e.deltaMode === 1) ? 16 : 1 // 1 = 行模式，按 16px 折算
+      if (e.deltaY) sc.scrollTop += e.deltaY * k
+      if (e.deltaX) sc.scrollLeft += e.deltaX * k
+      e.preventDefault()
+    }
+  } catch (err) {}
+}
+try { root.addEventListener('wheel', onWhaleWheel, { passive: false }) } catch (err) {}
 function onDocPointerMoveCursor(e) {
-  if (drag && drag.active) { setWidgetCursor('grabbing'); return }
+  if (drag && drag.active) {
+    // 按钮已经松开却还在“拖动中” = 这一次 pointerup 丢了（例如松手时指针在窗口外）：
+    // 不能继续强推 grabbing（光标会一直卡在“抓紧”），顺手补一次 endDrag 收尾，
+    // 避免挂件继续黏着鼠标。鼠标/触摸/笔拖动期间 e.buttons 都是 1，buttons===0 只可能意味着真的松手了。
+    if (!e.buttons) { try { endDrag(e, true) } catch (err) {} ; return }
+    setWidgetCursor('grabbing')
+    return
+  }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
   if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
