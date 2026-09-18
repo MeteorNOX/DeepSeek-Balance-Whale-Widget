@@ -4,6 +4,21 @@
 
 DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
 
+## 两条分支怎么选
+
+本仓库有两条**互不兼容**的产品线，按你要挂在哪里选一条：
+
+| 你要挂在哪 | 用哪条分支 | 安装方式 |
+|---|---|---|
+| **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget`，但那样装的是 **main 当前状态、不跟随已发布版本** |
+| **Codex 桌面应用**（跟随 Codex 窗口、无独立网页） | [`For-Codex`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/For-Codex) | 该分支的 `api-balance-whale`：解压到 `%USERPROFILE%\plugins\api-balance-whale`，再按分支内的 [安装说明](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.0.md) 注册计划任务（也可以直接交给 Codex 自己装喵~） |
+
+⚠️ **两条分支互不兼容**：`For-Codex` 的插件不能用 `dsh plugin … add` 装进 DSH 网页；本主分支的插件也不能在 Codex 桌面里运行。上表第一行是本仓库默认分支（`main`）的能力，第二行是另一个分支的能力。
+
+⚠️ 同一分支的两种安装方式（npm 名 / `github:`）**二选一、别混用** —— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget`。
+
+> 两条产品线**各自独立维护**（无共享代码/无跨分支依赖）：`main` = DSH Web 插件，`For-Codex` = Codex 桌面端口，各自的版本线、发布方式与测试互不影响。
+
 ## 特性
 
 ### 记账与显示
