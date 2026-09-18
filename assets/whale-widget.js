@@ -1862,6 +1862,7 @@ function usageAlertBudgetEditor(key, onSave) {
 // ===== 自定义 API 模型（v657）：状态 / 拉取 / 每模型提醒 / 模型设置窗口 =====
 var apiModels = [] // 最近一次拉到的模型列表（含实时余额 / 今日已用）
 var apiTemplates = [] // 可选厂商模板
+var apiAccounts = [] // v0.3.3：DeepSeek 账号列表（内置鲸鱼用哪把 key 查余额）
 var apiModelsLoaded = false
 var apiAlertFired = {} // modelId+阈值 → 已弹过（低于阈值后恢复会复位）
 var apiBudgetFired = {} // modelId+当日+金额 → 已弹过
@@ -1876,6 +1877,260 @@ function apiModelById(id) {
 function apiCanAdjustBalance(model) {
   return !!(model && model.id === 'deepseek' && model.builtin === true &&
     model.provider === 'deepseek' && model.canAdjustBalance === true)
+}
+// ===== v0.3.3：DeepSeek 多账号（内置鲸鱼的凭据切换）=====
+// 账号 = 「一把 DeepSeek API key + 一个你能认出来的名字」。内置鲸鱼查的是当前选中账号的余额，
+// 所以切账号就是换一个人看。密钥本体存在 DSH 凭据服务里，这里只经手凭据名。
+function apiAccountsOf(modelId) {
+  var m = apiModelById(modelId)
+  return (m && Array.isArray(m.accounts)) ? m.accounts : []
+}
+function apiActiveAccount(modelId) {
+  var m = apiModelById(modelId)
+  var id = m && m.accountId ? String(m.accountId) : ''
+  var list = apiAccountsOf(modelId)
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].id === id) return list[i]
+  for (var j = 0; j < list.length; j++) if (list[j] && list[j].active) return list[j]
+  return list.length ? list[0] : null
+}
+// 账号名的显示口径：名字为空时退回凭据名，避免出现「余额 ·」这种空标签
+function apiAccountLabel(a) {
+  if (!a) return '默认账号'
+  return String(a.name || a.keyRef || a.id || '默认账号')
+}
+// 供泡泡模板变量 {account} 使用（多账号时才知道自己看的是谁的余额）
+function apiAccountNameOf(m) {
+  var a = apiActiveAccount('deepseek')
+  return a ? apiAccountLabel(a) : ''
+}
+// 切换当前账号。v0.3.3：把「请求 → 响应」回显到界面上（面板里的一行状态 + 控制台日志）。
+// 为什么必须回显：宿主没重启 / 被信任栅栏拦下 / 报错时，用户看到的只是"点了没反应"，
+// 完全无法判断卡在哪一步；这样点一下就有一行字说明结果。
+// statusEl 可选：调用方传入则就地显示状态文字。
+function apiSetAccount(id, done, statusEl) {
+  function say(t) { if (statusEl) { try { statusEl.textContent = t } catch (err) {} } }
+  say('切换中…（已发出 set-account 请求）')
+  console.log('[whale] set-account →', id)
+  postApiModels({ action: 'set-account', accountId: id }, function (d) {
+    console.log('[whale] set-account ←', d)
+    if (!d) say('失败：请求没有响应（宿主没重启？或连接被中断）')
+    else if (d.ok === false) say('失败：' + ((d && d.error) || '未知错误'))
+    else say('已切到：' + ((d && d.accountName) || id) + '（正在刷新余额）')
+    try { apiModelsFetch(1) } catch (err) {}
+    if (done) done(d)
+  })
+}
+function apiDeleteAccount(id, cb) {
+  postApiModels({ action: 'delete-account', id: id }, function (d) {
+    if (!d || d.ok === false) { try { alert((d && d.error) || '删除账号失败') } catch (err) {} }
+    try { apiModelsFetch(1) } catch (err) {}
+    if (cb) cb(d)
+  })
+}
+// 账号选择/管理入口（内置 DeepSeek 设置菜单里的「DeepSeek 账号」行）
+function openDeepseekAccountMenu(after) {
+  try {
+    closeApiModelPanel()
+    var list = apiAccountsOf('deepseek')
+    if (!list.length) list = Array.isArray(apiAccounts) ? apiAccounts : []
+    var active = apiActiveAccount('deepseek') || (list.length ? list[0] : null)
+    var mask = document.createElement('div')
+    mask.className = 'dshwv-usage-mask'
+    mask.style.zIndex = '29000'
+    var card = document.createElement('div')
+    card.className = 'dshwv-usage-card'
+    card.style.width = 'min(430px,94vw)'
+    card.style.padding = '14px 16px'
+    card.style.boxSizing = 'border-box'
+    card.style.textAlign = 'left'
+    var title = document.createElement('div')
+    title.className = 'dshwv-bubtitle'
+    title.textContent = 'DeepSeek 账号'
+    card.appendChild(title)
+    var hint = document.createElement('div')
+    hint.className = 'dshwv-bubhint'
+    hint.style.margin = '4px 0 8px'
+    hint.textContent = '内置鲸鱼查的是「当前账号」的余额。换账号＝换一把 DeepSeek API key（例如别人给你的 key）；密钥只写进 DSH 凭据服务，不落配置文件。'
+    card.appendChild(hint)
+    // 就地状态行：点击结果（成功/失败原因）直接显示在这里。
+    // 为什么必须有：宿主没重启、被信任栅栏拦下或报错时，只显示"点了没反应"是没法排查的。
+    var status = document.createElement('div')
+    status.className = 'dshwv-bubhint'
+    status.style.margin = '0 0 8px'
+    status.style.minHeight = '1.2em'
+    card.appendChild(status)
+    function say(t) { try { status.textContent = t } catch (err) {} }
+    function closeSelf() { try { if (mask.parentNode) mask.parentNode.removeChild(mask) } catch (err) {} }
+    function back() { closeSelf(); if (after) { try { after() } catch (err) {} } }
+    function addRow(label, stateFn, btnLabel, onClick, disabled) {
+      var r = document.createElement('div')
+      r.className = 'dshwv-audiorow'
+      var l = document.createElement('span')
+      l.textContent = label
+      l.style.flex = '0 0 auto'
+      r.appendChild(l)
+      var info = document.createElement('span')
+      info.className = 'dshwv-usage-hint'
+      info.style.flex = '1'
+      info.style.textAlign = 'right'
+      info.style.paddingRight = '6px'
+      info.style.whiteSpace = 'nowrap'
+      info.style.overflow = 'hidden'
+      info.style.textOverflow = 'ellipsis'
+      info.textContent = stateFn()
+      info.title = info.textContent
+      r.appendChild(info)
+      var b = apiBtn(btnLabel, 'dshwv-roleimport', onClick)
+      if (disabled) { b.disabled = true; b.style.opacity = '0.45'; b.style.cursor = 'default' }
+      r.appendChild(b)
+      card.appendChild(r)
+      return r
+    }
+    // 某账号是否处于选中态：既认 host 下发的 active 标记，也认 builtin 条目上的 accountId
+    function isCurrentAccount(a) {
+      if (!a) return false
+      var cur = apiActiveAccount('deepseek')
+      return !!(cur && cur.id === a.id) || !!a.active
+    }
+    for (var i = 0; i < list.length; i++) {
+      (function (a) {
+        var isCur = isCurrentAccount(a)
+        addRow(
+          (isCur ? '● ' : '○ ') + apiAccountLabel(a),
+          function () { return a.keyRef ? ('凭据 ' + a.keyRef) : '未设置凭据名' },
+          isCur ? '已选' : '切换',
+          function () {
+            if (isCur) return
+            say('正在切到「' + apiAccountLabel(a) + '」…')
+            apiSetAccount(a.id, function (d) {
+              if (d && d.ok !== false) {
+                say('已切到「' + apiAccountLabel(a) + '」，余额与今日已用正在刷新；点关闭即可看到。')
+                try { apiModelsFetch(1) } catch (err) {}
+              } else {
+                // 失败原因留在面板上；不再立刻关窗，否则用户什么都看不到
+                say('切换失败：' + ((d && d.error) || '宿主没有响应（是不是没重启服务？）'))
+              }
+            })
+          },
+          isCur
+        )
+      })(list[i])
+    }
+    card.appendChild(apiSec('管理'))
+    addRow('新增 / 修改账号', function () { return '名字 + 凭据名 + key' }, '添加', function () {
+      closeSelf()
+      openDeepseekAccountPanel(null, after)
+    })
+    var canDel = list.length > 1
+    addRow('删除当前账号', function () { return canDel ? '仅移出列表，密钥保留' : '至少保留一个账号' }, '删除', function () {
+      if (!active) return
+      if (!window.confirm('删除账号「' + apiAccountLabel(active) + '」？\n\n只从列表移除，DSH 凭据里的密钥不会被删掉。')) return
+      apiDeleteAccount(active.id, function (d) { if (d && d.ok !== false) back() })
+    }, !canDel)
+    var foot = document.createElement('div')
+    foot.className = 'dshwv-bubhint'
+    foot.style.margin = '8px 0 0'
+    foot.textContent = '提示：每个账号的「今日已用」分开记账，切账号不会把别人的消费算进你的今日。'
+    card.appendChild(foot)
+    card.appendChild(apiPanelRow('', apiBtn('关闭', 'dshwv-roleimport', back)))
+    mask.appendChild(card)
+    mask.addEventListener('click', function (ev) { if (ev.target === mask) back() })
+    document.body.appendChild(mask)
+  } catch (err) {}
+}
+// 新增 / 改名账号：name + keyRef + key（key 留空＝只改名字，不动已有密钥）
+function openDeepseekAccountPanel(account, after) {
+  try {
+    var a = account || null
+    var mask = document.createElement('div')
+    mask.className = 'dshwv-usage-mask'
+    mask.style.zIndex = '29000'
+    var card = document.createElement('div')
+    card.className = 'dshwv-usage-card'
+    card.style.width = 'min(430px,94vw)'
+    card.style.padding = '14px 16px'
+    card.style.boxSizing = 'border-box'
+    card.style.textAlign = 'left'
+    var title = document.createElement('div')
+    title.className = 'dshwv-bubtitle'
+    title.textContent = a ? ('修改账号 · ' + apiAccountLabel(a)) : '新增 DeepSeek 账号'
+    card.appendChild(title)
+    card.appendChild(apiSec('账号'))
+    var nameInp = apiTextInput(a ? String(a.name || '') : '', '例如 同事A / 小号 / 客户')
+    card.appendChild(apiPanelRow('名称', nameInp))
+    // 自动生成互不冲突的默认凭据名：DEEPSEEK_API_KEY_2、_3 …
+    var used = {}
+    var list0 = apiAccountsOf('deepseek')
+    for (var i = 0; i < list0.length; i++) used[String(list0[i].keyRef || '').toUpperCase()] = 1
+    var autoRef = 'DEEPSEEK_API_KEY_2'
+    for (var n = 2; n < 100; n++) {
+      if (!used[('DEEPSEEK_API_KEY_' + n).toUpperCase()]) { autoRef = 'DEEPSEEK_API_KEY_' + n; break }
+    }
+    var refInp = apiTextInput(a ? String(a.keyRef || '') : autoRef, '例如 DEEPSEEK_KEY_B')
+    refInp.title = '写入 DSH 官方凭据（.credentials.yaml）时用的名字；不同账号必须不同，否则会互相覆盖'
+    card.appendChild(apiPanelRow('凭据名', refInp))
+    var note = document.createElement('div')
+    note.className = 'dshwv-bubhint'
+    note.style.margin = '2px 0 6px'
+    note.textContent = a
+      ? '留空即沿用原凭据名。改凭据名不会搬运旧密钥，请同时把 key 填进新凭据名。'
+      : '每个账号一个凭据名，互不覆盖：新 key 写进新凭据名，原来的 key 不受影响。'
+    card.appendChild(note)
+    card.appendChild(apiSec('密钥'))
+    var keyInp = document.createElement('input')
+    keyInp.type = 'password'
+    keyInp.className = 'dshwv-cropname'
+    keyInp.style.flex = '1'
+    keyInp.style.minWidth = '0'
+    keyInp.style.margin = '0'
+    keyInp.style.height = '26px'
+    keyInp.style.boxSizing = 'border-box'
+    keyInp.style.textAlign = 'left'
+    keyInp.placeholder = a ? '留空＝不改密钥' : 'sk-...（别人的 key 直接粘这里）'
+    keyInp.autocomplete = 'off'
+    card.appendChild(apiPanelRow('API key', keyInp))
+    var status = document.createElement('div')
+    status.className = 'dshwv-bubhint'
+    status.style.margin = '6px 0 0'
+    card.appendChild(status)
+    function closeSelf() { try { if (mask.parentNode) mask.parentNode.removeChild(mask) } catch (err) {} }
+    function back() { closeSelf(); if (after) { try { after() } catch (err) {} } }
+    var btns = document.createElement('div')
+    btns.className = 'dshwv-audiorow'
+    card.appendChild(btns)
+    btns.appendChild(apiBtn('保存', 'dshwv-roleimport', function () {
+      var name = String(nameInp.value || '').trim()
+      var ref = String(refInp.value || '').trim()
+      var kv = String(keyInp.value || '')
+      if (!name) { status.textContent = '⚠ 请填写账号名称'; return }
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(ref)) { status.textContent = '⚠ 凭据名只能是字母/数字/下划线且不以数字开头'; return }
+      if (!a && !kv) { status.textContent = '⚠ 新账号请填入 API key'; return }
+      var payload = { action: 'save-account', account: { name: name, keyRef: ref } }
+      if (a && a.id) payload.account.id = a.id
+      if (kv) payload.account.keyValue = kv
+      status.textContent = '保存中…'
+      postApiModels(payload, function (d) {
+        if (!d || d.ok === false) { status.textContent = '⚠ ' + ((d && d.error) || '保存失败'); return }
+        try { apiModelsFetch(1) } catch (err) {}
+        // 新账号默认直接切过去：用户的意图就是「看这把 key 的余额」
+        var newId = d && d.id ? d.id : (a && a.id ? a.id : '')
+        if (newId) {
+          status.textContent = '账号已保存，正在切到它…'
+          // 新账号默认直接切过去：用户的意图就是「看这把 key 的余额」
+          apiSetAccount(newId, function (d2) {
+            if (d2 && d2.ok !== false) { back(); return }
+            status.textContent = '⚠ 账号已保存，但切换失败：' + ((d2 && d2.error) || '宿主没有响应（是不是没重启服务？）')
+          }, status)
+        } else {
+          back()
+        }
+      })
+    }))
+    btns.appendChild(apiBtn('取消', 'dshwv-roleimport', back))
+    mask.appendChild(card)
+    mask.addEventListener('click', function (ev) { if (ev.target === mask) back() })
+    document.body.appendChild(mask)
+  } catch (err) {}
 }
 // 今日已用金额自带的币种（host 下发的 todayUsageCurrency）：
 // 会话事件金额在 host 已按自定义单价折算成人民币，余额差则是厂商币种 → 显示必须按各自的币种，
@@ -1946,6 +2201,8 @@ function apiModelsFetch(tries) {
       if (d && d.ok && Array.isArray(d.models)) {
         apiModels = d.models
         apiTemplates = Array.isArray(d.templates) ? d.templates : []
+        // v0.3.3：账号列表随模型列表一起下发；老宿主没有该字段时回退成「内置条目里的 accounts」
+        apiAccounts = Array.isArray(d.accounts) ? d.accounts : apiAccountsOf('deepseek')
         apiModelsLoaded = true
         apiModelsError = ''
         apiModelsLoading = false
@@ -2807,6 +3064,10 @@ function openApiModelMenu(modelId) {
     else st.textContent = '余额 ' + apiFmtMoney(m.balance, m.currency) + ' · 今日已用 ' + apiFmtMoney(m.todayUsage, apiTodayCur(m))
     card.appendChild(st)
     var ms = (usageSet && usageSet.models && usageSet.models[modelId]) || {}
+    // 面板内多处要重开/收起自己（例如切账号回来后重开本面板）。
+    // 注意：这里必须在本函数作用域内定义 —— closeSelf 别处只在其它函数内部存在，
+    // 早先漏了这一行会让点击抛 ReferenceError，被外层 try/catch 吞掉，表现为"点了没反应"。
+    function closeSelf() { try { if (mask.parentNode) mask.parentNode.removeChild(mask) } catch (err) {} }
     function rowOf(label, stateFn, onEdit, buttonLabel) {
       var r = document.createElement('div')
       r.className = 'dshwv-audiorow'
@@ -2904,6 +3165,19 @@ function openApiModelMenu(modelId) {
       v.title = text
       r.appendChild(v)
       card.appendChild(r)
+    }
+    // v0.3.3：DeepSeek 账号（只有内置项有一行；切换后内置鲸鱼改用该账号的 key 查余额）
+    if (apiCanAdjustBalance(m)) {
+      var actAcc = apiActiveAccount('deepseek')
+      var accCount = apiAccountsOf('deepseek').length
+      var accRow = rowOf('DeepSeek 账号', function () {
+        var nm = actAcc ? apiAccountLabel(actAcc) : (m.accountName || '默认账号')
+        return nm + (accCount > 1 ? ('（共 ' + accCount + ' 个）') : '')
+      }, function () {
+        closeSelf()
+        openDeepseekAccountMenu(function () { openApiModelMenu(modelId) })
+      }, '切换')
+      if (actAcc && actAcc.keyRef) accRow.firstChild.title = '当前凭据名：' + actAcc.keyRef
     }
     // 单价（只读）：让用户确认当前生效价。内置 DeepSeek 始终走内置峰谷价，自定义单价对它不生效。
     var pc = (m && m.price) || null
@@ -7060,7 +7334,7 @@ function openQuickModuleEditor(m, anchorBtn) {
     var isModelBal = bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today')
     var isModelQuota = bubbleIsModelMod(m) && m.type === 'quota'
     var isModelPlan = bubbleIsModelMod(m) && m.type === 'plan'
-    inp.placeholder = isModelPlan ? '例: {plan} 额度 · {plan_reset} 刷新时间' : (isModelQuota ? '例: 额度 {quota} · 剩 {quota_left}' : (isModelBal ? '例: {balance} 或 今日 {today}' : (m.type === 'balance' ? '例: {balance_ds}' : (m.type === 'today' ? '例: 今日已用 {expense_ds}' : (bubbleIsPeakCount(m) ? '例: 距空闲 {countdown}' : '例: 当前 {status}')))))
+    inp.placeholder = isModelPlan ? '例: {plan} 额度 · {plan_reset} 刷新时间' : (isModelQuota ? '例: 额度 {quota} · 剩 {quota_left}' : (isModelBal ? '例: {balance} 或 今日 {today}' : (m.type === 'balance' ? '例: {balance_ds} · {account}' : (m.type === 'today' ? '例: 今日已用 {expense_ds} · {account}' : (bubbleIsPeakCount(m) ? '例: 距空闲 {countdown}' : '例: 当前 {status}')))))
     inp.title = '可用占位符(英文): ' + (isModelPlan ? '{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）' : (isModelQuota ? '{quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}' : (isModelBal ? '{balance} / {today}' : (m.type === 'peak' || m.type === 'nextpeak' ? '{status} / {countdown}' : (m.type === 'balance' ? '{balance_ds}' : '{expense_ds}')))))
     inp.addEventListener('input', function () { m.tpl = inp.value; changed() })
     r.appendChild(inp)
@@ -11017,9 +11291,12 @@ function bubbleContentTokenMap(m) {
   if (m.type === 'balance') {
     v = bubbleAmountText()
     map['balance_ds'] = v
+    // v0.3.3：多账号时把「看的是谁的余额」也做成占位符，泡泡里才能一眼看出当前账号
+    map['account'] = apiAccountNameOf(m)
   } else if (m.type === 'today') {
     v = (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
     map['expense_ds'] = v
+    map['account'] = apiAccountNameOf(m)
   } else if (bubbleIsPeakCount(m)) {
     v = bubbleCountdownText()
     map['countdown'] = v
@@ -11051,9 +11328,13 @@ function bubbleTplHelpItems(m) {
     add('plan_reset', '订阅额度刷新倒计时（同上；全部窗口时为紧凑倒计时）')
     return arr
   }
-  if (m.type === 'balance') add('balance_ds', '余额数值')
-  else if (m.type === 'today') add('expense_ds', '今日已用金额')
-  else if (m.type === 'peak' || m.type === 'nextpeak') {
+  if (m.type === 'balance') {
+    add('balance_ds', '余额数值')
+    add('account', '当前 DeepSeek 账号名（v0.3.3 多账号）')
+  } else if (m.type === 'today') {
+    add('expense_ds', '今日已用金额')
+    add('account', '当前 DeepSeek 账号名（v0.3.3 多账号）')
+  } else if (m.type === 'peak' || m.type === 'nextpeak') {
     if (bubbleIsPeakCount(m)) add('countdown', '距下一时段倒计时 (HH:MM:SS)')
     else add('status', '高峰/空闲 状态文字(随显示样式变化)')
   }

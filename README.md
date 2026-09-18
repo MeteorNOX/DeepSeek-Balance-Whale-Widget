@@ -4,14 +4,6 @@
 
 DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
 
-##两条分支怎么选##
-
-挂在 DSH Web 界面右下角（就是这个 README 描述的插件）是主分支~ `dsh-whale-widget` 安装方法 `dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget` 
-
-挂在 Codex 桌面应用上（跟随 Codex 窗口、无独立网页） 是 For-Codex 分支~(https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/For-Codex) 的 `api-balance-whale` 安装方法 解压到 `%USERPROFILE%\plugins\api-balance-whale` 后按该分支的 [安装说明](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.0.md) 注册计划任务 （也可以直接交给Codex自己装喵~）
-
-⚠️ 两者**互不兼容**：`For-Codex` 的插件不能用 `dsh plugin … add` 装进 DSH 网页；本主分支的插件也不能在 Codex 桌面里运行。上表第一行是本仓库默认分支（`main`）的能力，第二行是另一个分支的能力。
-
 ## 特性
 
 ### 记账与显示
@@ -81,6 +73,23 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 >
 > 模板只提供**默认值**：选完模板后可以随意改写接口地址与字段路径；留空的字段会**继续沿用模板默认值**（不会因为留空而失效）。
 
+### DeepSeek 多账号（内置鲸鱼查谁的余额）
+
+内置鲸鱼原本写死一个凭据名（`DEEPSEEK_API_KEY`），所以只能看**自己那一把** key 的余额。v0.3.3 起「账号」成为一等公民：**一个账号 = 一把 DeepSeek API key + 一个你能认出来的名字**，内置鲸鱼查的是**当前选中账号**的余额。
+
+- 🎛️ **入口**：「小鲸鱼记账 → 模型 → DeepSeek（内置）→ 设置 → DeepSeek 账号 → 切换」
+- ➕ **加账号**：点「添加」→ 填**名称**（例如「同事A」，只给你自己看）+ **凭据名**（例如 `DEEPSEEK_KEY_A`，自动带出不冲突的默认值）+ **API key**（别人的 key 直接粘进来）。保存后会自动切到该账号
+- 🔀 **切换**：选中即生效，余额、币种、以及泡泡里的账号名都会跟着换（切账号会立刻丢弃上一个账号的余额快照，不会出现"显示的还是上一个人的余额"）
+- 🗑️ **删除**：只把账号从列表移除，**不会删 DSH 凭据里的密钥**（同一个凭据名可能还被别处引用，误删要重新配 key）；想清掉密钥请用凭据管理界面
+- 🔒 **密钥不落配置**：账号表存在 `$DSH_HOME/.dshw-api.json` 的 `accounts` / `activeAccount` 字段里，**只有名字与凭据名**；key 一律写进 DSH 官方凭据服务（`.credentials.yaml` 的 `refs`）
+- 🧮 **各自记账**：每个账号按自己的 id 单独累计「今日已用」，切到别人的 key 不会把对方的消费算进你的今日
+  - 代价要提前知道：切换账号等于**换了一本账**，新账号的「今日已用」从**该账号第一次观测**开始算（切换那一刻为统计起点），因此刚切过去时今日已用会归零重算。你自己的账号切回去后，原来的观测窗口仍然保留
+- 🫧 **泡泡里看是谁**：「余额数值 / 今日已用」模块新增占位符 `{account}`，可写成 `{account} · {balance_ds}` 一眼看出当前在看谁的余额
+- ⚠️ **不会张冠李戴**：选中某个账号、而它的凭据名没配 key 时，鲸鱼会明确报「未配置 xxx」并显示 `--`，**不会**偷偷回落去读你自己的 key
+- 🧭 **升级兼容**：以前只配 `DEEPSEEK_API_KEY` 的安装不用做任何事 —— 它自动就是「默认账号」；首次新增/切换账号时这个隐式账号会被写进账号表
+
+> 💡 如果你的 DeepSeek key 在凭据里叫别的名字（例如 `MY_DEEPSEEK_API_KEY`），鲸鱼是看不到的：用上面的「添加」建一个账号，把**凭据名**填成 `DEEPSEEK_API_KEY`（或你习惯的名字）并粘一次 key 即可。
+
 ### Codex 模式（本地会话统计）
 
 > ⚠️ **限制**：Codex 支持目前只是**部分接口适配**，本挂件**不能安装到 Codex 里**（它是 DSH Web 插件，Codex 仅作为数据来源被读取）；订阅窗口没有真实订阅样本可验证，遇异常欢迎反馈。
@@ -127,7 +136,7 @@ dsh-whale-widget/
 | `.dshw-usage.json.before-recharge-fix.bak` | 旧格式账本备份（0.3.1 首次写入旧账本前自动创建；已存在则不覆盖） |
 | `.dshw-turn.json` | 每轮消耗的 seq（避免热重载后前端把新轮次当旧轮次） |
 | `.dshw-bubble.json` | 自定义泡泡配置（点击序列 + 模块库 + 点按角色推进队列开关） |
-| `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
+| `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计）+ **DeepSeek 账号表**（`accounts` / `activeAccount`：账号名与凭据名，**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
 | `whale-roles/` | 自定义角色图 + `roles.json` 索引 |
@@ -264,7 +273,7 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 
 只需一个凭据：
 
-- **`DEEPSEEK_API_KEY`（必需）**：DeepSeek API 密钥，用于拉取余额（`GET https://api.deepseek.com/user/balance`）。在 DSH 凭据服务里配置（凭据管理界面 / `.dsh/.credentials.yaml`）。
+- **`DEEPSEEK_API_KEY`（必需，除非你用「DeepSeek 账号」另建了账号）**：DeepSeek API 密钥，用于拉取余额（`GET https://api.deepseek.com/user/balance`）。在 DSH 凭据服务里配置（凭据管理界面 / `.dsh/.credentials.yaml`）。想同时看**别人给的 key**时不必换掉它：在内置 DeepSeek 的「DeepSeek 账号」里新增一个账号（自己的名字 + 自己的凭据名）即可，见上面的《DeepSeek 多账号》。
 
 > **不需要** `DEEPSEEK_PLATFORM_TOKEN`。早期版本的"实时·令牌"模式已下线，今日已用统一由**小鲸鱼记账**（余额差 + 会话事件）计算，零令牌开箱即用。
 
