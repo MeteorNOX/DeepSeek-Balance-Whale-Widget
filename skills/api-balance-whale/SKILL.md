@@ -5,9 +5,9 @@ description: 显示跟随 Codex 窗口的小鲸鱼，查询当前 API 余额和�
 
 使用 `whale_open` 显示本地透明挂件，使用 `whale_balance`、`whale_usage`、`whale_status` 查询余额、账本与状态。挂件随 Codex 桌面应用自动启停，菜单中包含设置、素材和账本。没有独立网页或网页地址；不要打开浏览器面板。`desktop` 参数仅为兼容旧调用，打开操作始终显示跟随窗口的挂件。
 
-当前任务没有加载 MCP 工具时，插件根目录为本文件上两级。用 Node.js 24+ 运行 `scripts/control.mjs` 的 `open`、`balance --refresh`、`usage`、`status` 或 `stop`。自动跟随尚未安装时，按用户意图运行 `scripts/install-follow.ps1`；它注册当前用户的 Windows 计划任务 `Codex API Balance Whale`，由系统服务独立启动监视器。不要直接从 Codex 启动长期监视进程，也不要恢复旧“启动”文件夹快捷方式。需要停用时运行 `scripts/uninstall-follow.ps1`。读查询失败时先检查计划任务及跟随状态，不反复创建进程。
+当前任务没有加载 MCP 工具时，插件根目录为本文件上两级。用 Node.js 24+ 运行 `scripts/control.mjs` 的 `open`、`balance --refresh`、`usage`、`status` 或 `stop`。自动跟随尚未安装时，按用户意图选择平台：Windows 运行 `scripts/install-follow.ps1`，注册当前用户的计划任务 `Codex API Balance Whale`；macOS 运行 `scripts/install-macos.mjs`，优先使用 Homebrew Node/npm，编译 `desktop/macos/window-probe.swift` 并注册用户级 LaunchAgent。不要直接从 Codex 启动长期监视进程，也不要恢复旧“启动”文件夹快捷方式。Windows 用 `scripts/uninstall-follow.ps1`，macOS 用 `scripts/uninstall-macos.mjs` 停用。读查询失败时先检查计划任务或 LaunchAgent 及跟随状态，不反复创建进程。
 
-计划任务应通过 GUI 子系统的 `WhaleLauncher-…exe` 启动监视器，启动器位于挂件数据目录的 `native` 下。安装脚本负责本机编译与迁移；不要把任务操作改回直接运行 PowerShell，也不要仅靠 `-WindowStyle Hidden` 或 `FreeConsole()` 判断空终端已经消失。验收需检查实际可见窗口。
+Windows 计划任务应通过 GUI 子系统的 `WhaleLauncher-…exe` 启动监视器，启动器位于挂件数据目录的 `native` 下。macOS LaunchAgent 由 `desktop/macos/supervisor.mjs` 驱动，窗口位置来自 `CGWindowList` 探针，Electron 使用独立 bundle 标识。安装脚本负责本机编译与迁移；不要把任务操作改回直接运行 PowerShell，也不要仅靠 `-WindowStyle Hidden` 或 `FreeConsole()` 判断空终端已经消失。验收需检查实际可见窗口。
 
 安装/回滚涉及 ScheduledTasks 时使用系统 Windows PowerShell；新版安装脚本会从 PowerShell 7 隐藏转交到正确宿主。先注册并验证任务，再停止旧监视器；未核对任务存在、真实GUI进程父链与启动状态，不得报告安装成功。不要把本轮遇到的宿主兼容性错误直接归因于安全软件。
 
@@ -29,9 +29,9 @@ description: 显示跟随 Codex 窗口的小鲸鱼，查询当前 API 余额和�
 
 后台每日按北京时间00:15检查汇率，启动、唤醒/联网恢复时补查，常规缓存六小时。主动刷新绕过缓存但有15秒防连点，共享在途请求；明确区分报价日期、最近检查时间、离线状态，这些说明在“刷新汇率”右侧的灰色 **!** 按钮点击后显示。00:15不是Frankfurter保证发布新报价的时间，周末和节假日可能保持同一日期；汇率请求不得携带API凭据。
 
-Windows 工具窗口标识用于避免透明挂件遮挡 Codex 的绘制。不要恢复每帧强制整窗刷新，也不要启用会吞掉首次点击的 `focusable:false`。翻转保留原版 300 毫秒 ease 动画；命中检测用当前动画矩阵，拖动/缩放/吸附用未压缩的布局尺寸。
+Windows 工具窗口标识用于避免透明挂件遮挡 Codex 的绘制；macOS 使用透明无边框 Electron 窗口、`floating` 层级和 `LSUIElement`。不要恢复每帧强制整窗刷新，也不要启用会吞掉首次点击的 `focusable:false`。翻转保留原版 300 毫秒 ease 动画；命中检测用当前动画矩阵，拖动/缩放/吸附用未压缩的布局尺寸。
 
-窗口位置由独立 Windows 事件线程管理，`nativeFollowing` 为真时不要让低频 IPC 再设置窗口位置。纯移动复用现有画面，不增加整窗刷新。会话扫描在 Worker 中进行；首条 `session_meta.id` 是文件真实身份，后续继承的父元数据不能覆盖它。主轮完成提示按匹配的轮次和稳定 ID 去重；子任务只记录用量，失败、取消和历史回放不发正常完成音。`root_turn_id` 用于把子任务用量归属到主轮；共享密钥区间扣费不能与子任务区间相加。
+Windows 窗口位置由独立事件线程管理，`nativeFollowing` 为真时不要让低频 IPC 再设置窗口位置。macOS 由 Swift 探针通过 `CGWindowList` 轮询并回传点坐标，Electron 更新位置和尺寸；macOS 不要调用 Windows 专用 `screen.screenToDipRect`。纯移动复用现有画面，不增加整窗刷新。会话扫描在 Worker 中进行；首条 `session_meta.id` 是文件真实身份，后续继承的父元数据不能覆盖它。主轮完成提示按匹配的轮次和稳定 ID 去重；子任务只记录用量，失败、取消和历史回放不发正常完成音。`root_turn_id` 用于把子任务用量归属到主轮；共享密钥区间扣费不能与子任务区间相加。
 
 导入按真实格式、尺寸/帧数预算验证，不接受仅扩展名或data URL声明。初始角色解码失败回退内置鲸鱼；APNG/GIF命中覆盖后续帧，超预算使用限定到图片矩形的交互回退。用户外链通过 `whaleDesktop.openExternal`，只允许真实点击触发的HTTP(S)，不允许脚本、本地文件或含凭据URL。
 

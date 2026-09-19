@@ -74,10 +74,10 @@ body:
     attributes:
       label: 诊断文件（脱敏后粘贴或作为附件）
       description: |
-        数据目录 `%USERPROFILE%\.codex\whale-widget` 下这几个文件通常足够定位：
-        `follow-state.json`、`runtime.json`、`startup-timings.json`；
+        数据目录（macOS 为 `~/.codex/whale-widget`，Windows 为 `%USERPROFILE%\.codex\whale-widget`）下这几个文件通常足够定位：
+        `follow-state.json`、`startup-timings.json`；
         崩溃类问题再加 `renderer-gone.json` / `desktop-error.json` / `supervisor-error.json` / `launcher-error.json`。
-        可用 `node scripts/control.mjs status` 直接输出状态。
+        **不要上传 `runtime.json`，其中包含本地 IPC token。** 可用 `node scripts/control.mjs status` 直接输出状态。
       render: text
     validations:
       required: false
@@ -85,7 +85,7 @@ body:
     id: environment
     attributes:
       label: 环境
-      placeholder: Windows 11 24H2 x64 / Codex 桌面版版本 / Node.js v24.21 / Electron 44.3.0
+      placeholder: macOS 15 arm64 或 Windows 11 24H2 x64 / Codex 桌面版版本 / Node.js v24.21 / Electron 44.3.0
     validations:
       required: true
   - type: checkboxes

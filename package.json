@@ -17,7 +17,10 @@
     "vendor",
     "README.md",
     "PROVENANCE.md",
-    "THIRD_PARTY_NOTICES.md"
+    "THIRD_PARTY_NOTICES.md",
+    "SECURITY.md",
+    "*.cmd",
+    "*.command"
   ],
   "repository": {
     "type": "git",
@@ -33,6 +36,10 @@
   },
   "scripts": {
     "start": "node scripts/control.mjs open",
-    "desktop": "node scripts/control.mjs desktop"
+    "desktop": "node scripts/control.mjs desktop",
+    "install:desktop": "node scripts/install-desktop.mjs",
+    "install:mac": "node scripts/install-macos.mjs",
+    "uninstall:mac": "node scripts/uninstall-macos.mjs",
+    "probe:mac": "node scripts/probe-macos.mjs"
   }
 }

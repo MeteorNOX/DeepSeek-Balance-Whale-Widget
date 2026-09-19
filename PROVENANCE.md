@@ -6,11 +6,11 @@
 
 | | 上游主分支 | 本分支 For-Codex |
 |---|---|---|
-| 运行位置 | DSH（DeepSeek Harness）Web 界面 | Codex 桌面应用（Windows x64） |
-| 安装方式 | `dsh plugin --profile web add …` | 解压为插件目录 + 注册计划任务（见 `docs/INSTALL-AND-ROLLBACK-0.2.0.md`） |
+| 运行位置 | DSH（DeepSeek Harness）Web 界面 | Codex 桌面应用（Windows x64 / macOS） |
+| 安装方式 | `dsh plugin --profile web add …` | 解压为插件目录 + 注册 Windows 计划任务或 macOS LaunchAgent（见 `docs/INSTALL-AND-ROLLBACK-0.2.0.md`、`docs/MACOS.md`） |
 | 界面宿主 | DSH 页面内的 cordis bundle | 透明 Electron 工具窗口 + 自绘菜单 |
 | 与 Codex 的关系 | 仅把 Codex 当数据来源 | 自身即 Codex 插件，读取本机 Codex 配置与会话用量 |
-| 数据目录 | `%USERPROFILE%\.dsh\…` | `%USERPROFILE%\.codex\whale-widget` |
+| 数据目录 | `%USERPROFILE%\.dsh\…` | `~/.codex/whale-widget`（Windows 为 `%USERPROFILE%\.codex\whale-widget`） |
 
 两者**互不兼容**：本分支不能用 `dsh plugin add` 装进 DSH 页面；上游包也不能在 Codex 里运行。若你只想在 DSH 网页里用小鲸鱼，请装上游主分支。
 
