@@ -1,0 +1,57 @@
+{
+  "source": "https://github.com/farion1231/cc-switch",
+  "license": "MIT",
+  "commit": "ref: refs/he",
+  "extractedAt": "2026-09-16T13:19:37.657Z",
+  "total": 477,
+  "clients": [
+    {
+      "id": "claude",
+      "label": "Claude",
+      "count": 90,
+      "file": "claude.json"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "count": 85,
+      "file": "codex.json"
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini",
+      "count": 26,
+      "file": "gemini.json"
+    },
+    {
+      "id": "grokbuild",
+      "label": "Grok Build",
+      "count": 39,
+      "file": "grokbuild.json"
+    },
+    {
+      "id": "openclaw",
+      "label": "OpenClaw",
+      "count": 78,
+      "file": "openclaw.json"
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "count": 78,
+      "file": "opencode.json"
+    },
+    {
+      "id": "hermes",
+      "label": "Hermes",
+      "count": 79,
+      "file": "hermes.json"
+    },
+    {
+      "id": "universal",
+      "label": "通用网关",
+      "count": 2,
+      "file": "universal.json"
+    }
+  ]
+}

@@ -14,9 +14,101 @@
   --text: #203170;
   --muted: #7a87b0;
   --bg: #f5f7fc;
+  /* 超链接文字的悬浮色（浅蓝）：与浏览器默认超链接观感一致。 */
+  --link-hover: #4d90ff;
+  /* 只读 / 不可编辑文字的灰色。与 --muted 分开定义：--muted 会被「全局颜色」
+     以行内样式改写为与正文同色，用它做只读灰会看不出「不可编辑」。
+     取值按 WCAG AA 校准：#646f89 在 #fff 卡片上 5.0:1、在 --readonly-bg 上 4.7:1。 */
+  --fg-muted: #646f89;
+  --readonly-bg: #f4f6fb;
+  /* 控件底 / 控件边框：白色控件直接落在白色卡片上时只剩一层 16% 透明度的细边框，
+     「深色」「毛玻璃」两个主题按钮几乎与卡片糊成一片白。这里把控件底压深一档、
+     边框加深，保证控件表面、边框与文字都清晰可辨（对比度对齐 WCAG AA）。 */
+  --control-bg: #eef2fa;
+  --control-border: rgba(32, 49, 112, 0.3);
+  /* 主色实底上的文字色（确认按钮 / 徽标等）。真实取值由 config.js 按主色明度派生
+     后以行内样式写回，这里的值只是 JS 未执行时的兜底。 */
+  --on-primary: #ffffff;
+  /* 内容面板（卡片 / 全局页内的面板 / 弹窗）底色。三套主题各自覆盖：
+     浅色为纯白，深色为深蓝灰，毛玻璃为半透明玻璃白。
+     注意：面板底色必须走这个变量，不要再写死 #fff——写死会让深色 / 毛玻璃主题里
+     出现整块纯白内容区（曾发生：全局配置页在深色下仍是白底，正文浅色字直接不可读）。 */
+  --panel: #fff;
+  /* 危险色（校验报错 / 必填星号）：深色主题下必须换成亮一档的红，
+     否则深底上的暗红对比度只有 2:1 上下。 */
+  --danger: #d93026;
+  --danger-tint: rgba(217, 48, 38, 0.04);
+  /* 媒体画布（图片编辑的透明棋盘格 / 音效波形底）：随主题给一套中性底，
+     深色主题下不能沿用浅色棋盘格——480×480 的白块会与整体深色界面严重冲突。 */
+  --checker-a: #f1f5f9;
+  --checker-b: #ffffff;
+  --media-bg: #f8fafc;
+  --media-fg: #646f89;
+  --wave-line: rgba(32, 49, 112, 0.18);
+  --wave-fill: rgba(32, 49, 112, 0.6);
+  /* 用量柱状图的网格线（图表把颜色写进 canvas，JS 会解析这个变量取具体色值）。 */
+  --chart-grid: rgba(32, 49, 112, 0.08);
+  /* 图表配色三档：金额柱 + Token 的三个维度（命中缓存 / 未命中缓存 / 输出）。
+     三档都从「全局颜色」派生，config.js 的 applyGlobalColor 会按当前主题算出具体色值
+     写回这里；下面只是 JS 尚未执行时的兜底，方向与派生规则一致：
+     浅色系主题往白里调（拉开层次），深色主题往黑里调（深底上仍分得清）。 */
+  --chart-bar: var(--primary-2);
+  --chart-bar-2: #6b7cab;
+  --chart-bar-3: #a3aecb;
+  /* 用量柱状图的悬浮提示：底色 / 边框必须**实心**（提示框要盖住图表，透了就没法读），
+     且要跟着主题走。ECharts 把外观写成行内样式，样式表压不过行内，所以这两个变量
+     只作为「JS 解析后交给 ECharts」的取色来源：浅色纯白、深色面板色、毛玻璃近白。 */
+  --tip-bg: #ffffff;
+  --tip-border: rgba(32, 49, 112, 0.14);
+  /* 「通用配置片段」的说明块（浅蓝提示框）。 */
+  --info-border: #bfdbfe;
+  --info-bg: rgba(219, 234, 254, 0.5);
+  --info-title: #1d4ed8;
+  /* 提示框正文：比标题浅一档，但要保证落在「玻璃白面板上的浅蓝提示块」时仍有 AA
+     （实测 rgba(29,78,216,0.85) 在毛玻璃下只有 4.49:1，压深一档留出余量）。 */
+  --info-text: rgba(23, 66, 190, 0.95);
+  /* 自定义滚动条滑块（悬浮时加深）。三套主题各自覆盖，见下方变量块。 */
+  --sb-thumb: rgba(32, 49, 112, 0.26);
+  --sb-thumb-hover: rgba(32, 49, 112, 0.46);
+  /* ===== 全局间距规范 =====
+     全平台只用这一组刻度，页面 / 弹窗 / 卡片 / 字段都从这里取值，
+     避免同一界面里出现 8 / 10 / 14 / 16 混用造成的疏密不均。 */
+  --space-page: 20px;   /* 页面左右留白（与 .content 对齐） */
+  --space-card: 16px;   /* 卡片之间 / 页面主要区块之间 */
+  --space-panel: 18px;  /* 卡片（面板）内边距 */
+  --space-field: 10px;  /* 字段之间 */
+  --space-inline: 10px; /* 标签与控件之间 */
+  /* 统一的开关过渡时长：快速、线性（页面与全部弹窗共用同一个值）。 */
+  --fade-ms: 140ms;
 }
 
 * { box-sizing: border-box; }
+
+/* ===== 自定义滚动条 =====
+   统一为「细圆角滑块 + 透明轨道」，与整体极简风格一致；保留原生滚轮 / 拖拽手感。
+   实现只用 `::-webkit-scrollbar` 系列（WebView2 = Chromium 内核）。
+   刻意**不设置** `scrollbar-width / scrollbar-color`：在 Chromium 121+ 上这两个
+   标准属性一旦生效，`::-webkit-scrollbar-*` 就会被整体忽略，滑块会退回系统样式。 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  /* 3px 透明边框把滑块内缩到 4px 视觉宽度——更纤细，但命中区域仍是 10px。 */
+  background: var(--sb-thumb);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background: var(--sb-thumb-hover);
+  background-clip: content-box;
+}
 
 html, body {
   margin: 0;
@@ -26,15 +118,31 @@ html, body {
   color: var(--text);
   font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 14px;
+  /* 全局 overflow 控制：窗口本身永不滚动，所有滚动都发生在受控的滚动区内
+     （.content / .page-body / .form-scroll …），杜绝内外双滚动条。 */
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
-  scrollbar-width: none;
 }
+/* 外层 html / body 不滚动（滚动全部交给 .content），因此这两条列滚动条本就
+   不会出现，保留隐藏声明以免主题背景出现意外的滚动条残留。 */
 html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 
-.app { display: flex; flex-direction: column; height: 100%; }
+/* 窗口打开时的渐显：与页面 / 弹窗共用同一段线性淡入，观感统一。 */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  animation: dsw-fade-in var(--fade-ms) linear;
+}
+@keyframes dsw-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-.header { display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 12px; }
+.header { display: flex; align-items: center; justify-content: space-between; padding: 20px var(--space-page) 12px; }
 .header h1 { font-size: 20px; margin: 0; font-weight: 700; }
 .tutorial-link {
   font-family: 'dsw-tutorial', "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
@@ -50,14 +158,16 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 20px 20px;
-  overflow-y: auto;
-  scrollbar-width: none;
+  gap: var(--space-card);
+  padding: 0 var(--space-page) var(--space-page);
+  /* 纵向滚动交给这里；横向一律裁掉，任何子元素都不该把主界面顶出横向滚动条。 */
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
 }
-.content::-webkit-scrollbar { display: none; }
+/* 右侧主滚动区使用全站统一的自定义滚动条（见文件顶部的「自定义滚动条」段）。 */
 
-.card { background: #fff; border-radius: 12px; padding: 16px 18px; }
+.card { background: var(--panel); border-radius: 12px; padding: var(--space-panel); min-width: 0; }
 .card h2 { font-size: 15px; margin: 0 0 12px; font-weight: 700; }
 
 /* 余额概览：可用额度 + 今日已用 */
@@ -66,9 +176,22 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .overview-label { font-size: 13px; color: var(--muted); }
 .overview-value { font-size: 22px; font-weight: 800; color: var(--primary); }
 
-.field { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-inline);
+  margin-top: var(--space-field);
+  min-width: 0;
+  overflow: visible;
+}
+/* `.field` 自带 display: flex，会盖掉 [hidden] 的默认 display: none，因此必须显式声明。 */
+.field[hidden] { display: none; }
 .field-label { flex: 0 0 140px; color: var(--text); }
 .field-label.short { flex-basis: 70px; }
+
+/* 「挂件状态」区块的标签带全角冒号，比其它区块多一个字宽；
+   单独放宽标签栏宽度，避免冒号被折到第二行。 */
+#stateCard .field-label.short { flex-basis: 86px; }
 
 .field input[type="text"],
 .field input[type="password"],
@@ -85,34 +208,27 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 }
 .field input:focus { border-color: var(--primary-2); }
 
-/* 音效下拉：与全局输入风格一致 */
-.field select {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 28px 8px 10px;
-  font-size: 13px;
-  color: var(--text);
-  background: #fff;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23203170' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  cursor: pointer;
+/* 只读输入框（「配置文件」路径）：文字灰色 + 浅底 + 默认光标，明确「仅展示、不可改」。 */
+.field input[readonly] {
+  color: var(--fg-muted);
+  background: var(--readonly-bg);
+  cursor: default;
 }
-.field select:hover { border-color: var(--primary-2); }
-.field select:focus { border-color: var(--primary); }
-.field select option {
-  color: var(--text);
-  background: #fff;
-  padding: 6px 8px;
-  font-size: 13px;
+.field input[readonly]:focus { border-color: var(--border); }
+
+/* 占位提示文字：浏览器默认灰过浅（白底上约 2.5:1，不达 AA），
+   统一改用按 AA 校准过的只读灰，深色主题下取该主题的亮灰。 */
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-muted);
+  opacity: 1;
 }
 
-.field input[type="range"] { flex: 1; min-width: 0; }
+/* 下拉栏统一走自定义选择器（.picker），界面内不再使用原生 select。 */
+
+/* margin 归零：Chrome 对 range 默认带 2px 外边距，会让滑杆左右各内缩 2px，
+   无法与其它配置项的输入框严格对齐。 */
+.field input[type="range"] { flex: 1; min-width: 0; margin: 0; }
 .range-inputs {
   flex: 1;
   min-width: 0;
@@ -120,7 +236,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   align-items: center;
   gap: 8px;
 }
-.range-inputs input[type="number"] {
+.range-inputs input[type="text"] {
   flex: 1;
   min-width: 0;
 }
@@ -224,14 +340,171 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   cursor: pointer;
 }
 
+/* ===== 折叠分区（高级设置 / 台词管理）=====
+   高度用 grid-template-rows 0fr ↔ 1fr 过渡，展开与收起都是平滑动画；
+   内容包在 .collapsible-inner 内，由 overflow:hidden 完成裁剪。
+   注：这里的裁剪只作用于面板自身内容；位于面板内的下拉列表已被 JS 挂到 <body>，
+   不受本层影响，因此展开下拉时无需再撑高面板（旧的 .picker-space 已下线）。 */
+.collapsible {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.24s ease, visibility 0s;
+}
+.collapsible-inner { overflow: hidden; min-height: 0; }
+.collapsed > .collapsible {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  /* 收起时等高度动画结束再隐藏，避免动画过程中内容被提前抹掉。 */
+  transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.24s ease, visibility 0s linear 0.3s;
+}
+
+/* 高级设置：隶属于“挂件配置”卡片内的折叠分区。
+   与上方默认区之间用深蓝色虚线分隔，线宽 2px、透明度 25%（rgba 末位 0.25），
+   虚线以半透明呈现，既能区分层级又足够克制不抢眼。 */
+.adv-card { margin-top: 14px; border-top: 2px dashed rgba(32, 49, 112, 0.25); padding-top: 2px; }
+.adv-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+.adv-head:hover { color: var(--primary-2); }
+.adv-head:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
+.adv-caret {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 8px;
+  color: var(--muted);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.adv-card:not(.collapsed) .adv-head { color: var(--primary-2); }
+.adv-card:not(.collapsed) .adv-caret { transform: rotate(180deg); }
+
 /* 台词管理 */
 .dialogue-actions { display: flex; gap: 6px; }
 .dialogue-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
 .dialogue-row { display: flex; align-items: center; gap: 8px; }
-.dialogue-input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; color: var(--text); outline: none; }
+/* 台词输入框必须显式给出底色：不给 background 时会继承浏览器默认的 field 白底，
+   深色 / 毛玻璃主题下就成了刺眼的白块（文字反而是亮色，几乎看不见）。 */
+.dialogue-input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; color: var(--text); background: #fff; outline: none; }
 .dialogue-input:focus { border-color: var(--primary-2); }
-.dialogue-card.collapsed .dialogue-body { display: none; }
-.dialogue-card.collapsed .model-head { margin-bottom: 0; }
+/* 收起时头部下边距与高度动画同步过渡，避免台词内容瞬间上跳。
+   「气泡管理」与台词管理是同级同形态的卡片，共用这套折叠过渡。 */
+.dialogue-card .model-head,
+.bubble-card .model-head { transition: margin-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.dialogue-card.collapsed .model-head,
+.bubble-card.collapsed .model-head { margin-bottom: 0; }
+
+/* ===== 全局页面（整页形态）=====
+   内容较多的功能页（图片编辑 / 音效编辑 / 供应商配置 / 详细账单）不再是弹窗，
+   而是覆盖整个窗口的独立页面：固定标题栏 + 独立滚动区，宽度随窗口自适应，
+   因此表单控件永远不会被弹窗的固定宽度压到截断。 */
+.page {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  /* 层级：普通页面 < 叠加页面（.page-stacked）< 弹窗 < 下拉浮层 / 下载浮层 < 轻提示。 */
+  z-index: 900;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--fade-ms) linear, display var(--fade-ms) linear allow-discrete;
+}
+.page:not([hidden]) { opacity: 1; }
+.page[hidden] { display: none; }
+
+.page-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-card);
+  padding: 18px var(--space-page) var(--space-field);
+}
+.page-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+
+/* 页面的唯一滚动区：横向永不溢出，纵向按内容滚动。 */
+.page-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card);
+  padding: 0 var(--space-page) var(--space-card);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
+}
+.page-body[hidden] { display: none; }
+
+/* 页面底部操作区：独立成条、**不随内容滚动**，按钮在区域内右下角对齐。
+   所有独立页的确认 / 应用 / 取消类按钮统一放在这里。 */
+.page-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-inline);
+  padding: var(--space-panel) var(--space-page);
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.page-foot:empty { display: none; }
+
+/* 页面内容列：铺满整页宽度（与主界面 .content 一致），不再收窄居中。 */
+.page-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card);
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+.page-col[hidden] { display: none; }
+
+/* 叠加在另一个全局页之上的页面（如「编辑通用配置片段」叠在客户端配置页之上）：
+   层级高于普通页面、低于弹窗，底层页面的状态与滚动位置完全保留。 */
+.page-stacked { z-index: 1000; }
+
+/* 页面内的内容面板：与主界面的 .card 同一套刻度，底色同样跟随主题（--panel）。 */
+.page-panel {
+  background: var(--panel);
+  border-radius: 12px;
+  padding: var(--space-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.page-panel[hidden] { display: none; }
+
+/* ===== 统一开关过渡：快速线性渐显渐隐 =====
+   全部弹窗遮罩、全屏浮层与全局页面共用同一段过渡，且显隐两侧都在「快速线性」下完成：
+   - 进入：用 CSS 动画（display 由 none 变为可见时动画会重新开始；本引擎不应用
+     `@starting-style` 的起始态，因此不用它）；
+   - 退出：`opacity` 过渡 + `display` 的 `allow-discrete`（显示值延迟到过渡结束
+     才置 none），淡出期间元素仍可见，几何量也仍然有效，不打断测量逻辑。 */
+.modal-overlay:not([hidden]),
+.download-overlay:not([hidden]),
+.page:not([hidden]) {
+  animation: dsw-fade-in var(--fade-ms) linear;
+}
 
 /* 弹窗遮罩与弹窗 */
 .modal-overlay {
@@ -241,20 +514,27 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   align-items: center;
   justify-content: center;
   background: rgba(15, 23, 42, 0.45);
-  z-index: 1000;
+  /* 高于全部页面（含叠加页面 1000）：弹窗永远在页面之上。 */
+  z-index: 1100;
+  opacity: 0;
+  transition: opacity var(--fade-ms) linear, display var(--fade-ms) linear allow-discrete;
 }
+.modal-overlay:not([hidden]) { opacity: 1; }
 .modal-overlay[hidden] { display: none; }
 
 .modal {
   width: 320px;
   max-width: calc(100% - 40px);
+  max-height: calc(100% - 40px);
   background: #fff;
   border-radius: 14px;
-  padding: 20px 20px 16px;
+  padding: var(--space-page) var(--space-page) var(--space-card);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  /* 小窗口下弹窗自身可滚动：任何内容都不会被窗口边缘截断。 */
+  overflow: hidden auto;
 }
 .modal[hidden] { display: none; }
 
@@ -272,11 +552,1976 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
   font-size: 13px;
 }
 .modal-btn:hover { background: rgba(32, 49, 112, 0.06); }
-.modal-btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+/* 确认按钮（主操作）：底色统一取全局主色 —— 浅色 / 毛玻璃下是深蓝，深色主题下是
+   由 config.js 提亮后的浅蓝；文字色 --on-primary 由主色明度派生（白 / 深墨），
+   因此任何主题、任何全局颜色下都满足 WCAG AA（≥4.5:1）。 */
+.modal-btn-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
 .modal-btn-primary:hover { background: var(--primary-2); border-color: var(--primary-2); }
 
-/* 提示弹窗：绿色主题 */
-.tip-modal { border-top: 4px solid #2e9e5b; }
-.tip-modal .modal-title { color: #2e9e5b; }
-.tip-modal .modal-btn-primary { background: #2e9e5b; border-color: #2e9e5b; }
-.tip-modal .modal-btn-primary:hover { background: #27874e; border-color: #27874e; }
+/* ===== 统一提示体系 =====
+   严格映射：success → 绿、warn → 黄、exception/error → 红。
+   全站只有一种呈现：右上角堆叠、自动消失的轻提示 `.toast-*`（不打断操作）；
+   需要用户决策的场景（确认 / 下载确认）用居中弹窗，不在此体系内。
+   色值分两档，均按 WCAG AA 校准：
+   - --severity：4px 描边 / 图标（UI 元素需 3:1）；
+   - --severity-text：提示正文强调色（正文级文字，需 4.5:1）。
+   浅色 / 毛玻璃主题取同色系的加深色，深色主题在深底上另取提亮色。 */
+.toast-success { --severity: #1e7a45; --severity-text: #1e7a45; }
+.toast-warn { --severity: #96650a; --severity-text: #96650a; }
+.toast-error { --severity: #b53530; --severity-text: #b53530; }
+html[data-theme="dark"] .toast-success { --severity: #2e9e5b; --severity-text: #57cb8b; }
+html[data-theme="dark"] .toast-warn { --severity: #c8860d; --severity-text: #e3a93f; }
+html[data-theme="dark"] .toast-error { --severity: #e0574f; --severity-text: #f08b86; }
+
+.toast-stack {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  /* 提示间距改由 .toast 的 margin-bottom 承担：flex 的 gap 无法参与过渡，
+     逐个消失时其余提示会在同一帧里「跳」上去，这正是多提示依次消失的突变卡顿来源。 */
+  gap: 0;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  box-sizing: border-box;
+  max-width: 320px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--severity);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  animation: toast-in 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 退场统一走过渡：高度 / 内边距 / 外边距 / 边框连续收敛到 0，
+     其余提示被平滑推回，不再出现瞬移（起始高度由 removeToast 锁定为实际像素值）。 */
+  transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-width 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.24s ease,
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.28s ease;
+}
+.toast-out {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+  border-left-width: 0;
+  box-shadow: none;
+  opacity: 0;
+  transform: translateX(14px) scale(0.98);
+}
+.toast-icon { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 1px; color: var(--severity); }
+.toast-body { flex: 1; min-width: 0; word-break: break-word; }
+.toast-close {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 0 0 0 2px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.toast-close:hover { color: var(--text); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 模块容器：**不再**作为下拉列表的裁剪边界。
+   下拉列表已由 JS 挂到 <body> 用 fixed 定位（见 config.js 的 createPicker），
+   展开 / 收起完全不占文档流，也不会被任何父模块裁掉，因此这里统一放开裁剪，
+   让卡片内的其它浮层（阴影、悬浮效果）可以正常溢出。
+   注：本卡片是 .content（纵向 flex）的弹性项，overflow:hidden 会让弹性项的自动
+   最小尺寸变成 0，导致卡片被压成一条细缝；这里显式禁止收缩，使其与其它卡片一样
+   保持内容高度（超出时由 .content 滚动）。 */
+.card-clip { position: relative; overflow: visible; flex-shrink: 0; }
+
+/* 自定义下拉选择器：支持在自定义条目右侧显示删除叉号 */
+.picker { position: relative; flex: 1; min-width: 0; overflow: visible; }
+.picker-toggle {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.picker-toggle:hover { background: rgba(32, 49, 112, 0.06); }
+.picker-toggle:active { background: rgba(32, 49, 112, 0.12); }
+.picker.open .picker-toggle { border-color: var(--primary-2); }
+.picker-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-caret { flex: 0 0 auto; width: 12px; height: 8px; color: var(--muted); transition: transform 0.15s ease; }
+.picker.open .picker-caret { transform: rotate(180deg); }
+
+/* 下拉列表：fixed 浮层，left / top / width 由 JS 贴合触发按钮计算（config.js 的 place）。
+   它被挂在 <body> 上，因此既不受任何父级 overflow 裁剪，也不占文档流——
+   展开 / 收起不会顶开所在模块或相邻元素。 */
+.picker-list {
+  position: fixed;
+  left: 0;
+  top: 0;
+  /* 高于弹窗（1000）、低于轻提示（3000）：弹窗内的下拉必须能盖住弹窗自身。 */
+  z-index: 1500;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* 相邻条目的悬浮高亮之间留出稳定间距，避免视觉拥挤。 */
+  gap: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+  /* 条目增高后仍保证小窗口下可用：最高 420px，且不超过视口 60%。
+     实际展开时 JS 还会再夹到「所在一侧的可用空间」——长菜单始终贴着触发按钮，
+     超出部分由列表自身滚动。固定菜单（如图片编辑页的 9 个状态）因此可以一次看全。 */
+  max-height: min(420px, 60vh);
+  overflow: auto;
+}
+.picker-list[hidden] { display: none; }
+
+/* 处理中（如抠图）禁用下拉：与其它控件一致的禁用观感。 */
+.picker-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 上下内边距加大，形成舒展的点击与悬浮区域。 */
+  padding: 10px 10px 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.picker-item:hover { background: rgba(32, 49, 112, 0.06); }
+.picker-item:active { background: rgba(32, 49, 112, 0.12); }
+.picker-item.active { background: rgba(32, 49, 112, 0.1); font-weight: 600; }
+.picker-item-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 可搜索下拉顶部的搜索框：吸附在列表顶端，滚动条目时始终可见。 */
+.picker-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 2px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+.picker-search:focus { border-color: var(--primary-2); }
+/* 过滤后没有命中项时给出的占位文案（不是可点条目）。 */
+.picker-empty { padding: 10px 12px; color: var(--muted); font-size: 12px; }
+/* 多选条目左侧的勾号：未选中时留白占位，选中后描边点亮。 */
+.picker-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: transparent;
+}
+.picker-check svg { width: 11px; height: 11px; }
+.picker-item.active .picker-check {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* 编辑 / 删除图标按钮：颜色跟随主题深蓝色，含 hover / 按下态反馈。
+   高度 18px 与条目文字行高一致，保证自定义条目与内置条目的行高完全相同；
+   按钮 24×18、内部 SVG 14×14，四周留有内边距，图标不会越出按钮边界。 */
+.picker-edit,
+.picker-del {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+.picker-edit:hover,
+.picker-del:hover { background: rgba(32, 49, 112, 0.12); opacity: 1; }
+.picker-edit:active,
+.picker-del:active { transform: scale(0.88); opacity: 1; }
+.picker-edit:focus-visible,
+.picker-del:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 1px; opacity: 1; }
+.picker-edit svg,
+.picker-del svg { width: 14px; height: 14px; display: block; }
+
+/* 名称模态框输入 */
+.name-modal input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  /* 与配置主界面输入框一致：聚焦仅高亮边框，不使用浏览器默认聚焦框。 */
+  outline: none;
+}
+.name-modal input[type="text"]:focus { border-color: var(--primary-2); }
+
+.field-error { color: var(--danger); font-size: 12px; }
+.field-error[hidden] { display: none; }
+
+/* 图片编辑 / 音效编辑页共用的滚动区（页面形态下它承担 .page-body 的角色）：
+   页面里唯一的纵向滚动容器；内边距与 .page-body 完全一致，因此这两个页面与
+   其它独立页（供应商表单 / 通用配置 / 详细账单）的面板位置、留白分毫不差。 */
+.editor {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-card);
+  padding: 0 var(--space-page) var(--space-card);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
+}
+
+.editor-val { width: 44px; text-align: right; color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* 画布：按容器宽度等比缩放（JS 用 editorViewScale 把鼠标位移换算回画布坐标），
+   因此窄窗口下也不会把页面撑出横向滚动条。 */
+.editor-canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  aspect-ratio: 1 / 1;
+  align-self: center;
+  /* 透明底棋盘格跟随主题：深色主题下用两级深蓝灰，避免整块白色方块与深色界面冲突。 */
+  background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.editor-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+
+/* 裁剪框：支持拖动边界与位置，框外 80% 灰黑蒙层突出选中区域。 */
+.editor-crop { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.editor-crop-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.8);
+  cursor: move;
+  pointer-events: auto;
+}
+/* 三分构图参考线，便于对齐裁剪区域。 */
+.editor-crop-thirds { position: absolute; inset: 0; pointer-events: none; }
+.editor-crop-thirds::before {
+  content: "";
+  position: absolute;
+  left: 33.333%;
+  right: 33.333%;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
+}
+.editor-crop-thirds::after {
+  content: "";
+  position: absolute;
+  top: 33.333%;
+  bottom: 33.333%;
+  left: 0;
+  right: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+}
+.editor-crop-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.35);
+  border-radius: 2px;
+  pointer-events: auto;
+}
+.editor-crop-handle[data-dir="nw"] { left: -6px; top: -6px; cursor: nwse-resize; }
+.editor-crop-handle[data-dir="n"] { left: 50%; top: -6px; margin-left: -6px; cursor: ns-resize; }
+.editor-crop-handle[data-dir="ne"] { right: -6px; top: -6px; cursor: nesw-resize; }
+.editor-crop-handle[data-dir="w"] { left: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.editor-crop-handle[data-dir="e"] { right: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.editor-crop-handle[data-dir="sw"] { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.editor-crop-handle[data-dir="s"] { left: 50%; bottom: -6px; margin-left: -6px; cursor: ns-resize; }
+.editor-crop-handle[data-dir="se"] { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+/* 常用裁剪比例快捷选项 + 重新上传图片按钮（共用同一按钮风格）。 */
+.editor-ratios { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.editor-ratio-btn,
+.editor-replace-btn {
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.editor-ratio-btn:hover,
+.editor-replace-btn:hover { background: rgba(32, 49, 112, 0.06); }
+.editor-replace-btn:active { background: rgba(32, 49, 112, 0.12); }
+.editor-ratio-btn.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
+.editor-processing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 5;
+}
+.editor-processing[hidden] { display: none; }
+.editor-processing-text { color: #fff; font-size: 14px; }
+.editor-processing-bar { width: 180px; height: 8px; }
+
+.editor-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.editor-tool { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text); }
+.editor-tool input[type="range"] { width: 90px; }
+/* 「状态」下拉：与其它工具项同高，固定宽度避免挤压同一行的控件。 */
+.editor-tool .picker { flex: 0 0 120px; }
+.editor-tool .picker-toggle { padding: 6px 10px; }
+.editor-tool-rembg { gap: 8px; }
+
+/* 抠图模型下载：确认/错误弹窗（置于编辑器之上）与全屏进度遮罩 */
+.download-modal-overlay { z-index: 2100; }
+
+.download-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2200;
+  opacity: 0;
+  transition: opacity var(--fade-ms) linear, display var(--fade-ms) linear allow-discrete;
+}
+.download-overlay:not([hidden]) { opacity: 1; }
+.download-overlay[hidden] { display: none; }
+
+.download-box {
+  width: 320px;
+  max-width: calc(100% - 40px);
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px 24px 22px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.download-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.download-percent { font-size: 24px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+.download-bar { width: 100%; height: 10px; }
+
+/* 音效上传：单音效 / 双音效模式选择 */
+.audio-mode-picker { display: flex; gap: 8px; }
+.audio-mode-btn {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+.audio-mode-btn:hover { background: rgba(32, 49, 112, 0.06); }
+.audio-mode-btn.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
+/* 音效编辑页：波形 + 裁剪区间 + 变速 + 试听（页面骨架见 .page / .editor）。 */
+.audio-slots { display: flex; flex-direction: column; gap: var(--space-card); }
+
+.audio-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.audio-slot-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.audio-slot-title { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.audio-wave {
+  position: relative;
+  height: 120px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* 波形底也是媒体画布：随主题走，深色主题下不能留一块浅色底。 */
+  background: var(--media-bg);
+  overflow: hidden;
+}
+.audio-wave-canvas { display: block; width: 100%; height: 120px; }
+.audio-wave-mask { position: absolute; inset: 0; cursor: crosshair; }
+/* 选区外的灰黑蒙层（阴影铺满容器并被裁剪），突出待保留区间。 */
+.audio-wave-sel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.42);
+  border-left: 1px solid var(--primary);
+  border-right: 1px solid var(--primary);
+  background: rgba(255, 255, 255, 0.12);
+}
+.audio-wave-sel[hidden] { display: none; }
+.audio-wave-handle { position: absolute; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+.audio-wave-handle[data-dir="l"] { left: -6px; }
+.audio-wave-handle[data-dir="r"] { right: -6px; }
+.audio-wave-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  /* 原先写死 #94a3b8，在浅色波形底上只有 2.4:1；改用按主题校准过的媒体前景色。 */
+  color: var(--media-fg);
+  pointer-events: none;
+}
+.audio-wave-hint[hidden] { display: none; }
+
+.audio-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--text); }
+.audio-tools .toggle-eye:disabled { opacity: 0.5; cursor: not-allowed; }
+.audio-rate { display: flex; align-items: center; gap: 6px; }
+.audio-rate input[type="range"] { width: 110px; }
+.audio-rate-val { width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+.audio-slot-range { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ===== 余额与模型路由配置 ===== */
+
+/* 图标统一走 mask：素材是 cc-switch 同源 lucide 线性图标（stroke=currentColor），
+   mask 让图标颜色跟随 currentColor，从而与主题色/禁用态保持一致。 */
+.icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) no-repeat center / contain;
+  mask: var(--icon) no-repeat center / contain;
+}
+
+/* 加载态图标：把图标换成 loading.svg 后叠加旋转动画，模拟持续加载；
+   操作结束由 JS 立即还原为原始图标，不会长期停留在加载态。 */
+.icon-spin { animation: icon-spin 0.9s linear infinite; }
+@keyframes icon-spin {
+  to { transform: rotate(360deg); }
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+.icon-btn:hover { background: rgba(32, 49, 112, 0.06); color: var(--primary-2); }
+.icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.icon-btn.small { width: 26px; height: 26px; }
+.icon-btn.small .icon { width: 14px; height: 14px; }
+.icon-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* 标题行：标题 → 标签组靠左排布，展开箭头独占行尾（与「挂件状态」「高级设置」
+   的箭头位置一致）。整行空白区域都可点击收起 / 展开，因此整行给手型光标。 */
+.supplier-head { align-items: center; justify-content: flex-start; gap: 10px; cursor: pointer; }
+.supplier-head h2 { white-space: nowrap; }
+.scope-bar { display: flex; align-items: center; gap: 6px; }
+
+/* 供应商列表的展开 / 收起箭头：复用「挂件状态」「高级设置」同一套 caret 样式与旋转语义。
+   margin-left:auto 吃掉行的剩余空间，把箭头推到配置行最右侧，与标签组之间仍由
+   .supplier-head 的 gap 保证最小间距。 */
+.supplier-caret-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.supplier-caret-btn:hover { background: rgba(32, 49, 112, 0.06); color: var(--primary-2); }
+.supplier-caret-btn:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 1px; }
+/* 展开态箭头朝上（与 .adv-card:not(.collapsed) 一致），收起态朝下。 */
+.supplier-caret-btn .adv-caret { transform: rotate(180deg); }
+#supplierCard.collapsed .supplier-caret-btn .adv-caret { transform: rotate(0deg); }
+.scope-clients { display: flex; align-items: center; gap: 4px; }
+
+.scope-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1;
+}
+.scope-tab:hover { background: rgba(32, 49, 112, 0.06); color: var(--text); }
+.scope-tab.active { color: var(--primary); border-color: var(--primary); background: rgba(32, 49, 112, 0.06); }
+.scope-tab.scope-client { width: 30px; height: 30px; padding: 5px; display: inline-flex; align-items: center; justify-content: center; }
+.scope-logo { width: 100%; height: 100%; object-fit: contain; }
+.scope-text { font-size: 12px; }
+
+/* 供应商卡片列表 */
+.supplier-list { display: flex; flex-direction: column; gap: 8px; }
+.supplier-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+.supplier-item.active { border-color: var(--primary); background: rgba(32, 49, 112, 0.04); }
+.supplier-logo-wrap { flex: 0 0 28px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+.supplier-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+.supplier-meta { flex: 1; min-width: 0; }
+.supplier-name-row { display: flex; align-items: center; gap: 6px; }
+.supplier-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.supplier-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--on-primary);
+  background: var(--primary);
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.supplier-sub {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 列表项下方的地址链接：默认无下划线，悬浮时显示下划线（点击用默认浏览器打开）。 */
+.supplier-link {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+.supplier-link:hover { color: var(--link-hover); text-decoration: underline; }
+.supplier-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+.sup-apply {
+  border: 1px solid var(--primary);
+  background: #fff;
+  color: var(--primary);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.sup-apply:hover { background: var(--primary); color: var(--on-primary); }
+.sup-apply:disabled { opacity: 0.6; cursor: not-allowed; }
+/* 空列表提示：原 #94a3b8 在白卡片上仅 2.6:1，改用按 AA 校准的只读灰。 */
+.supplier-empty { color: var(--fg-muted); font-size: 13px; padding: 14px 2px; text-align: center; }
+.supplier-empty[hidden] { display: none; }
+
+/* 供应商选择（预设目录） */
+.supplier-modal { width: 440px; }
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+}
+.search-row:focus-within { border-color: var(--primary-2); }
+.search-icon { color: var(--muted); flex: 0 0 auto; }
+.search-row input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+}
+.preset-list {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+.preset-item:hover { background: rgba(32, 49, 112, 0.06); border-color: var(--border); }
+.preset-logo-wrap { flex: 0 0 22px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+.preset-logo { max-width: 100%; max-height: 100%; object-fit: contain; }
+.preset-name { flex: 1; min-width: 0; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-tag { flex: 0 0 auto; font-size: 11px; color: var(--muted); }
+.preset-empty, .preset-loading { color: #94a3b8; font-size: 12px; padding: 10px 2px; text-align: center; }
+.preset-empty[hidden] { display: none; }
+
+/* 供应商配置页的表单滚动区：页面形态下它就是 .page-body（整页唯一的纵向滚动区），
+   因此不再限制自身高度、也不再需要右侧补白，节奏交给统一的间距刻度。 */
+.form-scroll {
+  max-height: none;
+  overflow-y: auto;
+  padding-right: 0;
+}
+.form-section + .form-section { margin-top: var(--space-card); padding-top: var(--space-card); border-top: 1px dashed rgba(32, 49, 112, 0.12); }
+.form-section-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+/* 标题行：标题在左、操作按钮在右。按钮一律不换行、不被压缩（按钮文字折行最难看）。 */
+.form-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 26px;
+}
+.form-section-head .form-section-title { margin-bottom: 0; }
+.form-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+.form-section-actions:empty { display: none; }
+/* 模块内的小按钮（一键配置 / 获取模型列表 / 添加模型）：与表格同宽的气泡样式。 */
+.sup-mini-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--control-bg);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sup-mini-btn:hover { background: rgba(32, 49, 112, 0.06); border-color: var(--primary-2); }
+.sup-mini-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.sup-mini-btn.busy { opacity: 0.75; cursor: progress; }
+
+/* 模型路由：角色表用栅格；模型映射（Codex）逐项成行（见下方 [data-layout="catalog"]）。
+   行间距统一取 --space-field，与表单里其它配置行完全一致。 */
+.sup-model-table { display: flex; flex-direction: column; gap: var(--space-field); margin-top: var(--space-field); }
+/* 「默认模型」单行（Codex）：标签 + 输入框（含右侧下拉按钮），与表单字段同一套间距。 */
+.sup-default-row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-inline);
+  margin-top: var(--space-field);
+}
+/* 「默认模型」标签：字号与字重和「模型路由」「模型映射」分区标题完全一致。 */
+.sup-default-label { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.sup-default-row input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+}
+.sup-default-row input[type="text"]:focus { border-color: var(--primary-2); outline: none; }
+/* 没有「显示名称」列的行（如子代理模型）：用灰字说明，不留空单元格。 */
+.sup-model-empty { font-size: 11px; color: var(--muted); }
+.sup-model-head,
+.sup-model-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+}
+.sup-model-head {
+  font-size: 11px;
+  color: var(--muted);
+  /* 不设左右内边距：表头与数据行共用同一套栅格，任何水平内缩都会让最后一列
+     （「支持1M」）的勾选框与表头文字错开几像素。 */
+  padding: 0;
+}
+.sup-model-table[data-layout="roles"] .sup-model-head,
+.sup-model-table[data-layout="roles"] .sup-model-row {
+  grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1.2fr) 62px;
+}
+/* 模型映射（Codex）：每个模型一个独立区块，区块内**逐项一行**——
+   左侧标签、右侧控件，与「基础信息」的字段排布完全一致；
+   不再使用「表头一行 + 数据一行」的两行一组排版，任何窗口宽度下都不会挤压截断。 */
+.sup-model-table[data-layout="catalog"] { gap: var(--space-field); }
+.sup-model-table[data-layout="catalog"] .sup-model-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-field);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--control-bg);
+}
+.sup-model-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-inline);
+  min-width: 0;
+}
+/* 标签列与「基础信息」的字段标签同宽；控件占满剩余宽度。 */
+.sup-model-field > .field-label { flex: 0 0 84px; white-space: nowrap; }
+.sup-model-field > input[type="text"],
+.sup-model-field > .picker { flex: 1; min-width: 0; }
+/* 删除按钮与「显示名称」同一行、靠最右对齐。 */
+.sup-model-field > .sup-catalog-del { margin-left: auto; }
+
+/* 模型映射必填项的报错：紧跟在自己的字段行下方（与表单其它字段的报错同一套样式），
+   左缩进到控件列，读起来就是「这个输入框的内容不对」。 */
+.sup-model-row > .field-error { margin-left: calc(84px + var(--space-inline)); }
+
+/* 模型映射整块（标题 + 小字 + 映射行）：与上方「默认模型」行保持统一的行间距。 */
+.sup-catalog-block { margin-top: var(--space-field); }
+
+.sup-model-role {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 模型输入格：输入框 + 右侧「获取模型列表」下拉触发按钮（未取到列表时不渲染按钮）。 */
+.sup-model-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.sup-model-cell input { flex: 1; min-width: 0; }
+.sup-model-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.sup-model-toggle:hover { border-color: var(--primary-2); color: var(--text); }
+.sup-model-toggle[hidden] { display: none; }
+/* 「支持1M」勾选框：整格可点，haiku 这类不支持的档位置灰。 */
+.sup-one-m {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sup-one-m input {
+  cursor: pointer;
+  margin: 0;
+  /* 放大勾选框：与表头「支持1M」文字对齐成一条竖向轴线，不再小而难点。 */
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+/* 表头里的「支持1M」居中：勾选框正好落在文字正下方。 */
+.sup-head-center { text-align: center; }
+.sup-one-m.disabled { opacity: 0.45; }
+.sup-one-m.disabled input { cursor: not-allowed; }
+/* 表格内的输入框与「基础信息」字段同高，避免栅格里忽高忽低。 */
+.sup-model-row input[type="text"],
+.sup-model-row input[type="number"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+}
+.sup-model-row input[type="text"]:focus,
+.sup-model-row input[type="number"]:focus { border-color: var(--primary-2); outline: none; }
+/* 模型映射行内的删除按钮：与表格行同高的小图标按钮。 */
+.sup-catalog-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.sup-catalog-del:hover { color: var(--danger); border-color: var(--danger); }
+.sup-catalog-del svg { width: 13px; height: 13px; }
+/* 空列表提示：与 .supplier-empty / .preset-empty 同一条约定——
+   写死 #94a3b8 在白卡片上只有 2.6:1，改用按 AA 校准过的只读灰。 */
+.sup-catalog-empty { color: var(--fg-muted); font-size: 12px; padding: 8px 2px; }
+/* 布尔配置行（Claude 的开关 / Codex 的开关 + 支持1M + 压缩阈值）
+   一行排列，放不下时整项换到下一行起始位置；勾选框在左、文字在右。 */
+.sup-flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: var(--space-field);
+}
+.sup-flag-row:empty { display: none; }
+.sup-flag { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 12px; white-space: nowrap; cursor: pointer; }
+.sup-flag[hidden] { display: none; }
+.sup-flag input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+.sup-flag.disabled { opacity: 0.55; cursor: not-allowed; }
+.sup-flag.disabled input[type="checkbox"] { cursor: not-allowed; }
+/* 压缩阈值：勾选框 + 文字 + 数值输入框，同属一行里的一个整体项。 */
+.sup-flag-num { width: 96px; }
+.sup-flag input.sup-flag-num {
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  cursor: text;
+  accent-color: auto;
+  width: 96px;
+  height: auto;
+}
+.sup-flag input.sup-flag-num:focus { border-color: var(--primary-2); outline: none; }
+.sup-flag input.sup-flag-num:disabled { opacity: 0.55; cursor: not-allowed; }
+/* 「编辑通用设置」：与主题主色一致的小字链接按钮（原先写死 #3b82f6，在浅底上只有
+   3.68:1，达不到 AA，深色主题下更是与面板撞色）。 */
+.sup-link {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-2);
+  font-size: 11px;
+  cursor: pointer;
+}
+.sup-link:hover { text-decoration: underline; }
+.sup-link[hidden] { display: none; }
+/* 多选下拉的触发按钮：显示已选档位，未选时是占位文案。 */
+.sup-levels { position: relative; min-width: 0; }
+.sup-levels .picker-toggle { padding: 6px 8px; font-size: 12px; }
+/* 必填标记：与错误态同一色系，用户扫一眼就知道哪些字段不能留空。 */
+.required-mark { color: var(--danger); margin-left: 2px; }
+.form-section-hint { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 4px; }
+/* 校验类提示（如通用配置片段的 TOML 报错）另用红色，与表单错误提示同一套颜色。 */
+#commonConfigError { color: var(--danger); }
+.form-section[hidden] { display: none; }
+.form-scroll .field { margin-top: var(--space-field); }
+.form-scroll .field-error { margin-top: 4px; }
+/* 标签列固定足够宽度并禁止折行：必填星号必须与字段名同处一行
+   （「供应商名称*」已略宽于默认的 70px，窄列会把星号挤到第二行）。 */
+.form-scroll .field-label { flex-basis: 84px; white-space: nowrap; }
+
+input.invalid { border-color: var(--danger); background: var(--danger-tint); }
+
+/* ===== 通用配置片段（Codex）=====
+   片段跨供应商共享，在叠加于客户端配置页之上的全局页面里编辑、保存或取消；
+   说明文本按 cc-switch 的原文呈现。 */
+.common-guide {
+  border: 1px solid var(--info-border);
+  border-radius: 8px;
+  background: var(--info-bg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.common-guide-title { margin: 0; font-size: 13px; font-weight: 700; color: var(--info-title); }
+.common-guide-body { margin: 0; font-size: 11px; line-height: 1.7; color: var(--info-text); }
+.common-hint { font-size: 11px; color: var(--muted); }
+/* 通用配置文本域：与「配置预览」里的 json / toml 展示框（.preview-file / -body）
+   共用同一套观感——同底色、同边框、同圆角、同等宽字体与行高。
+   差别只在它是可编辑的文本域：纵向不设高度上限，由前端随内容自适应高度
+   （完整展示、不出现内部纵向滚动条）；横向由 wrap="off" 触发的滚动条承担。 */
+.common-text {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 220px;
+  resize: none;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--text);
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.common-text:focus { border-color: var(--primary-2); outline: none; }
+
+/* ===== 配置预览（claude / codex 客户端页）=====
+   只读展示「保存后将写入」的客户端配置文件内容：等宽字体保留缩进，
+   内容允许选中复制（body 全局禁用了选中，这里必须显式放开）。
+   顶部是文件选择框组（横向切换），内容**完整展示不截断**——用户要核对的是
+   将要写进自己配置文件的全貌，滚动条会把关键行藏起来。 */
+.preview-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+.preview-tabs:empty { display: none; }
+.preview-tab {
+  border: 1px solid var(--border);
+  background: var(--control-bg);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.preview-tab:hover { color: var(--text); }
+.preview-tab.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.preview-files { display: flex; flex-direction: column; gap: 10px; }
+.preview-file {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  overflow: hidden;
+}
+.preview-file-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+/* 路径过长时从**左侧**截断（保留更有信息量的文件名），因此用 rtl 方向 + 左对齐。 */
+.preview-file-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+.preview-file-lang { flex: 0 0 auto; font-weight: 700; text-transform: uppercase; }
+.preview-file-body {
+  margin: 0;
+  padding: 10px;
+  /* 纵向完整展示：不设高度上限、不出现内部纵向滚动条（一次只显示一个文件，
+     内容再长也放得下）。横向则相反——超长行（如很长的模型名、绝对路径）
+     必然超出容器宽度，交给横向滚动条，既不折行也不被外层圆角裁掉。 */
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.preview-empty { color: #94a3b8; font-size: 12px; padding: 8px 2px; }
+.form-scroll .field input[type="text"],
+.form-scroll .field input[type="password"] { flex: 1; min-width: 0; }
+
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-2);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+/* 「获取 API Key」：悬浮时整体文字（含图标）转为浅蓝色，与默认超链接一致。 */
+.link-btn:hover { color: var(--link-hover); }
+
+/* 详细账单页的滚动容器：本页内容高度必然超出视口，纵向滚动条会在打开的一瞬间
+   出现。若不预留栅格，.page-body 的可用宽度就从 600 掉到 590（自定义滚动条宽
+   10px），面板与柱状图跟着被横向挤压 10px —— 这就是「打开详细账单时柱状图横向
+   抖动」的根因。scrollbar-gutter: stable 让「有 / 无滚动条」两种状态下的可用宽度
+   完全一致，图表初始化时量到的即最终宽度，不再发生横向回流。 */
+#usageOverlay .page-body { scrollbar-gutter: stable; }
+
+/* 用量统计面板（详细账单页）：内容由 .page-panel 承载，这里只定义内部节奏。 */
+.usage-toolbar { display: flex; align-items: flex-start; gap: 0; }
+.usage-range-picker { flex: 0 0 128px; }
+.usage-source { font-size: 11px; color: var(--muted); line-height: 1.6; word-break: break-word; }
+
+/* 自建日期选择器：fixed 浮层，**脱离文档流**。
+   left / top 由 supplier.js 的 placeCalendar 按筛选下拉贴合计算，所以展开 / 收起
+   完全不占布局：既不会把弹窗撑高，也不会将下方的柱状图与详细账单顶出可视区。
+   展开只做「淡入 + 轻微下移」，无需再做宽度过渡（那正是过去把布局顶开的根源）。 */
+.usage-calendar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  /* 与下拉浮层同一层级：能盖住弹窗自身，又低于右上角轻提示（3000）。 */
+  z-index: 1500;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease,
+    visibility 0s linear 0.18s;
+}
+.usage-calendar.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s;
+}
+.usage-calendar-inner {
+  width: 262px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--control-bg);
+  padding: 8px 10px 10px;
+}
+.usage-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.usage-calendar-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.usage-calendar-nav {
+  border: 0;
+  background: transparent;
+  color: var(--primary-2);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.usage-calendar-nav:hover { background: rgba(32, 49, 112, 0.06); }
+/* 池尾已经含本月时「下一月」不可用（未来没有账单可看）。 */
+.usage-calendar-nav:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: transparent;
+}
+.usage-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.usage-calendar-week,
+.usage-calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.usage-calendar-week { color: var(--muted); }
+/* 连续日期池里的月份分隔行：整行标题，让「上月 → 当月」的边界一眼可见，
+   不至于把 8/31 与 9/1 看成相邻两天。 */
+.usage-calendar-month {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  border-top: 1px dashed var(--border);
+  margin-top: 2px;
+}
+.usage-calendar-day {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+.usage-calendar-day:hover { background: rgba(32, 49, 112, 0.06); }
+/* 已选区间：两端实底、中间浅底，一眼能看出跨度。 */
+.usage-calendar-day.in-range { background: rgba(32, 49, 112, 0.06); border-radius: 0; }
+.usage-calendar-day.edge {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.usage-calendar-day:disabled { color: var(--muted); opacity: 0.45; cursor: not-allowed; }
+.usage-calendar-day:disabled:hover { background: transparent; }
+.usage-calendar-foot { margin-top: 6px; font-size: 11px; color: var(--muted); text-align: center; }
+/* ===== 用量区块（金额消耗 / 模型 Token 消耗）=====
+   两张图（以及每个模型的 Token 图）**平铺在面板背景上**，外面不再套一层滚动区：
+   需要滚动条的只有最下方的账单明细（它自己的 max-height 与内部滚动保持不变）。 */
+.usage-block { display: flex; flex-direction: column; }
+.usage-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+/* 一级标题：「金额消耗」与「模型 Token 消耗」必须是同一号字。 */
+.usage-block-title { font-size: 12px; font-weight: 700; color: var(--text); }
+/* 该区块确实没有数据时的一行小字（不留一大片空白）。 */
+.usage-blank { font-size: 12px; color: var(--fg-muted); padding: 6px 0; }
+.usage-chart { width: 100%; height: 180px; }
+/* ===== 用量柱状图的悬浮提示（金额图与 Token 图共用同一套外观）=====
+   外框（底色 / 边框 / 圆角 / 阴影 / 内边距）由 ECharts 的 tooltip 选项给出：它在提示框
+   DOM 上写行内样式，样式表压不过行内，所以底色取 `--tip-bg`（浅色纯白 / 深色面板色 /
+   毛玻璃近白）在 JS 里解析后交过去；内部分行与数字配色仍归这里。
+   数字统一用「全局颜色」派生的图表色（--chart-bar 系列），默认深蓝。 */
+.usage-tip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+.usage-tip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+/* 名称栏 = 可选色块 + 文本。整体宽度仍锁在 220px 以内：色块占掉的宽度由文本让出来，
+   因此加了色块之后提示框宽度一点没变，窄屏也不会被顶出边界。
+   `min-width: 0` 是长模型名能被截断的前提（flex 子项默认 min-width:auto 会把框顶宽）。 */
+.usage-tip-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 220px;
+}
+/* 模型名可能很长（如「deepseek-chat & deepseek-reasoner」）：截断而不是把提示框撑爆。 */
+.usage-tip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 与「模型 Token 消耗」标题行右侧图例同款的三个色块（命中 / 未命中 / 输出）：
+   取同一组 --chart-bar 变量，改全局颜色时图例与提示框一起变。 */
+.usage-tip-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.usage-tip-dot-hit { background: var(--chart-bar); }
+.usage-tip-dot-miss { background: var(--chart-bar-2); }
+.usage-tip-dot-out { background: var(--chart-bar-3); }
+.usage-tip-num {
+  color: var(--chart-bar);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 模型 Token 柱状图 =====
+   一级标题「模型 Token 消耗」之下，每个模型一块独立图表（命中缓存 / 未命中缓存 /
+   输出三维度），块数完全由接口实际用到的模型数量决定，没有固定行数。 */
+.usage-token-legend { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.usage-token-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.usage-token-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.usage-token-dot-hit { background: var(--chart-bar); }
+.usage-token-dot-miss { background: var(--chart-bar-2); }
+.usage-token-dot-out { background: var(--chart-bar-3); }
+.usage-token-charts { display: flex; flex-direction: column; gap: 10px; }
+/* 每个模型一块：不再画卡片边框，图与图之间靠二级标题分隔，整体平铺在面板上。 */
+.usage-token-block { display: flex; flex-direction: column; }
+.usage-token-block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+/* 二级标题：模型名比一级标题小一档，权重也降一档。 */
+.usage-token-name { font-size: 11.5px; font-weight: 600; color: var(--text); }
+.usage-token-total {
+  font-size: 11px;
+  color: var(--chart-bar);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.usage-token-chart { width: 100%; height: 128px; }
+.usage-daily {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.usage-daily-head,
+.usage-daily-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.usage-daily-head { color: var(--muted); border-bottom: 1px solid var(--border); }
+.usage-daily-row { color: var(--text); }
+/* 「最近一年暂无消费记录」这类空态文案：用 WCAG 校准过的灰（--fg-muted 在浅底上
+   5.0:1），不再写死 #94a3b8（浅底只有 2.4:1，深色主题下更是几乎看不见）。 */
+.usage-empty { color: var(--fg-muted); font-size: 12px; padding: 12px 0; text-align: center; }
+
+/* ===== 系统配置 · 全局主题（三态分段选择）===== */
+.theme-picker { flex: 1; min-width: 0; display: flex; gap: 8px; }
+.theme-btn {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.theme-btn:hover { background: rgba(32, 49, 112, 0.06); }
+.theme-btn.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+
+/* ===== 控件表面（三主题统一） =====
+   按钮 / 下拉 / 分段控件若与所在面板同色（浅色主题下就是白底落在白卡片上），
+   只剩一层 16% 透明度的细边框，控件边界几乎看不出来——「深色」「毛玻璃」两个
+   主题按钮尤其容易被看成一片白。这里统一改用 --control-bg / --control-border，
+   各主题在自己的变量块里给出取值（浅色 = 压深一档，深色 = 比面板略亮，
+   毛玻璃 = 玻璃白），保证控件表面、边框与文字在三主题下都清晰可辨。
+   注 1：带主题语义色边框的控件（如 .sup-apply 的蓝色描边）不参与本组覆盖。
+   注 2：主色实底的状态控件同样要用 :not() 排除——本组与本组之后的选择器权重相同，
+   若不排除会把 `.modal-btn-primary` 的实底一并盖成中性控件底（文字色不变，
+   结果是浅底白字）。 */
+/* 控件表面（三主题统一）：这里只列仍在使用、且需要「面板色之外的控件底」的类。
+   日期筛选下拉复用 .picker-toggle，已在下面列出；日历格子自带选中 / 区间样式。 */
+.theme-btn,
+.toggle-eye,
+.modal-btn:not(.modal-btn-primary),
+.icon-btn,
+.picker-toggle,
+.editor-ratio-btn,
+.editor-replace-btn,
+.audio-mode-btn,
+.prov-btn {
+  background: var(--control-bg);
+  border-color: var(--control-border);
+}
+
+/* ===== 全局主题：深色 / 毛玻璃 =====
+   仅覆盖配置窗口的配色与圆角（CSS 变量 + 白色面板底色），不改动任何尺寸、
+   层级与交互；桌面挂件不引用本样式表，因此不受主题影响。
+   浅色即上方既有样式，因此没有 light 分支。
+   注 1：--primary / --primary-2 / --text / --muted / --border 由「全局颜色」以行内样式
+   写在 :root 上（行内样式的优先级高于样式表），深色主题下的亮色版本由 config.js 按主题
+   派生后写回；本块中的同名变量只是行内样式缺失时的兜底（例如配置读取失败）。
+   注 2：图片编辑器画布与音效波形画布的底色刻意保持浅色——画布内容由 JS 绘制，
+   固定浅底才能保证波形与透明棋盘格始终清晰。
+   注 3：变量块必须限定在根元素（html[data-theme=...]）上。主题选择器的三个按钮
+   自带 data-theme="light|dark|glass"，若用裸属性选择器，变量会连同值一起落到
+   「深色」「毛玻璃」两个按钮自己身上，导致它们用错配色的文字（浅底浅字 / 深底深字）。 */
+
+html[data-theme="dark"] {
+  --primary: #7f9cff;
+  --primary-2: #a9bcff;
+  --border: rgba(255, 255, 255, 0.16);
+  --text: #e7ecff;
+  --muted: #98a4c8;
+  --bg: #0f131e;
+  --link-hover: #a9c6ff;
+  --fg-muted: #9aa3bd;
+  --readonly-bg: #1b2130;
+  --on-primary: #0b1020;
+  --panel: #1a2032;
+  --panel-2: #222b41;
+  --danger: #ff8f86;
+  --danger-tint: rgba(255, 143, 134, 0.12);
+  /* 深色下的媒体画布：棋盘格用两级深蓝灰（仍是「透明底」的语义），
+     波形改用浅蓝描边/填充才能在深底上看清。 */
+  --checker-a: #2b3346;
+  --checker-b: #222a3d;
+  --media-bg: #212939;
+  --media-fg: #9aa3bd;
+  --wave-line: rgba(198, 212, 255, 0.2);
+  --wave-fill: rgba(198, 212, 255, 0.62);
+  --chart-grid: rgba(255, 255, 255, 0.1);
+  /* 深色主题的图表三档：从深底方向派生（主色已经提亮过，再往黑里调出层次），
+     与浅色主题的「往白里调」正好相反——直接套浅色取值会在深底上糊成一片白。 */
+  --chart-bar: var(--primary-2);
+  --chart-bar-2: #9aa3c4;
+  --chart-bar-3: #6f7793;
+  /* 深色主题的提示框用面板色（不透明），浅色文字落上去才读得清。 */
+  --tip-bg: var(--panel);
+  --tip-border: rgba(255, 255, 255, 0.16);
+  --info-border: rgba(127, 156, 255, 0.4);
+  --info-bg: rgba(96, 140, 255, 0.14);
+  --info-title: #a9bcff;
+  --info-text: rgba(180, 200, 255, 0.9);
+  --hover: rgba(255, 255, 255, 0.07);
+  --hover-strong: rgba(255, 255, 255, 0.13);
+  --dash: rgba(255, 255, 255, 0.18);
+  --track: #39415c;
+  /* 控件底比面板亮一档、边框比 --border 更实，保证按钮彼此、按钮与面板都能分开。 */
+  --control-bg: #222b41;
+  --control-border: rgba(255, 255, 255, 0.3);
+  /* 深色底上的滚动条滑块改用浅色，否则深蓝滑块在深色面板上几乎看不见。 */
+  --sb-thumb: rgba(255, 255, 255, 0.22);
+  --sb-thumb-hover: rgba(255, 255, 255, 0.42);
+}
+
+/* 面板底色（原白色面板 → 深色面板）。
+   注意：`.editor`（图片 / 音效编辑页的滚动区）**不在此列**——它的角色等同 .page-body，
+   只负责滚动、不应自带底色；编辑内容承载在内层的 .page-panel 上，否则面板与滚动区
+   同色会糊成一片（面板等于消失）。 */
+[data-theme="dark"] .card,
+[data-theme="dark"] .modal,
+[data-theme="dark"] .download-box,
+[data-theme="dark"] .toast,
+[data-theme="dark"] .picker-list,
+[data-theme="dark"] .supplier-item,
+[data-theme="dark"] .preset-item { background: var(--panel); }
+
+/* 控件底色（比面板略亮，保证与面板可分）。
+   注：带主色实底的状态控件（主按钮 / 选中态）用 :not() 排除在外——本组的选择器
+   与 `.xxx.active` 同权重且位置更靠后，若不排除就会把选中态的实底一并覆盖成面板色，
+   而状态文字（白字或 --on-primary 深字）不会跟着变，结果是「深底深字 / 白底白字」。 */
+[data-theme="dark"] .picker-toggle,
+[data-theme="dark"] .modal-btn:not(.modal-btn-primary),
+[data-theme="dark"] .toggle-eye,
+[data-theme="dark"] .theme-btn:not(.active),
+[data-theme="dark"] .audio-mode-btn:not(.active),
+[data-theme="dark"] .icon-btn,
+[data-theme="dark"] .prov-btn,
+[data-theme="dark"] .sup-apply:not(:hover),
+[data-theme="dark"] .editor-ratio-btn:not(.active),
+[data-theme="dark"] .editor-replace-btn,
+[data-theme="dark"] .dialogue-input,
+[data-theme="dark"] .usage-calendar-inner,
+[data-theme="dark"] .usage-calendar-day:not(.edge),
+[data-theme="dark"] .name-modal input[type="text"],
+[data-theme="dark"] .picker-search,
+[data-theme="dark"] .sup-model-row input[type="text"],
+[data-theme="dark"] .sup-model-row input[type="number"],
+[data-theme="dark"] .sup-default-row input[type="text"],
+[data-theme="dark"] .sup-flag input.sup-flag-num,
+[data-theme="dark"] .common-text,
+[data-theme="dark"] .field input[type="text"],
+[data-theme="dark"] .field input[type="password"],
+[data-theme="dark"] .field input[type="number"] { background: var(--panel-2); }
+
+/* 悬浮 / 选中填充：深底上的浅色叠加（同样排除主色实底的状态控件） */
+[data-theme="dark"] .icon-btn:hover,
+[data-theme="dark"] .picker-toggle:hover,
+[data-theme="dark"] .picker-item:hover,
+[data-theme="dark"] .picker-item.active,
+[data-theme="dark"] .preset-item:hover,
+[data-theme="dark"] .modal-btn:not(.modal-btn-primary):hover,
+[data-theme="dark"] .toggle-eye:hover,
+[data-theme="dark"] .theme-btn:not(.active):hover,
+[data-theme="dark"] .audio-mode-btn:not(.active):hover,
+[data-theme="dark"] .prov-btn.active,
+[data-theme="dark"] .scope-tab:hover,
+[data-theme="dark"] .scope-tab.active,
+[data-theme="dark"] .usage-calendar-nav:hover,
+[data-theme="dark"] .usage-calendar-day:not(.edge):hover,
+[data-theme="dark"] .usage-calendar-day.in-range,
+[data-theme="dark"] .editor-ratio-btn:not(.active):hover,
+[data-theme="dark"] .editor-replace-btn:hover,
+[data-theme="dark"] .supplier-item.active,
+[data-theme="dark"] .supplier-caret-btn:hover { background: var(--hover); }
+
+[data-theme="dark"] .picker-toggle:active,
+[data-theme="dark"] .picker-item:active,
+[data-theme="dark"] .picker-edit:hover,
+[data-theme="dark"] .picker-del:hover,
+[data-theme="dark"] .editor-replace-btn:active { background: var(--hover-strong); }
+
+/* 分隔虚线 / 滑杆轨道 */
+[data-theme="dark"] .adv-card,
+[data-theme="dark"] .form-section + .form-section { border-top-color: var(--dash); }
+[data-theme="dark"] .slider { background: var(--track); }
+[data-theme="dark"] .field input[type="range"]:not(.color-slider) { background: var(--track); }
+
+html[data-theme="glass"] {
+  --primary: #1f3f8f;
+  --primary-2: #3557b8;
+  --border: rgba(255, 255, 255, 0.6);
+  --text: #1b2a52;
+  --muted: #66759b;
+  --link-hover: #3f83ff;
+  --glass: rgba(255, 255, 255, 0.5);
+  --glass-2: rgba(255, 255, 255, 0.62);
+  --glass-hover: rgba(255, 255, 255, 0.78);
+  --glass-hover-strong: rgba(255, 255, 255, 0.92);
+  --glass-line: rgba(255, 255, 255, 0.65);
+  /* 毛玻璃属浅色系，面板沿用玻璃白；媒体 / 提示 / 危险色沿用浅色取值（见 :root）。 */
+  --panel: var(--glass);
+  /* 图表三档同样沿用浅色取值（往白里调）：毛玻璃面板本身是浅色，
+     换成深色主题那套「往黑里调」的档位会在玻璃白上显得又脏又重。 */
+  --chart-bar: var(--primary-2);
+  --chart-bar-2: #6b7cab;
+  --chart-bar-3: #a3aecb;
+  /* 毛玻璃主题的提示框要「压住」身后的彩光：用近白不透明底，而不是半透明玻璃白。 */
+  --tip-bg: rgba(255, 255, 255, 0.95);
+  --tip-border: rgba(32, 49, 112, 0.14);
+  /* 控件底沿用玻璃白，边框比 --border 更实，保证按钮在玻璃面板上仍有清晰轮廓。 */
+  --control-bg: rgba(255, 255, 255, 0.62);
+  --control-border: rgba(255, 255, 255, 0.9);
+  /* 毛玻璃主题底偏亮，滑块用深一档的蓝灰才看得清。 */
+  --sb-thumb: rgba(27, 42, 82, 0.26);
+  --sb-thumb-hover: rgba(27, 42, 82, 0.46);
+}
+
+/* 苹果风毛玻璃：彩色柔光壁纸 + 大量透明模糊与圆角 */
+[data-theme="glass"] body {
+  background:
+    radial-gradient(1200px 620px at 8% -12%, #cfe0ff 0%, rgba(207, 224, 255, 0) 62%),
+    radial-gradient(900px 520px at 102% 2%, #ffd9ec 0%, rgba(255, 217, 236, 0) 58%),
+    radial-gradient(900px 720px at 46% 118%, #d6fff0 0%, rgba(214, 255, 240, 0) 62%),
+    #eef3ff;
+  background-attachment: fixed;
+}
+
+[data-theme="glass"] .card,
+[data-theme="glass"] .page-panel,
+[data-theme="glass"] .download-box,
+[data-theme="glass"] .toast,
+[data-theme="glass"] .picker-list,
+[data-theme="glass"] .supplier-item,
+[data-theme="glass"] .preset-item,
+[data-theme="glass"] .usage-calendar-inner {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border-radius: 20px;
+  box-shadow: inset 0 0 0 1px var(--glass-line), 0 10px 30px rgba(31, 45, 90, 0.1);
+}
+
+/* 弹窗一律浮在 45% 的深色遮罩上。若沿用 50% 白的玻璃底，合成后是中灰（约
+   rgb(196,200,207)），标题 / 正文只有 4.1:1，达不到 AA（全局颜色偏亮时更明显）。
+   弹窗改用高不透明度的玻璃白，保证遮罩之上的文字始终清晰可读。 */
+[data-theme="glass"] .modal {
+  background: var(--glass-hover-strong);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border-radius: 20px;
+  box-shadow: inset 0 0 0 1px var(--glass-line), 0 10px 30px rgba(31, 45, 90, 0.1);
+}
+
+[data-theme="glass"] .picker-toggle,
+[data-theme="glass"] .modal-btn:not(.modal-btn-primary),
+[data-theme="glass"] .toggle-eye,
+[data-theme="glass"] .theme-btn:not(.active),
+[data-theme="glass"] .audio-mode-btn:not(.active),
+[data-theme="glass"] .icon-btn,
+[data-theme="glass"] .prov-btn,
+[data-theme="glass"] .sup-apply:not(:hover),
+[data-theme="glass"] .editor-ratio-btn:not(.active),
+[data-theme="glass"] .editor-replace-btn,
+[data-theme="glass"] .dialogue-input,
+[data-theme="glass"] .name-modal input[type="text"],
+[data-theme="glass"] .picker-search,
+[data-theme="glass"] .sup-model-row input[type="text"],
+[data-theme="glass"] .sup-model-row input[type="number"],
+[data-theme="glass"] .sup-default-row input[type="text"],
+[data-theme="glass"] .sup-flag input.sup-flag-num,
+[data-theme="glass"] .common-text,
+[data-theme="glass"] .field input[type="text"],
+[data-theme="glass"] .field input[type="password"],
+[data-theme="glass"] .field input[type="number"] {
+  background: var(--glass-2);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
+  border-radius: 12px;
+}
+
+/* 注：与深色主题同理，带主色实底的状态控件用 :not() 排除，避免把选中态的实底
+   覆盖成玻璃白后、白字落在白底上。 */
+[data-theme="glass"] .icon-btn:hover,
+[data-theme="glass"] .picker-toggle:hover,
+[data-theme="glass"] .picker-item:hover,
+[data-theme="glass"] .picker-item.active,
+[data-theme="glass"] .preset-item:hover,
+[data-theme="glass"] .modal-btn:not(.modal-btn-primary):hover,
+[data-theme="glass"] .toggle-eye:hover,
+[data-theme="glass"] .theme-btn:not(.active):hover,
+[data-theme="glass"] .audio-mode-btn:not(.active):hover,
+[data-theme="glass"] .prov-btn.active,
+[data-theme="glass"] .scope-tab:hover,
+[data-theme="glass"] .scope-tab.active,
+[data-theme="glass"] .usage-calendar-nav:hover,
+[data-theme="glass"] .usage-calendar-day:not(.edge):hover,
+[data-theme="glass"] .usage-calendar-day.in-range,
+[data-theme="glass"] .editor-ratio-btn:not(.active):hover,
+[data-theme="glass"] .editor-replace-btn:hover,
+[data-theme="glass"] .supplier-item.active,
+[data-theme="glass"] .supplier-caret-btn:hover { background: var(--glass-hover); }
+
+[data-theme="glass"] .picker-toggle:active,
+[data-theme="glass"] .picker-item:active,
+[data-theme="glass"] .picker-edit:hover,
+[data-theme="glass"] .picker-del:hover,
+[data-theme="glass"] .editor-replace-btn:active { background: var(--glass-hover-strong); }
+
+/* ===== 气泡管理 · 模块化气泡 =====
+   折叠外壳直接复用「高级设置」那一套（.adv-card / .adv-head / .adv-caret /
+   .collapsible），本段只定义模块化气泡独有的部分：可选模块区、编辑区、
+   拖拽吸附指示、预览气泡与模块配置弹窗。
+
+   交互色一律取全局颜色变量（--primary / --primary-2 / --control-* / --danger…），
+   因此「全局颜色」与浅色 / 深色 / 毛玻璃三套主题都能自然生效，不写死任何色值。 */
+
+/* --- 顶部可选模块区 --- */
+.dsb-palette {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+/* 气泡组：位于「模块化气泡」标题下方、可选模块区上方（与配置项同一个 .field 排布）。 */
+.dsb-group-row { margin-bottom: 12px; }
+.dsb-palette-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--control-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+/* 悬浮 / 键盘聚焦用主色描边：这是「点击可添加」的唯一视觉提示。 */
+.dsb-palette-btn:hover { border-color: var(--primary); color: var(--primary); }
+.dsb-palette-btn:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
+
+/* --- 底部编辑预览区：左侧编辑 / 右侧预览 --- */
+.dsb-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-field);
+  min-width: 0;
+}
+.dsb-editor {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dsb-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dsb-editor-title { font-size: 12px; font-weight: 700; color: var(--text); }
+
+/* 「应用」按钮：整个「模块化气泡」只有一个，落在「模块化气泡」卡片的右下角。
+   它就是普通流内布局——页面滚动时跟着内容一起滚，不吸附在可视区底部；
+   编辑区变高只会把卡片撑高，按钮始终待在卡片内容区的右下角。
+   收起「模块化气泡」时整块隐藏（按钮挂在折叠体之外，必须自己跟着收起）。 */
+.dsb-apply-dock {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+#modularCard.collapsed .dsb-apply-dock { display: none; }
+.dsb-apply {
+  padding: 6px 16px;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.dsb-apply:hover { background: var(--primary-2); border-color: var(--primary-2); }
+.dsb-apply:focus-visible { outline: 2px solid var(--primary-2); outline-offset: 2px; }
+
+/* 大尺寸圆角方框：初始高度按「5 个模块纵向堆叠」预留
+   （5×32 + 4×8 间距 + 上下 12 内边距 = 216）；
+   超过 5 个时不设上限，随内容自然增高（编辑预览区整体动态扩展）。 */
+.dsb-rows {
+  position: relative;
+  /* 尺寸查询容器：条目在窄编辑区里要换成「紧凑形态」（见下方 @container）。 */
+  container-type: inline-size;
+  min-height: 216px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--readonly-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* 空态：margin:auto 让它在方框内水平垂直居中。 */
+.dsb-empty { margin: auto; font-size: 12px; color: var(--muted); }
+.dsb-empty[hidden] { display: none; }
+
+/* 一行：并排的若干模块。
+   每行的模块默认并排在同一视觉行上；条目基准宽取「行宽的 1/5」——
+   一行放得下 5 个就并排 5 个（不再卡在 2 个），超过 5 个才换行
+   （编辑逻辑同样给一行封顶 5 个，见 MAX_ROW_BLOCKS）。 */
+.dsb-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+}
+
+/* 编辑区里的模块条目：左侧拖拽手柄 + 类型 + 内容摘要 + 右侧删除按钮 */
+.dsb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* 5 个并排正好铺满一行：4 个间隙 6px + 5 × 基准宽 = 100%。 */
+  flex: 1 1 calc((100% - 24px) / 5);
+  /* 与同一行的其它模块平分可用的横向空间；
+     空间不够时先收缩（摘要文字省略号收敛），收缩下限是「手柄 + 删除按钮」的完整宽度，
+     因此删除按钮在任何挤压下都完整可见、随时可点。 */
+  min-width: 68px;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 4px 6px 4px 4px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  /* 落位吸附动画：位置变化用 transform 过渡（FLIP 只改 transform），
+     GPU 合成，不走布局重排。 */
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.18s ease;
+}
+.dsb-chip:hover { border-color: var(--primary); }
+.dsb-drag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: grab;
+  /* 手柄上不响应触摸滚动，避免拖动时页面跟着滚。 */
+  touch-action: none;
+}
+.dsb-drag:hover { color: var(--primary); background: var(--control-bg); }
+.dsb-drag:active { cursor: grabbing; }
+.dsb-drag .icon { width: 14px; height: 14px; }
+/* 类型与摘要都可以被压扁：空间不足时优先省略文字，
+   手柄与删除按钮（flex 0 0 auto）永远完整可见，任何条目都随时可删。 */
+.dsb-chip-kind {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--primary);
+}
+.dsb-chip-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.dsb-chip-del {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.dsb-chip-del:hover { color: var(--danger); background: var(--danger-tint); }
+
+/* 编辑区窄到「5 个并排时每个只剩 40 多像素」（默认窗口就是这样）：
+   条目内部同步收紧，让手柄 + 删除按钮整体塞得下——删除按钮永远完整可见。
+   够宽时走上面的常规尺寸，间距更舒服。 */
+@container (max-width: 363px) {
+  .dsb-chip { gap: 2px; padding: 2px 3px; min-width: 43px; }
+  .dsb-drag { width: 14px; height: 18px; }
+  .dsb-drag .icon { width: 12px; height: 12px; }
+  .dsb-chip-del { width: 16px; height: 16px; font-size: 13px; }
+}
+
+/* 拖拽中的浮层副本：跟着指针走，落位后由 FLIP 动画接回编辑区。 */
+.dsb-ghost {
+  position: fixed;
+  z-index: 1200;
+  margin: 0;
+  pointer-events: none;
+  opacity: 0.94;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+/* 吸附指示器：横条 = 插入到该行的上方 / 下方；竖条 = 插入到该行的左 / 右侧。
+   位置用 transform 过渡，移动时是平滑滑动而不是跳变。 */
+.dsb-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  border-radius: 2px;
+  background: var(--primary);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.14s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.12s ease,
+    width 0.14s ease, height 0.14s ease;
+}
+.dsb-drop.dsb-drop-on { opacity: 1; }
+
+/* --- 右侧预览气泡 --- */
+.dsb-preview {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.dsb-preview-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.dsb-preview-bubble {
+  position: relative;
+  width: 220px;
+  aspect-ratio: 1026 / 700;
+  /* 内容比气泡高时裁掉：桌面窗口同样会把超出部分截断，预览保持一致。 */
+  overflow: hidden;
+  /* 与桌面挂件同构图：模块尺寸按同一个 u 基准换算（u = 气泡宽 / 1026），
+     因此预览里的比例与桌面上完全一致。 */
+  --dshw-u: calc(220px / 1026);
+}
+.dsb-preview-bubble > svg { display: block; width: 100%; height: 100%; }
+/* 文字层的位置与桌面挂件一致（left 44.25% / top 38%，居中锚点）。 */
+.dsb-preview-text {
+  position: absolute;
+  left: 44.25%;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: calc(var(--dshw-u) * 560);
+  text-align: center;
+  color: #536ba9;
+  line-height: 1.15;
+}
+/* 未配置任何模块时的预览占位（此时桌面沿用内置三行气泡）。 */
+.dsb-preview-hint { font-size: 11px; line-height: 1.3; color: var(--muted); }
+
+/* --- 模块配置弹窗 --- */
+.dsb-modal { width: 380px; }
+/* 「自定义气泡组」弹窗与模块配置弹窗同宽：两者在同一个面板里前后出现，
+   宽度一致看起来才是一套。其余（标题 / 输入框 / 按钮）沿用 .name-modal。 */
+.dsb-group-modal { width: 380px; }
+.dsb-form { display: flex; flex-direction: column; gap: 12px; }
+/* 弹窗内的字段间距由 .dsb-form 的 gap 统一控制，不再叠加 .field 的 margin-top。 */
+.dsb-form .field { margin-top: 0; }
+/* 「图片/动图」比常规标签多一个字，标签栏单独放宽，避免折行。 */
+.dsb-form .field-label.short { flex-basis: 76px; }
+/* 与该模块类型无关的行整行隐藏（不占位、不留空行）。 */
+.dsb-form .dsb-only[hidden] { display: none; }
+
+/* 格式控制：加粗 / 文字底色 / 下划线 / 斜体 四个图标按钮 + 流光复选框 */
+.dsb-fmt { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dsb-fmt-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.dsb-fmt-btn:hover { color: var(--primary-2); }
+/* 选中态：主色实底。图标是 mask 上的 currentColor，因此改成 --on-primary 后
+   在实底上依然清晰——这就是「全局颜色控制的高亮反馈」。 */
+.dsb-fmt-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+}
+.dsb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dsb-check input { margin: 0; accent-color: var(--primary); cursor: pointer; }
+
+/* 媒体缩略图与文件名 */
+.dsb-thumb {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--readonly-bg);
+}
+.dsb-thumb[hidden] { display: none; }
+.dsb-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+

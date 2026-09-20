@@ -1,7 +1,7 @@
 /* 小鲸鱼挂件样式
- * 独立桌面版：挂件窗口被 Rust 端裁剪为无边框、透明、正方形，
- * WebView 铺满窗口，因此根节点直接铺满（inset:0），文字尺寸通过
- * `--dshw-base`（= 窗口边长）联动缩放。
+ * 独立桌面版：挂件窗口被 Rust 端固定为最大尺寸（无边框、透明、正方形）。
+ * 缩放改用 CSS `transform: scale(var(--dshw-scale))` 走 GPU 合成层，
+ * 不改变布局尺寸（width/height），避免透明 WebView2 整窗重绘导致的闪屏。
  */
 
 html,
@@ -19,17 +19,50 @@ body {
 
 .dshwv-root {
   position: fixed;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  --dshw-base: 375px;
-  --dshw-u: calc(var(--dshw-base) / 1026);
+  right: 0;
+  bottom: 0;
+  width: 250px;
+  height: 250px;
+  --dshw-scale: 1.5;
+  --dshw-u: calc(250px / 1026);
+  transform-origin: 100% 100%;
+  transform: scale(var(--dshw-scale));
   pointer-events: none;
   z-index: 9999;
 }
 
 .dshwv-root.dshwv-left {
+  right: auto;
+  left: 0;
+  transform-origin: 0% 100%;
+}
+
+/* 顶部吸附：内容块改锚到窗口上沿。
+   窗口是固定最大尺寸（625），而内容块只有 250×scale——缩放后多出来的透明区
+   平时留在窗口上方，顶部吸附时正好变成「气泡预留区」：窗口顶边贴屏幕工作区顶边，
+   气泡落在预留区里完整可见，鲸鱼紧接在气泡下方。缩放倍率变化时预留区随之变化，
+   因此对不同分辨率与自定义挂件大小都成立。 */
+.dshwv-root.dshwv-top {
+  bottom: auto;
+  top: 0;
+  transform-origin: 100% 0%;
+}
+
+.dshwv-root.dshwv-left.dshwv-top {
+  left: 0;
+  right: auto;
+  transform-origin: 0% 0%;
+}
+
+.dshwv-scaler {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.dshwv-root.dshwv-left .dshwv-scaler {
   transform: scaleX(-1);
 }
 
@@ -54,6 +87,7 @@ body {
   width: 59.45%;
   height: 59.45%;
   display: block;
+  object-fit: contain;
   pointer-events: none;
   -webkit-user-drag: none;
   user-select: none;
@@ -134,12 +168,24 @@ body {
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
+  /* 默认不声明透明度过渡：稳定打开阶段更新文字会立即完整显示。
+     只有入场/退场阶段由 JS 挂上 .dshwv-text-enter / .dshwv-text-exit 才启用过渡。
+     transform 过渡保留，用于左右翻转时的镜像动画。 */
+  transition: transform 0.3s ease;
+}
+
+/* 入场（隐藏 → 展示）：延迟到气泡形状展开后再渐入。 */
+.dshwv-text.dshwv-text-enter {
+  transition: opacity 0.16s ease 0.36s, transform 0.3s ease;
+}
+
+/* 退场（展示 → 隐藏）：立即渐出。 */
+.dshwv-text.dshwv-text-exit {
   transition: opacity 0.16s ease, transform 0.3s ease;
 }
 
 .dshwv-bubble.dshwv-bubble-open .dshwv-text {
   opacity: 1;
-  transition: opacity 0.16s ease 0.36s, transform 0.3s ease;
 }
 
 .dshwv-root.dshwv-left .dshwv-text {
@@ -158,12 +204,34 @@ body {
   line-height: 1.05;
 }
 
+/* 时段行：峰/谷 实底圆角标签 + 剩余时间倒计时。
+   峰=红、谷=绿，标签文字白色加粗，倒计时数字与所属场景同色。 */
 .dshwv-period {
-  font-size: calc(var(--dshw-u) * 104);
+  font-size: calc(var(--dshw-u) * 72);
   font-weight: 800;
   line-height: 1.05;
   margin-top: calc(var(--dshw-u) * 12);
 }
+
+.dshwv-period-tag {
+  display: inline-block;
+  font-size: calc(var(--dshw-u) * 72);
+  font-weight: 800;
+  color: #fff;
+  border-radius: calc(var(--dshw-u) * 12);
+  padding: calc(var(--dshw-u) * 3) calc(var(--dshw-u) * 10);
+  line-height: 1.15;
+}
+.dshwv-period-peak .dshwv-period-tag { background: #e0433f; }
+.dshwv-period-off .dshwv-period-tag { background: #2fa24c; }
+
+.dshwv-period-peak .dshwv-period-sep,
+.dshwv-period-peak .dshwv-period-time { color: #e0433f; }
+.dshwv-period-off .dshwv-period-sep,
+.dshwv-period-off .dshwv-period-time { color: #2fa24c; }
+
+/* 等宽数字：倒计时逐秒变化时宽度稳定，不产生横向抖动。 */
+.dshwv-period-time { font-variant-numeric: tabular-nums; }
 
 .dshwv-wrap {
   white-space: normal;
@@ -171,8 +239,12 @@ body {
   line-height: 1.2;
 }
 
+/* 今日已用：字重与颜色与「余额」行完全一致（同继承 .dshwv-text 的颜色），
+   字号取气泡内可容纳的最大值——64u 仍保持单行，不会挤出气泡。 */
 .dshwv-hint {
-  font-size: calc(var(--dshw-u) * 56);
-  letter-spacing: 0.02em;
+  font-size: calc(var(--dshw-u) * 64);
+  font-weight: 800;
+  line-height: 1.05;
   margin-top: calc(var(--dshw-u) * 9);
 }
+

@@ -15,26 +15,27 @@ window.DSW = window.DSW || {};
   const root = document.createElement("div");
   root.className = "dshwv-root";
 
-  // 鲸鱼主体图片。
+  // 鲸鱼主体图片。首帧延后到挂件本体确定后再渲染（见 main.js），
+  // 避免先渲染内置素材、再切到自定义挂件组造成跨组错误切换。
   const img = document.createElement("img");
   img.className = "dshwv-img";
-  img.src = DSW.C.IMG_URL;
   img.alt = "DeepSeek 余额";
   img.draggable = false;
 
-  // 气泡内三行文字。
+  // 气泡内三行文字。自上而下：余额金额 → 今日已用 → 峰谷时段倒计时。
+  // 注意：顺序仅由这里的插入顺序决定，其它模块均按引用取用元素，
+  // 因此调整顺序不影响渲染逻辑。
   const textBox = document.createElement("div");
   textBox.className = "dshwv-text";
-  const labelEl = document.createElement("div");
-  labelEl.className = "dshwv-label";
-  labelEl.textContent = "DeepSeek 余额";
   const amountEl = document.createElement("div");
   amountEl.className = "dshwv-amount";
   const hintEl = document.createElement("div");
   hintEl.className = "dshwv-hint";
-  textBox.appendChild(labelEl);
+  const periodEl = document.createElement("div");
+  periodEl.className = "dshwv-period";
   textBox.appendChild(amountEl);
   textBox.appendChild(hintEl);
+  textBox.appendChild(periodEl);
 
   // 气泡 SVG（几何与原插件一致）。
   const bubbleBox = document.createElement("div");
@@ -56,15 +57,22 @@ window.DSW = window.DSW || {};
   body.className = "dshwv-body";
   body.appendChild(img);
   body.appendChild(bubbleBox);
-  root.appendChild(body);
+
+  // 翻转层：仅负责左右镜像（scaleX(-1)），与根节点的缩放 transform 分离，
+  // 避免共用 transform-origin 导致贴边缩放错位。
+  const scaler = document.createElement("div");
+  scaler.className = "dshwv-scaler";
+  scaler.appendChild(body);
+  root.appendChild(scaler);
   document.body.appendChild(root);
 
   DSW.dom = {
     root: root,
+    scaler: scaler,
     img: img,
     textBox: textBox,
-    labelEl: labelEl,
     amountEl: amountEl,
+    periodEl: periodEl,
     hintEl: hintEl,
     bubbleBox: bubbleBox,
     body: body,

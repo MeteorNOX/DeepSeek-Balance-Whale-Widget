@@ -6,6 +6,20 @@
     <title>小鲸鱼设置</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="../css/config.css" />
+    <!-- 模块化气泡内容样式：配置页的预览气泡与桌面挂件共用同一份，观感天然一致。 -->
+    <link rel="stylesheet" href="../css/bubble-blocks.css" />
+    <script>
+      // 主题预置：在首次绘制前应用上次选择，避免深色 / 毛玻璃主题下先闪一下浅色。
+      // config.json 始终是主题的唯一数据源，此处只做绘制前的本地缓存回放。
+      try {
+        var cachedTheme = localStorage.getItem("dsw-theme");
+        if (cachedTheme === "dark" || cachedTheme === "glass") {
+          document.documentElement.setAttribute("data-theme", cachedTheme);
+        }
+      } catch (e) {
+        /* 隐私模式等禁用存储的场景：忽略，按浅色渲染 */
+      }
+    </script>
   </head>
   <body>
     <div class="app">
@@ -27,108 +41,273 @@
           </div>
         </section>
 
-        <!-- 基础配置 -->
-        <section class="card">
-          <h2>基础配置</h2>
-          <label class="field">
-            <span class="field-label">DeepSeek API Key</span>
-            <input id="apiKey" type="password" placeholder="sk-…" autocomplete="off" />
-            <button id="toggleKey" type="button" class="toggle-eye">显示</button>
-          </label>
-        </section>
-
-        <!-- 模型配置 -->
-        <section class="card">
-          <div class="model-head">
-            <h2>模型配置</h2>
-            <div class="provider-toggle">
-              <button id="provClaude" type="button" class="prov-btn active" title="Claude">
-                <img src="../assets/icons/claude.svg" alt="Claude" />
-              </button>
-              <button id="provCodex" type="button" class="prov-btn" title="OpenAI Codex">
-                <img src="../assets/icons/openai.svg" alt="OpenAI Codex" />
+        <!-- 余额与模型路由配置：顶部按「余额配置 / 各客户端」切换列表，
+             各列表独立维护自己的供应商（互不共享数据）；标题右侧的箭头控制列表展开/收起。 -->
+        <section class="card card-clip" id="supplierCard">
+          <div class="model-head supplier-head">
+            <h2>余额与模型路由配置</h2>
+            <div class="scope-bar">
+              <button id="scopeBalance" type="button" class="scope-tab active">余额配置</button>
+              <div class="scope-clients" id="scopeClients"></div>
+              <button
+                id="addSupplier"
+                type="button"
+                class="icon-btn"
+                title="添加供应商"
+                aria-label="添加供应商"
+              >
+                <span class="icon" style="--icon: url('../assets/icons/plus.svg')"></span>
               </button>
             </div>
+            <button
+              id="supplierToggle"
+              type="button"
+              class="supplier-caret-btn"
+              title="收起 / 展开供应商列表"
+              aria-label="收起 / 展开供应商列表"
+              aria-expanded="true"
+              aria-controls="supplierBody"
+            >
+              <svg class="adv-caret" viewBox="0 0 12 8" aria-hidden="true">
+                <path
+                  d="M1 1.5 6 6.5 11 1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </div>
-
-          <label class="field">
-            <span class="field-label short">请求地址</span>
-            <input id="baseUrl" type="text" placeholder="https://api.deepseek.com/anthropic" />
-          </label>
-
-          <div class="model-row" data-model="primary">
-            <span class="model-name">主模型</span>
-            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
-            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
-            <span class="ctx-unit">token</span>
-          </div>
-          <div class="model-row" data-model="haiku">
-            <span class="model-name">Haiku</span>
-            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
-            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
-            <span class="ctx-unit">token</span>
-          </div>
-          <div class="model-row" data-model="sonnet">
-            <span class="model-name">Sonnet</span>
-            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
-            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
-            <span class="ctx-unit">token</span>
-          </div>
-          <div class="model-row" data-model="opus">
-            <span class="model-name">Opus</span>
-            <input class="model-input" data-field="name" type="text" placeholder="模型名称" />
-            <input class="model-ctx" data-field="contextWindow" type="number" min="1" step="1" />
-            <span class="ctx-unit">token</span>
+          <div class="supplier-body collapsible" id="supplierBody">
+            <div class="collapsible-inner">
+              <div class="supplier-list" id="supplierList"></div>
+              <div class="supplier-empty" id="supplierEmpty">目前没有任何供应商余额配置</div>
+            </div>
           </div>
         </section>
 
-        <!-- 挂件显示 -->
-        <section class="card">
-          <h2>挂件显示</h2>
+        <!-- 挂件配置：本卡片是内部下拉列表的裁剪边界（.card-clip），
+             下拉展开时列表被约束在模块内，不会溢出到下方模块。 -->
+        <section class="card card-clip">
+          <h2>挂件配置</h2>
+          <div class="field body-row">
+            <span class="field-label short">挂件本体</span>
+            <div class="picker" id="widgetBodyPicker">
+              <button
+                id="widgetBodyToggle"
+                type="button"
+                class="picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="picker-label"></span>
+                <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <path
+                    d="M1 1.5 6 6.5 11 1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="picker-list" id="widgetBodyList" role="listbox" hidden></div>
+            </div>
+            <button id="uploadBodyBtn" type="button" class="toggle-eye">上传图片</button>
+          </div>
           <label class="field">
             <span class="field-label short">大小</span>
             <input id="widgetScale" type="range" min="1" max="20" step="1" />
             <span id="widgetScaleVal" class="scale-val">10</span>
           </label>
-          <label class="field">
+          <div class="field">
             <span class="field-label short">音效</span>
-            <select id="widgetSoundSet">
-              <option value="duck">小黄鸭</option>
-              <option value="fx1">音效1</option>
-            </select>
-            <button id="addCustomSound" type="button" class="toggle-eye">自定义音效</button>
-          </label>
+            <div class="picker" id="widgetSoundPicker">
+              <button
+                id="widgetSoundToggle"
+                type="button"
+                class="picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="picker-label"></span>
+                <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <path
+                    d="M1 1.5 6 6.5 11 1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="picker-list" id="widgetSoundList" role="listbox" hidden></div>
+            </div>
+            <button id="addCustomSound" type="button" class="toggle-eye">上传音效</button>
+          </div>
           <label class="field">
             <span class="field-label short">音量</span>
             <input id="widgetVol" type="range" min="0" max="1" step="0.01" />
             <span id="widgetVolPct">90%</span>
           </label>
-          <label class="field">
-            <span class="field-label short">眨眼频率</span>
-            <div class="range-inputs">
-              <input id="blinkIntervalMinSec" type="number" min="1" step="1" />
-              <span class="range-sep">至</span>
-              <input id="blinkIntervalMaxSec" type="number" min="1" step="1" />
+          <!-- 挂件状态：默认收起，点击标题展开/收起（折叠交互与高级设置一致） -->
+          <div class="adv-card collapsed" id="stateCard">
+            <button
+              id="stateToggle"
+              type="button"
+              class="adv-head"
+              aria-expanded="false"
+              aria-controls="stateBody"
+            >
+              <span class="adv-title">挂件状态</span>
+              <svg class="adv-caret" viewBox="0 0 12 8" aria-hidden="true">
+                <path
+                  d="M1 1.5 6 6.5 11 1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <div class="adv-body collapsible" id="stateBody">
+              <div class="collapsible-inner">
+                <label class="field">
+                  <span class="field-label short">失望阈值：</span>
+                  <input
+                    id="disappointedThresholdMin"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="4"
+                  />
+                  <span class="ctx-unit">分钟</span>
+                </label>
+                <label class="field">
+                  <span class="field-label short">生气阈值：</span>
+                  <input
+                    id="angryThresholdClicks"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="3"
+                  />
+                  <span class="ctx-unit">次</span>
+                </label>
+                <label class="field">
+                  <span class="field-label short">害羞阈值：</span>
+                  <input
+                    id="shyThresholdSec"
+                    type="text"
+                    inputmode="numeric"
+                    maxlength="4"
+                  />
+                  <span class="ctx-unit">秒</span>
+                </label>
+                <label class="field">
+                  <span class="field-label short">眨眼频率</span>
+                  <div class="range-inputs">
+                    <input id="blinkIntervalMinSec" type="text" inputmode="numeric" />
+                    <span class="range-sep">至</span>
+                    <input id="blinkIntervalMaxSec" type="text" inputmode="numeric" />
+                  </div>
+                  <span class="ctx-unit">秒</span>
+                </label>
+                <div class="sys-row">
+                  <div class="sys-title">疲惫模式（余额不足）</div>
+                  <label class="switch">
+                    <input id="exhaustedModeEnabled" type="checkbox" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field-label short">疲惫阈值</span>
+                  <input
+                    id="exhaustedBalanceThreshold"
+                    type="text"
+                    inputmode="numeric"
+                  />
+                  <span class="ctx-unit">元</span>
+                </label>
+              </div>
             </div>
-            <span class="ctx-unit">秒</span>
-          </label>
-          <div class="sys-row">
-            <div class="sys-title">启用疲惫模式（余额不足）</div>
-            <label class="switch">
-              <input id="exhaustedModeEnabled" type="checkbox" />
-              <span class="slider"></span>
-            </label>
           </div>
-          <label class="field">
-            <span class="field-label short">疲惫阈值</span>
-            <input
-              id="exhaustedBalanceThreshold"
-              type="number"
-              min="0"
-              step="0.1"
-            />
-            <span class="ctx-unit">元</span>
-          </label>
+          <!-- 高级设置：默认收起，点击标题展开/收起 -->
+          <div class="adv-card collapsed" id="advCard">
+            <button
+              id="advToggle"
+              type="button"
+              class="adv-head"
+              aria-expanded="false"
+              aria-controls="advBody"
+            >
+              <span class="adv-title">高级设置</span>
+              <svg class="adv-caret" viewBox="0 0 12 8" aria-hidden="true">
+                <path
+                  d="M1 1.5 6 6.5 11 1.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <div class="adv-body collapsible" id="advBody">
+              <div class="collapsible-inner">
+                <div class="field">
+                  <span class="field-label short">币种切换</span>
+                  <div class="picker" id="displayCurrencyPicker">
+                    <button
+                      id="displayCurrencyToggle"
+                      type="button"
+                      class="picker-toggle"
+                      aria-haspopup="listbox"
+                      aria-expanded="false"
+                    >
+                      <span class="picker-label"></span>
+                      <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                        <path
+                          d="M1 1.5 6 6.5 11 1.5"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      class="picker-list"
+                      id="displayCurrencyList"
+                      role="listbox"
+                      hidden
+                    ></div>
+                  </div>
+                </div>
+                <label class="field">
+                  <span class="field-label short">边缘吸附</span>
+                  <input id="snapDistance" type="text" inputmode="numeric" />
+                  <span class="ctx-unit">px</span>
+                </label>
+                <div class="sys-row">
+                  <div class="sys-title">峰谷提示</div>
+                  <label class="switch">
+                    <input id="peakWarnEnabled" type="checkbox" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field-label short">峰谷预警</span>
+                  <input id="peakWarnMinutes" type="text" inputmode="numeric" />
+                  <span class="ctx-unit" style="width: 56px">分钟前</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- 台词管理 -->
@@ -138,28 +317,202 @@
             <div class="dialogue-actions">
               <button id="addLine" type="button" class="toggle-eye">添加台词</button>
               <button id="resetLines" type="button" class="toggle-eye">恢复默认台词</button>
-              <button id="toggleDialogue" type="button" class="toggle-eye">展开</button>
+              <button id="toggleDialogue" type="button" class="toggle-eye" aria-expanded="false">展开</button>
             </div>
           </div>
-          <div class="dialogue-body" id="dialogueBody">
-            <div id="dialogueList" class="dialogue-list"></div>
-            <label class="field">
-              <span class="field-label short">播放模式</span>
-              <select id="dialogueMode">
-                <option value="carousel">轮播</option>
-                <option value="random">随机</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field-label short">间隔时长</span>
-              <input id="dialogueInterval" type="number" min="1" step="1" />
-              <span class="ctx-unit">分钟</span>
-            </label>
-            <label class="field">
-              <span class="field-label short">波动幅度</span>
-              <input id="dialogueJitter" type="range" min="0" max="100" step="1" />
-              <span id="dialogueJitterVal" class="scale-val">0%</span>
-            </label>
+          <div class="dialogue-body collapsible" id="dialogueBody">
+            <div class="collapsible-inner">
+              <div id="dialogueList" class="dialogue-list"></div>
+              <div class="field">
+                <span class="field-label short">播放模式</span>
+                <div class="picker" id="dialogueModePicker">
+                  <button
+                    id="dialogueModeToggle"
+                    type="button"
+                    class="picker-toggle"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    <span class="picker-label"></span>
+                    <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                      <path
+                        d="M1 1.5 6 6.5 11 1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <div
+                    class="picker-list"
+                    id="dialogueModeList"
+                    role="listbox"
+                    hidden
+                  ></div>
+                </div>
+              </div>
+              <label class="field">
+                <span class="field-label short">间隔时长</span>
+                <input id="dialogueInterval" type="text" inputmode="numeric" />
+                <span class="ctx-unit">分钟</span>
+              </label>
+              <label class="field">
+                <span class="field-label short">波动幅度</span>
+                <input id="dialogueJitter" type="range" min="0" max="100" step="1" />
+                <span id="dialogueJitterVal" class="scale-val">0%</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 气泡管理：与「台词管理」同级（同一套折叠卡片形态）。
+             第一个配置项是「气泡颜色」（由「高级设置」迁移过来）；
+             第二个配置项是「模块化气泡」，沿用与「高级设置」完全一致的可展开 / 收起
+             下拉栏组件，两者之间是同一条深蓝虚线分隔线（由 .adv-card 提供）。 -->
+        <section class="card bubble-card collapsed" id="bubbleCard">
+          <div class="model-head">
+            <h2>气泡管理</h2>
+            <div class="dialogue-actions">
+              <button
+                id="toggleBubble"
+                type="button"
+                class="toggle-eye"
+                aria-expanded="false"
+              >
+                展开
+              </button>
+            </div>
+          </div>
+          <div class="dialogue-body collapsible" id="bubbleBody">
+            <div class="collapsible-inner">
+              <div class="field">
+                <span class="field-label short">气泡颜色</span>
+                <input
+                  id="bubbleColor"
+                  type="range"
+                  min="0"
+                  max="360"
+                  step="1"
+                  class="color-slider"
+                />
+              </div>
+              <!-- 模块化气泡：默认收起，点击标题展开 / 收起（交互与「高级设置」一致） -->
+              <div class="adv-card collapsed" id="modularCard">
+                <button
+                  id="modularToggle"
+                  type="button"
+                  class="adv-head"
+                  aria-expanded="false"
+                  aria-controls="modularBody"
+                >
+                  <span class="adv-title">模块化气泡</span>
+                  <svg class="adv-caret" viewBox="0 0 12 8" aria-hidden="true">
+                    <path
+                      d="M1 1.5 6 6.5 11 1.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="adv-body collapsible" id="modularBody">
+                  <div class="collapsible-inner">
+                    <!-- 气泡组：与「挂件本体 / 音效」同一套自定义下拉（含删除），
+                         切换即切换当前编辑的模块行，默认选中「当前的气泡组」。 -->
+                    <div class="field dsb-group-row">
+                      <span class="field-label short">气泡组</span>
+                      <div class="picker" id="bubbleGroupPicker">
+                        <button
+                          id="bubbleGroupToggle"
+                          type="button"
+                          class="picker-toggle"
+                          aria-haspopup="listbox"
+                          aria-expanded="false"
+                        >
+                          <span class="picker-label"></span>
+                          <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                            <path
+                              d="M1 1.5 6 6.5 11 1.5"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.6"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <div class="picker-list" id="bubbleGroupList" role="listbox" hidden></div>
+                      </div>
+                    </div>
+                    <!-- 顶部可选模块区：列出全部可添加的模块，点击即添加到下方编辑区 -->
+                    <div class="dsb-palette" id="bubblePalette"></div>
+                    <!-- 底部编辑预览区：左侧编辑、右侧预览，编辑结果实时同步 -->
+                    <div class="dsb-stage">
+                      <div class="dsb-editor">
+                        <div class="dsb-editor-head">
+                          <span class="dsb-editor-title">编辑区</span>
+                        </div>
+                        <div class="dsb-rows" id="bubbleRows">
+                          <div class="dsb-empty" id="bubbleEmpty">
+                            还没有添加任何模块
+                          </div>
+                        </div>
+                      </div>
+                      <div class="dsb-preview">
+                        <div class="dsb-preview-title">预览</div>
+                        <div class="dsb-preview-bubble">
+                          <svg
+                            viewBox="0 0 1026 700"
+                            preserveAspectRatio="xMidYMid meet"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M 827 248 A 373 232 0 1 0 81 246 A 373 232 0 0 0 301 465 A 57 32 10 0 0 413 484 A 373 232 0 0 0 827 248 Z"
+                              fill="#FFFFFF"
+                              stroke="#203170"
+                              stroke-width="18"
+                              stroke-linejoin="round"
+                              stroke-linecap="round"
+                            />
+                            <ellipse
+                              cx="352"
+                              cy="561"
+                              rx="37.5"
+                              ry="26"
+                              fill="#FFFFFF"
+                              stroke="#203170"
+                              stroke-width="18"
+                            />
+                            <ellipse
+                              cx="442"
+                              cy="646"
+                              rx="24.5"
+                              ry="18"
+                              fill="#FFFFFF"
+                              stroke="#203170"
+                              stroke-width="18"
+                            />
+                          </svg>
+                          <div class="dsb-preview-text" id="bubblePreview"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- 应用：整个「模块化气泡」只有一个，放在这一模块内容区的右下角。
+                     它是普通流内布局——页面滚动时跟着内容一起滚，不做吸底吸附；
+                     编辑区变高时卡片随之变高，按钮始终在卡片内容区的右下角。
+                     挂在折叠体之外：折叠体的 .collapsible-inner 是 overflow:hidden，
+                     放进去会被折叠动画的高度裁掉。 -->
+                <div class="dsb-apply-dock">
+                  <button id="bubbleApply" type="button" class="dsb-apply">应用</button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -168,7 +521,7 @@
           <div class="model-head">
             <h2>系统配置</h2>
             <div class="dialogue-actions">
-              <button id="resetColor" type="button" class="toggle-eye">重置颜色</button>
+              <button id="resetColor" type="button" class="toggle-eye">重置设置</button>
               <button id="checkUpdate" type="button" class="toggle-eye">检查更新</button>
             </div>
           </div>
@@ -179,26 +532,42 @@
               <span class="slider"></span>
             </label>
           </div>
+          <!-- 令牌用量统计：实验性功能，默认关闭。关闭时用量与账单只按本地余额差值统计。 -->
+          <div class="sys-row">
+            <div class="sys-title">令牌用量统计（实验性功能）</div>
+            <label class="switch">
+              <input id="tokenUsage" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <!-- 全局主题：三态切换，仅作用于配置界面配色（不改动桌面挂件任何属性）。 -->
           <div class="field">
-            <span class="field-label">全局颜色</span>
-            <input id="globalColor" type="range" min="0" max="360" step="1" class="color-slider" />
+            <span class="field-label short">全局主题</span>
+            <div class="theme-picker" id="themePicker">
+              <button type="button" class="theme-btn active" data-theme="light">浅色</button>
+              <button type="button" class="theme-btn" data-theme="dark">深色</button>
+              <button type="button" class="theme-btn" data-theme="glass">毛玻璃</button>
+            </div>
+          </div>
+          <!-- 配置文件：只读展示数据目录，「打开」用系统文件管理器定位到该目录。 -->
+          <div class="field">
+            <span class="field-label short">配置文件</span>
+            <input id="dataDir" type="text" readonly aria-label="配置文件所在目录" />
+            <button id="openDataDir" type="button" class="toggle-eye">打开</button>
           </div>
           <div class="field">
-            <span class="field-label">气泡颜色</span>
-            <input id="bubbleColor" type="range" min="0" max="360" step="1" class="color-slider" />
+            <span class="field-label short">全局颜色</span>
+            <input id="globalColor" type="range" min="0" max="360" step="1" class="color-slider" />
           </div>
         </section>
       </main>
     </div>
 
+    <!-- 统一提示体系 · 轻提示：按 severity 着色（success 绿 / warn 黄 / error 红），自动消失不打断操作 -->
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
     <div class="modal-overlay" id="modalOverlay" hidden>
-      <div class="modal tip-modal" id="tipModal" hidden>
-        <div class="modal-title">提示</div>
-        <div class="modal-msg" id="tipMsg"></div>
-        <div class="modal-actions">
-          <button id="tipOk" type="button" class="modal-btn modal-btn-primary">确定</button>
-        </div>
-      </div>
+      <!-- 需要用户决策的确认窗口（唯一的居中弹窗形态；提示类一律走右上角 toast） -->
       <div class="modal confirm-modal" id="confirmModal" hidden>
         <div class="modal-title">确认</div>
         <div class="modal-msg" id="confirmMsg"></div>
@@ -207,8 +576,716 @@
           <button id="confirmNo" type="button" class="modal-btn">否</button>
         </div>
       </div>
+      <div class="modal name-modal" id="soundNameModal" hidden>
+        <div class="modal-title">上传音效</div>
+        <div class="modal-msg">请输入当前音频组的名称</div>
+        <div class="field-error" id="soundNameError" hidden></div>
+        <input
+          id="soundNameInput"
+          type="text"
+          placeholder="例如：键盘敲击"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <div class="audio-mode-picker" id="soundModePicker">
+          <button type="button" class="audio-mode-btn active" data-mode="press">按下</button>
+          <button type="button" class="audio-mode-btn" data-mode="release">松开</button>
+          <button type="button" class="audio-mode-btn" data-mode="dual">按下松开</button>
+        </div>
+        <div class="modal-actions">
+          <button id="soundNameOk" type="button" class="modal-btn modal-btn-primary">确认</button>
+          <button id="soundNameCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+      <div class="modal name-modal" id="bodyNameModal" hidden>
+        <div class="modal-title">挂件名称</div>
+        <div class="modal-msg">请输入当前图片组的名称：</div>
+        <div class="field-error" id="bodyNameError" hidden>请输入挂件名称</div>
+        <input
+          id="bodyNameInput"
+          type="text"
+          placeholder="例如：我的小鲸鱼"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <div class="modal-actions">
+          <button id="bodyNameOk" type="button" class="modal-btn modal-btn-primary">确认</button>
+          <button id="bodyNameCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+
+      <!-- 模块化气泡 · 模块配置弹窗
+           六种模块共用同一个弹窗：表单行按模块类型用 data-only 控制显隐
+           （样式配置项六种模块完全一致，逐个复制必然走样）。
+           渐显渐隐复用 .modal-overlay / .modal 的既有过渡。 -->
+      <div class="modal dsb-modal" id="blockModal" hidden>
+        <div class="modal-title" id="blockTitle">文本编辑</div>
+        <div class="dsb-form">
+          <!-- 文本模块：示例文案只作输入框内的灰色占位提示，不属于可提交内容 -->
+          <label class="field dsb-only" data-only="text" hidden>
+            <span class="field-label short">文本内容</span>
+            <input
+              id="blockText"
+              type="text"
+              maxlength="200"
+              placeholder="请输入文本内容"
+              autocomplete="off"
+            />
+          </label>
+          <!-- 超链接模块 -->
+          <label class="field dsb-only" data-only="link" hidden>
+            <span class="field-label short">显示名称</span>
+            <input
+              id="blockLinkName"
+              type="text"
+              maxlength="60"
+              placeholder="请输入显示名称"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field dsb-only" data-only="link" hidden>
+            <span class="field-label short">跳转地址</span>
+            <input
+              id="blockLinkUrl"
+              type="text"
+              placeholder="https://example.com"
+              autocomplete="off"
+            />
+          </label>
+          <!-- 图片 / 动图模块 -->
+          <div class="field dsb-only" data-only="media" hidden>
+            <span class="field-label short">图片/动图</span>
+            <button id="blockMediaPick" type="button" class="toggle-eye">
+              选择文件
+            </button>
+            <img id="blockMediaThumb" class="dsb-thumb" alt="" hidden />
+            <span class="dsb-file-name" id="blockMediaName">未选择</span>
+          </div>
+          <label class="field dsb-only" data-only="media" hidden>
+            <span class="field-label short">媒体宽度</span>
+            <input id="blockMediaWidth" type="range" min="50" max="300" step="10" />
+            <span class="scale-val" id="blockMediaWidthVal">120px</span>
+          </label>
+          <!-- 余额 / 今日已用模块：数据来源供应商 -->
+          <div class="field dsb-only" data-only="balance today" hidden>
+            <span class="field-label short">供应商</span>
+            <div class="picker" id="blockSupplierPicker">
+              <button
+                type="button"
+                class="picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="picker-label"></span>
+                <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <path
+                    d="M1 1.5 6 6.5 11 1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="picker-list" id="blockSupplierList" role="listbox" hidden></div>
+            </div>
+          </div>
+          <!-- 字体（媒体模块没有文字，不展示） -->
+          <div class="field dsb-only" data-only="text balance today countdown link" hidden>
+            <span class="field-label short">字体</span>
+            <div class="picker" id="blockFontPicker">
+              <button
+                type="button"
+                class="picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="picker-label"></span>
+                <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <path
+                    d="M1 1.5 6 6.5 11 1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="picker-list" id="blockFontList" role="listbox" hidden></div>
+            </div>
+            <button id="blockFontPick" type="button" class="toggle-eye">上传字体</button>
+          </div>
+          <label class="field dsb-only" data-only="text balance today countdown link" hidden>
+            <span class="field-label short">字体大小</span>
+            <input id="blockFontSize" type="range" min="10" max="40" step="1" />
+            <span class="scale-val" id="blockFontSizeVal">18</span>
+          </label>
+          <label class="field dsb-only" data-only="text balance today countdown link" hidden>
+            <span class="field-label short">字体颜色</span>
+            <input id="blockColor" type="range" min="0" max="360" step="1" class="color-slider" />
+          </label>
+          <!-- 背景色：仅勾选「底色」时展示 -->
+          <label
+            class="field dsb-only"
+            id="blockBgRow"
+            data-only="text balance today countdown link"
+            hidden
+          >
+            <span class="field-label short">背景色</span>
+            <input
+              id="blockBgColor"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              class="color-slider"
+            />
+          </label>
+          <!-- 排布格式：加粗 / 文字底色 / 下划线 / 斜体 四个图标按钮 + 流光 -->
+          <div class="field dsb-only" data-only="text balance today countdown link" hidden>
+            <span class="field-label short">格式</span>
+            <div class="dsb-fmt">
+              <button
+                id="blockBold"
+                type="button"
+                class="dsb-fmt-btn"
+                data-fmt="bold"
+                title="加粗"
+                aria-label="加粗"
+                aria-pressed="false"
+              >
+                <span class="icon" style="--icon: url('../assets/icons/bold.svg')"></span>
+              </button>
+              <button
+                id="blockBg"
+                type="button"
+                class="dsb-fmt-btn"
+                data-fmt="background"
+                title="文字底色"
+                aria-label="文字底色"
+                aria-pressed="false"
+              >
+                <span class="icon" style="--icon: url('../assets/icons/text-bg.svg')"></span>
+              </button>
+              <button
+                id="blockUnderline"
+                type="button"
+                class="dsb-fmt-btn"
+                data-fmt="underline"
+                title="下划线"
+                aria-label="下划线"
+                aria-pressed="false"
+              >
+                <span class="icon" style="--icon: url('../assets/icons/underline.svg')"></span>
+              </button>
+              <button
+                id="blockItalic"
+                type="button"
+                class="dsb-fmt-btn"
+                data-fmt="italic"
+                title="斜体"
+                aria-label="斜体"
+                aria-pressed="false"
+              >
+                <span class="icon" style="--icon: url('../assets/icons/italic.svg')"></span>
+              </button>
+              <label class="dsb-check">
+                <input id="blockGlow" type="checkbox" />
+                <span>流光</span>
+              </label>
+            </div>
+          </div>
+          <div class="field-error" id="blockError" hidden></div>
+        </div>
+        <div class="modal-actions">
+          <button id="blockApply" type="button" class="modal-btn modal-btn-primary">
+            应用
+          </button>
+          <button id="blockCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+
+      <!-- 模块化气泡 · 自定义气泡组弹窗
+           点「应用」后把当前编辑内容存成气泡组：输入新名称 → 另存为新组并存入
+           下拉列表，同时落盘 data/bubble/<组名>/group.json；输入当前组名 →
+           覆写当前组（等价于显式保存这次编辑）。
+           与「挂件名称 / 音效名称」同一个 .name-modal 组件，蒙层与渐显渐隐完全一致。 -->
+      <div class="modal name-modal dsb-group-modal" id="bubbleGroupModal" hidden>
+        <div class="modal-title" id="bubbleGroupTitle">自定义气泡组</div>
+        <div class="modal-msg" id="bubbleGroupMsg">
+          新名称＝另存新组；当前组名＝覆写当前组：
+        </div>
+        <div class="field-error" id="bubbleGroupError" hidden></div>
+        <input
+          id="bubbleGroupInput"
+          type="text"
+          maxlength="16"
+          placeholder="例如：深色模式"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        />
+        <div class="modal-actions">
+          <button id="bubbleGroupOk" type="button" class="modal-btn modal-btn-primary">
+            应用
+          </button>
+          <button id="bubbleGroupCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
     </div>
 
+    <!-- 图片编辑：独立全局页面。内容承载在与其他独立页一致的白色面板（.page-col.page-panel）里，
+         操作按钮固定在页面底部的独立区域。 -->
+    <div class="page" id="editorOverlay" hidden>
+      <div class="page-head">
+        <h2 class="page-title">图片编辑</h2>
+      </div>
+      <div class="editor">
+        <div class="page-col page-panel">
+          <div class="editor-canvas-wrap" id="editorCanvasWrap">
+            <canvas id="editorCanvas"></canvas>
+            <div class="editor-crop" id="editorCrop">
+              <div class="editor-crop-box" id="editorCropBox">
+                <span class="editor-crop-handle" data-dir="nw"></span>
+                <span class="editor-crop-handle" data-dir="n"></span>
+                <span class="editor-crop-handle" data-dir="ne"></span>
+                <span class="editor-crop-handle" data-dir="w"></span>
+                <span class="editor-crop-handle" data-dir="e"></span>
+                <span class="editor-crop-handle" data-dir="sw"></span>
+                <span class="editor-crop-handle" data-dir="s"></span>
+                <span class="editor-crop-handle" data-dir="se"></span>
+                <div class="editor-crop-thirds"></div>
+              </div>
+            </div>
+            <div class="editor-processing" id="editorProcessing" hidden>
+              <span class="editor-processing-text">正在处理</span>
+              <progress
+                class="editor-processing-bar"
+                id="editorProcessingBar"
+                max="100"
+                value="0"
+              ></progress>
+            </div>
+          </div>
+          <div class="editor-ratios" id="editorRatios">
+            <button type="button" class="editor-ratio-btn active" data-ratio="free">自由</button>
+            <button type="button" class="editor-ratio-btn" data-ratio="1:1">1:1</button>
+            <button type="button" class="editor-ratio-btn" data-ratio="4:3">4:3</button>
+            <button type="button" class="editor-ratio-btn" data-ratio="3:4">3:4</button>
+            <button type="button" class="editor-ratio-btn" data-ratio="16:9">16:9</button>
+            <button type="button" class="editor-ratio-btn" data-ratio="9:16">9:16</button>
+          </div>
+          <!-- 工具栏两行：第一行是画面调节（缩放 / 旋转），第二行是「状态 + 处理方式」，
+               状态下拉与「智能抠图」「重新上传图片」同处一行，布局更紧凑协调。 -->
+          <div class="editor-toolbar">
+            <div class="editor-toolbar-row">
+              <label class="editor-tool">缩放
+                <input id="editorZoom" type="range" min="1" max="3" step="0.2" value="1" />
+                <span class="editor-val" id="editorZoomVal">100%</span>
+              </label>
+              <label class="editor-tool">旋转
+                <input id="editorRotate" type="range" min="-180" max="180" step="20" value="0" />
+                <span class="editor-val" id="editorRotateVal">0°</span>
+              </label>
+            </div>
+            <div class="editor-toolbar-row">
+              <div class="editor-tool">状态
+                <div class="picker editor-state-picker" id="editorStatePicker">
+                  <button
+                    type="button"
+                    class="picker-toggle"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    <span class="picker-label"></span>
+                    <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                      <path
+                        d="M1 1.5 6 6.5 11 1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <div class="picker-list" role="listbox" hidden></div>
+                </div>
+              </div>
+              <label class="editor-tool editor-tool-rembg">
+                <span>智能抠图</span>
+                <span class="switch">
+                  <input id="editorRemoveBg" type="checkbox" />
+                  <span class="slider"></span>
+                </span>
+              </label>
+              <button id="editorReplaceImage" type="button" class="editor-replace-btn">重新上传图片</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">
+        <button id="editorSave" type="button" class="modal-btn modal-btn-primary">保存</button>
+        <button id="editorCancel" type="button" class="modal-btn">取消</button>
+      </div>
+    </div>
+
+    <!-- 音效编辑：独立全局页面（波形 + 裁剪区间 + 变速 + 试听），
+         同样承载在与其它独立页一致的白色面板里。 -->
+    <div class="page" id="audioEditorOverlay" hidden>
+      <div class="page-head">
+        <h2 class="page-title" id="audioEditorTitle">音效编辑</h2>
+      </div>
+      <div class="editor">
+        <div class="page-col page-panel">
+          <div class="audio-slots" id="audioSlots"></div>
+        </div>
+      </div>
+      <div class="page-foot">
+        <button id="audioApply" type="button" class="modal-btn modal-btn-primary">应用</button>
+        <button id="audioCancel" type="button" class="modal-btn">取消</button>
+      </div>
+    </div>
+
+    <div class="modal-overlay download-modal-overlay" id="downloadModalOverlay" hidden>
+      <div class="modal" id="downloadConfirmModal" hidden>
+        <div class="modal-title">下载抠图模型</div>
+        <div class="modal-msg">需要下载抠图模型（213MB），是否下载？</div>
+        <div class="modal-actions">
+          <button id="downloadConfirmYes" type="button" class="modal-btn modal-btn-primary">确定</button>
+          <button id="downloadConfirmNo" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+      <div class="modal" id="downloadErrorModal" hidden>
+        <div class="modal-title">下载失败</div>
+        <div class="modal-msg" id="downloadErrorMsg"></div>
+        <div class="modal-actions">
+          <button id="downloadRetry" type="button" class="modal-btn modal-btn-primary">重新下载</button>
+          <button id="downloadCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="download-overlay" id="downloadOverlay" hidden>
+      <div class="download-box">
+        <div class="download-title">正在下载抠图模型</div>
+        <div class="download-percent" id="downloadPercent">0%</div>
+        <progress class="download-bar" id="downloadBar" max="100" value="0"></progress>
+      </div>
+    </div>
+
+    <!-- 选择供应商：预设目录（含搜索）属于轻量交互，保留弹窗形态 -->
+    <div class="modal-overlay" id="supplierOverlay" hidden>
+      <div class="modal supplier-modal" id="presetModal" hidden>
+        <div class="modal-title" id="presetTitle">添加供应商</div>
+        <div class="search-row">
+          <span class="icon search-icon" style="--icon: url('../assets/icons/search.svg')"></span>
+          <input
+            id="presetSearch"
+            type="text"
+            placeholder="搜索供应商"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="preset-list" id="presetList" role="listbox"></div>
+        <div class="preset-empty" id="presetEmpty" hidden>没有匹配的供应商</div>
+        <div class="modal-actions">
+          <button id="presetCustom" type="button" class="modal-btn">自定义供应商</button>
+          <button id="presetCancel" type="button" class="modal-btn">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 供应商配置：独立全局页面（余额配置 / claude / codex / 自定义客户端共用同一页）。
+         表单字段多、模型路由表格宽，弹窗形态必然截断内容，因此改为整页形态。 -->
+    <div class="page" id="supplierFormModal" hidden>
+      <div class="page-head">
+        <h2 class="page-title" id="supplierFormTitle">供应商配置</h2>
+      </div>
+      <div class="page-body form-scroll">
+        <div class="page-col page-panel">
+          <div class="form-section">
+            <div class="form-section-title">基础信息</div>
+            <div class="form-section-hint">带<span class="required-mark">*</span>为必填项</div>
+            <label class="field">
+              <span class="field-label short">供应商名称<span class="required-mark">*</span></span>
+              <input id="supName" type="text" placeholder="例如：DeepSeek" autocomplete="off" />
+            </label>
+            <div class="field-error" id="supNameError" hidden></div>
+            <label class="field">
+              <span class="field-label short">API Key<span class="required-mark">*</span></span>
+              <input id="supApiKey" type="password" placeholder="sk-…" autocomplete="off" />
+              <button id="supToggleKey" type="button" class="toggle-eye">显示</button>
+            </label>
+            <div class="field-error" id="supApiKeyError" hidden></div>
+            <!-- 「获取 API Key」紧跟在 API Key 输入框下方（与它描述的字段相邻）。 -->
+            <div class="field" id="supKeyLinkRow" hidden>
+              <span class="field-label short"></span>
+              <button id="supKeyLink" type="button" class="link-btn">
+                <span class="icon" style="--icon: url('../assets/icons/external-link.svg')"></span>
+                获取 API Key
+              </button>
+            </div>
+            <!-- 平台令牌：只在「令牌用量统计（实验性功能）」开启时出现（用途是取官网用量）。
+                 显示 / 隐藏按钮与 API Key 输入框完全一致。 -->
+            <label class="field" id="supUsageTokenRow" hidden>
+              <span class="field-label short">平台令牌</span>
+              <input
+                id="supUsageToken"
+                type="password"
+                placeholder="网页控制台会话令牌（可选）"
+                autocomplete="off"
+              />
+              <button id="supToggleToken" type="button" class="toggle-eye">显示</button>
+            </label>
+            <label class="field">
+              <span class="field-label short">请求地址<span class="required-mark">*</span></span>
+              <input
+                id="supBaseUrl"
+                type="text"
+                placeholder="https://api.deepseek.com"
+                autocomplete="off"
+              />
+            </label>
+            <div class="field-error" id="supBaseUrlError" hidden></div>
+            <!-- API 格式 / 认证字段只服务于「写客户端配置文件」，余额配置列表下无意义。 -->
+            <div class="field" id="supApiFormatRow">
+              <span class="field-label short">API 格式</span>
+              <div class="picker" id="supApiFormatPicker">
+                <button
+                  type="button"
+                  class="picker-toggle"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                >
+                  <span class="picker-label"></span>
+                  <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                    <path
+                      d="M1 1.5 6 6.5 11 1.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="picker-list" role="listbox" hidden></div>
+              </div>
+            </div>
+            <div class="field" id="supAuthFieldRow">
+              <span class="field-label short">认证字段</span>
+              <div class="picker" id="supAuthFieldPicker">
+                <button
+                  type="button"
+                  class="picker-toggle"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                >
+                  <span class="picker-label"></span>
+                  <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                    <path
+                      d="M1 1.5 6 6.5 11 1.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div class="picker-list" role="listbox" hidden></div>
+              </div>
+            </div>
+            <label class="field" id="supNoteRow">
+              <span class="field-label short">备注</span>
+              <input id="supNote" type="text" placeholder="可选" autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="form-section" id="supRoutingSection">
+            <div class="form-section-head">
+              <div class="form-section-title">模型路由</div>
+              <!-- 操作按钮由前端按客户端布局渲染：角色表（Claude）是「一键配置 / 获取模型列表」，
+                   目录式（Codex）的两个按钮挂在「模型映射」标题行上。 -->
+              <div class="form-section-actions" id="supRoutingActions"></div>
+            </div>
+            <div id="supModelSlots"></div>
+            <!-- 模型映射：Codex 专属，与 Claude 的角色表互不影响。 -->
+            <div class="sup-catalog-block" id="supModelCatalog" hidden>
+              <div class="form-section-head">
+                <div class="form-section-title">模型映射</div>
+                <div class="form-section-actions" id="supCatalogActions"></div>
+              </div>
+              <div class="form-section-hint">
+                生成 Codex model_catalog_json，让 /model 命令显示这些第三方模型名
+              </div>
+              <div id="supCatalogRows"></div>
+            </div>
+            <!-- 布尔配置：一律「左侧勾选框 + 右侧文字」，整体一行排布，一行放不下时
+                 剩余项从第二行起始位置继续排列（不换行挤压）。内容按客户端注册表渲染；
+                 Codex 另有「支持1M / 压缩阈值」两个专属项，排在登记项之前。 -->
+            <div class="sup-flag-row" id="supSwitches"></div>
+            <div id="supOptions"></div>
+            <!-- 通用配置片段入口：只有登记了「应用通用配置」开关的客户端才有（Codex）。 -->
+            <button type="button" class="sup-link" id="supEditCommon" hidden>
+              编辑通用设置
+            </button>
+          </div>
+
+          <!-- 配置预览：只属于 claude / codex 客户端页——它们才会把配置写进客户端
+               配置文件（余额配置页不涉及，故整块隐藏）。内容由后端按**当前表单草稿**
+               实时渲染，显示的是「保存后将写入」的内容，不代表已经落盘。 -->
+          <div class="form-section" id="supPreviewSection" hidden>
+            <div class="form-section-title">配置预览</div>
+            <!-- 文件选择：横向切换查看每个目标文件，完整内容不做截断。 -->
+            <div class="preview-tabs" id="supPreviewTabs"></div>
+            <div class="preview-files" id="supPreviewFiles"></div>
+          </div>
+        </div>
+      </div>
+      <div class="page-foot">
+        <button id="supplierSave" type="button" class="modal-btn modal-btn-primary">保存</button>
+        <button id="supplierCancel" type="button" class="modal-btn">取消</button>
+      </div>
+    </div>
+
+    <!-- 编辑通用配置片段：独立全局页面，叠加在客户端配置页之上（遮罩层不参与显隐，
+         底层页面保持原样，关闭后仍停在原来的客户端配置页）。
+         片段跨供应商共享（插件 / 环境变量等非敏感配置），
+         勾选「应用通用配置」时合并进该供应商的 config.toml。 -->
+    <div class="page page-stacked" id="commonConfigPage" hidden>
+      <div class="page-head">
+        <h2 class="page-title">编辑Codex通用配置片段</h2>
+      </div>
+      <div class="page-body">
+        <div class="page-col page-panel">
+          <div class="common-guide">
+            <p class="common-guide-title">什么是通用配置片段？</p>
+            <p class="common-guide-body">
+              用来在不同供应商之间共享插件、环境变量等非敏感配置。切换供应商时不会丢失这些设置。
+            </p>
+            <p class="common-guide-body">
+              用法：① 点击「从编辑内容提取」保存通用部分 ② 新建供应商时勾选「应用通用配置」
+            </p>
+            <p class="common-guide-body">
+              如果您新安装了插件或 Hook，请重新提取一次通用配置，以便同步到其他供应商。
+            </p>
+          </div>
+          <div class="common-hint">该片段会在勾选'应用通用配置'时追加到 config.toml 末尾</div>
+          <!-- 与「配置预览」里的 json / toml 展示框同一套样式；wrap="off" 让长行横向
+               滚动而不是折行，纵向高度由前端随内容自适应（完整展示、无内部纵向滚动条）。 -->
+          <textarea
+            id="commonConfigText"
+            class="common-text"
+            wrap="off"
+            spellcheck="false"
+            placeholder="# Common Codex config&#10;&#10;# Add your common TOML configuration here"
+          ></textarea>
+          <div class="form-section-hint" id="commonConfigError" hidden></div>
+        </div>
+      </div>
+      <div class="page-foot">
+        <button id="commonConfigExtract" type="button" class="modal-btn">从编辑内容提取</button>
+        <button id="commonConfigSave" type="button" class="modal-btn modal-btn-primary">保存</button>
+        <button id="commonConfigCancel" type="button" class="modal-btn">取消</button>
+      </div>
+    </div>
+
+    <!-- 详细账单：独立全局页面。日期筛选（今天 / 昨天 / 近 7 天 / 近 30 天 / 近一年 / 本月 / 上月 / 自定义）
+         + 柱状趋势 + 近一年的逐日消费明细 -->
+    <div class="page" id="usageOverlay" hidden>
+      <div class="page-head">
+        <h2 class="page-title" id="usageTitle">详细账单</h2>
+      </div>
+      <div class="page-body">
+        <div class="page-col page-panel" id="usageModal">
+          <div class="usage-toolbar">
+            <!-- 日期筛选复用全局自定义下拉：列表浮层挂到 <body>，展开不占布局；
+                 下拉与日历同行，选中「自定义」时右侧平滑展开自建日历（非原生控件）。 -->
+            <div class="picker usage-range-picker" id="usageRangePicker">
+              <button
+                type="button"
+                class="picker-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                <span class="picker-label"></span>
+                <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <path
+                    d="M1 1.5 6 6.5 11 1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+              <div class="picker-list" role="listbox" hidden></div>
+            </div>
+            <div class="usage-calendar" id="usageCalendar">
+              <div class="usage-calendar-inner" id="usageCalendarInner"></div>
+            </div>
+          </div>
+          <div class="usage-source" id="usageSource"></div>
+          <!-- 金额消耗：一级标题 + 金额柱状图。整个区间一笔消费都没有时，图收起来、
+               只留一行「暂无金额消耗」——不留一张空图占掉一大块高度。
+               两张图（含每个模型的 Token 图）都**平铺在面板背景上**，不套滚动区：
+               需要滚动的只有最下方的账单明细。 -->
+          <div class="usage-block" id="usageMoneySection">
+            <div class="usage-block-head">
+              <span class="usage-block-title">金额消耗</span>
+            </div>
+            <!-- 金额柱状图：逐时间段的总消费。鼠标悬浮的提示里按模型逐行列出金额。 -->
+            <div class="usage-chart" id="usageChart"></div>
+            <div class="usage-blank" id="usageMoneyEmpty" hidden>暂无金额消耗</div>
+          </div>
+          <!-- 模型 Token 柱状图：「模型 Token 消耗」是一级标题（与「金额消耗」同字号），
+               其下每个模型一块独立图表（命中缓存 / 未命中缓存 / 输出），模型名是二级标题。
+               块数完全由接口实际用到的模型数量决定，没有固定行数；一个模型都没有时只留
+               一行「暂无模型 Token 消耗」。 -->
+          <div class="usage-block" id="usageTokenSection">
+            <div class="usage-block-head">
+              <span class="usage-block-title">模型 Token 消耗</span>
+              <span class="usage-token-legend">
+                <span class="usage-token-key">
+                  <i class="usage-token-dot usage-token-dot-hit"></i>输入（命中缓存）
+                </span>
+                <span class="usage-token-key">
+                  <i class="usage-token-dot usage-token-dot-miss"></i>输入（未命中缓存）
+                </span>
+                <span class="usage-token-key">
+                  <i class="usage-token-dot usage-token-dot-out"></i>输出
+                </span>
+              </span>
+            </div>
+            <div class="usage-token-charts" id="usageTokenCharts"></div>
+            <div class="usage-blank" id="usageTokenEmpty" hidden>暂无模型 Token 消耗</div>
+          </div>
+          <div class="usage-daily" id="usageDailyList"></div>
+        </div>
+      </div>
+      <div class="page-foot">
+        <button id="usageClose" type="button" class="modal-btn">关闭</button>
+      </div>
+    </div>
+
+    <script src="../js/audio-engine.js"></script>
+    <script src="../js/holiday-calendar.js"></script>
+    <script src="../js/bubble-blocks.js"></script>
     <script src="../js/config.js"></script>
+    <script src="../assets/vendor/echarts.min.js"></script>
+    <script src="../js/supplier.js"></script>
+    <!-- 模块化气泡控制器：依赖 config.js 暴露的 window.CFG（提示 / IPC / 下拉组件）。 -->
+    <script src="../js/bubble-config.js"></script>
   </body>
 </html>

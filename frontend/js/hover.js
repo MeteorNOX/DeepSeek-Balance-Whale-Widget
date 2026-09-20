@@ -35,6 +35,9 @@ window.DSW = window.DSW || {};
         DSW.expression.resetIdle();
         if (!flags.isHovering) {
           flags.isHovering = true;
+          // 悬浮阈值来自配置（flags.shyThresholdSec 秒），出厂默认 2 秒。
+          var shyMs =
+            Math.max(1, Math.round(Number(flags.shyThresholdSec) || 2)) * 1000;
           flags.hoverTimer = setTimeout(function () {
             flags.hoverTimer = null;
             if (flags.mood !== "normal" || !flags.isHovering || flags.pressing) return;
@@ -57,7 +60,7 @@ window.DSW = window.DSW || {};
                 }
               })
               .catch(function () {});
-          }, C.HOVER_TO_SHY_MS);
+          }, shyMs);
         }
       } else if (flags.isHovering) {
         DSW.expression.clearHoverTimer();

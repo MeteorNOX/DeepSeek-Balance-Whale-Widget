@@ -1,0 +1,42 @@
+[
+  {
+    "id": "newapi",
+    "name": "NewAPI",
+    "websiteUrl": "https://www.newapi.pro",
+    "apiKeyUrl": null,
+    "category": null,
+    "isOfficial": false,
+    "isPartner": false,
+    "primePartner": false,
+    "notes": null,
+    "baseUrl": null,
+    "apiFormat": null,
+    "apiKeyField": null,
+    "modelsUrl": null,
+    "endpointCandidates": [],
+    "providerType": "newapi",
+    "icon": "newapi",
+    "logo": "newapi.svg",
+    "source": "cc-switch:universal"
+  },
+  {
+    "id": "universal-1",
+    "name": "自定义网关",
+    "websiteUrl": null,
+    "apiKeyUrl": null,
+    "category": null,
+    "isOfficial": false,
+    "isPartner": false,
+    "primePartner": false,
+    "notes": null,
+    "baseUrl": null,
+    "apiFormat": null,
+    "apiKeyField": null,
+    "modelsUrl": null,
+    "endpointCandidates": [],
+    "providerType": "custom_gateway",
+    "icon": "openai",
+    "logo": "openai.svg",
+    "source": "cc-switch:universal"
+  }
+]
