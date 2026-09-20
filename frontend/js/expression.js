@@ -16,7 +16,7 @@ window.DSW = window.DSW || {};
   var flags = DSW.flags;
   var state = DSW.state;
 
-  // 失落状态内置语录（固定 18 条，不可被用户查看或修改）。
+  // 失落状态内置语录
   var LONELY_LINES = [
     "主人不理我，好寂寞…",
     "喵…都不看本鲸一眼…",
@@ -38,9 +38,21 @@ window.DSW = window.DSW || {};
     "主人…本鲸还在等你回家呢。",
   ];
 
-  // 切换鲸鱼图片。
+  // 眨眼帧对应的状态资源（自定义挂件组需具备其中之一才启用眨眼）。
+  var BLINK_FRAME_STATES = ["half_closed_eyes", "close_eyes", "half_open_eyes"];
+
+  // 切换鲸鱼图片（内置资源直接用，自定义挂件组经 DSW.images 解析为 Data URL）。
+  // 序号保证只有最新一次请求的结果会被应用，避免异步返回乱序导致表情串图。
+  var iconSeq = 0;
+  // 最近一次请求的图标来源：自定义组的 <img> src 是 Data URL，不能直接比对路径。
+  var lastIconSrc = null;
   function setIcon(src) {
-    DSW.dom.img.src = src;
+    var seq = ++iconSeq;
+    lastIconSrc = src;
+    DSW.images.resolve(src, function (resolved) {
+      if (seq !== iconSeq) return;
+      DSW.dom.img.src = resolved;
+    });
   }
 
   function getBaseIcon() {
@@ -83,26 +95,25 @@ window.DSW = window.DSW || {};
     }
   }
 
-  function isBlinkFrame(src) {
-    return (
-      src === C.IMG_HALF_CLOSED_EYES ||
-      src === C.IMG_CLOSE_EYES ||
-      src === C.IMG_HALF_OPEN_EYES
-    );
-  }
-
+  // 是否允许开始眨眼：仅主状态、非疲惫、未按下，且本组确实具备眨眼帧资源。
+  // 缺少眨眼帧的挂件组（例如仅 main.png）保持主图不变，不产生任何状态切换。
   function isBlinkAllowed() {
     return (
       flags.mood === "normal" &&
       !flags.exhaustedMode &&
       !flags.pressing &&
       !!DSW.dom.img &&
-      DSW.dom.img.getAttribute("src") === C.IMG_URL
+      lastIconSrc === C.IMG_URL &&
+      DSW.images.hasAnyState(BLINK_FRAME_STATES)
     );
   }
 
   function cancelBlink(restoreIcon) {
-    var active = !!(flags.blinking || flags.blinkTimer || flags.blinkFrameTimer);
+    var active = !!(
+      flags.blinking ||
+      flags.blinkTimer ||
+      flags.blinkFrameTimer
+    );
     clearBlinkTimers();
     flags.blinking = false;
     if (restoreIcon && active) syncVisualState();
@@ -110,7 +121,10 @@ window.DSW = window.DSW || {};
 
   function scheduleNextBlink() {
     cancelBlink(false);
-    if (flags.mood !== "normal" || flags.exhaustedMode || flags.pressing) return;
+    if (flags.mood !== "normal" || flags.exhaustedMode || flags.pressing)
+      return;
+    // 本组没有眨眼帧资源时无需排期，避免无意义的定时器与状态抖动。
+    if (!DSW.images.hasAnyState(BLINK_FRAME_STATES)) return;
     var min = Math.max(1, Number(flags.blinkIntervalMinSec) || 4);
     var max = Math.max(min, Number(flags.blinkIntervalMaxSec) || 6);
     var delay = Math.round((min + Math.random() * (max - min)) * 1000);
@@ -128,7 +142,12 @@ window.DSW = window.DSW || {};
     flags.blinking = true;
     setIcon(C.IMG_HALF_CLOSED_EYES);
     flags.blinkFrameTimer = setTimeout(function () {
-      if (!flags.blinking || flags.mood !== "normal" || flags.exhaustedMode || flags.pressing) {
+      if (
+        !flags.blinking ||
+        flags.mood !== "normal" ||
+        flags.exhaustedMode ||
+        flags.pressing
+      ) {
         cancelBlink(true);
         return;
       }
@@ -175,17 +194,26 @@ window.DSW = window.DSW || {};
     flags.isHovering = false;
   }
 
-  // 重置空闲计时（超时进入失落）。
+  // 重置空闲计时（无交互达到「失望阈值」分钟则进入失望状态）。
+  //
+  // 阈值来自配置（flags.disappointedThresholdMin），出厂默认 3 分钟。
   function resetIdle() {
     if (flags.idleTimer) {
       clearTimeout(flags.idleTimer);
       flags.idleTimer = null;
     }
     if (flags.mood === "disappointed" || flags.mood === "exhausted") return;
-    flags.idleTimer = setTimeout(function () {
-      flags.idleTimer = null;
-      enterDisappointed();
-    }, C.IDLE_TO_DISAPPOINTED_MS);
+    var minutes = Math.max(
+      1,
+      Math.round(Number(flags.disappointedThresholdMin) || 3),
+    );
+    flags.idleTimer = setTimeout(
+      function () {
+        flags.idleTimer = null;
+        enterDisappointed();
+      },
+      minutes * 60 * 1000,
+    );
   }
 
   // 以台词气泡展示心情提示。
@@ -197,17 +225,6 @@ window.DSW = window.DSW || {};
   function resetWhaleClickSequence() {
     flags.lastWhaleClickAt = 0;
     flags.whaleClickStep = 0;
-  }
-
-  // 仅在 normal + main.png 主状态下启用新的点击序列。
-  function isMainClickSequenceState() {
-    var src = DSW.dom.img && DSW.dom.img.getAttribute("src");
-    return (
-      flags.mood === "normal" &&
-      !flags.exhaustedMode &&
-      !flags.pressing &&
-      (src === C.IMG_URL || isBlinkFrame(src))
-    );
   }
 
   function isExhaustedModeActive() {
@@ -273,17 +290,18 @@ window.DSW = window.DSW || {};
 
   function handleWidgetConfigChange() {
     syncExhaustedMode();
-    if (flags.exhaustedMode) {
-      cancelBlink(true);
-      return;
-    }
+    // 配置变了（最典型的是切换挂件本体）：旧本体的资源缓存已经作废，当前这帧图
+    // 必须**重新解析一次**，否则会一直停在上一个本体的图片上——疲惫模式尤其明显：
+    // 这里过去直接 return，切回默认小鲸鱼后画面仍是自定义组的图，要等退出疲惫模式
+    // （exitExhausted → syncVisualState）才恢复，看起来就是「切回默认挂件失效」。
+    cancelBlink(false);
+    syncVisualState();
+    if (flags.exhaustedMode) return;
     if (flags.mood === "normal" && !flags.pressing) {
-      syncVisualState();
       scheduleNextBlink();
       resetIdle();
       return;
     }
-    cancelBlink(false);
   }
 
   // 进入生气状态：暂停台词、切图并给出警告气泡。
@@ -389,15 +407,17 @@ window.DSW = window.DSW || {};
     if (!interrupted) scheduleNextBlink();
   }
 
-  // 处理鲸鱼本体点击（连点检测 + 双击时间气泡 + 单点余额气泡）。
-  function showBalanceOnSequenceStart(now) {
-    DSW.bubble.showBubble();
-    DSW.balance.refresh(true);
-    flags.lastWhaleClickAt = now;
-    flags.whaleClickStep = 1;
+  // 生气判定阈值（点击次数）来自配置；提醒阈值随之收敛，至少提前 1 次提醒。
+  function angryClickThresholds() {
+    var limit = Math.max(
+      1,
+      Math.floor(Number(flags.angryThresholdClicks) || 18),
+    );
+    var warn = Math.max(1, Math.min(C.HIGH_FREQ_WARN_COUNT, limit - 1));
+    return { limit: limit, warn: warn };
   }
 
-  // 处理鲸鱼本体点击（连点检测 + 主状态点击序列）。
+  // 处理鲸鱼本体点击（连点检测 + 余额气泡）。
   function handleWhaleClick() {
     const now = Date.now();
     resetIdle();
@@ -409,7 +429,8 @@ window.DSW = window.DSW || {};
       return;
     }
 
-    // 高频连点检测：连续 ≥12 次且相邻间隔 ≤0.5s。
+    // 高频连点检测：相邻间隔 ≤0.5s，窗口内累计达到配置的「生气阈值」即生气。
+    const thresholds = angryClickThresholds();
     if (
       flags.clickLog.length &&
       now - flags.clickLog[flags.clickLog.length - 1] > C.HIGH_FREQ_GAP_MS
@@ -417,57 +438,37 @@ window.DSW = window.DSW || {};
       flags.clickLog = [];
     }
     flags.clickLog.push(now);
-    while (flags.clickLog.length && now - flags.clickLog[0] > C.HIGH_FREQ_WINDOW_MS) {
+    while (
+      flags.clickLog.length &&
+      now - flags.clickLog[0] > C.HIGH_FREQ_WINDOW_MS
+    ) {
       flags.clickLog.shift();
     }
     if (
-      flags.clickLog.length >= C.HIGH_FREQ_WARN_COUNT &&
-      flags.clickLog.length < C.HIGH_FREQ_COUNT
+      flags.clickLog.length >= thresholds.warn &&
+      flags.clickLog.length < thresholds.limit
     ) {
-      showMoodBubble("你再摸人家就生气了喵 (╬ Ò﹏Ó)");
+      showMoodBubble("你再摸人家就生气了喵");
       return;
     }
-    if (flags.clickLog.length >= C.HIGH_FREQ_COUNT) {
+    if (flags.clickLog.length >= thresholds.limit) {
       flags.clickLog = [];
       enterAngry();
       return;
     }
 
-    if (!isMainClickSequenceState()) {
-      resetWhaleClickSequence();
-      DSW.bubble.showBubble();
-      DSW.balance.refresh(true);
-      return;
-    }
+    DSW.bubble.showBubble();
+    DSW.balance.refresh(true);
+  }
 
-    if (
-      !flags.lastWhaleClickAt ||
-      now - flags.lastWhaleClickAt > C.DOUBLE_CLICK_MS
-    ) {
-      resetWhaleClickSequence();
-    }
-
-    if (flags.whaleClickStep === 0) {
-      showBalanceOnSequenceStart(now);
-      return;
-    }
-
-    if (flags.whaleClickStep === 1) {
-      const line = DSW.widgetConfig.pickRandomDialogueLine();
-      if (!line || Math.random() < 0.5) {
-        DSW.bubble.showTimeBubble();
-        resetWhaleClickSequence();
-        return;
-      }
-      DSW.widgetConfig.pauseDialogue();
-      DSW.bubble.showDialogueLine(line);
-      flags.lastWhaleClickAt = now;
-      flags.whaleClickStep = 2;
-      return;
-    }
-
-    DSW.bubble.showTimeBubble();
-    resetWhaleClickSequence();
+  // 资源清单就绪后重新评估状态机：眨眼等能力依赖「本组是否存在对应状态图」，
+  // 清单晚于首帧到达，因此必须在此刻重新决策一次。
+  if (DSW.images) {
+    DSW.images.onBodyReady = function () {
+      syncExhaustedMode();
+      syncVisualState();
+      scheduleNextBlink();
+    };
   }
 
   DSW.expression = {
@@ -479,6 +480,7 @@ window.DSW = window.DSW || {};
     getBaseIcon: getBaseIcon,
     getPressIcon: getPressIcon,
     syncVisualState: syncVisualState,
+    isBlinkAllowed: isBlinkAllowed,
     cancelBlink: cancelBlink,
     scheduleNextBlink: scheduleNextBlink,
     isExhaustedModeActive: isExhaustedModeActive,
@@ -493,7 +495,6 @@ window.DSW = window.DSW || {};
     enterShy: enterShy,
     exitShy: exitShy,
     resetWhaleClickSequence: resetWhaleClickSequence,
-    isMainClickSequenceState: isMainClickSequenceState,
     handleWhaleClick: handleWhaleClick,
   };
 })(window.DSW);

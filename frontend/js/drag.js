@@ -43,8 +43,11 @@ window.DSW = window.DSW || {};
 
     if (flags.mood === "disappointed") {
       DSW.expression.setIcon(C.IMG_URL_PRESS);
-    } else if (flags.mood === "angry") {
       DSW.dom.body.style.transform = C.SQUISH;
+      flags.pressing = true;
+      DSW.audio.playSlot("press");
+    } else if (flags.mood === "angry") {
+      DSW.audio.pressDown();
     } else {
       if (flags.mood === "shy") {
         flags.mood = "normal";
@@ -66,7 +69,7 @@ window.DSW = window.DSW || {};
     const dx = e.screenX - flags.drag.startSX;
     const dy = e.screenY - flags.drag.startSY;
     if (dx * dx + dy * dy >= C.CLICK_SQ) flags.drag.moved = true;
-    if (flags.drag.moved && DSW.invoke && flags.mood !== "angry") {
+    if (flags.drag.moved && DSW.invoke) {
       DSW.invoke("set_window_position", {
         x: e.screenX - flags.drag.grabDX,
         y: e.screenY - flags.drag.grabDY,
@@ -89,9 +92,29 @@ window.DSW = window.DSW || {};
   document.addEventListener("pointerdown", onDocPointerDown, true);
 
   // 拖拽结束后请求后端吸附，并同步左右/上下位置状态。
+  //
+  // 传两组矩形（**视口坐标**，即 `getBoundingClientRect()` 的原值）：
+  // - 鲸鱼本体 → 决定左右吸附（左右吸附会把鲸鱼镜像到外侧，与内容块左右边对齐）；
+  // - 内容块（气泡 + 鲸鱼整体）→ 决定上下吸附：气泡画在鲸鱼上方，顶部吸附必须连气泡
+  //   一起贴顶，吸附后气泡才不会超出屏幕上沿。
+  //
+  // 刻意**不**在这里把视口坐标换算成屏幕坐标：`window.screenX/Y` 是渲染进程侧的同步值，
+  // 刚发出的窗口移动还没反映进来时它仍是旧值，据此吸附会在松手瞬间把挂件吸到错误的方向
+  // （用户看到的「弹回中部」）。交给后端用它自己读到的窗口位置去加偏移，才是权威口径。
   function snapAfterDrag() {
     if (flags.drag.moved && DSW.invoke) {
-      DSW.invoke("snap_window")
+      const whale = DSW.dom.img.getBoundingClientRect();
+      const content = DSW.dom.root.getBoundingClientRect();
+      DSW.invoke("snap_window", {
+        whaleLeft: whale.left,
+        whaleTop: whale.top,
+        whaleWidth: whale.width,
+        whaleHeight: whale.height,
+        contentLeft: content.left,
+        contentTop: content.top,
+        contentWidth: content.width,
+        contentHeight: content.height,
+      })
         .then(function (snap) {
           if (snap.h === "left") state.h = "left";
           else if (snap.h === "right") state.h = "right";
@@ -116,6 +139,9 @@ window.DSW = window.DSW || {};
     DSW.dom.root.classList.remove("dshwv-dragging");
 
     if (flags.mood === "disappointed") {
+      flags.pressing = false;
+      DSW.dom.body.style.transform = "scaleY(1) scaleX(1)";
+      DSW.audio.playSlot("release");
       if (flags.drag.moved) snapAfterDrag();
       if (clickAllowed || flags.drag.moved) DSW.expression.exitDisappointed();
       return;
@@ -124,7 +150,8 @@ window.DSW = window.DSW || {};
     if (flags.mood === "angry") {
       if (clickAllowed && !flags.drag.moved)
         DSW.expression.showMoodBubble("再也不理你了喵 (｀へ´*)");
-      DSW.dom.body.style.transform = "scaleY(1) scaleX(1)";
+      DSW.audio.pressUp();
+      if (flags.drag.moved) snapAfterDrag();
       return;
     }
 

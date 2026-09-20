@@ -39,10 +39,33 @@ window.DSW = window.DSW || {};
     "再不回点血，就真要疲惫了喵。",
   ];
 
-  function clampInt(v, fallback, min) {
+  // 峰谷切换点（北京时间）：toPeak=true 表示进入高峰。
+  // 只有「普通工作日」才有这些切换点（法定节假日放假区间与周六日的补班日
+  // 全天谷价，都没有切换点），日期类型由 holiday-calendar.js 统一判定。
+  var PEAK_TRANSITIONS = [
+    { h: 9, m: 0, toPeak: true },
+    { h: 12, m: 0, toPeak: false },
+    { h: 14, m: 0, toPeak: true },
+    { h: 18, m: 0, toPeak: false },
+  ];
+
+  // 取“北京时间的同一时刻”Date：时间戳整体前移 8 小时后，
+  // 其 UTC 字段即为北京时间（下面两个取值函数都按 UTC 读取）。
+  // 注意：这里不能参与本地时区换算——加上 getTimezoneOffset() 只在系统时区为 UTC 时
+  // 才凑巧正确，在 UTC+8 等时区会多偏移 8 小时，导致峰谷提示在错误时刻触发。
+  function beijingNow() {
+    var now = new Date();
+    return new Date(now.getTime() + 8 * 3600000);
+  }
+  function beijingMinutesOfDay(d) {
+    return d.getUTCHours() * 60 + d.getUTCMinutes();
+  }
+
+  function clampInt(v, fallback, min, max) {
     var num = Math.floor(Number(v));
     if (!isFinite(num)) return fallback;
-    return Math.max(min || 0, num);
+    var out = Math.max(min || 0, num);
+    return typeof max === "number" ? Math.min(max, out) : out;
   }
 
   function clampThreshold(v) {
@@ -71,31 +94,93 @@ window.DSW = window.DSW || {};
     flags.exhaustedBalanceThreshold = clampThreshold(threshold);
   }
 
-  // 应用缩放（通过 Tauri 触发窗口 resize）。
-  function applyScale(v) {
-    const next =
-      Math.round(Math.min(C.MAX_SCALE, Math.max(C.MIN_SCALE, Number(v))) * 10) / 10;
-    if (next === state.scale) return;
-    state.scale = next;
-    if (DSW.invoke) DSW.invoke("resize_widget", { scale: next }).catch(function () {});
+  // 表情阈值：失望（分钟）/ 生气（点击次数）/ 害羞（秒）。
+  //
+  // 全部来自配置（配置页「挂件状态」区块），不再写死在 core.js 常量里；
+  // 越界值按各自区间收敛，缺省时回落到出厂值（3 分钟 / 18 次 / 2 秒）。
+  function applyMoodConfig(minutes, clicks, shySec) {
+    flags.disappointedThresholdMin = clampInt(minutes, 3, 1, 1440);
+    flags.angryThresholdClicks = clampInt(clicks, 18, 1, 100);
+    flags.shyThresholdSec = clampInt(shySec, 2, 1, 3600);
   }
 
-  // 应用音量。
+  function applyPeakWarnConfig(enabled, minutes) {
+    flags.peakWarnEnabled = enabled !== false;
+    var m = Math.floor(Number(minutes));
+    flags.peakWarnMinutes = isFinite(m) && m >= 1 ? m : 9;
+    schedulePeakWarn();
+  }
+
+  function schedulePeakWarn() {
+    stopPeakWarn();
+    if (!flags.peakWarnEnabled) return;
+    flags.peakWarnTimer = setInterval(checkPeakWarn, 30000);
+    checkPeakWarn();
+  }
+
+  function stopPeakWarn() {
+    if (flags.peakWarnTimer) {
+      clearInterval(flags.peakWarnTimer);
+      flags.peakWarnTimer = null;
+    }
+  }
+
+  function checkPeakWarn() {
+    if (!flags.peakWarnEnabled) return;
+    // 峰谷预警是 DeepSeek 的计价提示：切换到其它供应商后整条链路停用。
+    if (DSW.state && DSW.state.peakSupported === false) return;
+    var now = beijingNow();
+    // 日期类型按北京时间的年月日与星期判定：只有普通工作日才有峰谷切换点。
+    // 法定节假日放假区间与周六日的补班日全天谷价，因此都不提醒。
+    var isPeakDay = DSWHoliday.hasPeakHours(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCDay(),
+    );
+    if (!isPeakDay) return;
+    var nowMin = beijingMinutesOfDay(now);
+    var dateKey = now.toISOString().slice(0, 10);
+    var interval = Math.max(1, Math.round(flags.peakWarnMinutes / 3));
+    for (var i = 0; i < PEAK_TRANSITIONS.length; i++) {
+      var t = PEAK_TRANSITIONS[i];
+      var tMin = t.h * 60 + t.m;
+      for (var k = 3; k >= 1; k--) {
+        var notifyMin = tMin - interval * k;
+        if (notifyMin < 0 || nowMin < notifyMin || nowMin >= tMin) continue;
+        var key = dateKey + "_" + t.h + ":" + t.m + "_" + k;
+        if (flags.peakWarnShown[key]) continue;
+        if (!canShowAutoSpeech()) return;
+        flags.peakWarnShown[key] = true;
+        DSW.bubble.showDialogueLine(
+          t.toPeak ? "我马上变贵啦！" : "我马上便宜啦！",
+        );
+        return;
+      }
+    }
+  }
+
+  // 应用缩放（通过 CSS 变量同步缩放内容，不再 resize 窗口）。
+  function applyScale(v) {
+    const next =
+      Math.round(Math.min(C.MAX_SCALE, Math.max(C.MIN_SCALE, Number(v))) * 10) /
+      10;
+    if (next === state.scale) return;
+    state.scale = next;
+    DSW.dom.root.style.setProperty("--dshw-scale", String(next));
+  }
+
+  // 应用音量（播放时按 soundVol 生效，无需逐个调整音频实例）。
   function applyVol(v) {
     const next = Math.round(Math.min(1, Math.max(0, Number(v))) * 100) / 100;
     flags.soundVol = next;
     flags.soundOn = next > 0;
-    try {
-      if (flags.pressAudio) flags.pressAudio.volume = next;
-      if (flags.releaseAudio) flags.releaseAudio.volume = next;
-    } catch (err) {}
   }
 
-  // 应用音效组配置。
+  // 应用音效组配置：预设 id（duck / dingdong）或自定义音效组名称。
   function applySoundSetFromConfig(v) {
     if (C.SOUND_SETS[v]) flags.soundSet = v;
-    else if (typeof v === "string" && v)
-      flags.soundSet = v; // 自定义音频文件路径（单文件同时用于按下/松开）
+    else if (typeof v === "string" && v.trim()) flags.soundSet = v.trim();
     else flags.soundSet = "duck";
     DSW.audio.applySoundSet();
   }
@@ -132,10 +217,25 @@ window.DSW = window.DSW || {};
       flags.bubbleColor = w.bubbleColor;
       applyBubbleColor(w.bubbleColor);
     }
-    if (Array.isArray(w.customSounds)) flags.customSounds = w.customSounds;
     flags.soundOn = w.sound !== false;
     applyBlinkConfig(w.blinkIntervalMinSec, w.blinkIntervalMaxSec);
     applyExhaustedConfig(w.exhaustedModeEnabled, w.exhaustedBalanceThreshold);
+    applyPeakWarnConfig(w.peakWarnEnabled, w.peakWarnMinutes);
+    applyMoodConfig(
+      w.disappointedThresholdMin,
+      w.angryThresholdClicks,
+      w.shyThresholdSec,
+    );
+    if (typeof w.snapDistance === "number") flags.snapDistance = w.snapDistance;
+    if (typeof w.widgetBody === "string" && w.widgetBody) {
+      if (flags.widgetBody !== w.widgetBody) {
+        flags.widgetBody = w.widgetBody;
+        // 切换挂件本体：作废旧资源缓存并重建命中蒙版，
+        // 确保后续表情只从新本体对应文件夹读取，杜绝跨组串图。
+        if (DSW.images && DSW.images.invalidate) DSW.images.invalidate();
+        if (DSW.hit && DSW.hit.setupHitTest) DSW.hit.setupHitTest();
+      }
+    }
     if (DSW.expression && DSW.expression.handleWidgetConfigChange) {
       DSW.expression.handleWidgetConfigChange();
     }
@@ -151,11 +251,14 @@ window.DSW = window.DSW || {};
         vol: flags.soundVol,
         soundSet: flags.soundSet,
         bubbleColor: flags.bubbleColor,
-        customSounds: flags.customSounds,
         blinkIntervalMinSec: flags.blinkIntervalMinSec,
         blinkIntervalMaxSec: flags.blinkIntervalMaxSec,
         exhaustedModeEnabled: flags.exhaustedModeEnabled,
         exhaustedBalanceThreshold: flags.exhaustedBalanceThreshold,
+        peakWarnEnabled: flags.peakWarnEnabled,
+        peakWarnMinutes: flags.peakWarnMinutes,
+        snapDistance: flags.snapDistance,
+        widgetBody: flags.widgetBody,
       },
     }).catch(function () {});
   }
@@ -171,7 +274,9 @@ window.DSW = window.DSW || {};
         ? dlg.intervalMin
         : 5;
     flags.dialogueJitter =
-      typeof dlg.jitter === "number" ? DSW.balance.clamp(dlg.jitter, 0, 100) : 0;
+      typeof dlg.jitter === "number"
+        ? DSW.balance.clamp(dlg.jitter, 0, 100)
+        : 0;
     flags.dialogueIndex = 0;
     // 新配置生效后重新排期，避免沿用旧 timer。
     scheduleNextDialogue();
@@ -190,17 +295,15 @@ window.DSW = window.DSW || {};
   function pickDialogueLine() {
     if (!flags.dialogueLines.length) return null;
     if (flags.dialogueMode === "random") {
-      return flags.dialogueLines[Math.floor(Math.random() * flags.dialogueLines.length)];
+      return flags.dialogueLines[
+        Math.floor(Math.random() * flags.dialogueLines.length)
+      ];
     }
-    const line = flags.dialogueLines[flags.dialogueIndex % flags.dialogueLines.length];
-    flags.dialogueIndex = (flags.dialogueIndex + 1) % flags.dialogueLines.length;
+    const line =
+      flags.dialogueLines[flags.dialogueIndex % flags.dialogueLines.length];
+    flags.dialogueIndex =
+      (flags.dialogueIndex + 1) % flags.dialogueLines.length;
     return line;
-  }
-
-  // 从台词配置源中随机取一条台词，供点击反馈等即时展示使用。
-  function pickRandomDialogueLine() {
-    if (!flags.dialogueLines.length) return null;
-    return flags.dialogueLines[Math.floor(Math.random() * flags.dialogueLines.length)];
   }
 
   // 暂停台词调度。
@@ -213,7 +316,8 @@ window.DSW = window.DSW || {};
 
   function pickExhaustedPromptLine() {
     if (!EXHAUSTED_LINES.length) return null;
-    var line = EXHAUSTED_LINES[flags.exhaustedPromptIndex % EXHAUSTED_LINES.length];
+    var line =
+      EXHAUSTED_LINES[flags.exhaustedPromptIndex % EXHAUSTED_LINES.length];
     flags.exhaustedPromptIndex =
       (flags.exhaustedPromptIndex + 1) % EXHAUSTED_LINES.length;
     return line;
@@ -235,23 +339,26 @@ window.DSW = window.DSW || {};
     ) {
       return;
     }
-    flags.exhaustedPromptTimer = setTimeout(function () {
-      flags.exhaustedPromptTimer = null;
-      if (
-        !DSW.expression ||
-        !DSW.expression.isExhaustedModeActive ||
-        !DSW.expression.isExhaustedModeActive()
-      ) {
-        return;
-      }
-      if (!canShowAutoSpeech()) {
-        scheduleNextExhaustedPrompt(1000);
-        return;
-      }
-      var line = pickExhaustedPromptLine();
-      if (line) DSW.bubble.showDialogueLine(line);
-      scheduleNextExhaustedPrompt(C.EXHAUSTED_PROMPT_INTERVAL_MS);
-    }, typeof delayMs === "number" ? delayMs : C.EXHAUSTED_PROMPT_INTERVAL_MS);
+    flags.exhaustedPromptTimer = setTimeout(
+      function () {
+        flags.exhaustedPromptTimer = null;
+        if (
+          !DSW.expression ||
+          !DSW.expression.isExhaustedModeActive ||
+          !DSW.expression.isExhaustedModeActive()
+        ) {
+          return;
+        }
+        if (!canShowAutoSpeech()) {
+          scheduleNextExhaustedPrompt(1000);
+          return;
+        }
+        var line = pickExhaustedPromptLine();
+        if (line) DSW.bubble.showDialogueLine(line);
+        scheduleNextExhaustedPrompt(C.EXHAUSTED_PROMPT_INTERVAL_MS);
+      },
+      typeof delayMs === "number" ? delayMs : C.EXHAUSTED_PROMPT_INTERVAL_MS,
+    );
   }
 
   function syncExhaustedPromptSchedule() {
@@ -294,12 +401,12 @@ window.DSW = window.DSW || {};
     applyVol: applyVol,
     applySoundSetFromConfig: applySoundSetFromConfig,
     applyBubbleColor: applyBubbleColor,
+    applyMoodConfig: applyMoodConfig,
     applyWidgetConfig: applyWidgetConfig,
     saveConfig: saveConfig,
     applyDialogueConfig: applyDialogueConfig,
     nextDialogueDelayMs: nextDialogueDelayMs,
     pickDialogueLine: pickDialogueLine,
-    pickRandomDialogueLine: pickRandomDialogueLine,
     pauseDialogue: pauseDialogue,
     pickExhaustedPromptLine: pickExhaustedPromptLine,
     pauseExhaustedPrompts: pauseExhaustedPrompts,

@@ -34,8 +34,8 @@ ${StrLoc}
 !define MANUFACTURER "dsw"
 !define PRODUCTNAME "DS Desktop Whale"
 !define SHORTCUTNAME "DS小鲸鱼"
-!define VERSION "1.0.0"
-!define VERSIONWITHBUILD "1.0.0.0"
+!define VERSION "2.0.0"
+!define VERSIONWITHBUILD "2.0.0.0"
 !define HOMEPAGE ""
 !define INSTALLMODE "currentUser"
 !define LICENSE ""
@@ -835,6 +835,12 @@ Section Uninstall
     DeleteRegKey /ifempty HKCU "${MANUKEY}"
 
     SetShellVarContext current
+    ; 便携数据目录（与主程序同级）
+    RmDir /r "$INSTDIR\data"
+    ; 旧版便携数据目录名（由 DSW-Data 更名而来）
+    RmDir /r "$INSTDIR\DSW-Data"
+    ; 旧版数据目录（升级前的默认位置）
+    RmDir /r "$APPDATA\DS Desktop Whale"
     RmDir /r "$APPDATA\${BUNDLEID}"
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}

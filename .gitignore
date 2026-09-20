@@ -30,3 +30,8 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+scripts/
+
+# ---- 模型 ----
+BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx

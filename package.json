@@ -1,6 +1,6 @@
 {
   "name": "ds-desktop-whale",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "DS Desktop Whale · DeepSeek 余额查询与记账 · 独立 Windows 桌面版",
   "private": true,
   "type": "module",
@@ -11,6 +11,10 @@
     "icon": "tauri icon"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.8.4"
+    "@tauri-apps/cli": "^2.8.4",
+    "lucide-static": "^1.46.0"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0"
   }
 }

@@ -1,0 +1,121 @@
+/* ===== 模块化气泡 · 共享内容样式 =====
+   配置页的「预览气泡」与桌面挂件上的真实气泡都加载本文件，
+   结构（.dshw-brow / .dshw-bblock）与观感因此天然一致。
+
+   尺寸基准由宿主提供：`--dshw-u`（气泡内 1u 对应的像素）。
+   - 挂件：`.dshwv-root` 上 `--dshw-u: calc(250px / 1026)`，随缩放一起变；
+   - 配置页预览：预览气泡容器上按预览宽度换算，因此预览比例与桌面一致。
+   模块字号 / 图片宽度由 JS 写入 `--dshw-fs` / `--dshw-mw`（u 倍数）。 */
+
+.dshw-bmodular {
+  /* 固定为气泡文字区上限宽度（560u）：宽度确定后，超长文本才能被
+     `.dshw-btext` 的省略号正确收敛，不会把气泡顶出边界。 */
+  width: calc(var(--dshw-u) * 560);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--dshw-u) * 10);
+  text-align: center;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.dshw-brow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--dshw-u) * 12);
+  max-width: 100%;
+}
+
+.dshw-bblock {
+  display: inline-flex;
+  align-items: center;
+  font-size: calc(var(--dshw-u) * var(--dshw-fs, 74));
+  color: #203170;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dshw-btext {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底色：左右留出内边距，形成一个小色块（不加底色时不占位）。 */
+.dshw-bblock-bg {
+  padding: 0 calc(var(--dshw-u) * 16);
+  border-radius: calc(var(--dshw-u) * 10);
+}
+
+/* 图片 / 动图：宽度按模块配置，高度自适应，绝不超出气泡文字区。 */
+.dshw-bmedia {
+  display: block;
+  width: calc(var(--dshw-u) * var(--dshw-mw, 492));
+  max-width: 100%;
+  height: auto;
+  border-radius: calc(var(--dshw-u) * 12);
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* 超链接：悬浮填充标准浅蓝（#0066cc），并保留可点击手型。 */
+.dshw-blink {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.dshw-blink:hover {
+  color: #0066cc;
+}
+
+/* 流光：把「高光扫过」做成文字自身的渐变底色位移（background-clip: text）。
+   只借用「渐变 + 背景位移」这一实现原理，颜色与尺寸全部是本项目自己的：
+   高光取 currentColor 的调亮色（跟随模块配置的文字色），
+   节奏沿用气泡原有的 2.6s（与挂件其它动效同量级），起点 / 终点都是文字原色，
+   background-size 取整块宽度的 2 倍、位移正好跨一个平铺周期，
+   因此一轮结束与下一轮开头完全重合——无限循环且看不到接缝（不会「卡一下再从头」）。
+   文字颜色仍由 color 提供：-webkit-text-fill-color 只把字形挖空成渐变的窗格，
+   不改 color 本身，所以 currentColor 取到的始终是模块配置的文字色。 */
+.dshw-bblock-glow > .dshw-btext {
+  /* 兜底：不支持 color-mix 时用白色高光（任何文字色下都能看见扫光）。 */
+  background-image: linear-gradient(
+    to right,
+    currentColor 0%,
+    currentColor 38%,
+    #ffffff 50%,
+    currentColor 62%,
+    currentColor 100%
+  );
+  /* 高光取「文字色调亮后的浅色」：在任何文字色下都看得出流光，又不会把字抹没。 */
+  background-image: linear-gradient(
+    to right,
+    currentColor 0%,
+    currentColor 38%,
+    color-mix(in srgb, currentColor 22%, #ffffff) 50%,
+    currentColor 62%,
+    currentColor 100%
+  );
+  background-size: 200% 100%;
+  background-position-x: 0%;
+  background-repeat: repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: dshw-bblock-glow 2.6s linear infinite;
+}
+
+@keyframes dshw-bblock-glow {
+  from {
+    background-position-x: 0%;
+  }
+  to {
+    background-position-x: 200%;
+  }
+}
