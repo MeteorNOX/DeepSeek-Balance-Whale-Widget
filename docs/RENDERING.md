@@ -4,7 +4,7 @@
 
 `desktop/main.cjs` 在启动前启用 GPU 光栅化，在 `gpu-info-update` 后记录实际合成状态。透明无边框窗口交给 Chromium 进行预乘 Alpha 合成；不重复乘 Alpha，也不绕过显卡驱动限制。`render-status.json` 可用于确认本机是否实际启用硬件加速。
 
-`desktop/ui/input.js` 使用 `setIgnoreMouseEvents` 切换输入穿透，不裁剪窗口绘制区域。`mousemove` 转发与主进程鼠标位置补偿共同恢复悬停；按下后保持输入捕获，松开、取消或失焦时释放。弹窗、编辑器、菜单保持可操作。
+`desktop/ui/input.js` 只报告当前人偶、气泡和按钮的 DOM 命中矩形；macOS standalone 的 `desktop/standalone-main.cjs` 使用屏幕 DIP 光标与窗口 content bounds 在主进程决定 `setIgnoreMouseEvents`，不让 renderer 的 hover 消息反复切换透明窗口输入。悬停按钮不属于扩展 surface，只有真正打开菜单、弹窗或编辑面板才扩大原生窗口；扩大时通过受控 root offset 保持人偶屏幕锚点。按下后由 renderer 与主进程共同保持捕获，拖动阈值和窗口位移统一使用屏幕坐标，松开、取消、失焦或 renderer reload 都会清理手势。Windows `follow-main.cjs` 仍保留上游的兼容路径。
 
 `desktop/ui/alpha-worker.js` 在 Worker 中用一个复用的 OffscreenCanvas 解码、读取 Alpha，结果只用于输入检测。缓存按资源 URL（含版本参数）区分，最多保留 8 项 / 8 MiB。动画角色使用帧 Alpha 的并集；超过 120 帧的导入角色采用完整图片矩形作为输入区域，限制一次性解码开销。视觉本身不受输入区域影响。
 

@@ -1,0 +1,59 @@
+name: macOS standalone CI
+
+on:
+  pull_request:
+    branches: [main, for-macdesktop]
+  push:
+    branches: [main, for-macdesktop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    name: Build and smoke-test arm64 App
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Record runner architecture
+        run: |
+          uname -a
+          node -p 'JSON.stringify({node:process.version, arch:process.arch, platform:process.platform})'
+      - name: JavaScript checks
+        run: npm test
+      - name: Build arm64 App
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: npm run build:mac
+      - name: Verify App bundle and packaged resources
+        run: npm run verify:mac
+      - name: Create and mount-test DMG
+        env:
+          VERSION: 0.2.0
+        run: bash scripts/create-dmg.sh
+      - name: Launch the packaged App
+        run: bash scripts/smoke-mac-app.sh 'dist/AI Balance Whale.app'
+      - name: Upload candidate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-balance-whale-macos-ci-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+            qa-output/mac-smoke/**
+          if-no-files-found: error
+          retention-days: 14

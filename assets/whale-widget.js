@@ -11,6 +11,7 @@
     var STEP = 0.1;
     var CLICK_SQ = 9;
     var REFRESH_MS = 60000;
+    var standaloneDesktop = !!(window.whaleDesktop && window.whaleDesktop.standalone);
 
 
     var BUBBLE_MS = 5000;
@@ -56,6 +57,7 @@
     styleEl.textContent += '\n.dshwv-fxicon:hover{background:rgba(32,49,112,.20);color:#203170}';
     styleEl.textContent += '\n.dshwv-fxicon:focus-visible{outline:2px solid rgba(32,49,112,.55);outline-offset:1px}';
     styleEl.textContent += '\n.dshwv-fxinfo{position:fixed;z-index:27000;max-width:min(320px,calc(100vw - 16px));box-sizing:border-box;background:#fff;border:1px solid rgba(32,49,112,.35);border-radius:8px;box-shadow:0 6px 16px rgba(0,0,0,.16);padding:8px 10px;color:#203170;font-size:11px;line-height:1.5;text-align:left;white-space:pre-line;pointer-events:auto;color-scheme:light}';
+    if (standaloneDesktop) styleEl.textContent += '\nhtml.desktop .dshwv-root{--dshw-base:clamp(122px,calc(250px * var(--dshw-scale)),625px)}';
     document.head.appendChild(styleEl);
     var root = document.createElement('div');
     root.className = 'dshwv-root';
@@ -4633,7 +4635,8 @@
           saveBubbleCfg({
             v: 1,
             items: items,
-            lib: bubbleLib
+            lib: bubbleLib,
+            tapAdvance: bubbleTapAdvance
           }, function (ok) {
             if (ok !== false) closeBubbleEditor();
           });
@@ -7906,7 +7909,11 @@
 
 
     var drag = null;
-
+    if (window.whaleDesktop && window.whaleDesktop.onNativeDragMoved) {
+      window.whaleDesktop.onNativeDragMoved(function () {
+        if (drag && drag.active) drag.moved = true;
+      });
+    }
 
     var bubbleShown = false;
 
@@ -8008,6 +8015,10 @@
     var bubbleRoundOn = false;
     var bubbleCfg = null;
     var bubbleLib = [];
+    // The standalone App has no separate legacy checkbox for this behavior.
+    // Keep role clicks useful by default, while honoring an explicit upstream
+    // tapAdvance:false value when an older configuration contains it.
+    var bubbleTapAdvance = true;
     function bubbleCloneModule(m) {
       var copy = JSON.parse(JSON.stringify(m || ({})));
       if (m && whaleMoneyTemplates.has(m)) whaleMoneyTemplates.set(copy, whaleMoneyTemplates.get(m));
@@ -8088,6 +8099,7 @@
           if (d && d.ok && d.config) {
             bubbleCfg = d.config;
             bubbleLib = d.config.lib && Array.isArray(d.config.lib) ? JSON.parse(JSON.stringify(d.config.lib)) : [];
+            bubbleTapAdvance = d.config.tapAdvance !== false;
             applyBubbleCfgSeq();
           }
         }).catch(function () {});
@@ -8107,6 +8119,7 @@
           requireSaved(d);
           if (d && d.ok && d.config) {
             bubbleCfg = d.config;
+            bubbleTapAdvance = d.config.tapAdvance !== false;
             applyBubbleCfgSeq();
             if (okFn) okFn();
           } else if (okFn) okFn(false);
@@ -8773,6 +8786,13 @@
           return;
         }
         if (!bubbleRoundOn) return;
+        // Role clicks use the same queue as bubble clicks. The previous
+        // standalone path always treated seqIdx === 1 as a TTL refresh, so a
+        // second click could never reach the next configured item.
+        if (bubbleTapAdvance) {
+          bubbleNext();
+          return;
+        }
         if (bubbleSeqIdx <= 1) {
           bubbleResetTtl();
           return;
@@ -8967,11 +8987,21 @@
       WhaleMoney.bind(hintEl, function () { return captured.status === 'error' ? (captured.message || '获取失败 · 点击重试').slice(0, 20) : captured.balance === null ? '加载中…' : '今日已观测 ' + (captured.todayUsage != null ? fmt(captured.todayUsage, captured.currency) : '--'); });
     }
     function express() {
-      positioner.style.transform = 'translate3d(' + state.left + 'px,' + state.top + 'px,0)';
+      // In standalone mode the native window is the only screen-coordinate
+      // owner. Keeping the web page's old viewport translation would reapply
+      // stale coordinates after a native drag or resize.
+      positioner.style.transform = standaloneDesktop ? 'translate3d(0,0,0)' : 'translate3d(' + state.left + 'px,' + state.top + 'px,0)';
       root.classList.toggle('dshwv-left', !!state.flip);
       WhaleRendering.presentFor(drag && drag.active ? 0 : 200);
     }
     function settle() {
+      if (standaloneDesktop) {
+        root.style.removeProperty('--dshw-base');
+        state.left = 0;
+        state.top = 0;
+        express();
+        return;
+      }
       var vp = viewport();
       var w = root.offsetWidth || root.getBoundingClientRect().width || 0;
       var h = root.offsetHeight || root.getBoundingClientRect().height || 0;
@@ -9162,13 +9192,15 @@
         var hAnchor = leftDist <= rightDist ? 'left' : 'right';
         var hDistRaw = Math.round(Math.min(leftDist, rightDist));
         var hDist = hAnchor === 'right' && scrollGapOn ? Math.max(0, hDistRaw - rightGap()) : hDistRaw;
-        localStorage.setItem('dshw-pos', JSON.stringify({
-          v: 2,
-          hAnchor: hAnchor,
-          hDist: hDist,
-          vAnchor: topDist <= bottomDist ? 'top' : 'bottom',
-          vDist: Math.round(Math.min(topDist, bottomDist))
-        }));
+        if (!standaloneDesktop) {
+          localStorage.setItem('dshw-pos', JSON.stringify({
+            v: 2,
+            hAnchor: hAnchor,
+            hDist: hDist,
+            vAnchor: topDist <= bottomDist ? 'top' : 'bottom',
+            vDist: Math.round(Math.min(topDist, bottomDist))
+          }));
+        }
       } catch (err) {}
     }
     function setUsageMode(v) {
@@ -9238,6 +9270,13 @@
       scaleInput.value = String(next);
       scaleNumber.value = String(scaleToDisplay(next));
       saveConfig();
+      if (standaloneDesktop) {
+        state.left = 0;
+        state.top = 0;
+        express();
+        requestAnimationFrame(function () { positioner.style.transition = prevTrans; });
+        return;
+      }
       var r2 = whaleLayoutRect();
       var vp = viewport();
       if (state.flip) {
@@ -9437,12 +9476,12 @@
     }
     function positionMenu() {
       try {
-        var r = positioner.getBoundingClientRect();
+        var r = standaloneDesktop ? root.getBoundingClientRect() : positioner.getBoundingClientRect();
         var b = menuBtn.getBoundingClientRect();
         var vp = viewport();
-        var onLeft = r.left + root.offsetWidth / 2 < vp.w / 2;
+        var onLeft = r.left + r.width / 2 < vp.w / 2;
         var width = menuBox.offsetWidth, height = menuBox.offsetHeight;
-        var assetTop = r.top + root.offsetHeight * (1 - 0.5945);
+        var assetTop = r.top + r.height * (1 - 0.5945);
         menuBox.style.left = clamp(onLeft ? b.left : b.right - width, 8, Math.max(8, vp.w - width - 8)) + 'px';
         menuBox.style.right = 'auto';
         menuBox.style.top = clamp(assetTop - height - 6, 8, Math.max(8, vp.h - height - 8)) + 'px';
@@ -11073,12 +11112,19 @@
       WhaleRendering.hitCache.prepare(url || IMG_URL);
     }
     function whaleLayoutRect() {
-      var origin = positioner.getBoundingClientRect();
+      var origin = standaloneDesktop ? root.getBoundingClientRect() : positioner.getBoundingClientRect();
       var width = root.offsetWidth, height = root.offsetHeight;
       return { left: origin.left, top: origin.top, right: origin.left + width, bottom: origin.top + height, width: width, height: height };
     }
     function isWhaleHit(e) {
-      return !!e && WhaleRendering.hitCache.hit(img, e.clientX, e.clientY, WhaleRendering.mirrorScale(root) < 0);
+      if (!e || !img || !img.complete || !img.naturalWidth) return false;
+      if (WhaleRendering.hitCache.hit(img, e.clientX, e.clientY, WhaleRendering.mirrorScale(root) < 0)) return true;
+      // Keep the interaction bounded to the role image while the alpha cache
+      // is warming up or the animated transparent edge changes. The old code
+      // returned false for that short interval, so the native panel stayed
+      // ignored and a click could never start.
+      var rect = img.getBoundingClientRect();
+      return e.clientX >= rect.left && e.clientX < rect.right && e.clientY >= rect.top && e.clientY < rect.bottom;
     }
     function onDocPointerDown(e) {
       if (e.target && e.target.closest) {
@@ -11106,8 +11152,11 @@
       try { root.setPointerCapture(e.pointerId); } catch (err) {}
     drag = {
         active: true,
+        native: !!(window.whaleDesktop && window.whaleDesktop.standalone),
         startX: e.clientX,
         startY: e.clientY,
+        startScreenX: Number.isFinite(e.screenX) ? e.screenX : e.clientX,
+        startScreenY: Number.isFinite(e.screenY) ? e.screenY : e.clientY,
         origLeft: rect.left,
         origTop: rect.top,
         w: root.offsetWidth,
@@ -11117,6 +11166,7 @@
       };
       root.classList.add('dshwv-dragging');
       positioner.style.transition = 'none';
+      if (drag.native && window.whaleDesktop.dragStart) window.whaleDesktop.dragStart({ x: drag.startScreenX, y: drag.startScreenY });
       pressDown();
       setWidgetCursor('grabbing');
       document.addEventListener('pointermove', onDocPointerMove, true);
@@ -11127,6 +11177,18 @@
       if (!drag || !drag.active) return;
       var dx = e.clientX - drag.startX;
       var dy = e.clientY - drag.startY;
+      if (drag.native) {
+        // The native host moves the window in screen/DIP coordinates. Use the
+        // same coordinate system for the gesture threshold; clientX/Y can
+        // remain nearly constant after the window follows the cursor.
+        var sx = Number.isFinite(e.screenX) ? e.screenX : e.clientX;
+        var sy = Number.isFinite(e.screenY) ? e.screenY : e.clientY;
+        var sdx = sx - drag.startScreenX;
+        var sdy = sy - drag.startScreenY;
+        if (sdx * sdx + sdy * sdy >= CLICK_SQ) drag.moved = true;
+        if (window.whaleDesktop.dragMove) window.whaleDesktop.dragMove({ x: sx, y: sy });
+        return;
+      }
       if (dx * dx + dy * dy >= CLICK_SQ) drag.moved = true;
       state.left = clamp(drag.origLeft + dx, 0, Math.max(0, drag.vp.w - drag.w));
       state.top = clamp(drag.origTop + dy, 0, Math.max(0, drag.vp.h - drag.h));
@@ -11211,6 +11273,15 @@
       root.classList.remove('dshwv-dragging');
       positioner.style.transition = '';
       setWidgetCursor(isWhaleHit(e) ? 'grab' : '');
+      if (drag.native) {
+        var nativeMoved = drag.moved;
+        if (window.whaleDesktop.dragEnd) window.whaleDesktop.dragEnd();
+        if (clickAllowed && !nativeMoved) {
+          whaleClick();
+          refresh(true);
+        }
+        return;
+      }
       if (clickAllowed && !drag.moved) {
         whaleClick();
         refresh(true);
@@ -11250,6 +11321,7 @@
       saveConfig();
     }
     function applyAnchorPos() {
+      if (standaloneDesktop) return false;
       try {
         var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
         if (!a || a.v !== 2 || a.hAnchor !== 'left' && a.hAnchor !== 'right' || typeof a.hDist !== 'number' || a.vAnchor !== 'top' && a.vAnchor !== 'bottom' || typeof a.vDist !== 'number') return false;
@@ -11272,12 +11344,19 @@
       }
     }
     window.addEventListener('resize', function () {
+      if (standaloneDesktop) {
+        if (menuOpen) positionMenu();
+        return;
+      }
       if (state.h === null && state.v === null && applyAnchorPos()) return;
       settle();
     });
+    window.addEventListener('whale-native-root-offset', function () {
+      if (standaloneDesktop && menuOpen) positionMenu();
+    });
     var rect0 = root.getBoundingClientRect();
-    state.left = rect0.left;
-    state.top = rect0.top;
+    state.left = standaloneDesktop ? 0 : rect0.left;
+    state.top = standaloneDesktop ? 0 : rect0.top;
     express();
     applySoundSet();
     setupHitTest(initRoleUrl);
@@ -11309,12 +11388,21 @@
         openHistory: openUsageRecordsWindow,
         showCost: showCostBubble,
         open: whaleClick,
+        menu: function (open) { if (open && !menuOpen) toggleMenu(); else if (!open && menuOpen) closeMenu(); return menuOpen; },
         queue: function (items) { hideBubble(); bubbleSeq = items; },
         place: function (x, y, flip) { state.left = x; state.top = y; state.flip = !!flip; express(); },
         scale: setScale, role: applyRole,
         scene: function (modules, ttl) { sceneOpen('custom', function () { bubbleRenderModules(modules); }, ttl || 0); },
         status: function () { return { switching: bubbleFrames.switching, busy: busy, shown: bubbleShown, scene: bubbleScene && bubbleScene.kind, epoch: bubbleSceneEpoch, balance: state.balance, today: state.todayUsage, status: state.status, front: bubbleFrames.front.root.dataset.buffer, randomPicks: bubbleFrames.front.root.innerText, hitCache: Object.assign({}, WhaleRendering.hitCache.stats), scale: state.scale, flip: state.flip }; }
       });
+    }
+    function signalStandaloneLayoutReady() {
+      try {
+        if (standaloneDesktop && window.whaleDesktop && window.whaleDesktop.layoutReady) {
+          var layout = root.getBoundingClientRect();
+          window.whaleDesktop.layoutReady({ width: layout.width, height: layout.height });
+        }
+      } catch (err) {}
     }
     fetch(SIZE_URL, {
       cache: 'no-store'
@@ -11374,8 +11462,9 @@
         applyMenuBtnHideUI();
       }
       try {
-        var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
-        if (a && a.v === 2 && (a.hAnchor === 'left' || a.hAnchor === 'right') && typeof a.hDist === 'number' && (a.vAnchor === 'top' || a.vAnchor === 'bottom') && typeof a.vDist === 'number') {
+        if (!standaloneDesktop) {
+          var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
+          if (a && a.v === 2 && (a.hAnchor === 'left' || a.hAnchor === 'right') && typeof a.hDist === 'number' && (a.vAnchor === 'top' || a.vAnchor === 'bottom') && typeof a.vDist === 'number') {
           var vpA = viewport();
           var wA = root.offsetWidth || root.getBoundingClientRect().width || 0;
           var hA = root.offsetHeight || root.getBoundingClientRect().height || 0;
@@ -11389,10 +11478,13 @@
           state.v = a.vAnchor;
           state.vOff = a.vDist;
           settle();
+          }
         }
       } catch (err) {}
+      signalStandaloneLayoutReady();
       refresh(false);
     }).catch(function () {
+      signalStandaloneLayoutReady();
       refresh(false);
     });
     setInterval(function () {

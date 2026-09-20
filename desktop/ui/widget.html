@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="zh-CN" class="desktop">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>API 余额小鲸鱼</title><link rel="stylesheet" href="/ui.css">
+<title>AI Balance Whale</title><link rel="stylesheet" href="/ui.css">
 <script src="/client.js" defer></script><script src="/money.js" defer></script><script src="/render.js" defer></script><script src="/media-guard.js" defer></script><script src="/turn-notice.js" defer></script><script src="/dsh-whale/widget.js" defer></script><script src="/input.js" defer></script>
 </head><body>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <form id="settings-form">
-      <header class="dialog-header"><div><h2 id="settings-title">当前 API 设置</h2><p>默认跟随 Codex；更换服务商后可在这里调整。</p></div><button type="button" id="close-settings" class="icon-button" aria-label="关闭 API 设置">×</button></header>
+      <header class="dialog-header"><div><h2 id="settings-title">当前 API 设置</h2><p>独立模式可用；更换余额服务商后可在这里调整。</p></div><button type="button" id="close-settings" class="icon-button" aria-label="关闭 API 设置">×</button></header>
       <div id="settings-error" class="notice" role="alert" hidden></div>
       <label>余额接口<select name="provider"><option value="auto">自动识别当前 API（推荐）</option><option value="billing">兼容账单接口（常见第三方中转）</option><option value="newapi">New API / One API 密钥额度</option><option value="custom-json">自定义 JSON 余额接口</option><option value="deepseek">DeepSeek（仅当当前 API 使用它）</option></select></label>
       <div class="field-grid"><label>API 地址<input name="baseUrl" type="url" placeholder="留空，跟随 Codex 当前配置"><small>更换域名须同时指定该服务的密钥环境变量。</small></label><label>密钥环境变量名<input name="keyEnv" placeholder="留空，使用 Codex 的现有密钥" autocomplete="off"><small>只填变量名，例如 MY_API_KEY；不要填密钥。</small></label></div>

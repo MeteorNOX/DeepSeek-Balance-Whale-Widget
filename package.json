@@ -1,9 +1,10 @@
 {
   "name": "api-balance-whale",
   "version": "0.2.0",
-  "description": "Codex desktop companion whale: follows the Codex window, shows API balance without any standalone webpage (Codex-adapted build of dsh-whale-widget). Homepage and issues: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget (branch For-Codex).",
+  "description": "AI Balance Whale standalone macOS desktop widget, adapted from the upstream For-Codex Electron build.",
   "type": "module",
   "license": "MIT",
+  "main": "desktop/main.cjs",
   "files": [
     ".codex-plugin",
     ".mcp.json",
@@ -21,18 +22,28 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget.git",
+    "url": "git+https://github.com/404404/DeepSeek-Balance-Whale-Widget.git",
     "directory": "."
   },
   "bugs": {
-    "url": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues"
+    "url": "https://github.com/404404/DeepSeek-Balance-Whale-Widget/issues"
   },
-  "homepage": "https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/For-Codex#readme",
+  "homepage": "https://github.com/404404/DeepSeek-Balance-Whale-Widget/tree/for-macdesktop#readme",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "start": "node scripts/control.mjs open",
-    "desktop": "node scripts/control.mjs desktop"
+    "start": "npm run desktop",
+    "desktop": "node scripts/control.mjs desktop",
+    "desktop:mac": "electron --standalone desktop/main.cjs",
+    "check": "node --check desktop/main.cjs && node --check desktop/preload.cjs && node --check desktop/ui/client.js && node --check desktop/ui/input.js && node --check desktop/ui/render.js && node --check assets/whale-widget.js",
+    "build:mac": "bash scripts/build-mac.sh",
+    "verify:mac": "bash scripts/verify-mac-app.sh",
+    "test": "npm run check && node scripts/test-macos-interaction.mjs"
+  },
+  "devDependencies": {
+    "@electron/asar": "3.2.18",
+    "electron": "36.9.5",
+    "electron-packager": "17.1.2"
   }
 }
