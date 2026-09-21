@@ -1,12 +1,12 @@
 // 把生成好的语录 wav 打成一个语音包，落到真实 DSH_HOME（宿主路由就是从这里读的）
 //
 // 用法:
-//   node build_pack.mjs --pack diona-v1 --voice 迪奥娜 --jobs jobs.json [--home C:/Users/x/.dsh] [--no-default] [--dry]
-//   jobs.json: [{ "out": "<wav 路径>", "text": "语录文本" }, ...]（batch_tts 的 jobs 文件即可，多出的字段忽略）
+//   node build_pack.mjs --pack my-pack --label 示例语音包 --jobs jobs.json [--no-default] [--dry]
+//   jobs.json: [{ "out": "<wav 路径>", "text": "语录文本" }, ...]（多出的字段忽略）
 //
 // 产出目录（跟随插件约定，不放 node_modules）：
 //   <DSH_HOME>/whale-voice/packs/<packId>/manifest.json        清单（文本指纹 → 文件）
-//   <DSH_HOME>/whale-voice/packs/<packId>/quote-NNN.<hash8>.wav
+//   <DSH_HOME>/whale-voice/packs/<packId>/quote.001.<hash8>.wav
 //   <DSH_HOME>/whale-voice/registry.json                       包注册表（upsert 本包，不删其它包）
 //   <DSH_HOME>/whale-voice/config.json                         选中本包（--no-default 时不动）
 //
@@ -104,7 +104,7 @@ const packDir = path.join(root, 'packs', packId)
 const entries = []
 const problems = []
 for (const j of jobs) {
-  // 指纹依据 **widget_text（挂件显示原文）**，不是给 TTS 念的清洗后文本：
+  // 指纹依据 **widget_text（挂件显示原文）**，不是念出来的文本：
   // 挂件原文含「↓」「QAQ」这类符号，清单必须按原文算，挂件改字才会自然不播。
   const hashText = norm(j.widget_text != null ? j.widget_text : (j.text || ''))
   const text = norm(j.text || '')
@@ -139,7 +139,7 @@ const manifest = {
   packId,
   label: arg('label', voice || packId),
   voice,
-  engine: arg('engine', 'IndexTTS2'),
+  engine: arg('engine', ''),
   format: 'wav',
   sampleRate: uniq[0].info.sampleRate,
   channels: uniq[0].info.channels,

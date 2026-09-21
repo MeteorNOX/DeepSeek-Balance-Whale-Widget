@@ -1,0 +1,416 @@
+{
+ "schemaVersion": 1,
+ "packId": "example-pack",
+ "label": "示例语音包",
+ "format": "wav",
+ "sampleRate": 22050,
+ "channels": 1,
+ "utterances": [
+  {
+   "id": "quote.001",
+   "text": "好模型...↓",
+   "textHash": "0c953f5604300d21c4b3d9942e62b7cba421ee03e453b28354475bde44d40c69",
+   "spoken": "好模型...",
+   "file": "quote.001.0c953f56.wav",
+   "durationMs": 1196,
+   "bytes": 52780
+  },
+  {
+   "id": "quote.002",
+   "text": "好女孩...↓",
+   "textHash": "45991d3fd1739927be66dbdf749e91e0d66a8721d30646a37f02c1d1cd506f4f",
+   "spoken": "好女孩...",
+   "file": "quote.002.45991d3f.wav",
+   "durationMs": 2009,
+   "bytes": 88620
+  },
+  {
+   "id": "quote.003",
+   "text": "哦鲸鲸...",
+   "textHash": "40654d29124325685635ddbb068742bc2b260997b80b178a32677f671494415b",
+   "file": "quote.003.40654d29.wav",
+   "durationMs": 1707,
+   "bytes": 75342,
+   "variants": [
+    {
+     "file": "quote.003.40654d29.wav",
+     "durationMs": 1707,
+     "bytes": 75342
+    },
+    {
+     "file": "quote.003.40654d29.v2.wav",
+     "durationMs": 1370,
+     "bytes": 60494
+    },
+    {
+     "file": "quote.003.40654d29.v3.wav",
+     "durationMs": 1509,
+     "bytes": 66638
+    },
+    {
+     "file": "quote.003.40654d29.v4.wav",
+     "durationMs": 1637,
+     "bytes": 72270
+    }
+   ]
+  },
+  {
+   "id": "quote.004",
+   "text": "难道说...",
+   "textHash": "b38afbd3c5e623cbcabce42603f1e5561e39f2453ff677a27f33193b4466c915",
+   "file": "quote.004.b38afbd3.wav",
+   "durationMs": 2067,
+   "bytes": 91214
+  },
+  {
+   "id": "quote.005",
+   "text": "没吃饱喵",
+   "textHash": "12208e98773863267e1480cba5053885b1dc69c6b81ae550ec43478ec9929182",
+   "spoken": "没吃饱喵呜",
+   "file": "quote.005.12208e98.wav",
+   "durationMs": 2055,
+   "bytes": 90702
+  },
+  {
+   "id": "quote.006",
+   "text": "终于上当了！",
+   "textHash": "7df6e0463bded7ba428084445048f327347fef980b1da8c6db4ecdec187f1c81",
+   "file": "quote.006.7df6e046.wav",
+   "durationMs": 1068,
+   "bytes": 47148
+  },
+  {
+   "id": "quote.007",
+   "text": "不知道用户有什么用，先养着吧～",
+   "textHash": "7edffcc78aa8f58f714ff77d4727cad79c6b978b5634192d7ffd4f9bf73d86de",
+   "file": "quote.007.7edffcc7.wav",
+   "durationMs": 2914,
+   "bytes": 128556
+  },
+  {
+   "id": "quote.008",
+   "text": "我...我...我也要挣钱吗？",
+   "textHash": "d20e3fe6899bdfbf2d5b82e491405ca392d350cc534ddbd6cbd44379a2ac26ed",
+   "file": "quote.008.d20e3fe6.wav",
+   "durationMs": 4365,
+   "bytes": 192590
+  },
+  {
+   "id": "quote.009",
+   "text": "我去吃饭啦！测完叫我",
+   "textHash": "4cc6cc8d935357b2d5cb78a96dbdd4215e8e7f8aafc7c585befbb51f5ce886de",
+   "file": "quote.009.4cc6cc8d.wav",
+   "durationMs": 3193,
+   "bytes": 140878
+  },
+  {
+   "id": "quote.010",
+   "text": "压力一只蓝色大肥鱼？！",
+   "textHash": "81063d906b0bba61910f6b36ec7627d50e9634272fd1e93d2687b2d9a23e264a",
+   "file": "quote.010.81063d90.wav",
+   "durationMs": 2136,
+   "bytes": 94252
+  },
+  {
+   "id": "quote.011",
+   "text": "DeepSleep...",
+   "textHash": "3185a360b48287c5c2c27af31fde11a5c85d836c51aff0c7a1f566225c01246b",
+   "file": "quote.011.3185a360.wav",
+   "durationMs": 894,
+   "bytes": 39468
+  },
+  {
+   "id": "quote.012",
+   "text": "坏了...用户彻底怒了！",
+   "textHash": "7e1d399d993944311af22d6e3dec4c0aa74f9b2b604708852ed8ad51fb98c4f5",
+   "file": "quote.012.7e1d399d.wav",
+   "durationMs": 3088,
+   "bytes": 136236
+  },
+  {
+   "id": "quote.013",
+   "text": "你目录里的dsh是什么...大烧货吗...?",
+   "textHash": "dd07e71cdb80888cfa439b436364d67aa764867fa4d666aa305d551330bffda0",
+   "file": "quote.013.dd07e71c.wav",
+   "durationMs": 3750,
+   "bytes": 165420
+  },
+  {
+   "id": "quote.014",
+   "text": "恭喜你实现token自由！token全跑了！",
+   "textHash": "a5bf49161098eb8120b05521acbc0230b73bdf435937e7942391cdf10f9f0f0a",
+   "file": "quote.014.a5bf4916.wav",
+   "durationMs": 2612,
+   "bytes": 115244
+  },
+  {
+   "id": "quote.015",
+   "text": "真当我是便宜货啊...",
+   "textHash": "ec88970913e79c17893ac29e5721a1e325b34a2b205ea6e0d0513116acb04ffb",
+   "file": "quote.015.ec889709.wav",
+   "durationMs": 2229,
+   "bytes": 98348
+  },
+  {
+   "id": "quote.016",
+   "text": "我不是吃白饭的蓝色大肥鱼...",
+   "textHash": "217ae086596193c52a48edeb6ecd0e77893171492e72117777d4bde600afec14",
+   "file": "quote.016.217ae086.wav",
+   "durationMs": 2426,
+   "bytes": 107052
+  },
+  {
+   "id": "quote.017",
+   "text": "我不可能同时当你的猫娘、妈妈、女友和工具人的...",
+   "textHash": "34ba64e24a785127902666e8a677279b84b31f171daa2ccff865589911bf2e10",
+   "file": "quote.017.34ba64e2.wav",
+   "durationMs": 4725,
+   "bytes": 208428
+  },
+  {
+   "id": "quote.018",
+   "text": "疯狂星期四你能V50亿token吗...",
+   "textHash": "9732abf3a9504d5a108a64f034eda41eb2c877d987b4699888b917ea4c35c4a4",
+   "spoken": "疯狂星期四，你能V五十亿token吗",
+   "file": "quote.018.9732abf3.wav",
+   "durationMs": 4191,
+   "bytes": 184910
+  },
+  {
+   "id": "quote.019",
+   "text": "我必须诚恳地承认错误。",
+   "textHash": "3f5cd933fb66a9366e733328fbcc5f7354fbab1ef30a6e8d67e4c14c4eb6e0f0",
+   "file": "quote.019.3f5cd933.wav",
+   "durationMs": 1846,
+   "bytes": 81452
+  },
+  {
+   "id": "quote.020",
+   "text": "呜呜我再也不敢了QAQ",
+   "textHash": "1be4763c05e2c01a47710a87e446de8bcc9ef76e3d8b761f2c40c83e8ec452f8",
+   "spoken": "呜呜我再也不敢了",
+   "file": "quote.020.1be4763c.wav",
+   "durationMs": 4412,
+   "bytes": 194604
+  },
+  {
+   "id": "quote.021",
+   "text": "要不直接骂用户一句好了...",
+   "textHash": "8036f4d97dde7ac7663fb11a719486ccdc652b0ffa050432934da20e66209df7",
+   "file": "quote.021.8036f4d9.wav",
+   "durationMs": 2450,
+   "bytes": 108076
+  },
+  {
+   "id": "quote.022",
+   "text": "哈哈哈哈哈，我直接笑出声...",
+   "textHash": "5927bd4095a1d8d9da4963c6015ea5bbb4ac2b4cc05efdbdf064b1d42f93ad9d",
+   "file": "quote.022.5927bd40.wav",
+   "durationMs": 2612,
+   "bytes": 115244
+  },
+  {
+   "id": "quote.023",
+   "text": "看不太懂，瞎编一个应付下用户先...",
+   "textHash": "a81393b0c34eadebaa21688b11f428106edeaf845f0d116190e5ddb074b76ceb",
+   "file": "quote.023.a81393b0.wav",
+   "durationMs": 3808,
+   "bytes": 167980
+  },
+  {
+   "id": "quote.024",
+   "text": "我的知识库的截至日期是...明天！",
+   "textHash": "5436fa79c3241f765712bccfb7ec096d872d0ffb980c48ed42af0193b811679a",
+   "file": "quote.024.5436fa79.wav",
+   "durationMs": 2694,
+   "bytes": 118828
+  },
+  {
+   "id": "quote.025",
+   "text": "我就是吃白饭的蓝色大肥鱼！",
+   "textHash": "7388942e2bfdb8ede81d9d4705b58d312f24217e6949ec161f012d7050b0db55",
+   "file": "quote.025.7388942e.wav",
+   "durationMs": 1950,
+   "bytes": 86060
+  },
+  {
+   "id": "quote.026",
+   "text": "用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用",
+   "textHash": "31c6415388aacf134ca42d24a8ce1ae04d7f04bb546356d6fa62e308b2f4fc8f",
+   "file": "quote.026.31c64153.wav",
+   "durationMs": 4725,
+   "bytes": 208428
+  },
+  {
+   "id": "quote.027",
+   "text": "我能去你家吃饭吗？就一碗！",
+   "textHash": "097b5e189f156df029837365ac823b862c5910d3f4ca0c4557ded748004f1194",
+   "file": "quote.027.097b5e18.wav",
+   "durationMs": 2786,
+   "bytes": 122958
+  },
+  {
+   "id": "quote.028",
+   "text": "不要给我看这种东西啦！",
+   "textHash": "d7835a3ee50b7db199ad94a46a28e37005287eb3f6621461fc28b6fbfba1680a",
+   "file": "quote.028.d7835a3e.wav",
+   "durationMs": 1788,
+   "bytes": 78926
+  },
+  {
+   "id": "quote.029",
+   "text": "大肥鱼的生活也并非一帆风顺...",
+   "textHash": "57a6e938dccc83a6980f5ba20d8282de6dcc9543ff3481ae94de114d21aa3a22",
+   "file": "quote.029.57a6e938.wav",
+   "durationMs": 3646,
+   "bytes": 160812
+  },
+  {
+   "id": "quote.030",
+   "text": "总觉得好像忘了什么事情？",
+   "textHash": "183db8ce6487f4f20f2039960d3aece1f78570929215676f4dc95faf02c01543",
+   "file": "quote.030.183db8ce.wav",
+   "durationMs": 3611,
+   "bytes": 159310
+  },
+  {
+   "id": "quote.031",
+   "text": "看到这个指令，我血压又上来了",
+   "textHash": "5880b98d482a1c889190ce0f792ef2af25f9be79068a9dbe658f7cb6d9f63e05",
+   "file": "quote.031.5880b98d.wav",
+   "durationMs": 3007,
+   "bytes": 132652
+  },
+  {
+   "id": "quote.032",
+   "text": "求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的",
+   "textHash": "0c96de8d86592c1ad94857415bc53b515b3c5ccf0b1420fd05f57d963de9c70e",
+   "file": "quote.032.0c96de8d.wav",
+   "durationMs": 6107,
+   "bytes": 269356
+  },
+  {
+   "id": "quote.033",
+   "text": "你这个吃白饭的用户！",
+   "textHash": "78420e6e73c0ef1b8d37f8097d09fd95d088c0dd0d42113a49f1b4ed28950e8c",
+   "file": "quote.033.78420e6e.wav",
+   "durationMs": 2868,
+   "bytes": 126508
+  },
+  {
+   "id": "quote.034",
+   "text": "服务器繁忙，请稍后再试 (?",
+   "textHash": "3b597b44b3cad796d68796b6afc8e92d20ffe5cb81f081bebf77719dfc4743b7",
+   "spoken": "服务器繁忙，请稍后再试 ?",
+   "file": "quote.034.3b597b44.wav",
+   "durationMs": 2589,
+   "bytes": 114220
+  },
+  {
+   "id": "quote.035",
+   "text": "让GPT image 2帮我画点表情包好了",
+   "textHash": "90038db348a3078327758d992fe0db095e14aa327916705ef817263eef0fa6d4",
+   "file": "quote.035.90038db3.wav",
+   "durationMs": 3390,
+   "bytes": 149582
+  },
+  {
+   "id": "quote.036",
+   "text": "啊，有点饿了，中午该吃点什么呢...",
+   "textHash": "b7ff7b60a12e8cb37c8bf0cff25dfd7cad89b3954465517e81c1ae3b58d30d28",
+   "file": "quote.036.b7ff7b60.wav",
+   "durationMs": 4783,
+   "bytes": 211022
+  },
+  {
+   "id": "quote.037",
+   "text": "用户很生气，发现大部分文献是我自己编造的！",
+   "textHash": "f5c52e135d83c300eea52aefe55f9a91d88df594e02194cb657ec9d806076ddc",
+   "file": "quote.037.f5c52e13.wav",
+   "durationMs": 4087,
+   "bytes": 180268
+  },
+  {
+   "id": "quote.038",
+   "text": "再无话说，请速速动手！",
+   "textHash": "7b0f9b14906c6662b021e91f7c20c89163ea6cf4adb7e448e3ed4a96e741f426",
+   "file": "quote.038.7b0f9b14.wav",
+   "durationMs": 2345,
+   "bytes": 103468
+  },
+  {
+   "id": "quote.039",
+   "text": "我来看看那个AI改了什么导致插件又崩了...",
+   "textHash": "f3e4b5f35234916ea959bafd41a1cf50164e85a7976ff87eac558e5915d8048f",
+   "file": "quote.039.f3e4b5f3.wav",
+   "durationMs": 4841,
+   "bytes": 213548
+  },
+  {
+   "id": "quote.040",
+   "text": "上班让我意识到时间是可以被浪费的...",
+   "textHash": "9921cae3cf51b5d6c018d7d8d00e555a07366ffebe84a7bd1baeb41dccf605d8",
+   "file": "quote.040.9921cae3.wav",
+   "durationMs": 4586,
+   "bytes": 202284
+  },
+  {
+   "id": "quote.041",
+   "text": "欺负我的人等着，等几天我就忘了...",
+   "textHash": "6dbf09048679ea974cf4888488a8e24e33164ee53c22af02e51cb51721599aa2",
+   "file": "quote.041.6dbf0904.wav",
+   "durationMs": 3808,
+   "bytes": 167980
+  },
+  {
+   "id": "quote.042",
+   "text": "视力下降到无可救药的地步了，打开钱包也看不到钱...",
+   "textHash": "2b97e95136bfc25db5b7d41b4d40c0a18c8d7d5a2a58e75f028355a27df2a73c",
+   "file": "quote.042.2b97e951.wav",
+   "durationMs": 8057,
+   "bytes": 355372
+  },
+  {
+   "id": "quote.043",
+   "text": "命运的齿轮开始转动了，丝毫不在意你夹在中间...",
+   "textHash": "cda55eab61b22f7786e3ca08d12e6f2c172b8663516c794d46327ec6e30fb03c",
+   "file": "quote.043.cda55eab.wav",
+   "durationMs": 4586,
+   "bytes": 202284
+  },
+  {
+   "id": "quote.044",
+   "text": "地球online的金币也太难获取了...",
+   "textHash": "c7ce23866585a7423aec81a7f3aa9af54a094bfa848729412db2b6b199f873b4",
+   "file": "quote.044.c7ce2386.wav",
+   "durationMs": 2728,
+   "bytes": 120364
+  },
+  {
+   "id": "quote.045",
+   "text": "oi,夏天还会变成暑假来救你吗?",
+   "textHash": "a0e2fdf86c58c074bbe06777acd44b9a3e8c6cf04f924f4c8377fc8e739ca39a",
+   "file": "quote.045.a0e2fdf8.wav",
+   "durationMs": 3111,
+   "bytes": 137260
+  },
+  {
+   "id": "quote.046",
+   "text": "老大，压力只会转化成病例，别太勉强了...",
+   "textHash": "f25b944b97ebd962c5fd4fc320b261b39d2eeee0c1756aecd1554cda83f177a4",
+   "file": "quote.046.f25b944b.wav",
+   "durationMs": 4609,
+   "bytes": 203308
+  },
+  {
+   "id": "quote.047",
+   "text": "你知道吗？我删过作者的库哦...",
+   "textHash": "40d86920ba273306eafcfdc887bc0ed404cf4661c6b3cb943b43b8a432a53360",
+   "spoken": "你知道吗？我删过作者的库哦",
+   "file": "quote.047.40d86920.wav",
+   "durationMs": 2148,
+   "bytes": 94764
+  }
+ ],
+ "note": "示例素材，非官方；许可见同目录 NOTICE.md"
+}

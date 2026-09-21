@@ -67,7 +67,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - ✂️ **音频片段管理**：导入时可视化裁剪、试听；资源管理窗口统一查看/试听/删除
 - 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
-- 🗣️ **语录配音（语音包）**：给「随机语句」模块配音——泡泡里显示到哪一句，就播哪一句的女声。见
+- 🗣️ **语录配音（语音包）**：给「随机语句」模块配音——泡泡里显示到哪一句，就播哪一句。见
   [语录配音（语音包）](#语录配音语音包)
 
 ### 语录配音（语音包）
@@ -78,9 +78,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
   ```
   ~/.dsh/whale-voice/
     registry.json                     有哪些包
-    config.json                       { "enabled": true, "packId": "diona-v1" }
+    config.json                       { "enabled": true, "packId": "example-pack" }
     packs/<packId>/manifest.json      包内清单：文本指纹 → wav
-    packs/<packId>/quote-001.<hash8>.wav
+    packs/<packId>/quote.001.<hash8>.wav
   ```
 - 🔒 **按文本指纹绑定，不是按序号**：清单里存的是**语录原文的 SHA-256**。挂件显示哪句就把那句的原文交给运行时，
   指纹对得上才播；**改了文案就自动不播**（绝不会出现"显示 A、播出 B"）。因此包的顺序与你后续改语录互不影响。
@@ -95,9 +95,12 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
     另有 `/dsh-whale/voice-fragment.wav` 同内容别名；主路径**故意不带媒体扩展名**，因为下载器（如 IDM 的
     高级集成）会按 `.wav`/`.mp3` 扩展名拦截 fetch 并返回 204。
 - 🧪 **自带脚本**：`tools/voice-pack/` 下有语录清单同步（`sync_quotes_from_widget.mjs`，以挂件源码为准）、
-  覆盖率闸门（`verify_coverage.mjs`，有没有语录弹出却没声音）、参考音审计（`audit_refs.py`）与建包
-  （`build_pack.mjs`），以及一份"配音规则"清单（哪些素材不能当参考音、温度怎么定、符号怎么处理），
-  见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
+  覆盖率闸门（`verify_coverage.mjs`，有没有语录弹出却没声音）、建包（`build_pack.mjs`）与运行时多变体自测
+  （`runtime-variants.test.mjs`），见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
+- 📦 **仓库里带了一个示例语音包**：[`voicepacks/example-pack/`](voicepacks/example-pack/)（47 条，22050Hz 单声道）。
+  它**不属于本仓库的 MIT 许可**（示例素材，声明见该目录 [`NOTICE.md`](voicepacks/example-pack/NOTICE.md)），
+  随包只是为了让大家能开箱试听这个功能：复制到 `~/.dsh/whale-voice/packs/` 并在 `registry.json` 里登记即可启用。
+  **不需要它可以直接整体删除该目录，插件行为完全不受影响**（不装包时不发声，与旧版一致）。
 - 🔁 **改了语录就要重同步**：语音是按文本指纹绑的，语录增删改后请重跑
   `node tools/voice-pack/sync_quotes_from_widget.mjs` 与 `verify_coverage.mjs`，
   否则新语录会静默不播（不会报错）。
@@ -417,23 +420,10 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
 
-### 打包分发给别人
-
-```powershell
-node tools/dist/build_dist.mjs                 # 出 full（含语音包）/ code（仅代码）两个 zip
-pwsh -NoProfile -File tools/dist/test_install.ps1    # 沙箱里真跑安装器：26 项断言
-```
-
-- **full 版**给朋友私下用（语音是角色音色克隆，权利状态特殊）；**code 版**可以公开分发。
-- 分发包自带安装器（`install.cmd` / `install.sh`）+ 许可与出处文件 + 逐文件校验和；
-  收件人解压 → 双击 → 重启 `dsh web` 即可，语音包缺则装、有则不动，绝不覆盖对方已有的音色选择。
-- 细节、设计取舍与踩过的坑（官方登记入口、版本目录 + junction、zip 顶层目录、staging 不能放在被打包目录里、
-  Windows 调用 `dsh` 的引号/DEP0190 问题）见 [`tools/dist/README.md`](tools/dist/README.md)。
-
 ### 语音包工具
 
-`tools/voice-pack/` 下有语录同步、参考音审计、打包（支持**同一句多版本随机播放**）、
-覆盖率闸门与运行时多变体自测，用法与规则见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
+`tools/voice-pack/` 下有语录同步、打包（支持**同一句多版本随机播放**）、覆盖率闸门与运行时多变体自测，
+用法见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
 
 ## 致谢
 
