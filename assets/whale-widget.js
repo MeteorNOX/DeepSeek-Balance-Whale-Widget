@@ -8570,13 +8570,25 @@ function visibleTopZ() {
   var top = 20500
   // 注意：这里必须列全 —— 少一个浮层，dshwLayerUp/下拉/提示就会低估"当前最高层"而被盖住。
   // toast 刻意不列入（它是永远的最顶层，不该让别的层去追它）。
-  var cand = [
-    bubbleMask, bubbleItemMask, moduleMask, moduleNamePromptMask,
-    cropMask, gifMask, audioCropMask, audioEditMask, resMaskEl,
-    confirmMask, snapMask, usageMask, usageMoreMask,
-    qeditEl, dshwvTplHelpEl, dshwvHintEl,
-    apiModelMaskEl, accountingMask, window.__dshwRemindMask
-  ]
+  // ⚠️ 2026-09 修复：名单里曾残留一个**从未声明**的 `usageMask`，使本函数每次都抛
+  // ReferenceError；而调用方（dshwDropOpen / dshwLayerUp）都用空 catch 吞掉它，于是
+  // 「层级 = 当前最高层 + 10」这一步永不执行 —— 弹层停在 CSS 的 z-index:60，
+  // 在 30000 层的编辑器窗口里表现为"下拉点了没反应"（菜单其实开了，只是被整层盖住）。
+  // 现在：① 去掉不存在的名字；② 列表构建加兜底，今后再有名字拼错也不会让整条链失效。
+  var cand = []
+  try {
+    cand = [
+      bubbleMask, bubbleItemMask, moduleMask, moduleNamePromptMask,
+      cropMask, gifMask, audioCropMask, audioEditMask, resMaskEl,
+      confirmMask, snapMask, usageMoreMask,
+      qeditEl, dshwvTplHelpEl, dshwvHintEl,
+      apiModelMaskEl, accountingMask, window.__dshwRemindMask
+    ]
+  } catch (err) {
+    try {
+      cand = [bubbleMask, moduleMask, confirmMask, snapMask, usageMoreMask, apiModelMaskEl, accountingMask, window.__dshwRemindMask]
+    } catch (err2) { cand = [] }
+  }
   function eff(el) {
     try {
       if (!el) return 0
@@ -8648,7 +8660,11 @@ function dshwDropOpen(menuEl, anchorEl) {
     menuEl.style.left = Math.round(left) + 'px'
     menuEl.style.top = Math.round(r.bottom + 2) + 'px'
     // 下拉层级:高于当前所有可见弹窗/窗口(兜底不低于 26010)
-    var vTop = visibleTopZ()
+    // ⚠️ 2026-09 修复：visibleTopZ() 一旦抛错（名单里有未声明标识符），原写法会连
+    // z-index 都不设 —— 弹层停在 CSS 的 60、被父窗口整层盖住 = "点了没反应"。
+    // 这里把这一步隔离：算不出最高层，也要用兜底值把层级抬上去。
+    var vTop = 20500
+    try { vTop = visibleTopZ() } catch (err) { try { console.warn('[dsh-whale] visibleTopZ failed:', err) } catch (err2) {} }
     menuEl.style.zIndex = String(Math.max(26010, Math.round(vTop) + 10))
   } catch (err) {}
 }
