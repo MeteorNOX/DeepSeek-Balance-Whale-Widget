@@ -6,42 +6,219 @@ window.__dshWhaleWidget = true
 // 挂件脚本通过 tapIndex 注入 DSH 的每一个 index 页面（含插件市场等 SPA 视图）。
 // 市场页用 ReactDOM.createPortal 渲染到 document.body，若挂件在此初始化，
 // 会在 body 插入节点并注册全局捕获拦截，干扰 React 渲染树（removeChild 报错、页面空白）。
-// 主聊天界面的特征：composer 输入区。DSH 新版输入框为 contenteditable div，旧版为 textarea，
-// 两种都算主界面；检测到才继续，否则不碰 DOM、不注册监听。
+// 主聊天界面的特征：composer 输入区。三种形态都算主界面：
+//   (a) 旧版 textarea
+//   (b) 旧版 contenteditable 可编辑 div
+//   (c) **DSH 0.1.6-alpha.1 起的新版**：<div contenteditable="false" role="textbox"
+//       aria-multiline="true" data-composer-input="true">（编辑由 Lexical 接管，所以
+//       contenteditable 反而是 false —— 只认前两种会让挂件在新版 DSH 上**完全不初始化**，
+//       见 issue #123）。检测到才继续，否则不碰 DOM、不注册监听。
 function dshwIsChatRoot(r) {
-  return !!(r && (r.querySelector('textarea') || r.querySelector('[contenteditable="true"]')))
+  if (!r || !r.querySelector) return false
+  return !!(
+    r.querySelector('textarea') ||
+    r.querySelector('[contenteditable="true"]') ||
+    // DSH 0.1.6-alpha.1 起的新版 composer：data-composer-input 在整个 DSH 前端产物里
+    // **只出现在对话组件**（v742 时实测：1515 个前端文件里仅 dsh-client-ui-conversation 命中），
+    // 所以它是最精确的判据。
+    r.querySelector('[data-composer-input]') ||
+    // 同一层的 composer 容器属性（data-composer-seat / -card 也各只有一个出处），
+    // 万一将来输入框本身的属性改名，容器还在就仍能识别。
+    r.querySelector('[data-composer-seat],[data-composer-card]') ||
+    // 通用兜底：多行 textbox。注意**不要**用裸的 [role="textbox"] —— pdf.js 的批注编辑器
+    // （dsh-client-ui-sidebar-documentpreview）也会设 role=textbox，用它会把判定放宽到
+    // 非输入框的元素；加上 aria-multiline 至少排除掉单行输入框。
+    r.querySelector('[role="textbox"][aria-multiline="true"]')
+  )
 }
-var dshwEnabled = false
+var dshwStarted = false
+function dshwStartOnce() {
+  if (dshwStarted) return
+  dshwStarted = true
+  try { dshwInit() } catch (err) {}
+}
+// 是否已到主聊天界面；是则启动（只启动一次，之后由 dshwInit 内部标记去重）
+var dshwLastCheck = 0
+function dshwTryStart(force) {
+  if (dshwStarted) return true
+  var now = Date.now()
+  // 连续 DOM 变化时合并检查，避免每次 mutation 都 querySelector
+  if (!force && now - dshwLastCheck < 200) return false
+  dshwLastCheck = now
+  try {
+    if (dshwIsChatRoot(document.getElementById('root'))) { dshwStartOnce(); return true }
+  } catch (err) {}
+  return false
+}
 try {
-  var dshwRoot = document.getElementById('root')
-  // 初始已有 composer → 主界面
-  if (dshwIsChatRoot(dshwRoot)) {
-    dshwEnabled = true
-  } else {
-    // 尚未渲染：轮询等待（主界面异步挂载），超过 5s 视为非主界面（市场/设置等）放弃
-    var dshwPollTries = 0
-    var dshwPoll = setInterval(function () {
-      dshwPollTries++
-      if (dshwIsChatRoot(document.getElementById('root'))) {
-        clearInterval(dshwPoll)
-        dshwEnabled = true
-        try { dshwInit() } catch (err) {}
-        return
+  if (!dshwIsChatRoot(document.getElementById('root'))) {
+    // 尚未渲染：MutationObserver 无限等待（v739 去掉原来的「5 秒死线」）。
+    // 原来 500ms × 10 次就永久放弃，而 window.__dshWhaleWidget 是一次性闸门 ——
+    // 慢启动机器、或页面最小化时定时器被浏览器节流，都会让"第一次没赶上"变成
+    // "这次会话永远不出现"（用户反馈 / issue #102 第 2 条）。
+    // 约束不变：检测到 composer 之前一行 DOM 都不碰、不注册任何全局监听。
+    var dshwObserver = null
+    try {
+      if (typeof MutationObserver === 'function') {
+        dshwObserver = new MutationObserver(function () {
+          if (dshwTryStart()) { try { dshwObserver.disconnect() } catch (err) {} }
+        })
+        dshwObserver.observe(document.documentElement || document.body, { childList: true, subtree: true })
       }
-      if (dshwPollTries >= 10) {
-        clearInterval(dshwPoll)
-        // 非主界面：直接退出，不初始化
+    } catch (err) {}
+    // 兜底：observer 不可用时低频轮询继续等（不设上限，找到即停）
+    var dshwFallbackPoll = setInterval(function () {
+      if (dshwTryStart(true)) {
+        clearInterval(dshwFallbackPoll)
+        try { if (dshwObserver) dshwObserver.disconnect() } catch (err) {}
       }
-    }, 500)
+    }, 2000)
   }
 } catch (err) {}
-if (!dshwEnabled) {
-  // 非主界面（或等待超时）：不初始化挂件
-  return
-}
 function dshwInit() {
 if (window.__dshWhaleInit) return
 window.__dshWhaleInit = true
+
+// ===== 音效播放（v745：Web Audio + 预解码 + 同步起播 + 可调衔接）=====
+// 目标：既要 0.3.0 那种"贴手"的响应，又不让 macOS 把音效注册进系统「正在播放」（Touch Bar 播放条 + 卡顿）。
+// 之前 0.3.3~0.3.7 换成 Web Audio 后手感变钝，不是引擎的问题，而是丢了四样里的三样：
+//   ① 垫片的 preload='auto' 只是占位 → 不预取、不解码 → 第一次点按要现 fetch+decode；
+//   ② 垫片没有 duration、currentTime 也不前进 → 点按退化成 onended 兜底「按压音放完才接松开音」；
+//   ③ 起播要经过一次 Promise/微任务。
+// 现在四件齐备：
+//   ① 引擎仍是不经过 media element 的 AudioBufferSourceNode（系统媒体控件不会出现 → 无 Touch Bar 条）；
+//   ② dshwvWarm() 在切音效组 / 打开试听 / 页面初始化时就**预取 + 预解码**（URL 级缓存，只解一次）；
+//   ③ 补齐 duration / currentTime（播放中真实前进）→ 能算"按压音还剩多久"；
+//   ④ **同步起播**：缓冲区已预热时，start() 在 pointerdown 的**同一个任务**里调用（不再经过 Promise）。
+// 衔接时机由 RELEASE_LEAD_MS 决定（0 = 正好接上；30/50 = 轻微交叠）—— 改这个数字即可按耳朵微调，
+// 不用动任何逻辑。
+var dshwvAudioCtx = null
+function dshwvAudio() {
+  try {
+    if (!dshwvAudioCtx) {
+      var AC = window.AudioContext || window.webkitAudioContext
+      // 显式用 'interactive'（该 API 的最低延迟档），起播尽量贴手
+      dshwvAudioCtx = new AC({ latencyHint: 'interactive' })
+    }
+    if (dshwvAudioCtx.state === 'suspended') { try { dshwvAudioCtx.resume() } catch (err) {} }
+    return dshwvAudioCtx
+  } catch (err) { return null }
+}
+var dshwvAudioBuffers = {} // url -> Promise<AudioBuffer>（同一片段不重复下载/解码）
+var dshwvAudioDecoded = {} // url -> AudioBuffer（解码完成后**同步可读**：起播走同步路径的关键）
+function nowMs() { try { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now() } catch (err) { return Date.now() } }
+function dshwvAudioBuffer(url) {
+  if (!url) return Promise.reject(new Error('empty url'))
+  if (!dshwvAudioBuffers[url]) {
+    dshwvAudioBuffers[url] = fetch(url, { cache: 'force-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer() })
+      .then(function (raw) {
+        var c = dshwvAudio()
+        if (!c) throw new Error('no audio context')
+        return new Promise(function (res, rej) { c.decodeAudioData(raw, res, rej) })
+      })
+      .then(function (buf) { dshwvAudioDecoded[url] = buf; return buf })
+      .catch(function (err) { delete dshwvAudioBuffers[url]; delete dshwvAudioDecoded[url]; throw err })
+  }
+  return dshwvAudioBuffers[url]
+}
+// 预热：垫片的 preload='auto' 在 Web Audio 下不解码，必须显式预取+预解码。
+// 不预热 → 第一次点按要现 fetch+decodeAudioData，表现就是"按下音慢半拍、中间衔接发飘"。
+// URL 级缓存保证同一片段只解一次；失败静默吞掉（真正播放时还会自己重试一次）。
+function dshwvWarm(urls) {
+  try { dshwvAudio() } catch (err) {}
+  for (var i = 0; i < (urls || []).length; i++) {
+    var u = urls[i]
+    if (!u) continue
+    try { dshwvAudioBuffer(u).catch(function () {}) } catch (err) {}
+  }
+}
+function dshwvSoundStop(el) {
+  el._token = (el._token || 0) + 1
+  var node = el._node
+  el._node = null
+  el._playingSince = 0
+  if (node) {
+    try { node.onended = null } catch (err) {}
+    try { node.stop() } catch (err) {}
+  }
+}
+function dshwvSound(url) {
+  var el = { preload: 'auto', volume: 1, onended: null, loop: false, _url: String(url || ''), _node: null, _gain: null, _offset: 0, _token: 0, _playingSince: 0 }
+  Object.defineProperty(el, 'src', {
+    get: function () { return el._url },
+    set: function (v) { dshwvSoundStop(el); el._url = String(v || ''); el._offset = 0 },
+  })
+  Object.defineProperty(el, 'currentTime', {
+    // 播放中真实前进：pressUp 靠它算"按压音还剩多久"，据此把松开音排到按压音结束（或提前 lead）那一刻
+    get: function () {
+      if (el._node && el._playingSince) {
+        var t = el._offset + (nowMs() - el._playingSince) / 1000
+        var d = el.duration
+        return Math.max(0, isFinite(d) && d > 0 ? Math.min(t, d) : t)
+      }
+      return el._offset
+    },
+    // 既有逻辑用「currentTime = 0」表示重播 → 这里顺手停掉正在播的那一份
+    set: function (v) { el._offset = Number(v) || 0; el._playingSince = 0; dshwvSoundStop(el) },
+  })
+  Object.defineProperty(el, 'duration', {
+    // 与 HTMLAudioElement 对齐：未解码时 NaN（调用方用 isFinite 判定），解码后是真实时长
+    get: function () {
+      var b = dshwvAudioDecoded[el._url]
+      return b && isFinite(b.duration) && b.duration > 0 ? b.duration : NaN
+    },
+  })
+  // 拿到 buffer 后真正起播。delay>0 时用音频线程时间轴（start(when)）排期，不受主线程抖动影响。
+  function beginWithBuffer(c, buf, delay) {
+    try {
+      if (!el._gain) { el._gain = c.createGain(); el._gain.connect(c.destination) }
+      el._gain.gain.value = Math.max(0, Math.min(1, Number(el.volume) || 0))
+      var src = c.createBufferSource()
+      src.buffer = buf
+      src.connect(el._gain)
+      src.onended = function () {
+        if (el._node !== src) return
+        el._node = null
+        el._playingSince = 0
+        if (typeof el.onended === 'function') { try { el.onended() } catch (err) {} }
+      }
+      el._node = src
+      el._playingSince = nowMs() + delay * 1000
+      var dur = Math.max(0.001, buf.duration)
+      src.start(delay > 0 ? c.currentTime + delay : 0, Math.max(0, el._offset) % dur)
+    } catch (err) {}
+  }
+  function startSound(delaySec) {
+    var c = dshwvAudio()
+    if (!c || !el._url) return Promise.resolve()
+    var token = (el._token = (el._token || 0) + 1)
+    var delay = Math.max(0, Number(delaySec) || 0)
+    // ④ 同步起播：缓冲区已预热（dshwvWarm）过 → 直接在当前任务里 start()，不再等 Promise
+    var cached = dshwvAudioDecoded[el._url]
+    if (cached) { beginWithBuffer(c, cached, delay); return Promise.resolve() }
+    dshwvAudioBuffer(el._url).then(function (buf) {
+      if (token !== el._token) return // 期间被重播/暂停/换源 → 丢弃这次
+      beginWithBuffer(c, buf, delay)
+    }).catch(function () {})
+    return Promise.resolve()
+  }
+  el.play = function () { return startSound(0) }
+  el.playAt = function (delaySec) { return startSound(delaySec) }
+  el.pause = function () { dshwvSoundStop(el) }
+  return el
+}
+// 自动播放策略：AudioContext 初始是 suspended，要有一次用户手势才能出声；任务结束音不是手势触发的，
+// 所以挂一次性解锁（首次点击/按键后移除）。
+try {
+  var dshwvAudioUnlock = function () {
+    dshwvAudio()
+    try { document.removeEventListener('pointerdown', dshwvAudioUnlock, true) } catch (err) {}
+    try { document.removeEventListener('keydown', dshwvAudioUnlock, true) } catch (err) {}
+  }
+  document.addEventListener('pointerdown', dshwvAudioUnlock, true)
+  document.addEventListener('keydown', dshwvAudioUnlock, true)
+} catch (err) {}
 
 var MIN_SCALE = 0.6
 var MAX_SCALE = 2.5
@@ -564,8 +741,45 @@ var css = [
 ].join('\n')
 
 var styleEl = document.createElement('style')
+// PR #114：不带 data-plugin 的 <style> 会被 DSH 客户端模块系统 claimStyles 认领到
+// 「当前正在物化的那个插件」名下，之后该插件热重载/失效时 removeOwnedStyles 会把它
+// 一起删掉。样式一没，挂件 20 多个 dshwv-* 节点就从 position:fixed 掉回文档流堆在
+// 页面底部（页面被撑到几千像素高）。打上自己的名字后就不会被任何人认领/删除。
+styleEl.setAttribute('data-plugin', 'dsh-whale-widget')
 styleEl.textContent = css
 document.head.appendChild(styleEl)
+
+// ===== v743：body 挂载登记器（DOM 守护的基础设施，见下面 dshwReattachRoot）=====
+// 挂件会把 30 多个节点挂到 document.body 上（主节点、菜单、各种遮罩/面板、隐藏的 file input…）。
+// 早先的守护只补挂 root + menuBox：SPA 切路由或别的插件整体替换 body 子树后，其余节点会变成
+// "存在但不在文档里"的孤儿 —— 界面看起来恢复了，可一旦点开对应功能就静默失效。
+// 所以这里统一登记：所有挂到 body 的节点都走 dshwBodyAppend()，守护时逐个补挂；
+// 主动移除（目前只有一处）走 dshwBodyDetach()，避免被守护逻辑"复活"。
+var dshwBodyNodes = []
+function dshwBodyAppend(el) {
+  try {
+    if (!el) return el
+    // 注意：这里必须是**原始**的 document.body.appendChild —— 不能走 dshwBodyAppend 自己
+    // （v743 批量改写时曾误替换成自我递归，被 try/catch 吞掉后表现为"登记了但从未挂上"）
+    document.body.appendChild(el)
+    if (dshwBodyNodes.indexOf(el) < 0) dshwBodyNodes.push(el)
+  } catch (err) {}
+  return el
+}
+function dshwBodyDetach(el) {
+  try {
+    var i = dshwBodyNodes.indexOf(el)
+    if (i >= 0) dshwBodyNodes.splice(i, 1)
+    if (el && el.parentNode) el.parentNode.removeChild(el)
+  } catch (err) {}
+}
+// 兼容性：老 WebView 可能没有 Element.isConnected（Chrome 51+ 才有）。
+// 若直接 `!el.isConnected`，在那种环境里会恒为 true → 每个 DOM 变更批次都会重复 appendChild。
+function dshwConnected(el) {
+  if (!el) return false
+  try { if (typeof el.isConnected === 'boolean') return el.isConnected } catch (err) {}
+  try { return document.documentElement.contains(el) } catch (err) { return true }
+}
 
 var root = document.createElement('div')
 root.className = 'dshwv-root'
@@ -651,7 +865,7 @@ audioImportBtn.textContent = '导入'
 audioImportBtn.title = '新建/编辑音效组'
 audioGroupBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleAudioGroupPanel() })
 audioImportBtn.addEventListener('click', function (e) { e.stopPropagation(); openAudioGroupEditor(null) })
-document.body.appendChild(audioGroupPanel)
+dshwBodyAppend(audioGroupPanel)
 function soundOpt(value, label) {
   var o = document.createElement('option')
   o.value = value
@@ -669,7 +883,7 @@ function dshwCustSelClose() {
   if (!o) return
   try {
     o.menu.classList.remove('dshwv-rgbopen')
-    if (o.menu.parentNode === document.body) document.body.removeChild(o.menu)
+    dshwBodyDetach(o.menu) // v744：登记过的 body 节点必须走 detach，否则会被 DOM 守护补挂回来
   } catch (err) {}
 }
 if (!window.__dshwCustBound) {
@@ -787,7 +1001,7 @@ function dshwCustSel(sel, opts) {
     dshwCustSelClose()
     fill()
     sync()
-    if (menu.parentNode !== document.body) document.body.appendChild(menu)
+    if (menu.parentNode !== document.body) dshwBodyAppend(menu)
     dshwDropOpen(menu, btn)
     // 可选底部参照元素:展开高度不超过该元素的上缘(内部滚动),用于
     // 主菜单内“任务结束音效”等下拉,避免列表盖住底部「小鲸鱼记账」按钮
@@ -1008,7 +1222,7 @@ function playTaskEndSound() {
       url = '/dsh-whale/sound/' + (parts[2] === 'release' ? 'release' : 'press') + '.mp3?set=' + parts[1]
     }
     if (!url) return
-    var a = new Audio(url)
+    var a = dshwvSound(url)
     try { a.volume = Number(soundVol) || 0.9 } catch (err) {}
     a.play().catch(function () {})
   } catch (err) {}
@@ -1027,7 +1241,8 @@ function playTaskEndGroupClick(groupId) {
     // 按压留空:无按下音,直接播松开(模拟按下即松开的完整点按);松开留空:只播按压
     if (pressEmpty) {
       if (!releaseEmpty) {
-        var relOnly = new Audio('/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId))
+        dshwvWarm(['/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId)]) // v745：先预热
+        var relOnly = dshwvSound('/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId))
         try { relOnly.volume = vol } catch (err) {}
         relOnly.currentTime = 0
         var pr = relOnly.play()
@@ -1035,15 +1250,20 @@ function playTaskEndGroupClick(groupId) {
       }
       return
     }
-    var press = new Audio('/dsh-whale/sound/press.mp3?set=' + encodeURIComponent(groupId))
+    var press = dshwvSound('/dsh-whale/sound/press.mp3?set=' + encodeURIComponent(groupId))
     try { press.volume = vol } catch (err) {}
+    // v745：菜单里的"点一下试听"同样先预热解码，否则第一次听有明显延迟
+    dshwvWarm([
+      '/dsh-whale/sound/press.mp3?set=' + encodeURIComponent(groupId),
+      releaseEmpty ? '' : '/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId),
+    ])
     if (releaseEmpty) {
       press.currentTime = 0
       var pp = press.play()
       if (pp && pp.catch) pp.catch(function () {})
       return
     }
-    var release = new Audio('/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId))
+    var release = dshwvSound('/dsh-whale/sound/release.mp3?set=' + encodeURIComponent(groupId))
     try { release.volume = vol } catch (err) {}
     var relPlayed = false
     function playRel() {
@@ -1232,6 +1452,21 @@ var rowHide = menuRow()
 rowHide.appendChild(menuLabel('隐藏菜单按钮'))
 rowHide.appendChild(menuHideToggle)
 menuBox.appendChild(rowHide)
+// —— Codex 本机统计开关（issue #116）：v748 起**从主菜单挪进「Codex 模型的设置子菜单」** ——
+// 主菜单不再有这一项（它对没配 Codex 模型的用户没有意义）。宿主侧同样按"有没有 Codex 模型"兜底：
+// 没配 → 默认关闭、完全不扫 ~/.codex/sessions。这里只保留一个"当前挂载的那个复选框"的引用，
+// 供 setCodexStatsOn() 与配置读回时同步勾选状态（菜单是每次重建的，所以元素现建现用）。
+var codexStatsToggle = null
+function codexStatsCheckbox() {
+  var el = document.createElement('input')
+  el.type = 'checkbox'
+  el.className = 'dshwv-check'
+  el.checked = codexStatsOn !== false
+  el.title = '关闭后不再读取 ~/.codex/sessions 统计本机 Codex 用量（会话日志很大时建议关闭）'
+  el.addEventListener('change', function () { setCodexStatsOn(el.checked) })
+  codexStatsToggle = el
+  return el
+}
 // —— 资源管理:集中查看/删除已导入的图片与音频(角色图/泡泡图/音频片段/音效组) ——
 var rowRes = menuRow()
 var resOpenBtn = document.createElement('button')
@@ -1740,7 +1975,7 @@ function usageAlertBudgetEditor(key, onSave) {
           turnCostCloseDefer = false
           turnCostCloseInput.disabled = !turnCostOn // 回到菜单态的禁用逻辑
         }
-        document.body.removeChild(mask)
+        dshwBodyDetach(mask) // v744：走 detach 注销登记，否则 DOM 守护会把这个刚关掉的编辑器补挂回来
         bubbleEditItems = bkEditItems
         bubbleEditorSnap = bkEditorSnap
         bubbleItemSnap = bkItemSnap
@@ -1811,6 +2046,9 @@ function usageAlertBudgetEditor(key, onSave) {
     // 提醒编辑期间:窗口内可能弹出的各类全屏遮罩(确认/裁剪/音频/快照/用量)统一置顶,杜绝层级错位
     var remindZStyle = document.createElement('style')
     remindZStyle.id = 'dshw-remind-overlay-z'
+    // 同上（PR #114）：本文本表同样必须自带 data-plugin，否则会被别的客户端插件
+    // 热重载时顺带删掉，提醒编辑期的遮罩层级就失效了。
+    remindZStyle.setAttribute('data-plugin', 'dsh-whale-widget')
     // 提醒编辑期间:窗口内可能弹出的全屏遮罩(确认/裁剪/音频/快照)统一置顶,杜绝层级错位。
     // 注意:不要把 .dshwv-usage-mask 放进来——「模型子菜单/模型设置」用的是这个类(29000),
     // 一提权就会反盖到提醒编辑器(30000)上面。
@@ -1856,7 +2094,7 @@ function usageAlertBudgetEditor(key, onSave) {
     mask.appendChild(card)
     mask.addEventListener('click', function (e) { if (e.target === mask) cleanup() })
     window.__dshwRemindMask = mask
-    document.body.appendChild(mask)
+    dshwBodyAppend(mask)
     renderBubblePal()
     renderBubblePv()
   } catch (err) {}
@@ -2320,7 +2558,9 @@ function openApiModelPanel(modelId) {
         // 新建模型：保存后给一个明确的收尾——弹「保存成功」，点确认即关掉本面板。
         // （原先是重新打开为编辑态，新建流程会停在一个没有明显关闭入口的面板上）
         if (isNew) {
-          try { confirmMask.style.setProperty('z-index', '29500', 'important') } catch (err) {}
+          // v744 清理：这里原先有 `confirmMask.style.zIndex = '29500' !important`，但紧接着的
+          // showConfirm() 会把确认框统一提到 40000 !important，所以那行是**无效设置**（立刻被覆盖），
+          // 只会让"层级"更难读。已删除 —— 确认框永远由 showConfirm 统一抬到 40000。
           showConfirm('✓ 保存成功：' + (nm || '新模型') + '\n已加入模型列表', function () {
             try { closeApiModelPanel() } catch (err) {}
             // 背后的「- = 小鲸鱼记账 = -」列表同步刷新（模型行在静态区，需重建子界面）
@@ -2428,7 +2668,7 @@ function openApiModelPanel(modelId) {
     } catch (err) {}
     mask.appendChild(card)
     mask.addEventListener('click', function (e) { if (e.target === mask) closeApiModelPanel() })
-    document.body.appendChild(mask)
+    dshwBodyAppend(mask)
     apiModelMaskEl = mask
     // 模板切换：把模板默认值填进各字段（仅新增态）
     if (isNew) {
@@ -2478,9 +2718,26 @@ function openApiModelPanel(modelId) {
   } catch (err) {}
 }
 var apiModelMaskEl = null
+// v748：Codex 模型的设置菜单打开时，记下"当前是哪个模型"和"用量行元素"，
+// 这样拨动「Codex 本机统计」开关、等宿主确认后可以**原地**刷新那一行，不必关窗重开。
+var apiModelMenuId = null
+var codexUsageTextEl = null
+function refreshOpenCodexRow() {
+  try {
+    if (!codexUsageTextEl || !apiModelMenuId) return
+    var t = apiCodexDetailText(apiModelMenuId)
+    codexUsageTextEl.textContent = t
+    codexUsageTextEl.title = t
+  } catch (err) {}
+}
 function closeApiModelPanel() {
-  try { if (apiModelMaskEl && apiModelMaskEl.parentNode) apiModelMaskEl.parentNode.removeChild(apiModelMaskEl) } catch (err) {}
+  // v744：必须走 dshwBodyDetach —— 这个遮罩是登记在案的 body 节点，
+  // 若用 parentNode.removeChild 直接摘掉，DOM 守护会认为"被别的插件摘走了"并把它补挂回来，
+  // 表现就是**点「取消」关不掉这个窗口**（0.3.7 引入的回归）。
+  try { if (apiModelMaskEl) dshwBodyDetach(apiModelMaskEl) } catch (err) {}
   apiModelMaskEl = null
+  apiModelMenuId = null
+  codexUsageTextEl = null
 }
 // 列宽受限 + 悬浮滚动：内容超出列宽时，鼠标移上去文字自动横向滚动，移开回到起点。
 // 需要 .dshwv-marq（外层 overflow:hidden）+ 内层 inline-block span 配合。
@@ -2779,7 +3036,7 @@ function openModelQuotaEditor(modelId) {
     card.appendChild(btns)
     mask.appendChild(card)
     mask.addEventListener('click', function (e) { if (e.target === mask) closeApiModelPanel() })
-    document.body.appendChild(mask)
+    dshwBodyAppend(mask)
     apiModelMaskEl = mask
   } catch (err) {}
 }
@@ -2842,8 +3099,26 @@ function openApiModelMenu(modelId) {
     }, function () { openModelAlertBudget(modelId, 'budget', function () { openApiModelMenu(modelId) }) })
     rowOf('额度（订阅/资源包）', function () { return apiQuotaSummary(modelId) },
       function () { openModelQuotaEditor(modelId) })
-    // Codex 模式：只读展示本地会话统计（机器级）
-    if (apiCodexOf(modelId) && apiCodexOf(modelId).ok) {
+    // Codex 模式：开关（v748 从主菜单挪到这里）+ 只读展示本地会话统计（机器级）
+    // 注意：开关按「是不是 Codex 模型」（apiCodexOf 非空）显示，**不能**按 .ok 判断 ——
+    // 关掉时 .ok 就是 false，那样开关会自己消失、再也没法打开。
+    if (apiCodexOf(modelId)) {
+      var ct = document.createElement('div')
+      ct.className = 'dshwv-audiorow'
+      var ctl = document.createElement('span')
+      ctl.textContent = 'Codex 本机统计'
+      ctl.style.flex = '0 0 auto'
+      ct.appendChild(ctl)
+      var cth = document.createElement('span')
+      cth.className = 'dshwv-usage-hint'
+      cth.style.flex = '1'
+      cth.style.textAlign = 'right'
+      cth.style.paddingRight = '6px'
+      cth.textContent = '读取 ~/.codex/sessions'
+      ct.appendChild(cth)
+      ct.appendChild(codexStatsCheckbox())
+      card.appendChild(ct)
+      // 用量行：关闭/出错时同样显示（文字就是原因），开着时显示今日/近7天/累计
       var cr = document.createElement('div')
       cr.className = 'dshwv-audiorow'
       var cl = document.createElement('span')
@@ -2862,6 +3137,9 @@ function openApiModelMenu(modelId) {
       ci.title = ci.textContent
       cr.appendChild(ci)
       card.appendChild(cr)
+      // 记下来：开关切完拿到服务端确认后，原地刷新这一行（不用关窗重开）
+      codexUsageTextEl = ci
+      apiModelMenuId = modelId
     }
     // 厂商订阅额度（kind='quota'）：只读展示，来自厂商接口
     if (apiPlanSupport(modelId)) {
@@ -2967,7 +3245,7 @@ function openApiModelMenu(modelId) {
     card.appendChild(btns)
     mask.appendChild(card)
     mask.addEventListener('click', function (e) { if (e.target === mask) closeApiModelPanel() })
-    document.body.appendChild(mask)
+    dshwBodyAppend(mask)
     apiModelMaskEl = mask
   } catch (err) {}
 }
@@ -3125,7 +3403,8 @@ function openBalanceAdjustment(modelId) {
   function close() {
     if (busy) return
     document.removeEventListener('keydown', keyHandler)
-    mask.remove()
+    // v743：主动移除要走 dshwBodyDetach —— 否则它已被登记，DOM 守护会把这个刚关掉的窗口"复活"
+    dshwBodyDetach(mask)
     accountingMask = null
     // 关掉校正窗口后回到同一个设置菜单，并把焦点放回「校正」按钮
     openApiModelMenu(modelId)
@@ -3158,7 +3437,7 @@ function openBalanceAdjustment(modelId) {
   card.appendChild(actions)
   mask.appendChild(card)
   mask.addEventListener('click', function (e) { if (e.target === mask) close() })
-  document.body.appendChild(mask)
+  dshwBodyAppend(mask)
   accountingMask = mask
   document.addEventListener('keydown', keyHandler)
   var rows = []
@@ -3354,7 +3633,7 @@ var usageMoreCard = document.createElement('div')
 usageMoreCard.className = 'dshwv-usage-card'
 usageMoreMask.appendChild(usageMoreCard)
 usageMoreMask.addEventListener('click', function (e) { if (e.target === usageMoreMask) closeUsageRecordsWindow() })
-document.body.appendChild(usageMoreMask)
+dshwBodyAppend(usageMoreMask)
 function openUsageRecordsWindow() {
   usageMoreCard.innerHTML = '<div style="padding:10px;color:#203170">加载中…</div>'
   usageMoreMask.style.display = 'flex'
@@ -3377,7 +3656,7 @@ function resMaskOpen() {
       resCardEl.className = 'dshwv-usage-card dshwv-rescard'
       resMaskEl.appendChild(resCardEl)
       resMaskEl.addEventListener('click', function (e) { if (e.target === resMaskEl) resManagerClose() })
-      document.body.appendChild(resMaskEl)
+      dshwBodyAppend(resMaskEl)
     }
     resManagerRender()
     resMaskEl.style.display = 'flex'
@@ -3486,7 +3765,7 @@ function resPlayFragment(fid) {
   try {
     if (!fid) return
     if (resAudEl) { try { resAudEl.pause() } catch (err) {} resAudEl = null }
-    var a = new Audio('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(fid))
+    var a = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(fid))
     try { a.volume = Number(soundVol) || 0.9 } catch (err) {}
     a.onended = function () { resAudEl = null }
     resAudEl = a
@@ -3972,12 +4251,12 @@ function usagePopupCard(title, content, below, amount) {
     ok.type = 'button'
     ok.className = 'dshwv-bubbtn dshwv-bubbtn-ok'
     ok.textContent = '知道了'
-    ok.addEventListener('click', function () { try { document.body.removeChild(mask) } catch (err) {} })
+    ok.addEventListener('click', function () { try { dshwBodyDetach(mask) } catch (err) {} })
     btns.appendChild(ok)
     card.appendChild(btns)
     mask.appendChild(card)
-    mask.addEventListener('click', function (e) { if (e.target === mask) { try { document.body.removeChild(mask) } catch (err) {} } })
-    document.body.appendChild(mask)
+    mask.addEventListener('click', function (e) { if (e.target === mask) { try { dshwBodyDetach(mask) } catch (err) {} } })
+    dshwBodyAppend(mask)
   } catch (err) {}
 }
 var USAGE_PALETTE = ['#203170', '#e0433f', '#2fa24c', '#b060c8', '#e89a2e', '#3aa6c8', '#d06a8a', '#7a8b2f', '#6a6ad0', '#c84a8a']
@@ -4482,7 +4761,7 @@ function fillUsageRecordsWindow(d) {
     renderGroups('')
   })
 }
-document.body.appendChild(rolePanel)
+dshwBodyAppend(rolePanel)
 
 // —— 吸附与翻转自定义弹窗 ——
 // 预览方框内五条可拖线：左/右/上/下四条吸附区边界 + 红色翻转线（竖中线位置）。
@@ -4899,7 +5178,7 @@ snapBtns.appendChild(snapBtn('重置', 'dshwv-snapbtn-no', resetSnapEdit))
 snapBtns.appendChild(snapBtn('确认', 'dshwv-snapbtn-ok', function () { closeSnapModal(true) }))
 snapCard.appendChild(snapBtns)
 snapMask.appendChild(snapCard)
-document.body.appendChild(snapMask)
+dshwBodyAppend(snapMask)
 
 // —— 自定义泡泡:主编辑窗口(点击队列) + 单泡模块编辑 + 模块编辑 ——
 var bubbleMask = null
@@ -6755,7 +7034,7 @@ function qeditEnsure() {
   qeditEl = document.createElement('div')
   qeditEl.className = 'dshwv-qedit'
   qeditEl.style.display = 'none'
-  document.body.appendChild(qeditEl)
+  dshwBodyAppend(qeditEl)
   if (!window.__dshwQeditBound) {
     window.__dshwQeditBound = true
     document.addEventListener('pointerdown', function (e) {
@@ -8077,7 +8356,7 @@ bubbleBtns.appendChild(bubbleBtn('重置', 'dshwv-bubbtn-no', bubbleEditorReset)
 bubbleBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', bubbleEditorSave))
 bubbleCard.appendChild(bubbleBtns)
 bubbleMask.appendChild(bubbleCard)
-document.body.appendChild(bubbleMask)
+dshwBodyAppend(bubbleMask)
 
 // ===== W2 单泡编辑窗口 =====
 bubbleItemMask = document.createElement('div')
@@ -8161,7 +8440,7 @@ bubbleItemBtns.appendChild(bubbleBtn('恢复默认', 'dshwv-bubbtn-no', bubbleIt
 bubbleItemBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', bubbleItemSave))
 bubbleItemCard.appendChild(bubbleItemBtns)
 bubbleItemMask.appendChild(bubbleItemCard)
-document.body.appendChild(bubbleItemMask)
+dshwBodyAppend(bubbleItemMask)
 
 // ===== W3 模块编辑器(文本/随机/图片 + 样式) =====
 var moduleMask = null
@@ -8260,9 +8539,46 @@ var bubbleRgbOpenMenu = null // 当前展开的 .dshwv-rgbmenu
 var bubbleFontOpenMenu = null // 当前展开的字体下拉(复用 rgbmenu 类,额外限高)
 var bubbleColorOpenMenu = null // 当前展开的颜色下拉(纯色/跑马灯,限高)
 // —— 弹层/菜单层级统一助手(所有下拉与弹窗据此取高于当前可见层,避免互相压制) ——
+// ============================================================================
+// 层级（z-index）分层表 —— **改层之前先读这里**
+// 所有浮层都直接挂在 <body> 上，谁盖谁完全由 z-index 决定。历史上出过
+// 「子窗口被父窗口盖住点不到」「窗口关不掉」这类问题，所以这里把层段定死，并约定三条铁律：
+//   ① 新增浮层**先在下面的表里选一个层段**，不要随手写数字；
+//   ② 凡是「可能从别的窗口里被打开」的窗口，必须用 dshwLayerUp(el, 本段起点)，
+//      这样父窗口在 29000 时子窗口自动落到 29010，永远不会被盖住；
+//   ③ visibleTopZ() 的候选表必须包含**全部**浮层节点（漏一个就会低估"当前最高层"），
+//      唯一例外是 toast —— 它是刻意的最顶层，不参与追赶。
+//
+//   层段              用途                          载体
+//   ---------------------------------------------------------------------------
+//   1 – 999          挂件本体内部元素               .dshwv-pop(1) / .dshwv-menu-btn(2) / 拖拽把手(3-5)
+//   30 / 60          面板内的自绘下拉               .dshwv-colpop(30) / .dshwv-rgbmenu(60)
+//   9999             挂件本体                       .dshwv-root
+//   10000 – 19999    主菜单与其列表                 .dshwv-menu(10000) / .dshwv-rolelist·audiolist(10001)
+//   20000 – 20999    一级编辑器                     .dshwv-cropmask·gifmask(20000) / .dshwv-resmask(20300) /
+//                                                   .dshwv-audiomask·bubmask(20500) / .dshwv-slotlist(20600)
+//   21000 – 21999    对话框基础层                   .dshwv-confirmmask(21000，实际被 showConfirm 提到 40000)
+//   22000 – 22999    记账 / 吸附窗口                .dshwv-snapmask·usage-mask(22000)
+//   26000 – 26999    小浮层                         .dshwv-qedit(26000) / .dshwv-usagepanel(26020) /
+//                                                   .dshwv-tplhelp·动态提示(26080+)
+//   29000 – 29999    模型子菜单 / 模型设置           JS 显式写入（refreshModelList / openApiModelMenu）
+//   30000 – 30999    提醒·额度·余额校正编辑器        JS 显式写入（含 openModelQuotaEditor / openBalanceAdjustment）
+//   31000 – 31999    提醒编辑期间需提到顶层的浮层    JS 显式写入（moduleMask / qedit / token 提示）
+//   32000 – 32999    提醒编辑期间统一置顶的遮罩      remindZStyle 的 !important 规则
+//   40000            确认对话框（永远在所有窗口之上） showConfirm() 的 !important
+//   2147483600       提示条 toast（最高，且不参与 visibleTopZ）
+// ============================================================================
 function visibleTopZ() {
   var top = 20500
-  var cand = [bubbleMask, bubbleItemMask, moduleMask, usageMoreMask, qeditEl, window.__dshwRemindMask, apiModelMaskEl, accountingMask]
+  // 注意：这里必须列全 —— 少一个浮层，dshwLayerUp/下拉/提示就会低估"当前最高层"而被盖住。
+  // toast 刻意不列入（它是永远的最顶层，不该让别的层去追它）。
+  var cand = [
+    bubbleMask, bubbleItemMask, moduleMask, moduleNamePromptMask,
+    cropMask, gifMask, audioCropMask, audioEditMask, resMaskEl,
+    confirmMask, snapMask, usageMask, usageMoreMask,
+    qeditEl, dshwvTplHelpEl, dshwvHintEl,
+    apiModelMaskEl, accountingMask, window.__dshwRemindMask
+  ]
   function eff(el) {
     try {
       if (!el) return 0
@@ -8282,6 +8598,13 @@ function visibleTopZ() {
   }
   return top
 }
+// 「永远在打开它的那个窗口之上」：取 本层段起点 与 当前可见最高层+10 的较大值。
+// 用在裁剪 / GIF / 音频裁剪 / 模块编辑器这些**既可能从主菜单(10000)打开、也可能从资源管理(20300)、
+// 泡泡编辑器(20500)、模型设置(29000)里打开**的窗口上 —— 固定层号在后者场景会被父窗口盖住。
+function dshwLayerUp(el, base) {
+  try { if (el && el.style) el.style.zIndex = String(Math.max(base, Math.round(visibleTopZ()) + 10)) } catch (err) {}
+  return el
+}
 // 打开主要编辑器前清理可能残留的临时层级(提醒会话遗留的 moduleMask/qedit 提升与样式)
 function whaleZClean() {
   try {
@@ -8297,7 +8620,7 @@ function whaleZClean() {
 // 菜单宽度与触发按钮保持一致(原样式 min-width:100% 在 body 下会按视口撑满,须归零)
 function dshwDropOpen(menuEl, anchorEl) {
   try {
-    if (menuEl.parentNode !== document.body) document.body.appendChild(menuEl)
+    if (menuEl.parentNode !== document.body) dshwBodyAppend(menuEl)
     menuEl.style.position = 'fixed'
     menuEl.style.minWidth = '0px'
     menuEl.style.left = '0px'
@@ -9293,6 +9616,9 @@ function openModuleEditor(m, onSave, isNew) {
     moduleOnSave = onSave || null
     moduleEditNew = !!isNew
     renderModuleEditor()
+    // v744：模块编辑器从泡泡编辑器(20500)/资源管理(20300)里打开时，固定 20500 会与父窗口同层
+    // （只靠 DOM 顺序决定谁在上面），这里统一抬到"当前最高层之上"
+    dshwLayerUp(moduleMask, 20500)
     moduleMask.style.display = 'flex'
   } catch (err) {}
 }
@@ -9348,7 +9674,7 @@ moduleBtns.appendChild(saveAsBtn)
 moduleBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', function () { closeModuleEditor(true) }))
 moduleCard.appendChild(moduleBtns)
 moduleMask.appendChild(moduleCard)
-document.body.appendChild(moduleMask)
+dshwBodyAppend(moduleMask)
 // 存为可选模块:名称输入弹窗
 var moduleNamePromptMask = document.createElement('div')
 moduleNamePromptMask.className = 'dshwv-confirmmask'
@@ -9381,7 +9707,7 @@ moduleNameBtns.appendChild(moduleNameCancel)
 moduleNameBtns.appendChild(moduleNameOk)
 moduleNamePromptCard.appendChild(moduleNameBtns)
 moduleNamePromptMask.appendChild(moduleNamePromptCard)
-document.body.appendChild(moduleNamePromptMask)
+dshwBodyAppend(moduleNamePromptMask)
 // 回车保存/关闭
 moduleNameInput.addEventListener('keydown', function (e) {
   try {
@@ -9494,7 +9820,7 @@ cropCard.appendChild(cropZoomWrap)
 cropCard.appendChild(cropAngleWrap)
 cropCard.appendChild(cropBtns)
 cropMask.appendChild(cropCard)
-document.body.appendChild(cropMask)
+dshwBodyAppend(cropMask)
 cropBox.addEventListener('pointerdown', onCropDown)
 cropBox.addEventListener('pointermove', onCropMove)
 cropBox.addEventListener('pointerup', onCropUp)
@@ -9594,7 +9920,7 @@ gifCard.appendChild(gifHint)
 gifCard.appendChild(gifNameInput)
 gifCard.appendChild(gifBtns)
 gifMask.appendChild(gifCard)
-document.body.appendChild(gifMask)
+dshwBodyAppend(gifMask)
 gifCancelBtn.addEventListener('click', hideGifRoleModal)
 gifOkBtn.addEventListener('click', confirmGifRole)
 var gifRoleDataUrl = null
@@ -9614,6 +9940,7 @@ function openGifRoleModal(dataUrl, fileName, animType) {
   }
   gifNameInput.value = ''
   gifPreviewImg.src = dataUrl
+  dshwLayerUp(gifMask, 20000) // v744：同上，GIF 窗口也可能从资源管理/泡泡编辑器里打开
   gifMask.style.display = 'flex'
 }
 function hideGifRoleModal() {
@@ -9675,7 +10002,7 @@ confirmBtns.appendChild(confirmYesBtn)
 confirmCard.appendChild(confirmText)
 confirmCard.appendChild(confirmBtns)
 confirmMask.appendChild(confirmCard)
-document.body.appendChild(confirmMask)
+dshwBodyAppend(confirmMask)
 confirmNoBtn.addEventListener('click', hideConfirm)
 confirmYesBtn.addEventListener('click', function () {
   var cb = confirmCb
@@ -9767,7 +10094,7 @@ audioEditCard.appendChild(audioEditPressRow)
 audioEditCard.appendChild(audioEditReleaseRow)
 audioEditCard.appendChild(audioEditBtns)
 audioEditMask.appendChild(audioEditCard)
-document.body.appendChild(audioEditMask)
+dshwBodyAppend(audioEditMask)
 audioEditCancel.addEventListener('click', hideAudioEditor)
 audioEditPlay.addEventListener('pointerdown', function (e) { e.stopPropagation(); audioEditPreviewDown() })
 audioEditPlay.addEventListener('pointerup', function (e) { e.stopPropagation(); audioEditPreviewUp() })
@@ -9920,7 +10247,7 @@ audioCropCard.appendChild(audioCropTime)
 audioCropCard.appendChild(audioCropNameRow)
 audioCropCard.appendChild(audioCropBtns)
 audioCropMask.appendChild(audioCropCard)
-document.body.appendChild(audioCropMask)
+dshwBodyAppend(audioCropMask)
 audioCropCancel.addEventListener('click', hideAudioCrop)
 audioCropOk.addEventListener('click', confirmAudioCrop)
 audioCropPlay.addEventListener('click', previewAudioCrop)
@@ -9991,8 +10318,42 @@ body.appendChild(img)
 body.appendChild(bubbleBox)
 root.appendChild(body)
 root.appendChild(menuBtn)
-document.body.appendChild(root)
-document.body.appendChild(menuBox)
+dshwBodyAppend(root)
+dshwBodyAppend(menuBox)
+
+// ===== PR #105 后半：DOM 守护（SPA 切路由 / 别的插件替换 body 子树时把节点摘掉）=====
+// 背景：DSH 是 SPA，切到会话列表 / 设置 / 插件市场再回来、或其它客户端插件整体替换
+// document.body 的子树时，挂件节点会被顺带移除，而它不会自己回来（脚本只初始化一次）。
+// 做法：暴露 window.__dshWhaleRoot 供外部定位/调试，并用一个 MutationObserver 盯着；
+// 一旦发现节点已不在文档里就**把同一个节点补挂回 body**（不重建、不重新初始化，
+// 位置/设置/状态全部保留）。
+// v743：补挂范围从 root+menuBox 扩到**全部登记过的 body 节点**（见 dshwBodyNodes）——
+// 否则被整体替换后，遮罩/面板/隐藏 file input 会变成孤儿，功能静默失效；
+// 另外 root 还在、只有个别节点被摘掉的"局部移除"也要能自愈，所以做了节流的全量核对。
+try { window.__dshWhaleRoot = root } catch (err) {}
+function dshwReattachRoot() {
+  try {
+    for (var i = 0; i < dshwBodyNodes.length; i++) {
+      var el = dshwBodyNodes[i]
+      if (el && !dshwConnected(el)) dshwBodyAppend(el)
+    }
+  } catch (err) {}
+}
+try {
+  if (typeof MutationObserver === 'function') {
+    var dshwGuardLastFull = 0
+    var dshwRootGuard = new MutationObserver(function () {
+      try {
+        if (!root) return
+        if (!dshwConnected(root)) { dshwReattachRoot(); dshwGuardLastFull = Date.now(); return }
+        // root 正常时也定期全量核对一次（最多 1.5 秒一次）：覆盖"只有个别浮层被摘掉"的情况
+        var now = Date.now()
+        if (now - dshwGuardLastFull > 1500) { dshwGuardLastFull = now; dshwReattachRoot() }
+      } catch (err) {}
+    })
+    dshwRootGuard.observe(document.documentElement, { childList: true, subtree: true })
+  }
+} catch (err) {}
 
 // 泡泡内容整体与视觉中心对齐:
 // 读取 SVG 主体(bshape)的包围盒,取其中点作为文字内容区的视觉中心,
@@ -10050,6 +10411,8 @@ var state = {
   todayUsageCurrency: 'CNY',
   usageLabel: '本地估算',
   isPeak: false,
+  peakNextChangeAt: null,
+  peakHolidays: null,
   status: 'loading',
   message: '',
   flip: false
@@ -10772,8 +11135,18 @@ function apiCodexDays7(c) {
 // 列表行摘要
 function apiCodexRowText(am) {
   var c = am && am.codex
-  if (!c || !c.ok) return c && c.error ? ('⚠ ' + c.error) : '无 Codex 数据'
-  return 'Codex 今日 ' + apiFmtTokens(c.todayTokens) + ' · 近7天 ' + apiFmtTokens(apiCodexDays7(c)) + ' tokens'
+  if (!c || !c.ok) {
+    // issue #116：把「被关掉 / 找不到目录 / 出错」区分开，不再是一句笼统的失败
+    if (c && c.disabled) return 'Codex 统计已关闭'
+    return c && c.error ? ('⚠ ' + c.error) : '无 Codex 数据'
+  }
+  var txt = 'Codex 今日 ' + apiFmtTokens(c.todayTokens) + ' · 近7天 ' + apiFmtTokens(apiCodexDays7(c)) + ' tokens'
+  // 护栏的实际情况要能看见（issue #116：原报告抱怨"无开关、无报错、无提示"）
+  var notes = []
+  if (Number(c.skipped) > 0) notes.push('已跳过 ' + c.skipped + ' 个超大日志')
+  if (Number(c.deferred) > 0) notes.push('统计更新中')
+  if (notes.length) txt += '（' + notes.join(' · ') + '）'
+  return txt
 }
 // 第二期：订阅窗口（5h / 周）。host 已把 rate_limits 归一成 { primary, secondary, planType }
 function apiCodexWinLabel(w, idx) {
@@ -11067,7 +11440,7 @@ function bubbleTplHelpToggle(m, anchor) {
     if (!dshwvTplHelpEl) {
       dshwvTplHelpEl = document.createElement('div')
       dshwvTplHelpEl.className = 'dshwv-tplhelp'
-      document.body.appendChild(dshwvTplHelpEl)
+      dshwBodyAppend(dshwvTplHelpEl)
       document.addEventListener('pointerdown', function (e) {
         if (!dshwvTplHelpEl || dshwvTplHelpEl.style.display === 'none') return
         try {
@@ -11111,7 +11484,7 @@ function dshwvHintEnsure() {
   dshwvHintEl = document.createElement('div')
   dshwvHintEl.className = 'dshwv-tplhelp dshwv-hintbox'
   dshwvHintEl.style.display = 'none'
-  document.body.appendChild(dshwvHintEl)
+  dshwBodyAppend(dshwvHintEl)
   document.addEventListener('pointerdown', function (e) {
     if (!dshwvHintEl || dshwvHintEl.style.display === 'none') return
     try {
@@ -11254,9 +11627,28 @@ function bubbleModuleText(m, avoidIdx) {
   return t
 }
 // —— 下个时段倒计时模块:按“工作日9-12/14-18为高峰,周末全天谷价”推算下一时段切换 ——
+// v746：法定节假日同样全天谷价。前端无法自己知道放假安排，节假日清单由宿主随余额接口下发
+// （state.peakHolidays，单一来源），切换点也优先用宿主算好的绝对值（state.peakNextChangeAt）。
+var bubbleHolidaySet = null
+var bubbleHolidaySetKey = ''
+function bubbleHolidaySetOf() {
+  var list = (state && state.peakHolidays) || null
+  var key = Array.isArray(list) ? list.join(',') : ''
+  if (key !== bubbleHolidaySetKey) {
+    bubbleHolidaySetKey = key
+    bubbleHolidaySet = {}
+    if (Array.isArray(list)) for (var i = 0; i < list.length; i++) bubbleHolidaySet[String(list[i])] = 1
+  }
+  return bubbleHolidaySet
+}
+function bubbleBJHolidayKey(bj) {
+  try { return bj.toISOString().slice(0, 10) } catch (err) { return '' }
+}
 function bubbleCountdownIsPeak(sec) {
   sec = isFinite(Number(sec)) ? Number(sec) : Math.floor(Date.now() / 1000)
   var bj = new Date((sec + 8 * 3600) * 1000)
+  var hs = bubbleHolidaySetOf()
+  if (hs && hs[bubbleBJHolidayKey(bj)]) return false // 法定节假日全天谷价
   var dow = bj.getUTCDay()
   var h = bj.getUTCHours()
   if (dow === 0 || dow === 6) return false
@@ -11264,10 +11656,14 @@ function bubbleCountdownIsPeak(sec) {
 }
 function bubbleCountdownNextChange(sec) {
   sec = isFinite(Number(sec)) ? Number(sec) : Math.floor(Date.now() / 1000)
+  // 宿主已就绪时直接用其算好的切换点（与计费同源，含法定节假日）；
+  // 只接受未来 12 天内的值——切过去之后该值会过期，回退到本地推算，避免倒计时卡在 00:00:00
+  var hostCand = Number(state && state.peakNextChangeAt)
+  if (isFinite(hostCand) && hostCand > sec + 1 && hostCand - sec <= 12 * 86400) return hostCand
   var cur = bubbleCountdownIsPeak(sec)
   var bjDay0 = Math.floor((sec + 8 * 3600) / 86400) * 86400
   var best = null
-  for (var d = 0; d <= 8 && best === null; d++) {
+  for (var d = 0; d <= 12 && best === null; d++) {
     var dayStartBj = bjDay0 + d * 86400
     var edges = [0, 9 * 3600, 12 * 3600, 14 * 3600, 18 * 3600]
     for (var i = 0; i < edges.length; i++) {
@@ -12164,6 +12560,16 @@ function artCenterAt(left, top, w, h, flipped) {
   var cy = top + h - iw / 2
   return { cx: cx, cy: cy }
 }
+// v739（用户反馈「每次新实例的第一次余额请求都失败」）：冷启动时凭据服务可能还没就绪，
+// 首次 DNS+TLS 也最慢；而客户端 25s 超时会先于宿主的两段重试结束 —— 结果是第一次必失败、
+// 只能干等 60 秒后的下一轮。这里失败后快速重试两次（1.5s / 3s），成功即重置计数。
+var balanceRetryLeft = 2
+function balanceRetryLater() {
+  if (balanceRetryLeft <= 0) return
+  var delay = balanceRetryLeft === 2 ? 1500 : 3000
+  balanceRetryLeft--
+  setTimeout(function () { try { refresh(false) } catch (err) {} }, delay)
+}
 function refresh(manual) {
   if (busy) return
   busy = true
@@ -12186,11 +12592,14 @@ function refresh(manual) {
         state.balance = nb
         state.currency = nc
         state.message = ''
+        balanceRetryLeft = 2
         state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null
         state.todayUsageCurrency = data.todayUsageCurrency || data.currency || 'CNY'
         state.usageLabel = data.usageLabel || '本地估算'
         if (data.stale) state.usageLabel += ' · 余额未刷新'
         state.isPeak = !!data.isPeak
+        state.peakNextChangeAt = isFinite(Number(data.peakNextChangeAt)) ? Number(data.peakNextChangeAt) : null
+        state.peakHolidays = Array.isArray(data.peakHolidays) ? data.peakHolidays : null
         checkUsageAlerts(nb, state.todayUsage)
         if (changed && !currencyChanged) {
           if (!manual) {
@@ -12221,12 +12630,14 @@ function refresh(manual) {
         state.status = 'error'
         state.message = (data && data.error) ? String(data.error) : '获取失败'
         render()
+        balanceRetryLater()
       }
     })
     .catch(function () {
       state.status = 'error'
       state.message = '获取失败'
       render()
+      balanceRetryLater()
     })
     .finally(function () {
       busy = false
@@ -12245,6 +12656,11 @@ var costBubbleActive = false
 var scrollGapOn = false
 var scrollGapPx = 17
 var menuBtnHide = false // 主菜单开关:隐藏挂件菜单按钮,改为右键小鲸鱼唤出菜单
+// issue #116：Codex 本机统计开关。关掉后宿主完全不扫 ~/.codex/sessions（适合会话日志很大的机器）。
+// v748：默认值仍是「开」，但**宿主会先看有没有 Codex 模型** —— 没配就一律按关闭处理，
+// 所以这里保持默认 true 是安全的（不会让没配 Codex 的用户被扫盘），也不会因为一次普通保存
+// 就把老用户的开关写成 false。开关 UI 现只在 Codex 模型的设置子菜单里（见 codexStatsCheckbox）。
+var codexStatsOn = true
 // —— v734（issue #97 / #88）：设置保存的「防覆盖 + 失败可见」——
 // #97 根因：首次 GET 还没落地就 PUT，会把内存里的默认值整包写进服务端（重启后设置被洗成默认值）。
 // #88 根因：这个 PUT 以前是 fire-and-forget，服务端 500 / {ok:false} 完全没人读。
@@ -12261,13 +12677,14 @@ function dshwvToast(msg) {
         'max-width:min(560px,calc(100vw - 32px));box-sizing:border-box;padding:10px 14px;border-radius:10px;' +
         'background:#8a1f1f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,.28);' +
         'pointer-events:none;text-align:center'
-      document.body.appendChild(el)
+      dshwBodyAppend(el)
       dshwvToastEl = el
     }
     dshwvToastEl.innerHTML = msg
     if (dshwvToastTimer) clearTimeout(dshwvToastTimer)
     dshwvToastTimer = setTimeout(function () {
-      try { if (dshwvToastEl && dshwvToastEl.parentNode) dshwvToastEl.parentNode.removeChild(dshwvToastEl) } catch (err) {}
+      // v744：toast 也是登记过的 body 节点，必须 detach（否则 DOM 守护会把它补挂回来 → 提示条永不消失）
+      try { if (dshwvToastEl) dshwBodyDetach(dshwvToastEl) } catch (err) {}
       dshwvToastEl = null
     }, 8000)
   } catch (err) {}
@@ -12278,7 +12695,7 @@ function configSaveFailNotice(detail) {
     '<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。')
 }
 function configPayload() {
-  return JSON.stringify({ scale: state.scale, sound: soundOn, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide })
+  return JSON.stringify({ scale: state.scale, sound: soundOn, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
 }
 // 真正的 PUT：读响应 → 失败（网络异常 / HTTP!=200 / {ok:false}）静默重试一次 → 仍失败才提示
 function configPut(payload, retried) {
@@ -12300,12 +12717,15 @@ function configPut(payload, retried) {
 }
 function saveConfig() {
   // issue #97：加载完成前只记待办，绝不 PUT（否则把默认值整包写进服务端）
-  if (!configLoaded) { configSavePending = true; return }
+  if (!configLoaded) { configSavePending = true; return null }
   try {
-    configPut(configPayload(), false)
+    // 返回 Promise（v743：Codex 统计开关需要"等服务端确认后再刷新"）。
+    // configPut 自带重试与失败提示、且链尾有 catch，所以不会有 unhandled rejection。
+    var p = configPut(configPayload(), false)
     // 锚点位置记忆：记录相对边框的离边距离，窗口 resize 后保持（localStorage）。
     saveAnchorPos()
-  } catch (err) {}
+    return p
+  } catch (err) { return null }
 }
 // 单独抽出：只写 localStorage 锚点（不碰尺寸设置）；applyAnchorPos / settle 自愈时也要用。
 // v:2 = 净距离格式（剥离避让距离），v:1 旧格式含避让距离，恢复时废弃旧格式。
@@ -12378,10 +12798,28 @@ function setScrollGapPx(v) {
   saveConfig()
   settle()
 }
+// issue #91 缺陷2：触屏设备上没有任何进菜单的路径 —— ☰ 按钮默认 opacity:0，只由
+// pointermove 命中鲸鱼时才加 dshwv-menu-btn-visible，而触摸端没有 hover；长按唤出又只在
+// 「隐藏菜单按钮」开启时挂计时（默认关闭）。这里判定「主输入是否为无 hover 的触摸」：
+// 只用 (hover: none)，或 (pointer: coarse) + 有触点。触屏笔记本（主输入是鼠标）不受影响。
+function dshwvTouchUI() {
+  try {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      if (window.matchMedia('(hover: none)').matches) return true
+      if (window.matchMedia('(pointer: coarse)').matches && (navigator.maxTouchPoints || 0) > 0) return true
+    }
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      return (navigator.maxTouchPoints || 0) > 0 && ('ontouchstart' in window)
+    }
+  } catch (err) {}
+  return false
+}
 function applyMenuBtnHideUI() {
   try {
     menuBtn.classList.toggle('dshwv-menu-btn-hidden', menuBtnHide)
     if (menuBtnHide) menuBtn.classList.remove('dshwv-menu-btn-visible')
+    // 触屏：没有 hover 可以显形 → 常显（仍受上面的 hidden 开关控制）
+    else if (dshwvTouchUI()) menuBtn.classList.add('dshwv-menu-btn-visible')
   } catch (err) {}
 }
 function setMenuBtnHide(v) {
@@ -12389,6 +12827,25 @@ function setMenuBtnHide(v) {
   if (menuHideToggle) menuHideToggle.checked = menuBtnHide
   saveConfig()
   applyMenuBtnHideUI()
+}
+// issue #116：Codex 本机统计开关。关掉后宿主不扫描 ~/.codex/sessions；
+// 打开/关闭都要重取一次模型列表，让 Codex 那行的统计/提示立刻跟着变。
+function setCodexStatsOn(v) {
+  codexStatsOn = v !== false
+  if (codexStatsToggle) codexStatsToggle.checked = codexStatsOn
+  var after = function () {
+    // v748：这里原来调的是 openApiModelPanel 内部的局部函数 refreshModelList()，
+    // 在顶层作用域里根本不存在 → 异常被 try/catch 吞掉，"重取模型列表"其实从没发生过。
+    // 现在按别处同一套做法刷新：模型列表 + （若开着）记账子界面，再原地刷新 Codex 用量行
+    // （用量行的文字来自刚取回的模型列表，所以要等回调，不能立刻读旧缓存）
+    try { loadApiModels(refreshOpenCodexRow, true) } catch (err) { refreshOpenCodexRow() }
+    try { if (usagePanelOpen && usageSet !== null) rebuildUsageSubShell() } catch (err) {}
+  }
+  var p = null
+  try { p = saveConfig() } catch (err) {}
+  // 等服务端确认落盘后再重取模型列表：否则可能读到旧配置，那一行会先显示上一次的状态再跳变
+  if (p && typeof p.then === 'function') p.then(after, after)
+  else after()
 }
 function scaleToDisplay(s) {
   return Math.round((s - MIN_SCALE) / ((MAX_SCALE - MIN_SCALE) / 19)) + 1
@@ -12454,27 +12911,32 @@ var releaseAudio = null
 var pressing = false
 var pressEnded = false
 var releasePlayed = false
-var releaseTimer = null
+// v745：不再需要 releaseTimer —— 点按时由 playReleaseAt() 在**音频线程**排期（见 pressUp）
 function applySoundSet() {
   try {
     // v729：切音效组 / 开关音效时把本轮播放状态一并复位，
     // 避免残留 releasePlayed=true 把新组的松开音整体吃掉（与 playPress 的修复配套）
-    if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null }
     pressEnded = false
     releasePlayed = false
     // 槽位显式留空(该事件静音)时,对应音频元素置空;playPress/playRelease 已判空
     var pEmpty = audioGroupSlotEmpty(soundSet, 'press')
     var rEmpty = audioGroupSlotEmpty(soundSet, 'release')
     if (pEmpty) { pressAudio = null } else {
-      pressAudio = new Audio('/dsh-whale/sound/press.mp3?set=' + soundSet)
+      pressAudio = dshwvSound('/dsh-whale/sound/press.mp3?set=' + soundSet)
       pressAudio.preload = 'auto'
       pressAudio.volume = soundVol
     }
     if (rEmpty) { releaseAudio = null } else {
-      releaseAudio = new Audio('/dsh-whale/sound/release.mp3?set=' + soundSet)
+      releaseAudio = dshwvSound('/dsh-whale/sound/release.mp3?set=' + soundSet)
       releaseAudio.preload = 'auto'
       releaseAudio.volume = soundVol
     }
+    // v745：把这组的按压/松开音**预取+预解码**（Web Audio 下 preload='auto' 不解码）。
+    // 预热过之后，起播走 dshwvSound 的同步路径（pointerdown 同一任务里 start），手感才贴手。
+    dshwvWarm([
+      pEmpty ? '' : '/dsh-whale/sound/press.mp3?set=' + soundSet,
+      rEmpty ? '' : '/dsh-whale/sound/release.mp3?set=' + soundSet,
+    ])
   } catch (err) {}
 }
 function playPress() {
@@ -12483,7 +12945,6 @@ function playPress() {
   // 原实现里 pressAudio 为空时直接 return，跳过了 releasePlayed = false；而 playRelease()
   // 一旦把 releasePlayed 置为 true 就再没有任何地方复位它 → 结果是只有第一次松开有声音，
   // 之后每次点击都静音（用户实测：新建音效组只填松开音时复现）。
-  if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null }
   if (releaseAudio) {
     releaseAudio.pause()
     releaseAudio.currentTime = 0
@@ -12507,11 +12968,32 @@ function playPress() {
     if (p && typeof p.catch === 'function') p.catch(function () {})
   } catch (err) {}
 }
+// 点按时"松开音提前多少毫秒进场"（v745 把它做成**可调参数**，按耳朵微调即可）：
+//   0  = 松开音正好接在按压音结束那一刻（无缝、不重叠）
+//   30 / 50 = 轻微交叠（更"黏"）
+//   100 = 明显重叠（听感上可能像"重复播放"。0.3.0 代码里写的是 100，但它的主线程 setTimeout
+//         经常迟到、实际几乎听不到重叠；我们用音频线程精确排期，所以别照抄 100）
+// 当前取值：**40**（用户在 30/50 之间试听后选定）
+var RELEASE_LEAD_MS = 40
 function playRelease() {
   if (releasePlayed || !releaseAudio || !soundOn) return
   releasePlayed = true
   try {
     releaseAudio.currentTime = 0
+    var p = releaseAudio.play()
+    if (p && typeof p.catch === 'function') p.catch(function () {})
+  } catch (err) {}
+}
+// 把松开音**排期到 delaySec 秒之后**（音频线程时间轴）：起播时刻精确、不受主线程抖动影响。
+function playReleaseAt(delaySec) {
+  if (releasePlayed || !releaseAudio || !soundOn) return
+  releasePlayed = true
+  try {
+    releaseAudio.currentTime = 0 // 复位（同时停掉上一条已排期/在播的松开音）
+    if (delaySec > 0 && typeof releaseAudio.playAt === 'function') {
+      releaseAudio.playAt(delaySec)
+      return
+    }
     var p = releaseAudio.play()
     if (p && typeof p.catch === 'function') p.catch(function () {})
   } catch (err) {}
@@ -12529,23 +13011,21 @@ function pressUp() {
     playRelease()
     return
   }
-  // click: start Ya2 in the last 100ms of Ya1's playback
+  // click：把松开音排到"按压音结束前 RELEASE_LEAD_MS 毫秒"（默认 0 = 正好接上）
   var durKnown = false
-  var remainMs = 0
+  var remainSec = 0
   try {
     var dur = pressAudio ? pressAudio.duration : 0
     if (isFinite(dur) && dur > 0) {
       durKnown = true
-      remainMs = (dur - pressAudio.currentTime) * 1000
+      remainSec = Math.max(0, dur - pressAudio.currentTime)
     }
   } catch (err) {}
   if (durKnown) {
-    releaseTimer = setTimeout(function () {
-      releaseTimer = null
-      playRelease()
-    }, Math.max(0, remainMs - 100))
+    playReleaseAt(Math.max(0, remainSec - RELEASE_LEAD_MS / 1000))
+    return
   }
-  // duration unknown → pressAudio.onended fallback plays Ya2 after Ya1 ends
+  // 时长未知（预热失败/解码异常）→ 交给 pressAudio.onended 兜底（见 playPress）
 }
 var menuOpen = false
 var menuClosedAt = 0 // 最近一次关闭菜单的时刻(用于避免"关掉后同一次手势又把它长按打开")
@@ -13033,6 +13513,9 @@ function openCropModal(dataUrl, fileName) {
       cropAngle.value = '0'
       cropAngleNum.value = '0'
       positionCrop()
+      // v744：裁剪窗口既可能从主菜单打开，也可能从资源管理(20300)/泡泡编辑器(20500)里打开，
+      // 固定 20000 在后者会被父窗口盖住 → 动态抬层（见 visibleTopZ 上方的分层表）
+      dshwLayerUp(cropMask, 20000)
       cropMask.style.display = 'flex'
     }
     imgEl.onerror = function () {}
@@ -13483,10 +13966,10 @@ function hideAudioEditor() {
 }
 // 组编辑弹窗试听：完全模拟挂件按压交互。
 // pointerdown（按下）→ 播放按压片段，进入"按住"状态（按压音播完仍按着则静默等待，不重复）；
-// pointerup/cancel/leave（松开）→ 若按压音已结束则立即播松开片段，否则在按压音最后 100ms 播松开（同挂件 click 重叠逻辑）。
+// pointerup/cancel/leave（松开）→ 若按压音已结束则立即播松开片段，
+// 否则把松开音**排期到按压音正好放完**的那一刻（音频线程排期；与挂件本体同一套做法，不重叠）。
 var audioEditPreviewEl = null
 var audioEditPreviewRelease = null
-var audioEditPreviewTimer = null
 var audioEditPreviewReady = false
 var audioEditPreviewPressing = false // 按住状态
 var audioEditPreviewPressEnded = false // 按压音已播完
@@ -13505,15 +13988,20 @@ function audioEditPreviewEnsure(force) {
       if (audioEditPreviewRelease) { audioEditPreviewRelease.pause(); audioEditPreviewRelease = null }
     } catch (err) {}
     if (pressId) {
-      audioEditPreviewEl = new Audio('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(pressId))
+      audioEditPreviewEl = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(pressId))
       audioEditPreviewEl.preload = 'auto'
       audioEditPreviewEl.volume = soundVol
     }
     if (releaseId) {
-      audioEditPreviewRelease = new Audio('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(releaseId))
+      audioEditPreviewRelease = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(releaseId))
       audioEditPreviewRelease.preload = 'auto'
       audioEditPreviewRelease.volume = soundVol
     }
+    // v745：试听也要预热（否则第一次点按试听同样是"按下音慢半拍"）
+    dshwvWarm([
+      pressId ? '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(pressId) : '',
+      releaseId ? '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(releaseId) : '',
+    ])
     audioEditPreviewReady = true
     return true
   } catch (err) { return false }
@@ -13530,8 +14018,11 @@ function audioEditPreviewDown() {
     // 按下：播放按压音
     audioEditPreviewEl.onended = function () {
       audioEditPreviewPressEnded = true
-      // fallback：若松手发生在按压音结束之后，立即播松开
-      if (!audioEditPreviewPressing && !audioEditPreviewReleasePlayed) audioEditPreviewUp()
+      // fallback：松手发生在按压音结束**之前**（= 直接点按）时，按压音播完立刻补上松开音。
+      // ⚠️ 这里必须直接调 audioEditPreviewPlayRelease()，**不能**调 audioEditPreviewUp()：
+      // 后者开头是 `if (!audioEditPreviewPressing) return`，而点按松手时 pressing 已经是 false
+      // → 直接 return，松开音永远不响（这就是"直接点按只有按下音、长按才听到松开音"的根因）。
+      if (!audioEditPreviewPressing && !audioEditPreviewReleasePlayed) audioEditPreviewPlayRelease()
     }
     var p = audioEditPreviewEl.play()
     if (p && typeof p.catch === 'function') p.catch(function () {})
@@ -13547,38 +14038,42 @@ function audioEditPreviewUp() {
       audioEditPreviewPlayRelease()
       return
     }
-    // 快速点击（松手时按压音未播完）：在按压音最后 100ms 播松开
+    // 快速点击（松手时按压音未播完）：与本体一致 —— 排到"按压音结束前 RELEASE_LEAD_MS"
+    // （默认 0 = 正好接上；音频线程排期，不依赖主线程定时器）
     var durKnown = false
-    var remainMs = 0
+    var remainSec = 0
     try {
       var dur = audioEditPreviewEl ? audioEditPreviewEl.duration : 0
       if (isFinite(dur) && dur > 0) {
         durKnown = true
-        remainMs = (dur - audioEditPreviewEl.currentTime) * 1000
+        remainSec = Math.max(0, dur - audioEditPreviewEl.currentTime)
       }
     } catch (err) {}
     if (durKnown) {
-      audioEditPreviewTimer = setTimeout(function () {
-        audioEditPreviewTimer = null
-        audioEditPreviewPlayRelease()
-      }, Math.max(0, remainMs - 100))
+      audioEditPreviewPlayRelease(Math.max(0, remainSec - RELEASE_LEAD_MS / 1000))
+      return
     }
     // duration 未知 → onended fallback 播放松开
   } catch (err) {}
 }
-function audioEditPreviewPlayRelease() {
+// 兜底里必须**直接**调它（不能调 audioEditPreviewUp() —— 后者以 pressing 为前置，
+// 点按松手时已为 false 会直接 return，导致"直接点按只有按下音"）。delaySec>0 时走音频线程排期。
+function audioEditPreviewPlayRelease(delaySec) {
   try {
     if (audioEditPreviewReleasePlayed || !audioEditPreviewRelease) return
     audioEditPreviewReleasePlayed = true
     audioEditPreviewRelease.currentTime = 0
+    if (delaySec > 0 && typeof audioEditPreviewRelease.playAt === 'function') {
+      audioEditPreviewRelease.playAt(delaySec)
+      return
+    }
     var p = audioEditPreviewRelease.play()
     if (p && typeof p.catch === 'function') p.catch(function () {})
   } catch (err) {}
 }
 function stopAudioEditPreview() {
   try {
-    if (audioEditPreviewTimer) { clearTimeout(audioEditPreviewTimer); audioEditPreviewTimer = null }
-    // 不销毁 Audio 元素（保持预加载状态，与挂件持久 Audio 一致），只暂停复位
+    // v745：松开音改由音频线程排期，没有主线程定时器要清
     if (audioEditPreviewEl) {
       audioEditPreviewEl.pause()
       audioEditPreviewEl.currentTime = 0
@@ -13634,7 +14129,7 @@ var audioCropFileInput = document.createElement('input')
 audioCropFileInput.type = 'file'
 audioCropFileInput.accept = 'audio/*'
 audioCropFileInput.style.display = 'none'
-document.body.appendChild(audioCropFileInput)
+dshwBodyAppend(audioCropFileInput)
 var audioCropTarget = null // 'press' | 'release'
 var audioCropCtx = null // AudioContext
 var audioCropBuffer = null // AudioBuffer
@@ -13681,6 +14176,7 @@ function openAudioCrop(arrayBuf, fileName) {
       drawAudioCrop()
       try { audioCropName.value = '' } catch (err) {}
       updateAudioCropOkState()
+      dshwLayerUp(audioCropMask, 20500) // v744：音频裁剪也可能从资源管理(20300)里打开
       audioCropMask.style.display = 'flex'
     }, function () { alert('音频解码失败') })
   } catch (err) {}
@@ -14269,7 +14765,7 @@ function onDocPointerUp(e) {
   try { if (isWhaleHit(e)) { e.preventDefault(); e.stopPropagation() } } catch (err) {}
   endDrag(e, true)
 }
-function onDocPointerCancel(e) { endDrag(e, false) }
+function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
   // 只在鲸鱼命中区域拦截 click（保持透明区 pass-through）。
   // 持久注册（不随 endDrag 移除）——click 在 pointerup 之后派发，
@@ -14362,8 +14858,10 @@ function onDocTouchStart(e) {
     touchDrag = { id: t.identifier }
     touchStartPt = { x: t.clientX, y: t.clientY }
     touchNowPt = { x: t.clientX, y: t.clientY }
-    // 长按唤出菜单:仅「隐藏菜单按钮」开启且菜单未打开时挂计时(位移超标即取消)
-    if (menuBtnHide && !menuOpen && (Date.now() - menuClosedAt > 600)) {
+    // 长按唤出菜单：原本只在「隐藏菜单按钮」开启且菜单未打开时挂计时(位移超标即取消)。
+    // 触屏上默认配置(按钮永远不显形)就完全没有进菜单的路径 → 无 hover 的设备一律允许长按
+    // 唤出（issue #91 缺陷2）；桌面端行为不变。
+    if ((menuBtnHide || dshwvTouchUI()) && !menuOpen && (Date.now() - menuClosedAt > 600)) {
       cancelTouchLongPress()
       touchLongPressTimer = setTimeout(fireTouchLongPressMenu, TOUCH_LONG_PRESS_MS)
     }
@@ -14419,11 +14917,16 @@ function onDocPointerMoveCursor(e) {
   }
   var over = isWhaleHit(e)
   setWidgetCursor(over ? 'grab' : '')
-  if (!menuBtnHide) menuBtn.classList.toggle('dshwv-menu-btn-visible', over || menuOpen)
+  // 触屏上必须把 dshwvTouchUI() 也当作"该显示"：拖动鲸鱼时 pointermove 的 over 为 false，
+  // 否则这一次 toggle 会把常显状态撤掉（issue #91 缺陷2 修完又被自己抹掉）。
+  if (!menuBtnHide) menuBtn.classList.toggle('dshwv-menu-btn-visible', over || menuOpen || dshwvTouchUI())
 }
 document.addEventListener('pointermove', onDocPointerMoveCursor, true)
+// 启动即应用一次菜单按钮可见性：触屏上 ☰ 常显（issue #91 缺陷2）。
+// 配置读回来之后还会再应用一次，这里是配置请求失败时的兜底。
+try { applyMenuBtnHideUI() } catch (err) {}
 
-function endDrag(e, clickAllowed) {
+function endDrag(e, clickAllowed, cancelled) {
   if (!drag || !drag.active) return
   drag.active = false
   document.removeEventListener('pointermove', onDocPointerMove, true)
@@ -14431,6 +14934,20 @@ function endDrag(e, clickAllowed) {
   document.removeEventListener('pointercancel', onDocPointerCancel, true)
   pressUp()
   root.classList.remove('dshwv-dragging')
+  // issue #79 缺陷2：pointercancel（Android 把手势判成页面滚动、或系统抢走手势时派发）的
+  // clientX/clientY 常常是 0，而 endDrag 又是「按坐标收尾 + saveConfig() 落盘」——
+  // 于是位移被算成"一口气拖到了 (0,0)"，归边判定吃进左上角，损坏锚点被写进 localStorage。
+  // 0.3.2 的「非法距离自愈」只治负数 / 超出视口，救不回这个**合法的 (0,0)**，所以必须在这里拦住。
+  // 处理：取消的手势一律回到按下前的位置、并且**不落盘**（取消不该提交位置）。
+  var noCoord = (!e || typeof e.clientX !== 'number' || typeof e.clientY !== 'number' ||
+                 !isFinite(e.clientX) || !isFinite(e.clientY))
+  var zeroBoth = (e && e.clientX === 0 && e.clientY === 0 && drag.moved)
+  if (cancelled || noCoord || zeroBoth) {
+    try { state.left = drag.origLeft; state.top = drag.origTop } catch (err) {}
+    setWidgetCursor('')
+    settle()
+    return
+  }
   setWidgetCursor(isWhaleHit(e) ? 'grab' : '')
   if (clickAllowed && !drag.moved) {
     // 长按刚唤出菜单:这次抬手不再当作点击(避免顺带弹出余额泡)
@@ -14601,8 +15118,15 @@ fetch(SIZE_URL, { cache: 'no-store' })
     if (d && typeof d.menuBtnHide === 'boolean') {
       menuBtnHide = d.menuBtnHide
       if (menuHideToggle) menuHideToggle.checked = menuBtnHide
-      applyMenuBtnHideUI()
     }
+    // issue #116：Codex 本机统计开关（老配置里没有这个键 → 保持默认「开」）
+    if (d && typeof d.codexStatsOn === 'boolean') {
+      codexStatsOn = d.codexStatsOn
+      if (codexStatsToggle) codexStatsToggle.checked = codexStatsOn
+    }
+    // 无论服务端带没带这个键都要应用一次：触屏上 ☰ 需要常显（issue #91 缺陷2），
+    // 而旧写法只在键存在时才调用，空配置下按钮永远是透明的。
+    applyMenuBtnHideUI()
     // 相对边框恢复（localStorage 锚点）：窗口变化后保持离边距离。
     // 仅认 v:2 净距离格式；旧格式（含避让距离）废弃，挂件保持默认右下角吸附。
     // issue #102：这里原与 applyAnchorPos() 各写了一份恢复逻辑（两份都只做下限夹紧），
@@ -14672,8 +15196,6 @@ function pollLastTurn() {
 }
 setInterval(pollLastTurn, 1000)
 }
-// 主界面检测通过后执行挂件初始化（非主界面时 dshwInit 不会执行）
-if (dshwEnabled) {
-  try { dshwInit() } catch (err) {}
-}
+// 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
+try { dshwTryStart(true) } catch (err) {}
 })()
