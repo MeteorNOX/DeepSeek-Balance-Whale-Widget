@@ -1,7 +1,7 @@
 // 把生成好的语录 wav 打成一个语音包，落到真实 DSH_HOME（宿主路由就是从这里读的）
 //
 // 用法:
-//   node build_pack.mjs --pack diona-v1 --voice 迪奥娜 --jobs jobs.json [--home C:/Users/x/.dsh] [--no-default] [--dry]
+//   node build_pack.mjs --pack my-pack --voice 示例女声 --jobs jobs.json [--home C:/Users/x/.dsh] [--no-default] [--dry]
 //   jobs.json: [{ "out": "<wav 路径>", "text": "语录文本" }, ...]（batch_tts 的 jobs 文件即可，多出的字段忽略）
 //
 // 产出目录（跟随插件约定，不放 node_modules）：

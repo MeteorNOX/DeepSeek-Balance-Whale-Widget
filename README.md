@@ -78,9 +78,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
   ```
   ~/.dsh/whale-voice/
     registry.json                     有哪些包
-    config.json                       { "enabled": true, "packId": "diona-v1" }
+    config.json                       { "enabled": true, "packId": "example-pack" }
     packs/<packId>/manifest.json      包内清单：文本指纹 → wav
-    packs/<packId>/quote-001.<hash8>.wav
+    packs/<packId>/quote.001.<hash8>.wav
   ```
 - 🔒 **按文本指纹绑定，不是按序号**：清单里存的是**语录原文的 SHA-256**。挂件显示哪句就把那句的原文交给运行时，
   指纹对得上才播；**改了文案就自动不播**（绝不会出现"显示 A、播出 B"）。因此包的顺序与你后续改语录互不影响。
@@ -98,6 +98,10 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
   覆盖率闸门（`verify_coverage.mjs`，有没有语录弹出却没声音）、参考音审计（`audit_refs.py`）与建包
   （`build_pack.mjs`），以及一份"配音规则"清单（哪些素材不能当参考音、温度怎么定、符号怎么处理），
   见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
+- 📦 **仓库里带了一个示例语音包**：[`voicepacks/example-pack/`](voicepacks/example-pack/)（47 条，22050Hz 单声道）。
+  它**不属于本仓库的 MIT 许可**（AI 生成的示例音色，声明见该目录 [`NOTICE.md`](voicepacks/example-pack/NOTICE.md)），
+  随包只是为了让大家能开箱试听这个功能：复制到 `~/.dsh/whale-voice/packs/` 并在 `registry.json` 里登记即可启用。
+  **不需要它可以直接整体删除该目录，插件行为完全不受影响**（不装包时不发声，与旧版一致）。
 - 🔁 **改了语录就要重同步**：语音是按文本指纹绑的，语录增删改后请重跑
   `node tools/voice-pack/sync_quotes_from_widget.mjs` 与 `verify_coverage.mjs`，
   否则新语录会静默不播（不会报错）。

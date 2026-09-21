@@ -13,7 +13,7 @@
 | `runtime-variants.test.mjs` | **运行时多变体自测**：真跑一遍 `assets/whale-voice-runtime.js`（桩 window/Audio/fetch），验证"多版本都会播 / 不连续重复 / 单版本向后兼容 / 未匹配静默" |
 
 批量生成、择优、试听页这些属于**具体一次配音工程**的工作目录，不入库（依赖具体音色素材与试听页面）。
-本次迪奥娜的完整工程目录里另有：`gen_jobs.mjs`（语录 → 任务）、`pick_best.mjs`（多 take 按 ASR 择优）、
+具体一次配音工程的目录里另有（按约定不入库）：`gen_jobs.mjs`（语录 → 任务）、`pick_best.mjs`（多 take 按 ASR 择优）、
 `assemble_final.mjs`（汇总成品）、`build_all_page.mjs`（试听页）、`verify_default_quotes.mjs`（覆盖率验收的工作副本）。
 
 ## 多变体：同一句话多个版本随机播放

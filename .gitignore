@@ -27,7 +27,3 @@ node_modules/
 *.bak2
 *.bak-devpaths
 _patch_*.patch
-
-# 分发构建产物：源码进仓库，构建产物不进（tools/dist/out/ 里是十几 MB 的 zip）
-tools/dist/out/
-tools/dist/staging/
