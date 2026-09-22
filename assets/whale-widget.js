@@ -12485,10 +12485,11 @@ function viewport() {
   }
 }
 function rightGap() {
-  // 开关关闭：贴边（不避让滚动条）
-  if (!scrollGapOn) return 0
-  // 开启：用用户填写的像素；填 0 也贴边
-  return scrollGapPx > 0 ? scrollGapPx : 0
+  // 右侧保留宽度 = 滚动条避让(用户设置) + 右侧栏让位(自动)
+  var gap = 0
+  if (scrollGapOn && scrollGapPx > 0) gap += scrollGapPx
+  gap += panelInsetPx
+  return gap
 }
 function fmt(balance, currency) {
   var num = Number(balance)
@@ -14991,7 +14992,7 @@ function widgetUiHit(target) {
 }
 var touchDrag = null // 正在接管滚动的触摸(仅"起点命中鲸鱼"的那一次手势)
 // —— 移动端长按唤出菜单(v632):仅当开启「隐藏菜单按钮」时生效,替代电脑端的右键唤出 ——
-var TOUCH_LONG_PRESS_MS = 1500
+var TOUCH_LONG_PRESS_MS = 600 // 1500 对触屏偏久，与 Android 系统长按手感对齐
 var TOUCH_LONG_PRESS_SLOP = 10 // 位移超过该像素即视为拖拽,取消长按
 var touchStartPt = null
 var touchNowPt = null
@@ -15238,6 +15239,198 @@ function applyAnchorPos() {
     return true
   } catch (err) { return false }
 }
+
+/* ============================================================================
+ * 提案：把挂件停在输入框正上方 + 右侧栏打开时跟着让位（仅改本文件）
+ *
+ * 动机：现有吸附是**视口四边**，没有「贴某个元素」的概念。手机上挂件停在视口
+ * 底部会盖住输入框区域的 步数/输出速度/模型/缓存/发送键；桌面端打开右侧文档
+ * 预览时，挂件会被面板压在底下。
+ *
+ * 做法：两条都是**纯坐标反馈**，不做坐标系/键盘高度假设；取不到目标元素时
+ * **行为与未改动完全一致**（这是能低成本合入的前提）。
+ *
+ * 1) 输入框上方：量「输入框块顶边 − 间距」与「挂件当前底边」的差，直接平移。
+ *    目标优先 [data-composer-seat]，取不到或高度为 0 时退回 [data-composer-card]。
+ * 2) 右侧栏让位：把右栏宽度当「右侧保留宽度」，与既有的「避让滚动条」合并进
+ *    rightGap() —— 所有定位/吸附/拖动/锚点逻辑一行都不用改。
+ *    DOM 契约：DSH 侧边栏 [data-rightbar-col] / [data-sidebar-right-open]
+ *    （dsh-client-ui-sidebar-right / dsh-client-ui-layout）。
+ *
+ * 三处坑（真机实测）：
+ *   1) .dshwv-root 带 transition:left/top .16s，**过渡中测量拿到的是动画中间态**，
+ *      同一差值被反复叠加 → 挂件每次事件往上飘、最终飞出屏幕。测量与应用期间
+ *      必须 transition:none（与既有 setScale() 同一手法）。
+ *   2) settle() 从锚点 vOff 重算 state.top，而「拖动结束」的 saveConfig() 会把
+ *      已抬高的位置存成新锚点 → 必须同步 vOff，否则每拖一次累积一个间距。
+ *   3) 让路条件：拖动中、吸附设置弹窗中不干预。
+ *
+ * 可调参数（都在这里）：
+ *   COMPOSER_AVOID_GAP  挂件底边与输入框顶边的间距(px)，0 = 紧贴
+ *   COMPOSER_SNAP_FRAC  触发区：挂件底边在屏幕下半才接管，拖到上半屏自由摆放
+ *   PANEL_AVOID_ON      右侧栏让位开关；PANEL_K 让位比例（1 = 完全让开）
+ *   COMPOSER_SEAT_SEL / COMPOSER_CARD_SEL / PANEL_COL_SEL / PANEL_OPEN_SEL
+ * ========================================================================== */
+var COMPOSER_AVOID_GAP = 0
+var COMPOSER_SNAP_FRAC = 0.5
+var COMPOSER_SEAT_SEL = '[data-composer-seat]'
+var COMPOSER_CARD_SEL = '[data-composer-card]'
+var PANEL_AVOID_ON = true
+var PANEL_K = 1
+var PANEL_COL_SEL = '[data-rightbar-col]'
+var PANEL_OPEN_SEL = '[data-sidebar-right-open]'
+var composerObserved = null
+var composerTimer = null
+var composerLastGeo = ''
+var composerAligning = false
+var panelInsetPx = 0
+var panelInsetEl = null
+var panelInsetElW = -1
+var panelInsetProbe = 0
+var expressRaw = express
+
+/* ---------- 一、停在输入框上方 ---------- */
+function composerSeatEl() {
+  try {
+    var a = document.querySelector(COMPOSER_SEAT_SEL)
+    var ra = a ? a.getBoundingClientRect() : null
+    if (a && ra && ra.height > 0) return a
+    var b = document.querySelector(COMPOSER_CARD_SEL)
+    var rb = b ? b.getBoundingClientRect() : null
+    if (b && rb && rb.height > 0) return b
+    return a || b || null
+  } catch (err) { return null }
+}
+
+function composerAlign() {
+  var prevTrans = null
+  try {
+    if (drag && drag.active) return          // 拖动中让路
+    if (snapEdit) return                     // 吸附设置弹窗中让路
+    var vpZ = viewport()
+    if (state.v !== 'bottom') {
+      var rrZ = root.getBoundingClientRect()
+      if (!rrZ || !isFinite(rrZ.bottom) || rrZ.bottom < vpZ.h * COMPOSER_SNAP_FRAC) return
+    }
+    var el = composerSeatEl()
+    if (!el) return
+    var r = el.getBoundingClientRect()
+    if (!r || !isFinite(r.top) || r.height <= 0) return
+    prevTrans = root.style.transition
+    root.style.transition = 'none'
+    var rr = root.getBoundingClientRect()
+    if (!rr || !isFinite(rr.bottom)) return
+    var delta = Math.round(r.top - COMPOSER_AVOID_GAP) - Math.round(rr.bottom)
+    if (!isFinite(delta) || Math.abs(delta) < 1) return
+    if (Math.abs(delta) > vpZ.h * 0.75) return               // 异常值：不动
+    state.top = Math.max(0, Math.round(state.top + delta))
+    state.v = 'bottom'                                       // 归到底部锚定，锚点模型才一致
+    state.vOff = Math.max(0, Math.round(vpZ.h - state.top - root.offsetHeight))
+    expressRaw()
+    composerLastGeo = [r.top, r.height, root.offsetHeight].join(',')
+  } catch (err) {
+  } finally {
+    try { root.style.transition = prevTrans || '' } catch (err) {}
+  }
+}
+
+function composerResettle() {
+  if (composerAligning) return
+  composerAligning = true
+  setTimeout(function () { composerAligning = false; composerAlign() }, 0)
+}
+
+function setupComposerAvoid() {
+  try {
+    composerTimer = setInterval(function () {
+      try {
+        var el = composerSeatEl()
+        if (!el) return
+        if (el !== composerObserved) {
+          composerObserved = el
+          if (window.ResizeObserver) { try { new ResizeObserver(composerResettle).observe(el) } catch (err) {} }
+        }
+        composerAlign()
+      } catch (err) {}
+    }, 1000)
+  } catch (err) {}
+  try { if (window.visualViewport) window.visualViewport.addEventListener('resize', composerResettle) } catch (err) {}
+  try { window.addEventListener('resize', composerResettle) } catch (err) {}
+  setupPanelAvoidWatch()
+}
+
+/* 包一层 express：每次位置表达后对齐一次 */
+express = function () {
+  expressRaw()
+  if (composerAligning) return
+  composerAlign()
+}
+
+/* ---------- 二、右侧栏打开时让位 ---------- */
+function panelInsetMeasure() {
+  try {
+    if (!PANEL_AVOID_ON) return 0
+    var col = panelInsetEl
+    if (!col || !col.isConnected) { col = panelInsetFrame(); panelInsetEl = col; panelInsetElW = -1 }
+    if (!col) return 0
+    // 整宽没变就先不做贵测量（每 10 次仍实测一次兜底）
+    var ow = col.offsetWidth || 0
+    if (ow === panelInsetElW && panelInsetElW >= 0) {
+      panelInsetProbe++
+      if (panelInsetProbe % 10 !== 1) return panelInsetPx
+    }
+    panelInsetElW = ow
+    var vw = viewport().w
+    var rect = null
+    try { rect = col.getBoundingClientRect() } catch (err) { rect = null }
+    var open = null
+    try { open = document.querySelector(PANEL_OPEN_SEL) } catch (err) { open = null }
+    var fr = null
+    try { fr = col.closest('[data-rightbar-fullscreen]') } catch (err) { fr = null }
+    if (fr && fr.getAttribute('data-rightbar-fullscreen') !== null) return 0   // 面板全屏：不让位
+    var w = 0
+    if (rect && isFinite(rect.left)) w = vw - rect.left
+    if (!(w > 0.5)) w = ow
+    if (!(w > 0.5)) return 0
+    if (w >= vw - 1) return 0                                                // 占满整屏：不让位
+    if (!open && !(rect && rect.left < vw - 1)) return 0                     // 没开：0
+    return PANEL_K === 1 ? Math.round(w) : Math.round(w * PANEL_K)
+  } catch (err) { return 0 }
+}
+
+function panelInsetFrame() {
+  try {
+    return document.querySelector(PANEL_COL_SEL) || document.querySelector('[data-rightbar-collapsed]')
+  } catch (err) { return null }
+}
+
+function panelInsetSync(force) {
+  var n = 0
+  try { n = panelInsetMeasure() } catch (err) { n = 0 }
+  if (!force && n === panelInsetPx) return
+  panelInsetPx = n
+  try { settle() } catch (err) {}
+}
+
+function setupPanelAvoidWatch() {
+  try {
+    var col = panelInsetFrame()
+    if (col && col !== panelInsetEl) {
+      panelInsetEl = col
+      panelInsetElW = -1
+      if (window.ResizeObserver) { try { new ResizeObserver(function () { panelInsetSync(false) }).observe(col) } catch (err) {} }
+    }
+  } catch (err) {}
+}
+try {
+  var panelInitDelays = [0, 250, 600, 1200, 2000, 3500]
+  for (var panelDi = 0; panelDi < panelInitDelays.length; panelDi++) {
+    setTimeout(function () { setupPanelAvoidWatch(); panelInsetSync(true) }, panelInitDelays[panelDi])
+  }
+} catch (err) {}
+try { setInterval(function () { setupPanelAvoidWatch(); panelInsetSync(false) }, 500) } catch (err) {}
+
+
 window.addEventListener('resize', function () {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
