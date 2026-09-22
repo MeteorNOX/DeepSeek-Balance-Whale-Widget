@@ -35,6 +35,17 @@ npm run install:mac
 
 数据位于 `~/.codex/whale-widget`。源码安装在项目目录时，LaunchAgent 会直接引用该项目；如果移动目录，请重新运行安装器。
 
+## 前台可见性
+
+挂件是独立的置顶透明窗口，不是 Codex 的子窗口：Codex 窗口被别的应用盖住时它依然「在屏上」，所以可见性还要看前台应用。
+
+- Codex（或挂件自己，例如你正在点她）在前台时显示；
+- Codex 窗口被其它应用遮挡 90% 以上时隐藏；
+- 前台应用位于另一块屏幕时不隐藏 —— Codex 开在副屏、你在主屏用别的应用时她照常待着；
+- `Cmd+Option+W` 与托盘「显示 / 隐藏」是显式操作，切到别的应用也不会立刻收回，回到 Codex 后交还自动判定。
+
+窗口探针从 `CGWindowList` 取前台应用、其最上层窗口矩形，以及 Codex 窗口被遮挡的采样比例，一并回传给 Electron 判定。探针主循环用 `RunLoop` 驱动：`NSWorkspace.frontmostApplication` 只在该进程的 run loop 派发通知时刷新，用 `Thread.sleep` 会把它冻结在探针启动那一刻的值。
+
 ## 验证
 
 ```bash
@@ -42,6 +53,8 @@ npm run install:mac
 node scripts/control.mjs status
 node scripts/control.mjs balance
 ```
+
+前台可见性同样可以用 `node scripts/control.mjs status` 核对：切到别的应用后 `visible` 应变假、`frontmostBundleId` 变为该应用，切回 Codex 立即恢复。相关字段还有 `hostIsFrontmost`、`hostCoverage`（遮挡比例）与 `appActive`（挂件自己是否在前台）。
 
 关键诊断文件：
 

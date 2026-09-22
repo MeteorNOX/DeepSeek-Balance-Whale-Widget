@@ -13,6 +13,8 @@ Windows 计划任务应通过 GUI 子系统的 `WhaleLauncher-…exe` 启动监�
 
 向用户显示的所有金额保留两位小数。接口原始数值保留精度供计算。峰谷、时段倒计时和时段倍率已经移除，不要重新建议开启它们。
 
+macOS 挂件可见性：挂件是置顶浮层，Codex 窗口被别的应用盖住时探针仍报 `visible: true`，所以 Electron 侧再用 `frontmostPid`/`hostCoverage` 判一次，只有 Codex 或挂件自己在前台时才显示；探针必须用 `RunLoop` 而不是 `Thread.sleep` 驱动，否则 `NSWorkspace.frontmostApplication` 会冻结在启动时的值。`whale_status` 报 `visible: false` 而 `hostAlive: true` 属于正常状态（用户正在别的应用里），先看 `frontmostBundleId` 与 `hostCoverage`，不要当成跟随故障去重启挂件或重建 LaunchAgent。
+
 余额口径与安全：
 
 - `balanceScope=api-key-quota` 表示密钥额度；密钥不限额不能解释成账户无限余额。
