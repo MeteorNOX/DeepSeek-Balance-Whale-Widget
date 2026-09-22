@@ -204,12 +204,14 @@ curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/balance.json
 curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/last-turn.json
+curl http://127.0.0.1:3080/dsh-whale/eating.webm
 ```
 
 - `/dsh-whale/image.png` → 200 `image/png`
 - `/dsh-whale/balance.json` → 200，含 `{"ok":true,"totalBalance":...,"currency":"CNY","todayUsage":...}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
-- `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens}`
+- `/dsh-whale/last-turn.json` → 200，含最近一轮对话消耗 `{seq, turn, amount, tokens, main}`（`main:false` = 该轮由子代理完成）
+- `/dsh-whale/eating.webm` → 200 `video/webm`（定时「吃饭」动画素材，约 829KB；素材缺失或环境不支持 VP9 时前端整体静默停用，挂件保持本体静态图）
 - 浏览器 F5 后右下角出现挂件
 
 ## 常见问题

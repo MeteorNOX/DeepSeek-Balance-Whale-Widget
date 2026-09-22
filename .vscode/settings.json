@@ -1,0 +1,15 @@
+{
+  // 强制 LF。仓库源文件全是 LF，若 VS Code 存成 CRLF，
+  // 和上游 diff 时整个文件都会显示为已修改。
+  "files.eol": "\n",
+
+  // 调试台每次请求会重新生成这个临时模块，别让它污染搜索和文件监听
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dev/.widget.mjs": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dev/.widget.mjs": true
+  }
+}

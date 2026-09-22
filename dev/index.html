@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>小鲸鱼挂件 · 本地调试台</title>
+<style>
+  :root { color-scheme: light dark; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 13px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f4f5f7; color: #1f2430;
+    /* 模拟一个普通应用页面，好观察挂件在真实界面上方的观感 */
+    background-image:
+      linear-gradient(#e6e8ee 1px, transparent 1px),
+      linear-gradient(90deg, #e6e8ee 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  body.dark { background-color: #14161c; color: #e6e8ee;
+    background-image: linear-gradient(#20232c 1px, transparent 1px), linear-gradient(90deg, #20232c 1px, transparent 1px); }
+
+  #panel {
+    position: fixed; left: 12px; top: 12px; z-index: 100000;
+    width: 300px; max-height: calc(100vh - 24px); overflow: auto;
+    background: rgba(255,255,255,.96); color: #1f2430;
+    border: 1px solid #d5d9e2; border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.12);
+    padding: 12px 14px 14px;
+  }
+  body.dark #panel { background: rgba(28,31,40,.96); color: #e6e8ee; border-color: #363b48; }
+  #panel h1 { font-size: 13px; margin: 0 0 2px; }
+  #panel .sub { font-size: 11px; opacity: .6; margin-bottom: 10px; }
+  fieldset { border: 1px solid #e0e3ea; border-radius: 8px; margin: 0 0 10px; padding: 8px 10px 10px; }
+  body.dark fieldset { border-color: #363b48; }
+  legend { font-size: 11px; opacity: .7; padding: 0 4px; }
+  .row { display: flex; align-items: center; gap: 6px; margin: 5px 0; }
+  .row label { flex: 0 0 62px; font-size: 12px; opacity: .8; }
+  input[type=number], input[type=text] {
+    flex: 1; min-width: 0; padding: 4px 6px; font: inherit; font-size: 12px;
+    border: 1px solid #cfd4de; border-radius: 5px; background: #fff; color: inherit;
+  }
+  body.dark input { background: #22262f; border-color: #3d4351; color: #e6e8ee; }
+  button {
+    font: inherit; font-size: 12px; padding: 5px 9px; cursor: pointer;
+    border: 1px solid #cfd4de; border-radius: 6px; background: #fff; color: inherit;
+  }
+  body.dark button { background: #262b35; border-color: #3d4351; color: #e6e8ee; }
+  button:hover { background: #eef1f6; }
+  body.dark button:hover { background: #2f3644; }
+  button.primary { background: #2f5fd0; border-color: #2f5fd0; color: #fff; }
+  button.primary:hover { background: #3a6ce0; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .hint { font-size: 11px; opacity: .65; margin-top: 8px; }
+  .warn { font-size: 11px; margin-top: 10px; padding: 7px 9px; border-radius: 6px;
+          background: #fff5e5; border: 1px solid #f0d9a8; color: #7a5a12; }
+  body.dark .warn { background: #332a14; border-color: #5c4a1e; color: #e8cf94; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+         background: rgba(127,127,127,.14); padding: 1px 4px; border-radius: 3px; }
+  pre { font-size: 11px; background: rgba(127,127,127,.12); padding: 7px 8px;
+        border-radius: 6px; overflow: auto; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <h1>🐋 小鲸鱼挂件 · 本地调试台</h1>
+  <div class="sub">假数据，不消耗额度</div>
+
+  <fieldset>
+    <legend>余额数据</legend>
+    <div class="row"><label>余额</label><input id="bal" type="number" step="0.01" value="42.5"></div>
+    <div class="row"><label>今日已用</label><input id="used" type="number" step="0.01" value="1.23"></div>
+    <div class="row"><label>高峰时段</label><input id="peak" type="checkbox"></div>
+    <div class="btns">
+      <button class="primary" id="apply">应用</button>
+      <button id="reload">重载页面</button>
+    </div>
+    <div class="hint">改完余额后，<b>用鼠标点一下小鲸鱼</b>即可立刻刷新并看到数字滚动动画（这是挂件自带的手动刷新；页面每 60 秒也会自动刷一次）。</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>交互触发</legend>
+    <div class="btns">
+      <button id="turn">触发一轮消耗</button>
+      <button id="eat">立刻播放吃饭动画</button>
+      <button id="err">模拟错误</button>
+      <button id="ok">恢复正常</button>
+    </div>
+    <div class="row"><label>当作子代理轮次</label><input id="sub" type="checkbox"></div>
+    <div class="hint">「触发一轮消耗」会让 <code>seq</code> 递增，挂件每秒轮询一次，随即弹出消耗气泡；点击鲸鱼本体则会在 <code>DSniang1</code>（本体）→ <code>DSniang_tierd</code> → <code>DSniang_mad</code> → <code>DSniang_sad</code> 之间按顺序循环切换（点到第 4 张后回到本体）。</div>
+    <div class="hint">「立刻播放吃饭动画」直接调挂件暴露的 <code>window.__dshWhalePlayEating()</code>，不等定时；间隔本身在挂件菜单的「吃饭」一行调（关 / 5 / 15 / 30 / 60 分钟，默认 15），改完会写进本页 <code>size.json</code> 的 <code>eatMin</code>。「触发一轮消耗」也会触发一次（模拟每轮对话完成后播放）。</div>
+    <div class="hint">勾上「当作子代理轮次」后，触发的那一轮会带 <code>main:false</code>（对应真机 <code>last-turn.json</code> 的 <code>main</code> 字段）：气泡照旧弹，但<b>不播</b>吃饭动画。</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>外观</legend>
+    <div class="row"><label>页面底色</label>
+      <button id="bg">切换深色 / 浅色</button></div>
+    <div class="hint">挂件文字是深蓝色，浅色底和深色底都看一下，确认对比度可接受。</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>当前 stub 状态</legend>
+    <pre id="dump">加载中…</pre>
+  </fieldset>
+
+  <div class="warn">
+    ⚠️ 调试台测不到的东西：与真实 DSH 页面的<b>层级冲突</b>和<b>点击穿透</b>（例如误点到下方元素）、真实尺寸下的命中区。这些只能回真机验证。
+  </div>
+</div>
+
+<!-- 挂件本体：与真机一样由 /dsh-whale/widget.js 注入 -->
+<script defer src="/dsh-whale/widget.js"></script>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id) }
+
+  function dump(state) {
+    $('dump').textContent = JSON.stringify(state, null, 2)
+    $('bal').value = state.balance.totalBalance
+    $('used').value = state.balance.todayUsage
+    $('peak').checked = !!state.balance.isPeak
+  }
+
+  function refreshDump() {
+    fetch('/__dev/state', { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(dump)
+      .catch(function () {})
+  }
+
+  function post(body) {
+    return fetch('/__dev/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json() })
+  }
+
+  $('apply').addEventListener('click', function () {
+    post({
+      balance: {
+        ok: true,
+        totalBalance: Number($('bal').value),
+        todayUsage: Number($('used').value),
+        isPeak: $('peak').checked,
+        currency: 'CNY',
+      },
+    }).then(refreshDump)
+  })
+
+  $('reload').addEventListener('click', function () { location.reload() })
+
+  // seq 递增 = 新的一轮；挂件每秒轮询 last-turn.json 后弹气泡
+  var seq = 0
+  $('turn').addEventListener('click', function () {
+    seq += 1
+    var amount = Math.round((0.05 + Math.random() * 2) * 100) / 100
+    post({
+      turn: {
+        ok: true,
+        seq: seq + 1000, // 从高位起算，避免和之前的值撞车
+        turn: seq,
+        amount: amount,
+        tokens: Math.round(1000 + Math.random() * 9000),
+        ts: Date.now(),
+        // main:false = 子代理完成的一轮（真机由 session.header.origin 判定）：
+        // 气泡照弹，但挂件不播吃饭动画
+        main: !$('sub').checked,
+      },
+    }).then(refreshDump)
+  })
+
+  $('err').addEventListener('click', function () {
+    post({ balance: { ok: false, error: '模拟：获取失败 (harness)' } }).then(refreshDump)
+  })
+
+  $('ok').addEventListener('click', function () {
+    post({ balance: { ok: true } }).then(refreshDump)
+  })
+
+  // 吃饭动画：挂件内部按 eatMin 定时播放，这里直接调挂件暴露的调试钩子立即播一次
+  $('eat').addEventListener('click', function () {
+    if (typeof window.__dshWhalePlayEating === 'function') {
+      window.__dshWhalePlayEating()
+    } else {
+      alert('挂件未加载，或吃饭动画不可用（素材缺失 / 不支持 VP9 alpha）')
+    }
+  })
+
+  $('bg').addEventListener('click', function () {
+    document.body.classList.toggle('dark')
+  })
+
+  refreshDump()
+})()
+</script>
+</body>
+</html>

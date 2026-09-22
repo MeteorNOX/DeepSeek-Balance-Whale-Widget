@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // 调试台服务器是普通 Node 程序，可以直接在 VS Code 里打断点。
+      // 注意：挂件前端（WIDGET_JS）的断点不在这里下，要去浏览器的
+      // DevTools -> Sources -> widget.js 里下。
+      "type": "node",
+      "request": "launch",
+      "name": "启动调试台 (dev/server.mjs)",
+      "program": "${workspaceFolder}/dev/server.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "PORT": "5599"
+      }
+    }
+  ]
+}
