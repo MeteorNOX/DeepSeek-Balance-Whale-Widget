@@ -3,13 +3,13 @@
 > 本仓库分支 **For-Codex**：把 [DSH 网页版小鲸鱼](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)（`dsh-whale-widget`）改造成 **Codex 桌面应用**的伴随挂件。
 > ⚠️ 与主分支用途不同：**这是 Codex 桌面插件，不能用 `dsh plugin … add` 装进 DSH 网页**；反过来，主分支的 DSH 网页插件也不能在 Codex 里运行。
 
-版本 **0.2.0**（Codex 特化线）。基于 MeteorNOX 的 **dsh-whale-widget 0.3.0-beta** 改编。打开 Codex 桌面应用后，小鲸鱼自动出现；跟随 Codex 窗口移动和缩放，最小化时隐藏，恢复时显示，完全退出 Codex 后关闭。
+版本 **0.2.4**（Codex 特化线）。基于 MeteorNOX 的 **dsh-whale-widget 0.3.0-beta** 改编。打开 Codex 桌面应用后，小鲸鱼自动出现；跟随 Codex 窗口移动和缩放，最小化时隐藏，恢复时显示，完全退出 Codex 后关闭。
 
 **本版没有独立网页、浏览器面板或本地网页端口。** 界面由透明辅助窗口承载，通过本地进程间通信读取数据。所有菜单、设置、素材和账本都在挂件中操作。它并未修改或注入 Codex 的安装文件。
 
-**0.2.0 变更**：汇率说明改为刷新汇率右侧的灰色 **!** 按钮，点击才展开（不再常驻面板）；失败与暂停／取消只显示中性扣费提示，不再有单独的趣味文案；显示判定加入周期重断言，最小化、还原或窗口句柄变化后可自行恢复；服务商名称不再硬编码，界面与文档不含特定服务商痕迹。详见 [0.2.0 变更说明](docs/CHANGELOG-0.2.0.md)。
+**0.2.4 变更**：汇率说明改为刷新汇率右侧的灰色 **!** 按钮，点击才展开（不再常驻面板）；失败与暂停／取消只显示中性扣费提示，不再有单独的趣味文案；显示判定加入周期重断言，最小化、还原或窗口句柄变化后可自行恢复；服务商名称不再硬编码，界面与文档不含特定服务商痕迹。详见 [0.2.4 变更说明](docs/CHANGELOG-0.2.4.md)，0.2.0 基线的历史改动见 [docs/CHANGELOG-0.2.0.md](docs/CHANGELOG-0.2.0.md)。
 
-**安装与回滚**：另一台电脑请照 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.0.md) 操作。计划任务使用 Windows GUI 启动器；安装必须验证任务和进程，失败不会假报成功。验证过程与已知限制见 [0.2.0 验证报告](docs/VERIFICATION-0.2.0.md)。
+**安装与回滚**：另一台电脑请照 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.4.md) 操作。计划任务使用 Windows GUI 启动器；安装必须验证任务和进程，失败不会假报成功。验证过程与已知限制见 [0.2.4 验证报告](docs/VERIFICATION-0.2.4.md)。
 
 **运行平台**：Windows 10/11 x64 的 Microsoft Store 版 Codex 安装布局，或 Apple Silicon / Intel Mac；需要 Codex 桌面应用和 Node.js 24+。macOS 默认跟随 `com.openai.codex`（本机显示为 ChatGPT/Codex），可使用 `WHALE_CODEX_BUNDLE_ID` 覆盖。其他 Windows 安装渠道尚未适配。详细步骤见 [macOS 安装说明](docs/MACOS.md)。
 
@@ -37,7 +37,7 @@
 
 ## 安装、停用与回滚
 
-Windows 需要 Node.js 24+；先运行 `安装桌面组件.cmd`，再运行 `安装自动跟随.cmd`。macOS 直接双击 `安装 Mac 自动跟随.command`，它会优先使用 Homebrew 的 Node/npm，安装 Electron 44.3.0、编译窗口探针并注册当前用户的 LaunchAgent。组件安装需联网获取 Electron。逐条步骤、验证清单与回滚命令见 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.0.md) 和 [macOS 安装说明](docs/MACOS.md)。
+Windows 需要 Node.js 24+；先运行 `安装桌面组件.cmd`，再运行 `安装自动跟随.cmd`。macOS 直接双击 `安装 Mac 自动跟随.command`，它会优先使用 Homebrew 的 Node/npm，安装 Electron 44.3.0、编译窗口探针并注册当前用户的 LaunchAgent。组件安装需联网获取 Electron。逐条步骤、验证清单与回滚命令见 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.4.md) 和 [macOS 安装说明](docs/MACOS.md)。
 
 Windows 使用任务计划服务，macOS 使用用户级 LaunchAgent。监视器均以当前用户普通权限运行，登录后后台待命，仅在识别到当前用户的 Codex 桌面应用时启动挂件；不会把 Codex 命令行或任务后台进程当成桌面应用。Codex 退出时只关闭挂件，监视器继续待命。无需管理员权限，不保存登录密码，不调整执行策略或安全软件设置。
 
@@ -69,7 +69,7 @@ Windows 本机源码通常位于 `%USERPROFILE%\plugins\api-balance-whale`，挂
 
 数据目录包含角色、气泡图片、音频、设置、账本、窗口状态和自动跟随配置。`api-settings.json` 只保存接口设置和密钥环境变量名称，不保存密钥。仅处理 Codex 的用量与任务状态，不上传聊天内容。
 
-素材限制、保存失败和损坏索引的保护见 [0.2.0 变更说明](docs/CHANGELOG-0.2.0.md) 与 [渲染实现](docs/RENDERING.md)。新导入受真实格式、尺寸/帧数及总量预算约束；已有素材不因超过新限制而被自动删除。
+素材限制、保存失败和损坏索引的保护见 [0.2.4 变更说明](docs/CHANGELOG-0.2.4.md) 与 [渲染实现](docs/RENDERING.md)。新导入受真实格式、尺寸/帧数及总量预算约束；已有素材不因超过新限制而被自动删除。
 
 ```powershell
 node --test tests/*.test.mjs
@@ -118,6 +118,13 @@ vendor/smol-toml            内置 TOML 解析（BSD-3-Clause）
 ## 来源与致谢
 
 本分支改编自 **MeteorNOX** 的 [DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget)（`dsh-whale-widget`），沿用其 MIT 许可与角色/气泡/音效素材；改造范围与许可边界见 [PROVENANCE.md](PROVENANCE.md) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，原版文档备份在 [docs/UPSTREAM-README.md](docs/UPSTREAM-README.md)。
+
+### 0.2.4 致谢
+
+- **[@1llysviel](https://github.com/1llysviel)**：macOS 适配（[PR #128](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128)）——窗口探针、自动跟随与常驻恢复、Electron 浮窗、安装/卸载流程与菜单命令。
+- **[@MeteorNOX](https://github.com/MeteorNOX)**：上游项目与 `dsh-whale-widget` 主线的全部基础工作。
+
+历史贡献者名单见 [`docs/CHANGELOG-0.2.4.md`](docs/CHANGELOG-0.2.4.md)。
 
 ## 反馈与安全
 

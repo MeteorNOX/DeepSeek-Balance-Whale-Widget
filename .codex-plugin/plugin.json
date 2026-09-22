@@ -1,6 +1,6 @@
 {
   "name": "api-balance-whale",
-  "version": "0.2.0+codex.20260917",
+  "version": "0.2.4+codex.20260922",
   "description": "\u968f Codex \u684c\u9762\u5e94\u7528\u81ea\u52a8\u542f\u505c\u7684 API \u4f59\u989d\u5c0f\u9cb8\u9c7c\uff1b\u65e0\u72ec\u7acb\u7f51\u9875\uff0c\u4fdd\u7559\u62d6\u52a8\u3001\u70b9\u51fb\u3001\u89d2\u8272\u3001\u6c14\u6ce1\u3001\u97f3\u6548\u548c\u8d26\u672c\u3002",
   "author": {
     "name": "MeteorNOX / Local Codex adaptation"

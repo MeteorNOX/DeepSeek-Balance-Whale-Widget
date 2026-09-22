@@ -10,7 +10,7 @@ const dataDir = process.argv.find(a => a.startsWith('--whale-data='))?.slice(13)
 const fixture = process.env.WHALE_DESKTOP_TEST === '1';
 const initialHost = (() => { try { const h = JSON.parse(process.env.WHALE_INITIAL_HOST || 'null'); return h?.hostAlive ? h : null; } catch { return null; } })();
 const startupAt = Date.now();
-const startup = { revision: 'codex-0.2.0', requestedAt: Number(process.env.WHALE_LAUNCH_TIME) || startupAt, mainAt: startupAt, phases: {} };
+const startup = { revision: 'codex-0.2.4', requestedAt: Number(process.env.WHALE_LAUNCH_TIME) || startupAt, mainAt: startupAt, phases: {} };
 const markStartup = phase => { if (startup.phases[phase] == null) startup.phases[phase] = Date.now() - startup.requestedAt; };
 markStartup('main');
 const isMac = process.platform === 'darwin';

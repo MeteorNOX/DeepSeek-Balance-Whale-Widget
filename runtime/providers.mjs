@@ -49,7 +49,7 @@ export class BalanceProvider {
   async json(url, key) {
     let response;
     try {
-      response = await this.fetch(url, { headers: { Authorization: 'Bearer ' + key, Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/0.2.0' }, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
+      response = await this.fetch(url, { headers: { Authorization: 'Bearer ' + key, Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/0.2.4' }, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
     } catch { throw new ProviderError('NETWORK', '余额接口暂时无法连接，请稍后刷新', true); }
     if (!response.ok) {
       try { await response.body?.cancel(); } catch {}

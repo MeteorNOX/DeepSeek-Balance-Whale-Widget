@@ -1,10 +1,10 @@
 blank_issues_enabled: false
 contact_links:
   - name: 安装 / 使用文档（先看这里）
-    url: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.0.md
+    url: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.4.md
     about: 安装、验证、停用与回滚步骤；多数"装不上/鲸鱼不出现"的问题这里已有答案。
-  - name: 0.2.0 验证报告（已知限制）
-    url: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/VERIFICATION-0.2.0.md
+  - name: 0.2.4 验证报告（已知限制）
+    url: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/VERIFICATION-0.2.4.md
     about: 已通过的测试、以及明确未覆盖的场景（冷启动、断网、多屏等）。
   - name: 安全漏洞（请勿公开提交）
     url: https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/SECURITY.md

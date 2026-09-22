@@ -1,4 +1,4 @@
-# 安装、验证与回滚（0.2.0）
+# 安装、验证与回滚（0.2.4）
 
 本插件的界面由透明辅助窗口承载，随 Codex 桌面应用自动启停；没有独立网页、浏览器面板或本地网页端口。
 
@@ -31,7 +31,7 @@
 辅助诊断文件（都在数据目录 `%USERPROFILE%\.codex\whale-widget`，不含密钥）：
 
 - `follow-state.json`：`attached` 与 `nativeFollowing` 应为 `true`。
-- `startup-timings.json`：`revision` 应为 `codex-0.2.0`。
+- `startup-timings.json`：`revision` 应为 `codex-0.2.4`。
 - `renderer-gone.json`：仅在渲染进程崩溃过时出现，记录时间与原因。
 
 ## 四、停用

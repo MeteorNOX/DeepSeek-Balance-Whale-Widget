@@ -52,4 +52,4 @@
 
 ## 回滚
 
-见 [安装与回滚说明](INSTALL-AND-ROLLBACK-0.2.0.md)。简言之：用 `scripts/rollback-0.2.0.ps1 -Backup <备份目录>` 还原升级前的整目录备份，或手工复制回插件目录并重启挂件。用户数据目录不在覆盖范围内。
+见 [安装与回滚说明](INSTALL-AND-ROLLBACK-0.2.4.md)。简言之：用 `scripts/rollback-0.2.0.ps1 -Backup <备份目录>` 还原升级前的整目录备份，或手工复制回插件目录并重启挂件。用户数据目录不在覆盖范围内。

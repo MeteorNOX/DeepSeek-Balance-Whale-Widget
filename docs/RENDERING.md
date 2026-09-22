@@ -1,6 +1,6 @@
 # 渲染实现
 
-技术栈：Electron 44.3.0 / Chromium 152，DOM + SVG + CSS 合成；插件版本前缀为 0.2.0。
+技术栈：Electron 44.3.0 / Chromium 152，DOM + SVG + CSS 合成；插件版本前缀为 0.2.4。
 
 `desktop/main.cjs` 在启动前启用 GPU 光栅化，在 `gpu-info-update` 后记录实际合成状态。透明无边框窗口交给 Chromium 进行预乘 Alpha 合成；不重复乘 Alpha，也不绕过显卡驱动限制。`render-status.json` 可用于确认本机是否实际启用硬件加速。
 

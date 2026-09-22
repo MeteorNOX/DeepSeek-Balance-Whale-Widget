@@ -8,8 +8,8 @@ body:
       value: |
         感谢反馈！提交前请先确认：
         1. 你装的是本分支 **For-Codex** 的 `api-balance-whale`（Codex 桌面插件），不是上游的 DSH 网页版 `dsh-whale-widget`；
-        2. 已按 `docs/INSTALL-AND-ROLLBACK-0.2.0.md` 完成安装与验证；
-        3. 已查看 `docs/VERIFICATION-0.2.0.md` 的"未验证 / 不承诺"一节，确认不是已知限制。
+        2. 已按 `docs/INSTALL-AND-ROLLBACK-0.2.4.md` 完成安装与验证；
+        3. 已查看 `docs/VERIFICATION-0.2.4.md` 的"未验证 / 不承诺"一节，确认不是已知限制。
 
         ⚠️ **请勿粘贴 API 密钥、`auth.json`、`config.toml` 原文或完整账本。** 需要贴日志时请先脱敏。
   - type: dropdown
@@ -43,7 +43,7 @@ body:
     attributes:
       label: 插件版本
       description: 取 `.codex-plugin/plugin.json` 的 version 字段
-      placeholder: 0.2.0+codex.20260917
+      placeholder: 0.2.4+codex.20260922
     validations:
       required: true
   - type: textarea
