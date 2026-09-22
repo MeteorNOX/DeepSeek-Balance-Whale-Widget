@@ -5,6 +5,8 @@
 *.cmd text eol=crlf
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+*.command text eol=lf
+*.swift text eol=lf
 *.png binary
 *.gif binary
 *.mp3 binary

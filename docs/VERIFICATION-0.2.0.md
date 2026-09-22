@@ -64,5 +64,5 @@ node tests/desktop-audit-smoke.mjs <输出目录>
 
 - 冷启动、断网、多显示器、非 100% 缩放等场景未在本轮逐一覆盖。
 - 未在干净桌面（无其他应用占用屏幕）上重跑原生命中测试与焦点相关用例。
-- 除 Windows x64 + Codex 桌面应用外的平台与安装渠道未适配。
+- Windows 验证范围仍限 Microsoft Store Codex 安装布局；macOS 初始适配与验证步骤见 `docs/MACOS.md`，其他安装渠道仍未适配。
 - 失败/取消轮次的金额仍可能包含同一密钥下的其它调用，不能当作服务商正式账单。

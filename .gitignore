@@ -2,3 +2,4 @@ node_modules/
 qa-output/
 *.log
 *.tmp
+.DS_Store

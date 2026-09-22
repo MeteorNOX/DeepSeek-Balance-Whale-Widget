@@ -7,7 +7,7 @@ const toolSpecs = [
   { name: 'whale_balance', description: '查询当前 Codex API 服务商的余额、余额口径、币种及今日已观测用量。金额来源于当前 API；不会返回密钥，也不会将 ChatGPT 订阅配额当作 API 余额。', inputSchema: { type: 'object', properties: { refresh: { type: 'boolean', description: '立即从 API 刷新' } }, additionalProperties: false }, annotations: { readOnlyHint: true } },
   { name: 'whale_usage', description: '读取小鲸鱼今日、近七天和历史用量记录。每日合计只覆盖挂件已观测时段，逐模型金额为配置价格估算。', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } },
   { name: 'whale_status', description: '读取当前服务商、挂件状态和 Codex 会话用量监听状态，不返回 API 密钥。', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, annotations: { readOnlyHint: true } },
-  { name: 'whale_open', description: '显示跟随 Codex 窗口的 API 余额小鲸鱼。使用本地透明挂件，无网页地址；角色、音效、气泡编辑和资源管理均在挂件中操作。', inputSchema: { type: 'object', properties: { desktop: { type: 'boolean', description: '打开 Windows 透明桌面悬浮挂件' } }, additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } },
+  { name: 'whale_open', description: '显示跟随 Codex 窗口的 API 余额小鲸鱼。使用本地透明挂件，无网页地址；角色、音效、气泡编辑和资源管理均在挂件中操作。', inputSchema: { type: 'object', properties: { desktop: { type: 'boolean', description: '打开桌面透明悬浮挂件' } }, additionalProperties: false }, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false } },
 ];
 
 const send = value => process.stdout.write(JSON.stringify(value) + '\n');

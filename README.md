@@ -11,9 +11,9 @@
 
 **安装与回滚**：另一台电脑请照 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.0.md) 操作。计划任务使用 Windows GUI 启动器；安装必须验证任务和进程，失败不会假报成功。验证过程与已知限制见 [0.2.0 验证报告](docs/VERIFICATION-0.2.0.md)。
 
-**运行平台**：Windows 10/11 x64 + Codex 桌面应用（Microsoft Store 版 `OpenAI.Codex_*`）；需要 Node.js 24+。其他平台或安装渠道尚未适配。
+**运行平台**：Windows 10/11 x64 的 Microsoft Store 版 Codex 安装布局，或 Apple Silicon / Intel Mac；需要 Codex 桌面应用和 Node.js 24+。macOS 默认跟随 `com.openai.codex`（本机显示为 ChatGPT/Codex），可使用 `WHALE_CODEX_BUNDLE_ID` 覆盖。其他 Windows 安装渠道尚未适配。详细步骤见 [macOS 安装说明](docs/MACOS.md)。
 
-**安全说明**：挂件只从本机 Codex 配置或指定环境变量读取密钥，不读取也不输出原始 `config.toml` / `auth.json`；不发送聊天内容；除公开汇率接口外不主动联网。
+**安全说明**：挂件只从本机 Codex 配置或指定环境变量读取密钥；本地解析配置但不会返回或记录原始 `config.toml` / `auth.json` 内容。密钥只会发送给用户配置的 API provider；挂件还会访问公开汇率接口，不发送聊天内容。
 
 余额跟随 Codex 当前 API 配置；密钥留在本机，界面不读取密钥。ChatGPT 订阅额度不属于 API 余额。
 
@@ -22,7 +22,7 @@
 - 正常打开 Codex，等待小鲸鱼出现，无需发消息或打开网页。
 - 点击鲸鱼：显示余额或切换气泡；按住拖动：移动位置并记忆；移到边缘：按原设置吸附、翻转。
 - 鼠标移到鲸鱼上，点击 **☰**：选择角色、大小、音效、气泡、吸附、资源管理、API 设置和用量记录。
-- **Ctrl+Alt+W** 或系统托盘菜单：隐藏/显示。托盘中的“本次退出挂件”只暂停当前 Codex 运行期间的挂件；下次完全退出并重新打开 Codex 时恢复。
+- **Windows：Ctrl+Alt+W；macOS：Cmd+Option+W**，也可使用系统托盘菜单：隐藏/显示。托盘和鲸鱼 `☰` 菜单中的“命令”区域可刷新余额、查看用量记录、查看运行状态或停止当前挂件。
 - 新建 Codex 任务后可说“打开小鲸鱼”“查看当前 API 余额”。更新前已打开的任务可能仍持有旧版工具，需新建任务。
 
 **金额统一显示两位小数**，包括余额、今日/历史用量、每轮费用和气泡。后台仍保留原始精度，小额消费不会因显示取整而丢失。音频裁剪时间和 token 整数计数不属于金额。
@@ -37,15 +37,17 @@
 
 ## 安装、停用与回滚
 
-另一台电脑需要 Node.js 24+；先运行 `安装桌面组件.cmd`，再运行 `安装自动跟随.cmd`。组件安装需联网获取 Electron 44.3.0。当前原生跟随层面向 Windows x64 与已识别的 WindowsApps Codex 安装布局；其他平台或安装渠道需要适配，不能直接保证可用。逐条步骤、验证清单与回滚命令见 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.0.md)。
+Windows 需要 Node.js 24+；先运行 `安装桌面组件.cmd`，再运行 `安装自动跟随.cmd`。macOS 直接双击 `安装 Mac 自动跟随.command`，它会优先使用 Homebrew 的 Node/npm，安装 Electron 44.3.0、编译窗口探针并注册当前用户的 LaunchAgent。组件安装需联网获取 Electron。逐条步骤、验证清单与回滚命令见 [安装与回滚说明](docs/INSTALL-AND-ROLLBACK-0.2.0.md) 和 [macOS 安装说明](docs/MACOS.md)。
 
-启动监视器由 Windows 任务计划服务独立启动，以当前用户普通权限运行。Windows 登录后它在后台待命，仅在识别到当前用户的 Codex 桌面应用时启动挂件；不会把 Codex 命令行或任务后台进程当成桌面应用。Codex 退出时只关闭挂件，监视器继续待命。无需管理员权限，不保存登录密码，不调整执行策略或安全软件设置。
+Windows 使用任务计划服务，macOS 使用用户级 LaunchAgent。监视器均以当前用户普通权限运行，登录后后台待命，仅在识别到当前用户的 Codex 桌面应用时启动挂件；不会把 Codex 命令行或任务后台进程当成桌面应用。Codex 退出时只关闭挂件，监视器继续待命。无需管理员权限，不保存登录密码，不调整执行策略或安全软件设置。
 
 监视器不保留命令窗口；正常重启只需退出 Codex。计划任务名为 **Codex API Balance Whale**；异常退出会尝试恢复。停用与回滚入口：
 
 - `停用自动跟随.cmd`：停止监视器与挂件并移除开机启动项，保留设置、素材和账本。
 - `停止挂件服务.cmd` / `启动桌面挂件.cmd`：仅停止或启动当前挂件进程。
 - `scripts/rollback-0.2.0.ps1 -CheckOnly -Backup <备份目录>`：核验升级前备份；去掉 `-CheckOnly` 即覆盖回插件目录（挂件仍在运行时加 `-Force`，重启后生效）。
+
+macOS 对应入口为 `安装 Mac 自动跟随.command`、`启动桌面挂件.command`、`停止挂件服务.command`、`停用自动跟随.command`；也可运行 `npm run install:mac`、`npm run uninstall:mac`。
 
 发布压缩包不含作者本机的备份与密钥，另一台电脑请在做任何升级前自行备份插件目录。
 
@@ -63,7 +65,7 @@
 
 ## 数据与维护
 
-本机源码：`%USERPROFILE%\plugins\api-balance-whale`。挂件数据默认位于 `%USERPROFILE%\.codex\whale-widget`（设置 `CODEX_HOME` 或 `WHALE_HOME` 时使用对应目录）。插件缓存更新不会覆盖用户素材与账本。
+Windows 本机源码通常位于 `%USERPROFILE%\plugins\api-balance-whale`，挂件数据默认位于 `%USERPROFILE%\.codex\whale-widget`。macOS 本机源码通常位于 `~/plugins/api-balance-whale`，挂件数据默认位于 `~/.codex/whale-widget`。设置 `CODEX_HOME` 或 `WHALE_HOME` 时使用对应目录；插件缓存更新不会覆盖用户素材与账本。
 
 数据目录包含角色、气泡图片、音频、设置、账本、窗口状态和自动跟随配置。`api-settings.json` 只保存接口设置和密钥环境变量名称，不保存密钥。仅处理 Codex 的用量与任务状态，不上传聊天内容。
 
@@ -78,6 +80,14 @@ node scripts/control.mjs status
 
 上面三条测试命令需要完整源码树（含 `tests/` 与已安装的 Electron 桌面组件）；发布压缩包只包含运行所需文件，因此请在源码目录里执行。
 
+macOS 可用以下命令检查窗口探针、监督器与余额链路：
+
+```bash
+npm run probe:mac
+node scripts/control.mjs status
+node scripts/control.mjs balance
+```
+
 ## 仓库结构
 
 ```
@@ -86,6 +96,7 @@ node scripts/control.mjs status
 package.json                包信息与快捷脚本
 assets/                     whale-widget.js（挂件前端 bundle）+ 角色/气泡/音效素材
 desktop/                    Electron 主进程、预加载、监督器、原生窗口跟随（C#）、页面脚本
+desktop/macos/              macOS 窗口探针（Swift）与 LaunchAgent 监督器
 runtime/                    余额与用量服务：配置解析、provider、账本、汇率、会话监视、MCP、IPC
 lib/                        素材校验、资源库、widget 宿主
 scripts/                    安装/启动/停止/卸载/回滚与启动器编译
@@ -96,13 +107,13 @@ vendor/smol-toml            内置 TOML 解析（BSD-3-Clause）
 
 ## 给维护者：本分支包含什么
 
-**包含（可直接运行）**：`.codex-plugin/`、`assets/`、`desktop/`、`runtime/`、`lib/`、`scripts/`、`skills/`、`vendor/`、`docs/`、`LICENSE`、`PROVENANCE.md`、`THIRD_PARTY_NOTICES.md`、`package.json`、`.mcp.json` 与四个 `.cmd` 便捷入口。
+**包含（可直接运行）**：`.codex-plugin/`、`assets/`、`desktop/`、`runtime/`、`lib/`、`scripts/`、`skills/`、`vendor/`、`docs/`、`LICENSE`、`PROVENANCE.md`、`THIRD_PARTY_NOTICES.md`、`package.json`、`.mcp.json`，以及 Windows `.cmd` 和 macOS `.command` 便捷入口。
 
 **不包含**（有意排除）：
 
 - `node_modules/`、`tests/`、`web/`、`qa-output/` 等开发与构建产物；
 - 依赖作者本机备份的旧回滚脚本、历史调试文档与含本机时间戳的 `*-VALIDATION.json`——它们描述的是作者本机的升级过程，对其他人没有意义；
-- 任何密钥、账号数据、用户账本：这些只存在于使用者本机的 `%USERPROFILE%\.codex\whale-widget`，仓库里没有也不需要。
+- 任何密钥、账号数据、用户账本：这些只存在于使用者本机的 `~/.codex/whale-widget`，仓库里没有也不需要。
 
 ## 来源与致谢
 
