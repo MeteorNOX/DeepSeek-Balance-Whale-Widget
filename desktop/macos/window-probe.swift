@@ -91,39 +91,100 @@ struct HostWindow {
     let windowNumber: UInt32
     let ownerPID: pid_t
     let bounds: CGRect
+    let index: Int
 }
 
-func hostWindow(for processIDs: [pid_t]) -> HostWindow? {
-    let processIDs = Set(processIDs)
-    guard !processIDs.isEmpty,
-          let rawWindows = CGWindowListCopyWindowInfo(
-              [.optionOnScreenOnly, .excludeDesktopElements],
-              kCGNullWindowID
-          ) as? [[String: Any]]
+func windowBounds(_ info: [String: Any]) -> CGRect? {
+    guard let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary,
+          let x = boundsDictionary["X"] as? CGFloat,
+          let y = boundsDictionary["Y"] as? CGFloat,
+          let width = boundsDictionary["Width"] as? CGFloat,
+          let height = boundsDictionary["Height"] as? CGFloat
     else { return nil }
+    return CGRect(x: x, y: y, width: width, height: height)
+}
 
-    let candidates: [HostWindow] = rawWindows.compactMap { info in
+func encodedBounds(_ bounds: CGRect) -> [String: Double] {
+    [
+        "x": Double(bounds.origin.x),
+        "y": Double(bounds.origin.y),
+        "width": Double(bounds.width),
+        "height": Double(bounds.height)
+    ]
+}
+
+func encodedBounds(_ bounds: CGRect?) -> Any {
+    if let bounds = bounds { return encodedBounds(bounds) }
+    return NSNull()
+}
+
+func onScreenWindows() -> [[String: Any]] {
+    (CGWindowListCopyWindowInfo(
+        [.optionOnScreenOnly, .excludeDesktopElements],
+        kCGNullWindowID
+    ) as? [[String: Any]]) ?? []
+}
+
+// The whale overlay lives on a floating window level, so insisting on layer 0
+// keeps it — along with the menu bar, palettes and other chrome — out of every
+// computation below.
+func isNormalWindow(_ info: [String: Any]) -> Bool {
+    (info[kCGWindowLayer as String] as? Int ?? 0) == 0
+        && (info[kCGWindowAlpha as String] as? Double ?? 1) > 0.01
+        && (info[kCGWindowIsOnscreen as String] as? Bool ?? true)
+}
+
+func hostWindow(in rawWindows: [[String: Any]], for processIDs: [pid_t]) -> HostWindow? {
+    let processIDs = Set(processIDs)
+    guard !processIDs.isEmpty else { return nil }
+
+    let candidates: [HostWindow] = rawWindows.enumerated().compactMap { index, info in
         guard let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t,
               processIDs.contains(ownerPID),
               let windowNumber = info[kCGWindowNumber as String] as? UInt32,
-              let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary,
-              let x = boundsDictionary["X"] as? CGFloat,
-              let y = boundsDictionary["Y"] as? CGFloat,
-              let width = boundsDictionary["Width"] as? CGFloat,
-              let height = boundsDictionary["Height"] as? CGFloat
+              let bounds = windowBounds(info)
         else { return nil }
-        let bounds = CGRect(x: x, y: y, width: width, height: height)
-        let layer = info[kCGWindowLayer as String] as? Int ?? 0
-        let alpha = info[kCGWindowAlpha as String] as? Double ?? 1
-        let onscreen = info[kCGWindowIsOnscreen as String] as? Bool ?? true
-        guard layer == 0, alpha > 0.01, onscreen,
-              bounds.width >= 320, bounds.height >= 200
-        else { return nil }
-        return HostWindow(windowNumber: windowNumber, ownerPID: ownerPID, bounds: bounds)
+        guard isNormalWindow(info), bounds.width >= 320, bounds.height >= 200 else { return nil }
+        return HostWindow(windowNumber: windowNumber, ownerPID: ownerPID, bounds: bounds, index: index)
     }
 
     let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
     return candidates.first(where: { $0.ownerPID == frontmostPID }) ?? candidates.first
+}
+
+func frontmostWindowBounds(in rawWindows: [[String: Any]], processID: pid_t) -> CGRect? {
+    for info in rawWindows {
+        guard let ownerPID = info[kCGWindowOwnerPID as String] as? pid_t, ownerPID == processID,
+              isNormalWindow(info), let bounds = windowBounds(info)
+        else { continue }
+        return bounds
+    }
+    return nil
+}
+
+// Share of the Codex window that other applications' windows cover, sampled on a
+// small grid. Windows are listed front to back, so only the entries ahead of the
+// host window can hide it.
+func occludedShare(of target: CGRect, in rawWindows: [[String: Any]], before index: Int) -> Double {
+    guard target.width >= 1, target.height >= 1, index > 0 else { return 0 }
+    let occluders = rawWindows[0..<index].compactMap { info -> CGRect? in
+        guard isNormalWindow(info), let bounds = windowBounds(info), bounds.intersects(target) else { return nil }
+        return bounds
+    }
+    guard !occluders.isEmpty else { return 0 }
+    let columns = 4
+    let rows = 4
+    var covered = 0
+    for column in 0..<columns {
+        for row in 0..<rows {
+            let point = CGPoint(
+                x: target.minX + target.width * (Double(column) + 0.5) / Double(columns),
+                y: target.minY + target.height * (Double(row) + 0.5) / Double(rows)
+            )
+            if occluders.contains(where: { $0.contains(point) }) { covered += 1 }
+        }
+    }
+    return Double(covered) / Double(columns * rows)
 }
 
 func emit(_ state: [String: Any]) throws {
@@ -140,6 +201,9 @@ var lastEncoded = ""
 var lastHeartbeat = Date.distantPast
 var cachedProcessIDs: [pid_t] = []
 var lastProcessScan = Date.distantPast
+var cachedOcclusion: Double = 0
+var cachedOcclusionWindow: UInt32 = 0
+var lastOcclusionScan = Date.distantPast
 
 while true {
     autoreleasepool {
@@ -148,17 +212,29 @@ while true {
             lastProcessScan = Date()
         }
         let processIDs = cachedProcessIDs
-        let window = hostWindow(for: processIDs)
+        let rawWindows = onScreenWindows()
+        let window = hostWindow(in: rawWindows, for: processIDs)
         if let window {
             lastWindowNumber = window.windowNumber
             lastOwnerPID = window.ownerPID
             lastBounds = window.bounds
+            if window.windowNumber != cachedOcclusionWindow || Date().timeIntervalSince(lastOcclusionScan) >= 0.2 {
+                cachedOcclusion = occludedShare(of: window.bounds, in: rawWindows, before: window.index)
+                cachedOcclusionWindow = window.windowNumber
+                lastOcclusionScan = Date()
+            }
+        } else {
+            cachedOcclusion = 0
+            cachedOcclusionWindow = 0
         }
 
         let hostAlive = !processIDs.isEmpty
         let visible = hostAlive && window != nil
         let bounds = window?.bounds ?? lastBounds
         let scale = window.flatMap { _ in NSScreen.main?.backingScaleFactor } ?? NSScreen.main?.backingScaleFactor ?? 1
+        let frontmostApplication = NSWorkspace.shared.frontmostApplication
+        let frontmostPID = frontmostApplication?.processIdentifier ?? 0
+        let frontmostBounds = frontmostPID > 0 ? frontmostWindowBounds(in: rawWindows, processID: frontmostPID) : nil
         var state: [String: Any] = [
             "hostAlive": hostAlive,
             "hostPid": window?.ownerPID ?? lastOwnerPID,
@@ -168,12 +244,11 @@ while true {
             "nativeFollowing": false,
             "followMode": "macos-cgwindow-poll",
             "dpi": 72.0 * scale,
-            "bounds": [
-                "x": Double(bounds.origin.x),
-                "y": Double(bounds.origin.y),
-                "width": Double(bounds.width),
-                "height": Double(bounds.height)
-            ],
+            "bounds": encodedBounds(bounds),
+            "hostCoverage": cachedOcclusion,
+            "frontmostPid": Int(frontmostPID),
+            "frontmostBundleId": frontmostApplication?.bundleIdentifier ?? NSNull(),
+            "frontmostBounds": encodedBounds(frontmostBounds),
             "bundleId": hostAlive ? (options.bundleIDs.first ?? "unknown") : NSNull()
         ]
         if ProcessInfo.processInfo.environment["WHALE_PROBE_DEBUG"] == "1" {
@@ -195,5 +270,10 @@ while true {
     }
 
     if options.once { break }
-    Thread.sleep(forTimeInterval: Double(options.intervalMilliseconds) / 1000.0)
+    // Pump the main run loop instead of sleeping: NSWorkspace only refreshes
+    // -frontmostApplication while its notifications are being delivered, so a
+    // plain Thread.sleep left the frontmost application frozen at whatever was
+    // in front when the probe started.
+    let deadline = Date().addingTimeInterval(Double(options.intervalMilliseconds) / 1000.0)
+    while Date() < deadline { RunLoop.current.run(until: deadline) }
 }

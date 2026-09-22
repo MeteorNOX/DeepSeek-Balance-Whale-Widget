@@ -22,7 +22,7 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'whale', privileges: { standard:
 fs.mkdirSync(path.join(dataDir, 'desktop-profile'), { recursive: true });
 app.setPath('userData', path.join(dataDir, 'desktop-profile'));
 const lock = app.requestSingleInstanceLock();
-let window, tray, dispatcher, bridge, lastHost = initialHost, owner = '', appliedBounds = '', rendererReady = false, quitting = false, manuallyHidden = false, hostHeartbeat = Date.now();
+let window, tray, dispatcher, bridge, lastHost = initialHost, owner = '', appliedBounds = '', rendererReady = false, quitting = false, manuallyHidden = false, manuallyShown = false, hostHeartbeat = Date.now();
 const rendererErrors = [];
 const fixtureOpenedLinks = [];
 let hostSequence = -1;
@@ -54,9 +54,35 @@ function sendCursor(force = false) {
   if (force || encoded !== lastCursor) { lastCursor = encoded; window.webContents.send('whale-cursor', point); }
 }
 function setTestCursor(point) { if (fixture) { testCursor = point; sendCursor(true); } }
+// Local patch (frontmost visibility): the macOS overlay is an always-on-top
+// window parked on the Codex window rect, and Codex keeps that rect on screen
+// while another application covers it, so the probe alone left the whale
+// floating over whatever the user had switched to. Show her only while Codex —
+// or the whale itself, while the user is clicking her — is frontmost, and keep
+// her when the Codex window simply sits on another display.
+function hostIsFrontmost() {
+  if (fixture) return true;
+  if (app.isActive()) return true;                              // whale menu, dialogs, clicked whale
+  const frontmost = Number(lastHost?.frontmostPid) || 0;
+  if (!frontmost) return true;                                  // probe cannot tell: never hide
+  if (frontmost === process.pid) return true;                   // the user is on the whale
+  if (frontmost === Number(lastHost?.hostPid)) return true;     // Codex is frontmost
+  if (Number(lastHost?.hostCoverage) >= 0.9) return false;      // covered by another app
+  return hostOnAnotherDisplay();
+}
+function hostOnAnotherDisplay() {
+  const host = lastHost?.bounds, other = lastHost?.frontmostBounds;
+  const complete = rect => rect && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(rect[key]));
+  if (!complete(host) || !complete(other)) return false;
+  if (other.width < 40 || other.height < 40) return false;      // palettes, not real windows
+  try { return screen.getDisplayMatching(host).id !== screen.getDisplayMatching(other).id; }
+  catch { return false; }
+}
 function visibility() {
   if (!window || window.isDestroyed()) return;
-  if (rendererReady && lastHost?.visible && (fixture || lastHost.attached) && !manuallyHidden) {
+  const frontmost = hostIsFrontmost();
+  if (manuallyShown && frontmost) manuallyShown = false;         // back on Codex: hand control to the host state
+  if (rendererReady && lastHost?.visible && (fixture || lastHost.attached) && !manuallyHidden && (manuallyShown || frontmost)) {
     if (!window.isVisible()) window.showInactive();
     if (startup.phases.interactive == null) {
       markStartup('interactive');
@@ -64,8 +90,13 @@ function visibility() {
     }
   } else window.hide();
 }
-function show() { manuallyHidden = false; visibility(); }
-function toggle() { manuallyHidden = !manuallyHidden; visibility(); }
+function show() { manuallyHidden = false; manuallyShown = true; visibility(); }
+function toggle() {
+  const showing = !!window && !window.isDestroyed() && window.isVisible();
+  manuallyHidden = showing;
+  manuallyShown = !showing;
+  visibility();
+}
 function sendCommand(command) {
   if (!window || window.isDestroyed() || !command) return false;
   show();
@@ -200,7 +231,7 @@ else {
     const { startBridge } = await import(pathToFileURL(path.join(root, 'runtime', 'bridge.mjs')));
     let testOptions = {};
     if (fixture) { const { makeFixture } = await import(pathToFileURL(path.join(root, 'tests', 'desktop-fixture.mjs'))); testOptions = await makeFixture(dataDir); }
-    dispatcher = createDispatcher({ dataDir, fetchImpl: (url, options) => net.fetch(url, options), onStop: pauseAndQuit, onShow: show, statusInfo: () => ({ followCodex: true, platform: process.platform, followMode: lastHost?.followMode || null, hostPid: lastHost?.hostPid || null, visible: !!window?.isVisible(), nativeFollowing: !!lastHost?.nativeFollowing, startup, rendering: gpuStatus }), ...testOptions });
+    dispatcher = createDispatcher({ dataDir, fetchImpl: (url, options) => net.fetch(url, options), onStop: pauseAndQuit, onShow: show, statusInfo: () => ({ followCodex: true, platform: process.platform, followMode: lastHost?.followMode || null, hostPid: lastHost?.hostPid || null, visible: !!window?.isVisible(), nativeFollowing: !!lastHost?.nativeFollowing, frontmostPid: Number(lastHost?.frontmostPid) || 0, frontmostBundleId: lastHost?.frontmostBundleId || null, hostCoverage: Number.isFinite(Number(lastHost?.hostCoverage)) ? Number(lastHost.hostCoverage) : null, appActive: app.isActive(), hostIsFrontmost: hostIsFrontmost(), manuallyHidden, manuallyShown, startup, rendering: gpuStatus }), ...testOptions });
     markStartup('dispatcherReady');
     await importLegacyStorage();
     session.defaultSession.protocol.handle('whale', async request => {
