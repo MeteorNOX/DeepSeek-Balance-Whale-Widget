@@ -322,7 +322,11 @@ var css = [
   '.dshwv-root.dshwv-left{transform:scaleX(-1)}',
   '.dshwv-root.dshwv-dragging{cursor:grabbing;transition:none}',
   '.dshwv-body{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}',
-  '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  // 让 .dshwv-img 亲自接住指针（pointer-events:auto）：当挂件压在任何 <iframe>（例如 DSH 右侧栏的
+  // HTML 预览沙箱）上时，点击/悬停事件会直接进入 iframe 文档，主文档的 pointerdown 监听收不到，
+  // isWhaleHit 根本没机会执行 → 鲸鱼身体点不动、只有 ☰（pointer-events:auto 的真按钮）能点。
+  // 改为 img 自己接事件后，再用 clip-path 把透明角落裁掉（见 buildHitClipPath），保持“点到透明处穿透到下层”的旧行为。
+  '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
   // v751（PR #119）：光标不再写 document.body.style.cursor —— cursor 是可继承属性，写 <body> 会让 Blink
   // 失效**整棵文档树**的样式；而它在点击链路上按下/抬手各写一次，紧接着 isWhaleHit() 的
   // getBoundingClientRect() 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局，
@@ -14852,6 +14856,7 @@ function setupHitTest(url) {
     hitCanvas.height = 610
     hitReady = false
     hitFailed = false
+    try { img.style.clipPath = 'none' } catch (err) {}
     var probe = new Image()
     probe.onload = function () {
       try {
@@ -14880,6 +14885,7 @@ function setupHitTest(url) {
         }
         if (!opaque) { hitReady = false; hitFailed = true; return }
         hitReady = true
+        buildHitClipPath()
       } catch (err) {
         hitFailed = true
       }
@@ -14891,6 +14897,63 @@ function setupHitTest(url) {
     }
     probe.src = url || IMG_URL
   } catch (err) {}
+}
+// 从命中图（610×610 的 alpha 通道）算出鲸鱼不透明区域的凸包轮廓，作为 img 的 clip-path。
+// 用途：.dshwv-img 现在 pointer-events:auto 亲自接事件（见 CSS），用 clip-path 把透明角落裁掉，
+// 保持“点到透明处穿透到下层页面”的旧行为；凸包天然包含全部不透明像素，不会裁掉鲸鱼可见部分。
+// 左右翻转：clip-path 画在 img 本地坐标上，.dshwv-root.dshwv-left 的 scaleX(-1) 会把图 + 轮廓一起镜像，无需补偿。
+// 自定义角色：每次换角色都会重跑 setupHitTest，用“那张角色自己的命中图”现算轮廓，天然通用。
+function buildHitClipPath() {
+  try {
+    if (!hitCanvas || !img) return
+    var ctx = hitCanvas.getContext('2d')
+    var w = hitCanvas.width
+    var h = hitCanvas.height
+    var data = ctx.getImageData(0, 0, w, h).data
+    var step = 2 // 每 2px 采一次样，足以捕捉细尾巴/鳍，同时控制凸包点数
+    var pts = []
+    for (var y = 0; y < h; y += step) {
+      for (var x = 0; x < w; x += step) {
+        if (data[(y * w + x) * 4 + 3] > 10) pts.push([x, y])
+      }
+    }
+    if (pts.length < 3) { img.style.clipPath = 'none'; return }
+    var hull = convexHull(pts)
+    if (hull.length < 3) { img.style.clipPath = 'none'; return }
+    // 沿质心外扩 2%：给采样留裕量，避免极细角色被凸包边缘裁掉
+    var cx = 0
+    var cy = 0
+    for (var i = 0; i < hull.length; i++) { cx += hull[i][0]; cy += hull[i][1] }
+    cx /= hull.length
+    cy /= hull.length
+    var parts = []
+    for (var j = 0; j < hull.length; j++) {
+      var px = cx + (hull[j][0] - cx) * 1.02
+      var py = cy + (hull[j][1] - cy) * 1.02
+      parts.push((px / w * 100) + '% ' + (py / h * 100) + '%')
+    }
+    img.style.clipPath = 'polygon(' + parts.join(', ') + ')'
+  } catch (err) {
+    try { img.style.clipPath = 'none' } catch (err2) {}
+  }
+}
+function convexHull(points) {
+  points = points.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1] })
+  if (points.length <= 2) return points
+  function cross(o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]) }
+  var lower = []
+  for (var i = 0; i < points.length; i++) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], points[i]) <= 0) lower.pop()
+    lower.push(points[i])
+  }
+  var upper = []
+  for (var i = points.length - 1; i >= 0; i--) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], points[i]) <= 0) upper.pop()
+    upper.push(points[i])
+  }
+  lower.pop()
+  upper.pop()
+  return lower.concat(upper)
 }
 // 退回「图像矩形」判定：命中图不可用（加载失败 / 画布读不出来）时只认挂件图片的矩形区域，
 // 绝不把整页当成命中区（那会让全页面点不动）。
