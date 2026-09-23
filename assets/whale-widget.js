@@ -8722,8 +8722,35 @@ function visibleTopZ() {
     try { n = eff(getters[i]()) } catch (err) { n = 0 }
     if (n > top) top = n
   }
+  // v756（issue #142）：给第三方 fork / 以后的扩展模块留一个**运行时登记口** ——
+  // 它们新增的浮层不必再回上游源码里插一行，只要 `window.dshwRegisterMask(el)` 登记一次，
+  // 这里就会把它算进"当前可见最高层"（隐藏的会被 eff() 判成 0）。返回一个注销函数。
+  try {
+    var extra = dshwExtraMasks || []
+    for (var k = 0; k < extra.length; k++) {
+      var n2 = 0
+      try { n2 = eff(extra[k]) } catch (err) { n2 = 0 }
+      if (n2 > top) top = n2
+    }
+  } catch (err) {}
   return top
 }
+// 运行时登记的额外浮层（issue #142）。只存引用，不持有任何别的东西；登记失败的入口一律静默忽略。
+var dshwExtraMasks = []
+try {
+  window.dshwRegisterMask = function (el) {
+    try {
+      if (!el || dshwExtraMasks.indexOf(el) >= 0) return function () {}
+      dshwExtraMasks.push(el)
+      return function () {
+        try {
+          var i = dshwExtraMasks.indexOf(el)
+          if (i >= 0) dshwExtraMasks.splice(i, 1)
+        } catch (err) {}
+      }
+    } catch (err) { return function () {} }
+  }
+} catch (err) {}
 // 「永远在打开它的那个窗口之上」：取 本层段起点 与 当前可见最高层+10 的较大值。
 // 用在裁剪 / GIF / 音频裁剪 / 模块编辑器这些**既可能从主菜单(10000)打开、也可能从资源管理(20300)、
 // 泡泡编辑器(20500)、模型设置(29000)里打开**的窗口上 —— 固定层号在后者场景会被父窗口盖住。
@@ -12807,7 +12834,14 @@ function dshwvToast(msg) {
 }
 function configSaveFailNotice(detail) {
   try { console.error('[dsh-whale] 设置保存失败:', detail) } catch (err) {}
-  dshwvToast('⚠ 设置保存失败：' + String(detail || '').slice(0, 120) +
+  // v756（issue #143）：toast 是按 HTML 设计的（其余调用点传的字面量里带 `<br>`），而这里的 detail
+  // 是**动态值**（服务端 JSON 回包的 error 字段 / fetch 异常消息），直接拼进 innerHTML 就是一处
+  // 「动态数据进 HTML 位置」。当前来源都在本地信任边界内、构造不出真实利用，但把 provider 回包、
+  // 模型名之类接进同一个 toast 时它会立刻变成真洞 —— 所以只转义这一个动态值，toast 自身的
+  // `<br>` 保留。
+  var safe = String(detail || '').slice(0, 120)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  dshwvToast('⚠ 设置保存失败：' + safe +
     '<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。')
 }
 function configPayload() {
@@ -14832,6 +14866,19 @@ function setupHitTest(url) {
         var dx = 610 - dw // right bottom
         var dy = 610 - dh
         ctx.drawImage(probe, dx, dy, dw, dh)
+        // v756（issue #144）：画布读回可能被浏览器**抹白** —— Firefox 开启「隐私保护 / resistFingerprinting」
+        // 时 getImageData 会返回全透明（有些版本直接抛错）。那样 isWhaleHit 的 `data[3] > 10` 处处为假，
+        // 而 hitReady 仍为 true ⇒ 走不到矩形回退分支 ⇒ **整只挂件点不动**。
+        // 这里建立命中图时就扫一遍格子：一个不透明像素都取不到 → 判为命中图不可用，退回矩形判定。
+        var opaque = 0
+        for (var gy = 0; gy < 6; gy++) {
+          for (var gx = 0; gx < 6; gx++) {
+            var px = Math.min(609, Math.floor(dx + dw * (gx + 0.5) / 6))
+            var py = Math.min(609, Math.floor(dy + dh * (gy + 0.5) / 6))
+            if (ctx.getImageData(px, py, 1, 1).data[3] > 10) opaque++
+          }
+        }
+        if (!opaque) { hitReady = false; hitFailed = true; return }
         hitReady = true
       } catch (err) {
         hitFailed = true
@@ -14845,18 +14892,21 @@ function setupHitTest(url) {
     probe.src = url || IMG_URL
   } catch (err) {}
 }
+// 退回「图像矩形」判定：命中图不可用（加载失败 / 画布读不出来）时只认挂件图片的矩形区域，
+// 绝不把整页当成命中区（那会让全页面点不动）。
+function whaleRectHit(e) {
+  try {
+    var fr = img.getBoundingClientRect()
+    if (!fr || fr.width <= 0 || fr.height <= 0) return false
+    return e.clientX >= fr.left && e.clientX <= fr.right && e.clientY >= fr.top && e.clientY <= fr.bottom
+  } catch (err) { return false }
+}
 function isWhaleHit(e) {
   // 命中图未就绪/失败时：绝不默认“全屏都是鲸鱼”。
   // 加载中 → 返回 false（不拦截页面）；加载失败 → 退回图像矩形区域，仅挂件区域可拖。
   if (!hitCanvas || !hitReady) {
     if (!hitFailed) return false
-    try {
-      var fr = img.getBoundingClientRect()
-      if (!fr || fr.width <= 0 || fr.height <= 0) return false
-      return e.clientX >= fr.left && e.clientX <= fr.right && e.clientY >= fr.top && e.clientY <= fr.bottom
-    } catch (err) {
-      return false
-    }
+    return whaleRectHit(e)
   }
   try {
     var r = img.getBoundingClientRect()
@@ -14865,7 +14915,16 @@ function isWhaleHit(e) {
     var ly = (e.clientY - r.top) / r.height * 610
     if (lx < 0 || ly < 0 || lx >= 610 || ly >= 610) return false
     if (state.flip) lx = 610 - lx
-    var data = hitCanvas.getContext('2d').getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
+    var data
+    try {
+      data = hitCanvas.getContext('2d').getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
+    } catch (err) {
+      // v756（issue #144）：画布读不出来（隐私保护/跨域污染）→ 立刻降级为矩形判定，
+      // 并且**记住**这个状态，后续调用直接走矩形，不再每次抛错。
+      hitReady = false
+      hitFailed = true
+      return whaleRectHit(e)
+    }
     return data[3] > 10
   } catch (err) {
     return false

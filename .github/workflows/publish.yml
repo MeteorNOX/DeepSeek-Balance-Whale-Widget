@@ -50,6 +50,11 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
+      # 层级自检（issue #131 / #142）：候选表里出现未声明的名字、或 body 级 *Mask 浮层没登记，
+      # 都会静默失效（下拉被盖住 / 两个窗口互相盖）。这里让它在 CI 里硬失败，别等到用户报「点了没反应」。
+      - name: Layer audit (z-index invariants)
+        run: node tools/z-layer-audit.mjs assets/whale-widget.js
+
       # 当前版本是否已发布过（避免重复 push 同一版本时发布失败炸掉 workflow）
       - name: Check if version already published
         id: check

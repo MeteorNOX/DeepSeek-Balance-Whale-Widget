@@ -353,6 +353,10 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 ## 常见问题
 
 - **挂件不出现**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+- **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
+  ```bash
+  DSHW_TRUSTED_HOSTS=dsh.example.com,10.0.0.5:3080 dsh web
+  ```
 - **图片/音效不显示、没声音**：确认插件包内 `assets/` 完整（`DSniang1.png`、`*.mp3`、`minecraft-exp-orb.wav` 等）；缺失时相关功能静默降级。
 - **余额报「未配置 DEEPSEEK_API_KEY」**：去 DSH 凭据里配置。
 - **今日已用显示 `--`**：先等一次成功的余额观测；统计从该观测时刻开始，起点之前的消费不在此区间内。
