@@ -24,6 +24,10 @@ app.setPath('userData', path.join(dataDir, 'desktop-profile'));
 const lock = app.requestSingleInstanceLock();
 let window, tray, dispatcher, bridge, lastHost = initialHost, owner = '', appliedBounds = '', rendererReady = false, quitting = false, manuallyHidden = false, hostHeartbeat = Date.now();
 const rendererErrors = [];
+// Production used to discard renderer console errors entirely: only the fixture
+// path kept them. A throwing or stalled renderer therefore left no trace, which
+// is exactly the class of failure where the overlay stays visible but blank.
+const rendererConsoleErrors = [];
 const fixtureOpenedLinks = [];
 let hostSequence = -1;
 let appliedNativeSize = '';
@@ -96,6 +100,23 @@ async function showStatusDialog() {
     buttons: ['关闭'],
   });
 }
+// The overlay is a large transparent, per-pixel-alpha window. Its compositor
+// surface can go stale — a GPU process restart, a driver reset, a DWM hiccup or
+// a display topology change — while the window itself stays visible. visibility()
+// then keeps it shown, so the user stares at an empty overlay until the whole
+// process is restarted. invalidate() was only reached from show / resize /
+// renderer-ready, so in that state nothing ever asked for a new frame.
+// Re-assert the paint as well, throttled so this stays far away from a per-frame
+// full-window refresh.
+const PAINT_REASSERT_MS = 15000;
+let lastPaintAt = 0;
+function assertPaint(force = false) {
+  if (!window || window.isDestroyed() || !rendererReady || !window.isVisible()) return;
+  const now = Date.now();
+  if (!force && now - lastPaintAt < PAINT_REASSERT_MS) return;
+  lastPaintAt = now;
+  invalidate();
+}
 // 0.2.0: re-assert the decision instead of relying on a single IPC message. The
 // host heartbeat already arrives every second and visibility() is idempotent, so
 // this repairs any dropped, out-of-order or zero-handle state without changing
@@ -103,6 +124,7 @@ async function showStatusDialog() {
 function assertVisibility() {
   if (!lastHost || lastHost.hostAlive === false) return;
   visibility();
+  assertPaint();
 }
 function pauseAndQuit() {
   if (isMac) {
@@ -225,6 +247,18 @@ else {
     markStartup('windowCreated');
     window.once('ready-to-show', () => markStartup('frameReady'));
     if (fixture) window.webContents.on('console-message', (_event, ...args) => { const d = args[0]; if (typeof d === 'object' ? d.level === 'error' : d === 3) rendererErrors.push(typeof d === 'object' ? d.message : args[1]); });
+    // Keep the tail of renderer errors on disk so that a future "the whale went
+    // blank" report arrives with evidence instead of nothing. Only what the UI
+    // itself logs; never chat content.
+    else window.webContents.on('console-message', (_event, ...args) => {
+      const d = args[0];
+      const level = typeof d === 'object' ? d.level : d;
+      const message = typeof d === 'object' ? d.message : args[1];
+      if (level !== 'error' && level !== 3) return;
+      rendererConsoleErrors.push({ at: new Date().toISOString(), message: String(message).slice(0, 300) });
+      if (rendererConsoleErrors.length > 20) rendererConsoleErrors.shift();
+      try { fs.writeFileSync(path.join(dataDir, 'renderer-console.json'), JSON.stringify(rendererConsoleErrors, null, 2)); } catch {}
+    });
     if (!fixture) process.stdout.write(JSON.stringify({ overlayHandle: window.getNativeWindowHandle().readBigUInt64LE().toString() }) + '\n');
     window.setIgnoreMouseEvents(true, { forward: true });
     window.on('show', () => { invalidate(); sendCursor(true); });
@@ -241,6 +275,12 @@ else {
       try { window.setIgnoreMouseEvents(true, { forward: true }); } catch {}
       try { fs.writeFileSync(path.join(dataDir, 'renderer-gone.json'), JSON.stringify({ at: new Date().toISOString(), reason: details?.reason || 'unknown' }, null, 2)); } catch {}
       if (!quitting && !window.isDestroyed()) setTimeout(() => { if (!window.isDestroyed()) window.webContents.reload(); }, 500);
+    });
+    // A restarted GPU/utility process invalidates the overlay's surface the same
+    // way. Log it and ask for a fresh frame instead of waiting for a resize.
+    app.on('child-process-gone', (_event, details) => {
+      try { fs.appendFileSync(path.join(dataDir, 'child-process-gone.log'), JSON.stringify({ at: new Date().toISOString(), type: details?.type || '', reason: details?.reason || '', exitCode: details?.exitCode ?? null }) + '\n'); } catch {}
+      if (details?.type === 'GPU' || details?.type === 'Utility') { lastPaintAt = 0; setTimeout(() => assertPaint(true), 250); }
     });
     window.webContents.on('did-start-loading', () => {
       rendererReady = false; inputEnabled = false;
