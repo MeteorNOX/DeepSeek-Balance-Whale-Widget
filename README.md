@@ -97,9 +97,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 🧪 **自带脚本**：`tools/voice-pack/` 下有语录清单同步（`sync_quotes_from_widget.mjs`，以挂件源码为准）、
   覆盖率闸门（`verify_coverage.mjs`，有没有语录弹出却没声音）、建包（`build_pack.mjs`）与运行时多变体自测
   （`runtime-variants.test.mjs`），见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
-- 📦 **仓库里带了一个示例语音包**：[`voicepacks/example-pack/`](voicepacks/example-pack/)（47 条，22050Hz 单声道）。
+- 📦 **仓库自带示例语音包**：[`voicepacks/example-pack/`](voicepacks/example-pack/)（47 条，22050Hz 单声道）。
   它**不属于本仓库的 MIT 许可**（示例素材，声明见该目录 [`NOTICE.md`](voicepacks/example-pack/NOTICE.md)），
-  随包只是为了让大家能开箱试听这个功能：复制到 `~/.dsh/whale-voice/packs/` 并在 `registry.json` 里登记即可启用。
+  随包用于开箱试听该功能：复制到 `~/.dsh/whale-voice/packs/` 并在 `registry.json` 里登记即可启用。
   **不需要它可以直接整体删除该目录，插件行为完全不受影响**（不装包时不发声，与旧版一致）。
 - 🔁 **改了语录就要重同步**：语音是按文本指纹绑的，语录增删改后请重跑
   `node tools/voice-pack/sync_quotes_from_widget.mjs` 与 `verify_coverage.mjs`，
