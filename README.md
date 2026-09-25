@@ -11,6 +11,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 | 你要挂在哪 | 用哪条分支 | 安装方式 |
 |---|---|---|
 | **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget`，但那样装的是 **main 当前状态、不跟随已发布版本** |
+| **官方桌面客户端（Electron）右下角** | `main`（同一个包） | ⚠️ **不能用** `--profile web`（桌面端读的是 `desktop` profile，CLI 也拒绝 `--profile desktop`）—— 在桌面端会话里**让 DSH 自己装**，见下方「官方桌面端（Electron 客户端）请先看这一节」 |
 | **Codex 桌面应用**（跟随 Codex 窗口、无独立网页） | [`For-Codex`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/For-Codex) | 该分支的 `api-balance-whale`：解压到 `%USERPROFILE%\plugins\api-balance-whale`，再按分支内的 [安装说明](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.0.md) 注册计划任务（也可以直接交给 Codex 自己装喵~） |
 
 ⚠️ **两条分支互不兼容**：`For-Codex` 的插件不能用 `dsh plugin … add` 装进 DSH 网页；本主分支的插件也不能在 Codex 桌面里运行。上表第一行是本仓库默认分支（`main`）的能力，第二行是另一个分支的能力。
@@ -142,6 +143,33 @@ dsh-whale-widget/
 | `whale-bubble-imgs/` | 泡泡图库图片 + `bubble-imgs.json` 索引 |
 
 ## 安装
+
+### 官方桌面端（Electron 客户端）请先看这一节 ⚠️
+
+**桌面端读的不是 `web` profile。** 官方桌面客户端用的是 **`desktop` profile**（`%USERPROFILE%\.dsh\profiles\desktop`），而 `dsh plugin` 命令行**按设计拒绝**碰它：
+
+```
+error: profile "desktop" is managed exclusively by the Electron application
+```
+
+所以下面「方式 A~D」里的 `--profile web` 命令**对桌面端不适用** —— 按它装完，插件落在 `web` profile 里，而桌面窗口读的是 `desktop` profile，一个字也读不到。表现就是「右下角什么都没有（连 ☰ 也没有）、控制台也不报错」。
+
+**桌面端的正确装法：让桌面端里的 DSH 自己装。**
+
+在桌面客户端的会话里直接说一句就够了（例如「把 dsh-whale-widget 装上」）—— 它会调用内置的 `plugin_manager` 工具，而那个工具的**作用域就是当前 profile**（桌面端 = `desktop`），由客户端自带的插件管理器在 profile 目录内用**自带的 pnpm** 完成安装，并把 `dsh-whale-widget` 写进该 profile 的 `dsh.profile.bundles`。需要指定版本时也可以写 `dsh-whale-widget@0.3.13` 这样的安装规格。
+
+> 等价的手工路径是在该 profile 目录里用客户端自带的 pnpm 装一次、再手工写进 `dsh.profile.bundles`，但**不推荐** —— 那是客户端自己管理的目录。
+
+**生效方式（实测）**：新装一个包通常**热生效**（工具返回 `"application":"applied"`）；**换版本（升级）需要重启客户端**（返回 `"restart-required"`）。
+
+**装完怎么自检**（两条分别对应宿主半区与客户端半区）：
+
+- **宿主半区**：`%USERPROFILE%\.dsh\.dshw-turn.json` 存在，且 `seq` 随对话递增；
+- **客户端半区**：桌面端 `%APPDATA%\@deepseek-ai\dsh-desktop\Local Storage\leveldb` 里出现 `dshw-pos` / `dshw-last-seq` —— 这两个键**只有挂件前端**会写。
+
+桌面端界面里看不到插件版本号时，可以看 `%USERPROFILE%\.dsh\profiles\desktop\package.json` 的 `dsh.profile.bundles` 和同目录的 `pnpm-lock.yaml`。
+
+> 下面方式 A~D 都是 **Web（`dsh web`）** 的安装方式。
 
 ### 方式 A：已有本插件的完整资源包（本地目录 / 压缩包）（推荐）
 
@@ -352,7 +380,9 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 常见问题
 
-- **挂件不出现**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+- **挂件不出现**：
+  - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+  - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。
 - **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
   ```bash
   DSHW_TRUSTED_HOSTS=dsh.example.com,10.0.0.5:3080 dsh web
