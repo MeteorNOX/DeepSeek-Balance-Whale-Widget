@@ -438,6 +438,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 致谢
 
+- **0.3.15 的凭据安全修复**（写入自定义模型即可让宿主动用真实 API key 去请求任意地址，从而外带凭据）由 **B 站用户「星丶白羽莲」** 负责任地报告：把复现步骤、环境与前置条件一起给出，使这次能在**不打死自建网关这类正当用法**的前提下收紧边界。感谢他的支持。
 - **DSH 账号登录态读余额**（端点与鉴权头、凭据记录的位置、DSH 自身 `deepseekAccount` 服务的推荐调用方式，以及三个集成坑：账户标识字符集、赠金要计入基准、服务可能不存在）由 GitHub 用户 [@yybai25](https://github.com/yybai25) 在 [#157](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/157) 中给出完整规格与**已在自己机器上验证过的参考实现**；**0.3.14 据此实现**（只调 DSH 服务、不接触账号令牌）。感谢他的贡献。
 - 充值记账修复方案（余额上升与下降分开记账、显式余额校正公式、按账户/币种隔离观测窗口、账本原子写入与迁移备份）由 GitHub 用户 [@Yang-huai406](https://github.com/Yang-huai406) 独立设计并实现为可运行的修复分支；**0.3.1 在该方案基础上移植合并**，并保留本项目既有的音效修复。感谢他的支持。
 - OpenCode Go 订阅额度（多窗口额度 `quota.json.windows`、按窗口展示与紧凑重置倒计时、「订阅额度」模块的窗口选择）由 GitHub 用户 [@ELFsay](https://github.com/ELFsay) 提交（[#99](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/99)），已合入 `main`。感谢他的贡献。
