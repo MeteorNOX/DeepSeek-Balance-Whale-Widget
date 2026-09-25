@@ -322,7 +322,12 @@ var css = [
   '.dshwv-root.dshwv-left{transform:scaleX(-1)}',
   '.dshwv-root.dshwv-dragging{cursor:grabbing;transition:none}',
   '.dshwv-body{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:50% 100%;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}',
-  '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  // v757（issue #147）：`.dshwv-img` 由 `pointer-events:none` 改为 `auto` —— 鲸鱼身体**自己接指针事件**。
+  // 原来靠"主文档监听 + isWhaleHit()"判定命中，而指针落在 `<iframe>`（如右侧栏 HTML 预览）上时
+  // 事件直接进入 iframe 自己的文档，主文档收不到 ⇒ 鲸鱼身体失联（点不动、拖不动，只有 ☰ 能用）。
+  // 代价是 img 的**矩形**（含透明边距）会吞掉点击 → 由 setupHitTest() 用命中图的**凸包**做 clip-path
+  // 裁掉透明区（凸包包含全部不透明像素，不会裁到角色本身），"点到透明处穿透到下层"的行为得以保留。
+  '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
   // v751（PR #119）：光标不再写 document.body.style.cursor —— cursor 是可继承属性，写 <body> 会让 Blink
   // 失效**整棵文档树**的样式；而它在点击链路上按下/抬手各写一次，紧接着 isWhaleHit() 的
   // getBoundingClientRect() 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局，
@@ -14878,16 +14883,21 @@ function setupHitTest(url) {
             if (ctx.getImageData(px, py, 1, 1).data[3] > 10) opaque++
           }
         }
-        if (!opaque) { hitReady = false; hitFailed = true; return }
+        if (!opaque) { hitReady = false; hitFailed = true; applyHitClip(''); return }
         hitReady = true
+        // v757（issue #147）：命中图可用 → 用不透明区域的凸包裁掉 img 的透明边距，
+        // 这样"身体自己接事件"不会把透明角落的点击也吞掉。
+        applyHitClip(buildHitClipPath())
       } catch (err) {
         hitFailed = true
+        applyHitClip('')
       }
     }
     probe.onerror = function () {
       // 图片加载失败：不能把整页当成鲸鱼命中区吞掉事件（会全页面点不动），
       // 标记失败，命中判定退回图像矩形区域。
       hitFailed = true
+      applyHitClip('')
     }
     probe.src = url || IMG_URL
   } catch (err) {}
@@ -14900,6 +14910,60 @@ function whaleRectHit(e) {
     if (!fr || fr.width <= 0 || fr.height <= 0) return false
     return e.clientX >= fr.left && e.clientX <= fr.right && e.clientY >= fr.top && e.clientY <= fr.bottom
   } catch (err) { return false }
+}
+// —— v757（issue #147）：把命中图的不透明区域做成 clip-path ——
+// `img` 现在常驻 `pointer-events:auto`（压在任何 iframe 上都能接事件），所以要靠 clip-path
+// 把透明边距裁掉，保住"点到透明处穿透到下层"。用**凸包**而不是逐像素轮廓：凸包天然包含全部
+// 不透明像素（不会裁到角色本身），点数少（几十个），且左右镜像由外层的 scaleX(-1) 一起变换。
+function applyHitClip(clip) {
+  try {
+    img.style.clipPath = clip || ''
+    img.style.webkitClipPath = clip || ''
+  } catch (err) {}
+}
+function convexHull(pts) {
+  try {
+    var p = pts.slice().sort(function (a, b) { return a[0] - b[0] || a[1] - b[1] })
+    if (p.length < 3) return null
+    var cross = function (o, a, b) { return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]) }
+    var lower = [], upper = [], i
+    for (i = 0; i < p.length; i++) {
+      while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p[i]) <= 0) lower.pop()
+      lower.push(p[i])
+    }
+    for (i = p.length - 1; i >= 0; i--) {
+      while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p[i]) <= 0) upper.pop()
+      upper.push(p[i])
+    }
+    lower.pop(); upper.pop()
+    return lower.concat(upper)
+  } catch (err) { return null }
+}
+function buildHitClipPath() {
+  try {
+    var c = hitCanvas && hitCanvas.getContext ? hitCanvas.getContext('2d') : null
+    if (!c) return ''
+    var data = c.getImageData(0, 0, 610, 610).data // 只读一次（1.5MB），别逐行读
+    var pts = []
+    for (var y = 0; y < 610; y++) {
+      var l = -1, r = -1
+      var base = y * 610 * 4
+      for (var x = 0; x < 610; x++) {
+        if (data[base + x * 4 + 3] > 10) { if (l < 0) l = x; r = x }
+      }
+      if (l >= 0) { pts.push([l, y]); pts.push([r, y]) }
+    }
+    if (pts.length < 8) return ''
+    var hull = convexHull(pts)
+    if (!hull || hull.length < 3) return ''
+    var parts = []
+    for (var k = 0; k < hull.length; k++) {
+      parts.push((hull[k][0] / 610 * 100).toFixed(2) + '% ' + (hull[k][1] / 610 * 100).toFixed(2) + '%')
+    }
+    return 'polygon(' + parts.join(', ') + ')'
+  } catch (err) {
+    return '' // 读不出来 → 不裁（退回矩形行为，与旧版一致）
+  }
 }
 function isWhaleHit(e) {
   // 命中图未就绪/失败时：绝不默认“全屏都是鲸鱼”。
@@ -15141,7 +15205,9 @@ function setWidgetCursor(v) {
 // 不碰页面级样式；找不到可滚动祖先时什么都不做（此时浏览器仍按默认把滚动交给页面滚动容器）。
 function onWhaleWheel(e) {
   try {
-    if (!widgetCursor || !e || !e.target) return
+    // v757（issue #147）：img 现在**常驻** pointer-events:auto，所以不再用 widgetCursor 当闸门 ——
+    // 这个监听挂在 root 上，只有挂件自己的子元素接住了事件才会触发；命中就转交。
+    if (!e || !e.target) return
     var hit = e.target
     if (hit !== img && !(root && root.contains && root.contains(hit))) return
     var prev = hit.style ? hit.style.pointerEvents : ''
