@@ -1487,6 +1487,26 @@ turnCostCustomBtn.textContent = '自定义提示'
 turnCostCustomBtn.title = '自定义每轮消耗提示内容(金额用 {cost})、自动关闭秒数、任务结束音效'
 turnCostCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); usageAlertBudgetEditor('cost', null) })
 row7.appendChild(turnCostCustomBtn)
+// 口径与门槛两个控件跟在「每轮消耗提示」那一行下面，跟随开关灰化
+var row7b = menuRow()
+row7b.appendChild(menuLabel('消耗口径'))
+var turnCostModeSel = document.createElement('select')
+turnCostModeSel.className = 'dshwv-sound'
+turnCostModeSel.title = '自动：有订阅/额度账本就说额度进度，只有余额才说 ¥；也可以强制一种口径'
+turnCostModeSel.innerHTML = '<option value="auto">自动认账</option><option value="quota">只说额度</option><option value="money">只说 ¥</option>'
+turnCostModeSel.addEventListener('change', function (e) { e.stopPropagation(); turnCostSetKnob(turnCostModeSel.value, null) })
+row7b.appendChild(turnCostModeSel)
+row7b.appendChild(menuLabel('门槛'))
+var turnCostFloorInput = document.createElement('input')
+turnCostFloorInput.type = 'number'
+turnCostFloorInput.className = 'dshwv-number'
+turnCostFloorInput.min = '0'
+turnCostFloorInput.step = '0.05'
+turnCostFloorInput.value = '0.2'
+turnCostFloorInput.title = '只有余额账本用得上：本轮消耗低于这个数就不打断；填 0 = 每轮都弹（老行为）'
+turnCostFloorInput.addEventListener('change', function (e) { e.stopPropagation(); turnCostSetKnob(null, turnCostFloorInput.value) })
+row7b.appendChild(turnCostFloorInput)
+row7b.appendChild(menuLabel('元'))
 var row9 = menuRow()
 row9.appendChild(menuLabel('避让滚动条'))
 row9.appendChild(scrollGapToggle)
@@ -1526,6 +1546,7 @@ menuBox.appendChild(row2)
 menuBox.appendChild(row3)
 menuBox.appendChild(row6)
 menuBox.appendChild(row7)
+menuBox.appendChild(row7b)
 // 「任务结束音效」不再占主菜单(v720):控件挂在一个不插入文档的宿主上,
 // 「自定义提示」窗口打开时再把它搬进窗口。需要宿主是因为 dshwCustSel 初始化要求 select 已有父节点。
 var taskEndRowHost = document.createElement('div')
@@ -12414,10 +12435,97 @@ function hideBubble() {
   lastHintText = null
   bubbleCloseVisual()
 }
+// —— 每轮消耗泡泡：先认这本账是「额度型」（订阅套餐 / 手动额度）还是「余额型」，口径和门槛都不一样 ——
+// 额度型说进度不说 ¥（订阅是按额度扣的，那一行 ¥ 只是把 token 按按量价折算出来的估算值，
+// 用户看着像"这条订阅每次对话都在花钱"）；余额型保留 ¥，但小额轮次不该打断（默认 5 秒 TTL，
+// 一轮几分钱就弹一次，一天能弹上百次）。两类都认不出的时候维持原行为，不动老用户体验。
+function turnCostLedger() {
+  var list = apiModels || []
+  for (var i = 0; i < list.length; i++) {
+    var m = list[i]
+    if (!m) continue
+    if (m.planSupport) {
+      var p = apiPlanOf(m.id)
+      if (p && p.ok) {
+        var wins = (p.windows && p.windows.length) ? p.windows : [null]
+        var pct = -1, txt = ''
+        for (var k = 0; k < wins.length; k++) {
+          var w = wins[k]
+          var wp = Number(w ? w.usedPct : p.usedPct) || 0
+          if (wp > pct) { pct = wp; txt = (w && w.label ? w.label + ' ' : '') + apiPlanPctText(wp) + (w ? ' · ' + apiPlanResetText(m.id, w) : '') }
+        }
+        return { id: m.id, kind: 'plan', pct: pct > 0 ? pct : 0, text: txt }
+      }
+    }
+    if (m.quota && m.quota.on) {
+      var q = apiQuotaInfo(m.id)
+      if (q) return { id: m.id, kind: 'quota', pct: Number(q.pct) || 0, text: apiQuotaPctText(m.id) + apiQuotaUnitSuffix(q) }
+    }
+  }
+  return null
+}
+// 提醒档位：跨过这些百分比才值得再打断一次（同一档位当天只说一遍）
+function turnCostMilestone(pct) {
+  var ms = [25, 50, 75, 90, 100], hit = 0, p = Number(pct) || 0
+  for (var i = 0; i < ms.length; i++) if (p >= ms[i]) hit = ms[i]
+  return hit
+}
+// 纯判据：led=额度型账本（null 表示只有余额），today=今日已用（元），seen=今天已经提示过的档位
+// 纯判据：led=额度型账本（null 表示只有余额），today=今日已用（元），seen=今天已提示过的档位，
+// opt={mode,floor} 就是那两个手动旋钮（省略时按 auto / 0.2，测试里也这么省）
+function turnCostGate(amount, led, today, seen, opt) {
+  var mode = (opt && opt.mode) || 'auto'
+  if (mode === 'money') led = null
+  var floor = opt && opt.floor !== undefined && opt.floor !== null ? Number(opt.floor) : 0.2
+  if (!isFinite(floor) || floor < 0) floor = 0.2
+  if (led) {
+    var hit = turnCostMilestone(led.pct)
+    if (hit > (Number(seen) || 0)) return { pop: true, ledger: led, milestone: hit }
+    return { pop: false }
+  }
+  var a = Number(amount)
+  if (!isFinite(a)) return { pop: false }
+  if (floor <= 0) return { pop: true } // 门槛填 0 = 每轮都弹（改动前的行为，给不想被规则管的人留口子）
+  return a >= Math.max(floor, (Number(today) || 0) * 0.25) ? { pop: true } : { pop: false }
+}
+// 已提示档位按天存，换天自动归零（额度窗口多半也是按天/按周重置，跨天重数一遍不亏）
+function turnCostSeen() {
+  try {
+    var raw = JSON.parse(localStorage.getItem('dshw-cost-seen') || '{}')
+    if (raw && raw.d === new Date().toDateString()) return Number(raw.v) || 0
+  } catch (err) {}
+  return 0
+}
+function turnCostRemember(milestone) {
+  try {
+    localStorage.setItem('dshw-cost-seen', JSON.stringify({ d: new Date().toDateString(), v: milestone }))
+  } catch (err) {}
+}
+function bubbleRenderLedgerCostMods(led) {
+  var L = [
+    { type: 'text', text: '额度已用掉', size: 8, bold: true },
+    { type: 'text', text: (Number(led.pct) || 0).toFixed(1) + '%', size: 24, bold: true, color: '#e0433f' },
+    { type: 'text', text: led.text || '', size: 6 },
+  ]
+  bubbleRenderModules(usageAlertModsResolved(L, null, null, null))
+}
 function showCostBubble(amount) {
   if (!bubbleOn || !turnCostOn) return
-  // 进入系统泡泡队列(等级3):若同批有预警/预算,则排在它们之后展示
-  whaleSysPush({ kind: 'cost', amount: amount, rank: 3 })
+  var led = null
+  var today = 0
+  var customLines = false
+  try {
+    led = turnCostLedger()
+    var tc = usageSet && usageSet.turnCost
+    customLines = !!(tc && Array.isArray(tc.lines) && tc.lines.length)
+  } catch (err) {}
+  try { today = Number(state.todayUsage) || 0 } catch (err) {}
+  var d = turnCostGate(amount, led, today, turnCostSeen(), { mode: turnCostMode, floor: turnCostFloor })
+  if (!d.pop) return
+  if (d.milestone) turnCostRemember(d.milestone)
+  // 额度口径下如果用户自己写过内容，就用他的模板（{cost} 照常填），只是弹不弹按额度判
+  var useLedgerMods = !!(d.ledger && !customLines)
+  whaleSysPush({ kind: useLedgerMods ? 'cost-ledger' : 'cost', amount: amount, ledger: d.ledger || null, rank: 3 })
 }
 function hideCostBubble() {
   // 与手动点击“第 n 次点击”一致:有下一项时保持打开淡切,无下一项才收起
@@ -12467,8 +12575,8 @@ function whaleSysTick() {
     var item = whaleSysQueue.shift()
     if (!item) return
     whaleSysItem = item
-    if (item.kind === 'cost') {
-      sceneOpen('cost', function () { bubbleRenderCostMods(item.amount) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
+    if (item.kind === 'cost' || item.kind === 'cost-ledger') {
+      sceneOpen('cost', item.ledger ? function () { bubbleRenderLedgerCostMods(item.ledger) } : function () { bubbleRenderCostMods(item.amount) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
     } else {
       sceneOpen('alert', function () { bubbleRenderModules(item.mods || []) }, (item && item.ttlMs != null) ? item.ttlMs : USAGE_ALERT_TTL)
     }
@@ -12488,8 +12596,8 @@ function whaleSysSwapNext() {
     var item = whaleSysQueue.shift()
     if (!item) return false
     whaleSysItem = item
-    if (item.kind === 'cost') {
-      sceneOpen('cost', function () { bubbleRenderCostMods(item.amount) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
+    if (item.kind === 'cost' || item.kind === 'cost-ledger') {
+      sceneOpen('cost', item.ledger ? function () { bubbleRenderLedgerCostMods(item.ledger) } : function () { bubbleRenderCostMods(item.amount) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
     } else {
       sceneOpen('alert', function () { bubbleRenderModules(item.mods || []) }, (item && item.ttlMs != null) ? item.ttlMs : USAGE_ALERT_TTL)
     }
@@ -12800,6 +12908,23 @@ var peakMode = 'default'
 var bubbleOn = true
 var turnCostOn = true
 var turnCostCloseMs = 5000
+// —— 半自动半手动：默认自己认账本类型；两个手动旋钮（口径、门槛）随时可覆盖 ——
+var turnCostMode = 'auto' // auto 自动 / quota 只说额度（认不出额度时退回 ¥）/ money 只说 ¥
+var turnCostFloor = 0.2  // 余额口径的地板（元）；填 0 = 每轮都弹（改动前的行为）
+function turnCostSetKnob(mode, floor) {
+  if (mode === 'auto' || mode === 'quota' || mode === 'money') turnCostMode = mode
+  if (floor !== null && floor !== undefined && floor !== '') {
+    var n = Number(floor)
+    turnCostFloor = isFinite(n) && n >= 0 ? n : 0.2
+  }
+  try {
+    turnCostModeSel.value = turnCostMode
+    turnCostFloorInput.value = String(turnCostFloor)
+    turnCostModeSel.disabled = !turnCostOn
+    turnCostFloorInput.disabled = !turnCostOn
+  } catch (err) {}
+  saveConfig()
+}
 var costBubbleActive = false
 var scrollGapOn = false
 var scrollGapPx = 17
@@ -12850,7 +12975,7 @@ function configSaveFailNotice(detail) {
     '<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。')
 }
 function configPayload() {
-  return JSON.stringify({ scale: state.scale, sound: soundOn, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
+  return JSON.stringify({ scale: state.scale, sound: soundOn, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, turnCostMode: turnCostMode, turnCostFloor: turnCostFloor, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
 }
 // 真正的 PUT：读响应 → 失败（网络异常 / HTTP!=200 / {ok:false}）静默重试一次 → 仍失败才提示
 function configPut(payload, retried) {
@@ -12923,6 +13048,7 @@ function setTurnCostOn(v) {
   turnCostOn = !!v
   turnCostToggle.checked = turnCostOn
   turnCostCloseInput.disabled = !turnCostOn
+  try { turnCostModeSel.disabled = !turnCostOn; turnCostFloorInput.disabled = !turnCostOn } catch (err) {}
   saveConfig()
   if (!turnCostOn) hideCostBubble()
 }
@@ -15448,6 +15574,9 @@ fetch(SIZE_URL, { cache: 'no-store' })
       turnCostCloseMs = d.turnCostCloseMs > 0 ? d.turnCostCloseMs : 0
       turnCostCloseInput.value = String(Math.round(turnCostCloseMs / 1000))
     }
+    if (d && (d.turnCostMode === 'auto' || d.turnCostMode === 'quota' || d.turnCostMode === 'money')) turnCostMode = d.turnCostMode
+    if (d && isFinite(Number(d.turnCostFloor)) && Number(d.turnCostFloor) >= 0) turnCostFloor = Number(d.turnCostFloor)
+    try { turnCostModeSel.value = turnCostMode; turnCostFloorInput.value = String(turnCostFloor) } catch (err) {}
     if (d && typeof d.scrollGapOn === 'boolean') {
       scrollGapOn = d.scrollGapOn
       scrollGapToggle.checked = scrollGapOn
