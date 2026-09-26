@@ -394,6 +394,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/audio.json` → 200，含 `groups` / `fragments`（其中内置片段 `exp_orb` = Minecraft·经验球、`end_a` = A）
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
+- `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
 - 浏览器 F5 后右下角出现挂件
 
 > ⚠️ **关于上面这些 `curl`**：全部 **23 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
@@ -448,6 +449,10 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 致谢
 
+- **0.3.16 的「换 / 删 API key 后旧记账被分本隐藏」**（切换当天金额被覆盖、更早的天数退化成「本地估算」）由 GitHub 用户 [@0Sakura721](https://github.com/0Sakura721) 在 [#163](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/163) 中报告，并**直接给出了根因位置**（`lib/index.js` 里用密钥哈希当账户标识、`accounting.mjs` 的 `observeBalance` / `currentBook` 只读 active 本）与数据佐证 —— 让这次能一次做实"数据没丢、只是没有入口"这个判断。0.3.16 据此修复（旧本日期照常显示并标注「已观测消费 · 历史账户」）。感谢他。
+- **0.3.16 的「下载管理器抢走挂件音效请求」**（IDM 等每次打开 DSH 弹下载框、关音效也照样弹）由 GitHub 用户 [@VaeKaras](https://github.com/VaeKaras) 在 [#158](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/158) 中报告，复现步骤、被抢的 URL 形态与"关音效无效"的观察都很完整 —— README 据此新增该已知问题与站点排除做法。感谢他。
+- **官方桌面端「新装也可能需要重开客户端」**由 GitHub 用户 [@MengLs1620](https://github.com/MengLs1620) 在 [#162](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/162) 中实测反馈，README 的生效方式据此补正。感谢他。
+- **「让鲸鱼娘响应任务状态并给出音效提示」**由 GitHub 用户 [@Jy-EggRoll](https://github.com/Jy-EggRoll) 在 [#160](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/160) 中提出，并**提交了实现 PR [#161](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/161)**（其中 `GET /dsh-whale/wait.json` 的数据形状 `{ok, pending:{kind,id,ts}}` 与主线最终方案一致；本 README 的 `wait.json` 路由说明即采纳其写法）。0.3.16 的提问/授权提示音效与常驻气泡按主线方案落地（四入口面板 / 每事件音量与试听 / 抢占置顶）。感谢他，也欢迎他继续参与这个项目的工程化改进。
 - **0.3.15 的凭据安全修复**（写入自定义模型即可让宿主动用真实 API key 去请求任意地址，从而外带凭据）由 **B 站用户「星丶白羽莲」** 负责任地报告：把复现步骤、环境与前置条件一起给出，使这次能在**不打死自建网关这类正当用法**的前提下收紧边界。感谢他的支持。
 - **DSH 账号登录态读余额**（端点与鉴权头、凭据记录的位置、DSH 自身 `deepseekAccount` 服务的推荐调用方式，以及三个集成坑：账户标识字符集、赠金要计入基准、服务可能不存在）由 GitHub 用户 [@yybai25](https://github.com/yybai25) 在 [#157](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/157) 中给出完整规格与**已在自己机器上验证过的参考实现**；**0.3.14 据此实现**（只调 DSH 服务、不接触账号令牌）。感谢他的贡献。
 - 充值记账修复方案（余额上升与下降分开记账、显式余额校正公式、按账户/币种隔离观测窗口、账本原子写入与迁移备份）由 GitHub 用户 [@Yang-huai406](https://github.com/Yang-huai406) 独立设计并实现为可运行的修复分支；**0.3.1 在该方案基础上移植合并**，并保留本项目既有的音效修复。感谢他的支持。
