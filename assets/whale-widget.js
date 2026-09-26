@@ -1282,6 +1282,7 @@ function fillTaskEndOptions(pref) {
 // 片段列表变化后刷新任务结束音下拉(保留用户当前选择)
 function refreshTaskEndAfterAudio() {
   try { fillTaskEndOptions((usageSet && usageSet.taskEnd) || null) } catch (err) {}
+  try { refreshWaitSoundOptions() } catch (err) {}
 }
 // 任务结束音下拉置顶(📌):值存 usageSet.taskEnd.pins(按置顶先后),置顶项在 fillTaskEndOptions 排最前
 function taskEndPins() {
@@ -1310,10 +1311,126 @@ function taskEndTogglePin(v) {
     fillTaskEndOptions((usageSet && usageSet.taskEnd) || null)
   } catch (err) {}
 }
-function playTaskEndSound() {
+// ===== 等待用户交互音效（issue #160）=====
+// dsh 需要你回答（提问）/ 批准（授权）时各响一声 —— 这两种时刻本轮不会结束，
+// 所以任务结束音不会响。两个绑定与任务结束音共用同一套音效库与播放逻辑；
+// 同样在「自定义提示」窗口里改，同样点「保存」才落盘。
+// 「静音」（sel 为空）表示该状态不播；选项列表在音频库变化后由 refreshWaitSoundOptions() 重填。
+var waitSoundDefs = [
+  { key: 'waitQuestion', kind: 'question', label: '提问等待音效' },
+  { key: 'waitApproval', kind: 'approval', label: '授权等待音效' },
+]
+var waitSoundCtl = {}
+var waitSoundDefer = false // true = 窗口打开中,改动先不落盘
+var waitSoundDeferSnap = null // 窗口打开时的快照(取消时还原)
+function waitBinding(key) {
+  try { return (usageSet && usageSet[key]) || { on: false, sel: '' } } catch (err) { return { on: false, sel: '' } }
+}
+function waitSoundPatch() {
+  var p = {}
+  for (var i = 0; i < waitSoundDefs.length; i++) p[waitSoundDefs[i].key] = waitBinding(waitSoundDefs[i].key)
+  return p
+}
+function fillWaitSoundSel(ctl, cur) {
   try {
-    if (!usageSet || !usageSet.taskEnd || !usageSet.taskEnd.on || soundOn === false) return
-    var sel = usageSet.taskEnd.sel || taskEndSel.value || ''
+    var sel = ctl.sel
+    sel.innerHTML = ''
+    sel.appendChild(soundOpt('', '静音'))
+    var seen = {}
+    function add(v, lab) {
+      if (seen[v]) return
+      seen[v] = 1
+      sel.appendChild(soundOpt(v, lab))
+    }
+    var frags = Array.isArray(audioFragments) ? audioFragments : []
+    frags.forEach(function (f) {
+      if (!f || !f.id) return
+      // 传统 4 个预设单音由下面的 preset:* 覆盖（与任务结束音同一套排列）
+      if (f.preset && (f.id === 'ya1' || f.id === 'ya2' || f.id === 'd1' || f.id === 'd2')) return
+      add('frag:' + f.id, String(f.name || f.id))
+    })
+    add('preset:duck:press', '小黄鸭·按下')
+    add('preset:duck:release', '小黄鸭·松开')
+    add('preset:fx1:press', '音效1·按下')
+    add('preset:fx1:release', '音效1·松开')
+    var grps = Array.isArray(audioGroups) ? audioGroups : []
+    grps.forEach(function (g) {
+      if (!g || !g.id) return
+      add('grp:' + g.id, String(g.name || audioGroupName(g.id)) + '（点按）')
+    })
+    // 选中的值不在列表里(音频库还没加载完)时原生 select 会落到第一项,显示「静音」;
+    // 这里不改写 usageSet —— 等音频就绪后的重填再定位,避免把用户的选择洗掉
+    sel.value = cur || ''
+    if (ctl.drop) ctl.drop.sync()
+  } catch (err) {}
+}
+function refreshWaitSoundOptions() {
+  for (var i = 0; i < waitSoundDefs.length; i++) {
+    var d = waitSoundDefs[i]
+    var c = waitSoundCtl[d.key]
+    if (c) fillWaitSoundSel(c, waitBinding(d.key).sel)
+  }
+}
+function applyWaitSoundLocal(key, on, sel) {
+  try {
+    usageSet = usageSet || {}
+    var b = usageSet[key] = usageSet[key] || { on: false, sel: '' }
+    if (typeof on === 'boolean') b.on = on
+    if (typeof sel === 'string') b.sel = sel
+    var c = waitSoundCtl[key]
+    if (c) {
+      c.toggle.checked = !!b.on
+      c.sel.disabled = !b.on
+      if (c.drop) c.drop.sync()
+    }
+  } catch (err) {}
+}
+function commitWaitSound() {
+  if (waitSoundDefer) return
+  saveUsageSettings(waitSoundPatch())
+}
+waitSoundDefs.forEach(function (d) {
+  var toggle = document.createElement('input')
+  toggle.type = 'checkbox'
+  toggle.className = 'dshwv-check'
+  toggle.checked = false
+  toggle.title = (d.kind === 'question' ? '需要你回答时' : '需要你批准时') + '播放提示音'
+  toggle.addEventListener('change', function () {
+    applyWaitSoundLocal(d.key, toggle.checked, undefined)
+    commitWaitSound()
+  })
+  var sel = document.createElement('select')
+  sel.className = 'dshwv-sound'
+  sel.disabled = true
+  sel.title = d.label + ':音效组(点按整组)/单个音频(与按下/松开同库);「静音」= 不播'
+  sel.addEventListener('change', function () {
+    applyWaitSoundLocal(d.key, undefined, sel.value)
+    commitWaitSound()
+  })
+  // dshwCustSel 要求 select 已有父节点:先挂在一个宿主 div 上,窗口打开时再搬进窗口
+  var host = document.createElement('div')
+  host.appendChild(sel)
+  var drop = dshwCustSel(sel, {
+    bottom: function () { return window.__dshwRemindMask ? null : usageNavRow },
+    scrollNames: true,
+  })
+  try {
+    var wrapEl = sel.parentNode
+    if (wrapEl) {
+      wrapEl.style.flex = '0 0 120px'
+      wrapEl.style.width = '120px'
+      wrapEl.style.maxWidth = '120px'
+    }
+  } catch (err) {}
+  waitSoundCtl[d.key] = { toggle: toggle, sel: sel, host: host, drop: drop, label: d.label }
+})
+
+// 音效绑定播放：绑定形如 { on, sel }（任务结束音 / 等待提问音 / 等待授权音共用这一套）
+// sel 为空 = 该绑定静音，直接不播。
+function playBindingSound(binding, domFallback) {
+  try {
+    if (!binding || !binding.on || soundOn === false) return
+    var sel = binding.sel || domFallback || ''
     var url = ''
     var altUrl = ''
     if (sel.indexOf('grp:') === 0) { playTaskEndGroupClick(sel.slice(4)); return }
@@ -1331,6 +1448,9 @@ function playTaskEndSound() {
     try { a.volume = Number(soundVol) || 0.9 } catch (err) {}
     a.play().catch(function () {})
   } catch (err) {}
+}
+function playTaskEndSound() {
+  try { playBindingSound(usageSet && usageSet.taskEnd, taskEndSel.value) } catch (err) {}
 }
 // 任务结束音=音效组时:模拟点按一次该组——音1完整播放结束后立即接音2,
 // 即“按下到音1结束才松开”的无缝连续点按听感；槽位留空(该事件静音)时跳过对应音频
@@ -1905,7 +2025,7 @@ function usageAlertBudgetEditor(key, onSave) {
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
     title.textContent = isCost
-      ? '自定义提示(每轮消耗 · 内容 / 自动关闭 / 任务结束音效)'
+      ? '自定义提示(每轮消耗 · 内容 / 自动关闭 / 任务结束音效 / 等待提问·授权音效)'
       : ('编辑 ' + (isAlert ? '余额预警' : '今日预算') + '提醒内容(可拖动下方模块入框)')
     card.appendChild(title)
     // —— 头部:预警/预算=触发条件;cost=自动关闭 + 任务结束音效 ——
@@ -1975,6 +2095,21 @@ function usageAlertBudgetEditor(key, onSave) {
       teHint.style.fontSize = '11px'
       teHint.style.flex = '1 0 100%'
       condBox.appendChild(teHint)
+      // issue #160:等待用户交互音效(提问 / 授权),与任务结束音同一套音效库
+      waitSoundDefs.forEach(function (d) {
+        var wc = waitSoundCtl[d.key]
+        if (!wc) return
+        var gW = segCond()
+        gW.appendChild(qLabel(d.label))
+        gW.appendChild(wc.toggle)
+        gW.appendChild(wc.host)
+        condBox.appendChild(gW)
+      })
+      var waHint = qLabel('提问 / 授权需要你操作时播放;「静音」= 不播,同样点「保存」后才生效')
+      waHint.style.opacity = '.75'
+      waHint.style.fontSize = '11px'
+      waHint.style.flex = '1 0 100%'
+      condBox.appendChild(waHint)
     } else {
     // 启用提醒: 口 启用提醒 · 阈值: 余额 ≤ [数值] 元时提醒
     var gOn = segCond()
@@ -2085,6 +2220,13 @@ function usageAlertBudgetEditor(key, onSave) {
           usageSet.taskEnd = { on: !!snap.on, sel: String(snap.sel || '') }
           applyTaskEndLocal(usageSet.taskEnd.on, usageSet.taskEnd.sel)
           try { fillTaskEndOptions(usageSet.taskEnd) } catch (err) {}
+          // 等待用户交互音效同样只落在内存,没点「保存」就还原快照
+          var wSnap = waitSoundDeferSnap || {}
+          waitSoundDefs.forEach(function (d) {
+            var ws = wSnap[d.key] || { on: false, sel: '' }
+            applyWaitSoundLocal(d.key, !!ws.on, String(ws.sel || ''))
+          })
+          try { refreshWaitSoundOptions() } catch (err) {}
           // 秒数:窗口内没落盘,还原内存与输入框即可
           turnCostCloseMs = turnCostCloseDeferSnap
           turnCostCloseInput.value = String(Math.max(0, Math.round(turnCostCloseDeferSnap / 1000)))
@@ -2092,6 +2234,8 @@ function usageAlertBudgetEditor(key, onSave) {
         if (isCost) {
           taskEndDefer = false
           taskEndDeferSnap = null
+          waitSoundDefer = false
+          waitSoundDeferSnap = null
           turnCostCloseDefer = false
           turnCostCloseInput.disabled = !turnCostOn // 回到菜单态的禁用逻辑
         }
@@ -2144,10 +2288,11 @@ function usageAlertBudgetEditor(key, onSave) {
         usageSet = usageSet || {}
         usageSet.turnCost = { lines: lines }
         taskEndDefer = false
-        saveUsageSettings({
+        waitSoundDefer = false
+        saveUsageSettings(Object.assign({
           taskEnd: usageSet.taskEnd || { on: false, sel: '' },
           turnCost: { lines: lines },
-        })
+        }, waitSoundPatch()))
         var oCost = { lines: lines, autoClose: turnCostCloseMs > 0, ttlSec: Math.round(turnCostCloseMs / 1000) }
         cleanup()
         if (onSave) onSave(oCost)
@@ -2207,6 +2352,18 @@ function usageAlertBudgetEditor(key, onSave) {
       taskEndDeferSnap = JSON.parse(JSON.stringify({ on: !!teCur.on, sel: String(teCur.sel || '') }))
       applyTaskEndLocal(!!teCur.on, String(teCur.sel || ''))
       try { fillTaskEndOptions(teCur) } catch (err) {}
+      // 等待用户交互音效:同样进入"缓冲"模式,并刷新一次选项(音频库可能刚加载完)
+      waitSoundDefer = true
+      waitSoundDeferSnap = JSON.parse(JSON.stringify(waitSoundPatch()))
+      refreshWaitSoundOptions()
+      waitSoundDefs.forEach(function (d) {
+        var wc = waitSoundCtl[d.key]
+        if (!wc) return
+        var b = waitBinding(d.key)
+        wc.toggle.checked = !!b.on
+        wc.sel.disabled = !b.on
+        if (wc.drop) wc.drop.sync()
+      })
       turnCostCloseDefer = true
       turnCostCloseDeferSnap = turnCostCloseMs
       turnCostCloseInput.disabled = false
@@ -15536,7 +15693,33 @@ function pollLastTurn() {
       .catch(function () {})
   } catch (err) {}
 }
-setInterval(pollLastTurn, 1000)
+// —— 等待用户交互提示音（issue #160）：轮询 wait.json ——
+// dsh 需要你回答（提问）/ 批准（授权）时本轮不会结束，所以任务结束音不会响；
+// 宿主把当前挂起项写进 wait.json，这里发现「新的挂起 id」就响一次（不区分会话）。
+var WAIT_URL = '/dsh-whale/wait.json'
+var lastWaitKey = ''
+// 用 localStorage 记住已经响过的挂起项:刷新页面时不会为同一个提问重复响
+try { lastWaitKey = String(localStorage.getItem('dshw-last-wait') || '') } catch (err) {}
+function playWaitSound(kind) {
+  var key = kind === 'approval' ? 'waitApproval' : 'waitQuestion'
+  try { playBindingSound(waitBinding(key)) } catch (err) {}
+}
+function pollWait() {
+  try {
+    fetch(WAIT_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (!d || !d.ok || !d.pending || !d.pending.kind) return
+        var key = String(d.pending.kind) + ':' + String(d.pending.id || '')
+        if (key === lastWaitKey) return
+        lastWaitKey = key
+        try { localStorage.setItem('dshw-last-wait', key) } catch (err) {}
+        playWaitSound(d.pending.kind)
+      })
+      .catch(function () {})
+  } catch (err) {}
+}
+setInterval(function () { pollLastTurn(); pollWait() }, 1000)
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshwTryStart(true) } catch (err) {}
