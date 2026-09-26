@@ -98,14 +98,15 @@ jobs:
           fi
           echo "语法与路径检查通过"
 
-      # 核心不变量自检（tools/ci-audit.mjs）—— 发布前跑**完整版**（比 ci.yml 多一项）：
-      #   ① 路由栅栏不变量   每个 /dsh-whale/* 路由都必须过 requestRejection 包装
-      #   ② 路由对等         前端 fetch 的路径必须已在宿主注册
-      #   ③ 发布产物自洽     **真的打一个 npm 包**来验：包里 lib/ 与 assets/ 齐全、
-      #                      dsh.bundle.patch 指向的文件确实在包里、宿主找前端单文件的候选能命中。
-      #                      这一项挡的是"源码全对、装出来却起不来"。
-      #   ④ 门禁一致性       本文件与 ci.yml 不许各查一半（防止有人把发布前门禁悄悄摘掉）
-      #   ⑤ 注入面           innerHTML 接了变量就必须登记在 tools/ci-audit.allowlist.json
+      # 核心不变量自检（tools/ci-audit.mjs）—— 发布前跑**完整版**（比日常 ci.yml 多一项）：
+      #   ① 检查所有后台接口必须走统一安全入口    每条路由都要过 requestRejection 包装
+      #   ② 检查后端提供了所有前端调用的接口      前端调用的路径都要能在后端注册表命中
+      #   ③ 检查打包后是否可以运行                **真的打一个 npm 包**来验：包里 lib/ 与 assets/ 齐全、
+      #                                          dsh.bundle.patch 指向的文件确实在包里、
+      #                                          后端找前端单文件的候选路径能命中。
+      #                                          这一项挡的是"源码全对、装出来却起不来"。
+      #   ④ 检查日常ci与发版ci流程是否一致        本文件与 ci.yml 都要覆盖同一组关键检查
+      #   ⑤ 检查页面动态内容是否写清来源          innerHTML 接了变量就必须登记在 tools/ci-audit.allowlist.json
       # 通过标准：五项都没有报错（退出码 0）。审计不过 → 不允许发布。
       - name: Core invariants audit (incl. packed artifact)
         run: node tools/ci-audit.mjs
