@@ -1313,6 +1313,8 @@ function taskEndTogglePin(v) {
 function playTaskEndSound() {
   try {
     if (!usageSet || !usageSet.taskEnd || !usageSet.taskEnd.on || soundOn === false) return
+    // 语录配音让位：任务结束音要出声，先打断可能正在播的语录语音，并压住这段时间内的新语音
+    try { if (window.__dshWhaleVoice) window.__dshWhaleVoice.interrupt(TASK_END_VOICE_HOLD_MS) } catch (err) {}
     var sel = usageSet.taskEnd.sel || taskEndSel.value || ''
     var url = ''
     var altUrl = ''
@@ -12294,6 +12296,32 @@ function bubbleRenderModules(mods) {
     amountEl.style.display = 'none'
     hintEl.style.display = 'none'
     bubbleRowsTo(textBox, mods)
+    dshwVoicePlayPicked(mods)
+  } catch (err) {}
+}
+// —— 语录配音接入点 ——
+// 分工：挂件只负责"报告此刻泡泡里显示的是哪句语录"，其余判断全在语音运行时
+// (whale-voice-runtime.js)：该不该出声、放哪一条(按文本指纹匹配)、音量、打断、缓存。
+// 这样两处不会各判一套；没有语音包/文案改过/拿不到指纹时运行时静默返回，挂件行为完全不变。
+// 注意只在真实渲染路径(bubbleRenderModules)调用：编辑器预览走 bubblePreviewInto，不会出声。
+var TASK_END_VOICE_HOLD_MS = 1200
+function dshwVoicePlayPicked(mods) {
+  try {
+    var rt = window.__dshWhaleVoice
+    if (!rt || typeof rt.play !== 'function') return
+    if (soundOn === false) return
+    if (!Array.isArray(mods)) return
+    for (var i = 0; i < mods.length; i++) {
+      var m = mods[i]
+      if (!m || m.type !== 'random' || !Array.isArray(m.lines)) continue
+      // _lastPick 由本轮渲染时的加权抽取写入(见 bubblePickLine 调用处)，即"屏幕上正在显示的那句"
+      var idx = typeof m._lastPick === 'number' ? m._lastPick : -1
+      var ln = idx >= 0 ? m.lines[idx] : null
+      if (ln && ln.t) {
+        rt.play({ text: ln.t, volume: Number(soundVol) || 0.9 })
+        return
+      }
+    }
   } catch (err) {}
 }
 // 编辑器真实泡泡预览:用与真实相同的宽度 B 排版(保证换行判定一致),

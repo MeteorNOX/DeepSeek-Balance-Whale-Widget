@@ -68,6 +68,43 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - ✂️ **音频片段管理**：导入时可视化裁剪、试听；资源管理窗口统一查看/试听/删除
 - 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
+- 🗣️ **语录配音（语音包）**：给「随机语句」模块配音——泡泡里显示到哪一句，就播哪一句。见
+  [语录配音（语音包）](#语录配音语音包)
+
+### 语录配音（语音包）
+
+给随机语句配音。**默认不装任何语音包时完全不发声**，行为与旧版一致。
+
+- 📦 **语音包放哪**：`~/.dsh/whale-voice/`（跟随 `whale-audio` / `whale-roles` 的约定，用户资源不进 node_modules）
+  ```
+  ~/.dsh/whale-voice/
+    registry.json                     有哪些包
+    config.json                       { "enabled": true, "packId": "example-pack" }
+    packs/<packId>/manifest.json      包内清单：文本指纹 → wav
+    packs/<packId>/quote.001.<hash8>.wav
+  ```
+- 🔒 **按文本指纹绑定，不是按序号**：清单里存的是**语录原文的 SHA-256**。挂件显示哪句就把那句的原文交给运行时，
+  指纹对得上才播；**改了文案就自动不播**（绝不会出现"显示 A、播出 B"）。因此包的顺序与你后续改语录互不影响。
+  清单里另有 `id` / `text` / `spoken` 字段：`text` 是挂件原文（指纹依据），`spoken` 是语音实际念的文本
+  （用于「↓」「QAQ」这类符号不念、或 "V50" 改写成 "V五十" 的情况）。
+- 🎚️ **音量与静音**：沿用挂件既有的音效开关与音量（`sound` / `vol`），不引入第二套音量模型。
+- ⏹️ **优先级**：任务结束音响之前会打断正在播的语录（并短暂压住新语录），避免叠音。
+- 🛠️ **接口**（均只读）：
+  - `GET /dsh-whale/voice-packs.json` — 有哪些包、选中哪个、是否启用
+  - `GET /dsh-whale/voice-pack-manifest.json?pack=<id>` — 包的清单（指纹 + 片段 URL，不含本地路径）
+  - `GET /dsh-whale/voice-audio?pack=<id>&id=<utteranceId>` — 片段字节（`audio/wav`）。
+    另有 `/dsh-whale/voice-fragment.wav` 同内容别名；主路径**故意不带媒体扩展名**，因为下载器（如 IDM 的
+    高级集成）会按 `.wav`/`.mp3` 扩展名拦截 fetch 并返回 204。
+- 🧪 **自带脚本**：`tools/voice-pack/` 下有语录清单同步（`sync_quotes_from_widget.mjs`，以挂件源码为准）、
+  覆盖率闸门（`verify_coverage.mjs`，有没有语录弹出却没声音）、建包（`build_pack.mjs`）与运行时多变体自测
+  （`runtime-variants.test.mjs`），见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
+- 📦 **仓库自带示例语音包**：[`voicepacks/example-pack/`](voicepacks/example-pack/)（47 条，22050Hz 单声道）。
+  它**不属于本仓库的 MIT 许可**（示例素材，声明见该目录 [`NOTICE.md`](voicepacks/example-pack/NOTICE.md)），
+  随包用于开箱试听该功能：复制到 `~/.dsh/whale-voice/packs/` 并在 `registry.json` 里登记即可启用。
+  **不需要它可以直接整体删除该目录，插件行为完全不受影响**（不装包时不发声，与旧版一致）。
+- 🔁 **改了语录就要重同步**：语音是按文本指纹绑的，语录增删改后请重跑
+  `node tools/voice-pack/sync_quotes_from_widget.mjs` 与 `verify_coverage.mjs`，
+  否则新语录会静默不播（不会报错）。
 
 ### 自定义 API（多厂商余额 / 额度）
 
@@ -435,6 +472,11 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
+
+### 语音包工具
+
+`tools/voice-pack/` 下有语录同步、打包（支持**同一句多版本随机播放**）、覆盖率闸门与运行时多变体自测，
+用法见 [`tools/voice-pack/README.md`](tools/voice-pack/README.md)。
 
 ## 致谢
 
