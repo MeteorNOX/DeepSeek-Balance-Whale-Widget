@@ -63,6 +63,12 @@ jobs:
       #      innerHTML 右侧若是静态字面量直接放行；接了变量就必须登记在 tools/ci-audit.allowlist.json 并写明数据来源。
       #      为什么：这就是 issue #143 那一类注入。
       # 通过标准：这四项合计一条报错都没有（退出码 0）。
+
+      # 会话归属回归：`request/context` / `model/selection` 决定每一轮消耗记到哪家账上。
+      # 同名模型挂在不同 provider 下时串账是静默错误（泡泡照常弹、钱算错家），只能靠这条拦。
+      # 脚本 0 依赖，用假 root 跐真实 apply()，不启浏览器也不启 dsh。
+      - name: Session attribution test
+        run: node test/session-attribution.test.mjs
       - name: Core invariants audit
         run: node tools/ci-audit.mjs --no-pack
 
