@@ -7,7 +7,9 @@ name: CI
 #   —— 一旦把发布改成纯手动，普通 push 就**没有任何 CI 检查**了。所以这里补一个
 #   只做检查、永不发布的 workflow：
 #     · push / PR 到 main 都会跑；
-#     · 跑的都是"静默失效"类问题（错了不会报错的那些）：层级候选表、语法、开发机绝对路径。
+#     · 跑的都是"静默失效"类问题（错了不会报错的那些）：层级候选表、语法、开发机绝对路径，
+#       以及 tools/ci-audit.mjs 的四项核心不变量（路由栅栏 / 路由对等 / 门禁一致性 / 注入面）；
+#     · 外加 tools/ci-audit-selftest.mjs，证明那四项检查自己还有效（不会退化成只会放行）。
 #   发布仍由 `publish.yml`（手动触发）负责；那边也保留同一组门禁，**审计不过就不许发布**。
 # ============================================================================
 on:
@@ -42,6 +44,23 @@ jobs:
           node --check lib/index.js
           node --check assets/whale-widget.js
           echo "两个文件的语法都通过"
+
+      # 核心不变量自检（tools/ci-audit.mjs）。这里只跑静态四项，不跑「发布产物」那一项：
+      # 日常 push/PR 关心的是「源码对不对」，没必要每次打一个 npm 包。
+      # 它查的是四件"错了不会报错、只会静默失效"的事：
+      #   ① 路由栅栏 —— 每个 /dsh-whale/* 路由都必须经 registerRoute() 的 requestRejection 包装；
+      #      多出一处裸 ctx.webServer.register 就是绕过栅栏（安全修复 S1 / issue #136 那类 fail-open）。
+      #   ② 路由对等 —— 前端 fetch 的路径必须已在宿主注册表里（两个巨石文件各改一半 → 点了没反应、静默 404）。
+      #   ③ 门禁一致性 —— 本文件与 publish.yml 的关键检查不许各查一半（防止悄悄摘掉发布前门禁）。
+      #   ④ 注入面 —— innerHTML 右侧接了变量就必须登记在 tools/ci-audit.allowlist.json（issue #143 同类）。
+      # 通过标准：这四项合计没有一条报错（退出码 0）。
+      - name: Core invariants audit
+        run: node tools/ci-audit.mjs --no-pack
+
+      # 自检：证明上面那个审计脚本**自己还有效** —— 先让干净样本全绿，再逐项证明写坏必红。
+      # 防的是"门禁腐烂"：脚本哪天被改得只会放行、或误判到把合法代码判死，这里会红。
+      - name: Audit self-test
+        run: node tools/ci-audit-selftest.mjs
 
       # 「发布副本不得含开发机绝对路径」：宿主发布前必须跑一次
       # `_strip-dev-paths.mjs --apply`（它会删掉 RUA_GIF_CANDIDATES / IMAGE_CANDIDATES 等
