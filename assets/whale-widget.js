@@ -1521,6 +1521,25 @@ roleBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleRole
 roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); roleFileInput.click() })
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
 menuBox.appendChild(rowRole)
+// —— 状态切换：开关 + 自定义入口（在「角色」模块之后） ——
+var roleSwitchToggle = document.createElement('input')
+roleSwitchToggle.type = 'checkbox'
+roleSwitchToggle.className = 'dshwv-check'
+roleSwitchToggle.checked = false
+roleSwitchToggle.title = '开启后：鲸鱼形象跟随当前对话状态（默认/深度思考/输出/调用工具/调用工具失败/输出完成后）切换'
+roleSwitchToggle.addEventListener('change', function () { setRoleSwitchEnabled(roleSwitchToggle.checked) })
+var roleSwitchCustomBtn = document.createElement('button')
+roleSwitchCustomBtn.type = 'button'
+roleSwitchCustomBtn.className = 'dshwv-roleimport'
+roleSwitchCustomBtn.style.flex = '1'
+roleSwitchCustomBtn.textContent = '自定义'
+roleSwitchCustomBtn.title = '配置每个对话状态对应的角色形象与时长'
+roleSwitchCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); openRoleSwitchEditor() })
+var rowRoleSwitch = menuRow()
+rowRoleSwitch.appendChild(menuLabel('状态切换'))
+rowRoleSwitch.appendChild(roleSwitchToggle)
+rowRoleSwitch.appendChild(roleSwitchCustomBtn)
+menuBox.appendChild(rowRoleSwitch)
 menuBox.appendChild(row1)
 menuBox.appendChild(row2)
 menuBox.appendChild(row3)
@@ -13446,6 +13465,8 @@ function applyRole(id, name, url) {
   setupHitTest(url)
   closeRolePanel()
   renderRolePanel()
+  // 状态切换开启时，基础角色变化后按当前状态重新解析形象（未覆盖的状态回落新基础角色）
+  try { if (roleSwitchEnabled) applyRoleSwitchImage(curSwitchState) } catch (err) {}
 }
 function roleUrl(id) {
   if (id === 'default') return IMG_URL
@@ -13525,6 +13546,676 @@ function renderRolePanel() {
     })
   } catch (err) {}
 }
+// —— 状态切换：状态机 + 形象切换 ——
+var ROLE_SWITCH_URL = '/dsh-whale/role-switch.json'
+var ROLE_SWITCH_STATES = ['idle', 'thinking', 'output', 'tool', 'toolError', 'done']
+var ROLE_SWITCH_LABELS = { idle: '默认', thinking: '深度思考', output: '输出', tool: '调用工具', toolError: '调用工具失败', done: '输出完成后' }
+var roleSwitchEnabled = false
+var roleSwitchCfg = null // { v, enabled, minHold:{mode,global,perState}, states:{ key:{ images:[], revert:{on,sec} } } }
+var roleSwitchDraft = null // 编辑器草稿：打开时拷贝自 roleSwitchCfg，保存成功才写回，取消则丢弃
+var curSwitchState = 'idle'
+var roleSwitchRevertTimer = null
+var roleSwitchSampleTimer = null
+var roleSwitchHoldUntil = 0 // 最短持续时间：进入某工作状态后至少停留到的时刻（ms）
+var roleSwitchPrevToolState = null // 上次采样的最末工具卡 data-state，用于「运行→失败」边沿
+var roleSwitchFlowEl = null // 缓存的焦点会话消息流容器，失效时重查，避免每拍全文档 querySelector
+function roleSwitchDefaultState() { return { images: [], revert: { on: false, sec: 0 } } }
+function roleSwitchMinHoldDefault() { return { on: false, sec: 0 } }
+function roleSwitchDefaultCfg() {
+  var states = {}
+  var perState = {}
+  for (var i = 0; i < ROLE_SWITCH_STATES.length; i++) {
+    states[ROLE_SWITCH_STATES[i]] = roleSwitchDefaultState()
+    perState[ROLE_SWITCH_STATES[i]] = roleSwitchMinHoldDefault()
+  }
+  return { v: 2, enabled: false, minHold: { mode: 'global', global: roleSwitchMinHoldDefault(), perState: perState }, states: states }
+}
+function roleSwitchStateOf(key) {
+  var cfg = roleSwitchCfg || roleSwitchDefaultCfg()
+  var s = cfg.states && cfg.states[key]
+  if (!s || typeof s !== 'object') s = roleSwitchDefaultState()
+  return s
+}
+// 编辑器草稿读取（与运行时 roleSwitchStateOf 隔离，取消时不污染已保存配置）
+function roleSwitchDraftStateOf(key) {
+  var cfg = roleSwitchDraft || roleSwitchDefaultCfg()
+  var s = cfg.states && cfg.states[key]
+  if (!s || typeof s !== 'object') s = roleSwitchDefaultState()
+  return s
+}
+function roleSwitchDraftMinHold() {
+  var cfg = roleSwitchDraft || roleSwitchDefaultCfg()
+  var mh = cfg.minHold && typeof cfg.minHold === 'object' ? cfg.minHold : null
+  if (!mh) mh = roleSwitchDefaultCfg().minHold
+  if (!mh.global || typeof mh.global !== 'object') mh.global = roleSwitchMinHoldDefault()
+  if (!mh.perState || typeof mh.perState !== 'object') mh.perState = {}
+  return mh
+}
+function roleSwitchDraftMinHoldOf(key) {
+  var mh = roleSwitchDraftMinHold()
+  var v = mh.perState[key]
+  if (!v || typeof v !== 'object') v = roleSwitchMinHoldDefault()
+  return v
+}
+// 解析某状态的形象：取 images[0]（未来轮换/随机多形象在此扩展）；过滤已删除角色；未配置回落基础角色
+function roleSwitchImageFor(key) {
+  var s = roleSwitchStateOf(key)
+  var arr = Array.isArray(s.images) ? s.images : []
+  for (var i = 0; i < arr.length; i++) {
+    var id = arr[i]
+    if (id === 'default') return roleUrl('default')
+    for (var j = 0; j < roleList.length; j++) {
+      if (roleList[j].id === id) return roleUrl(id)
+    }
+  }
+  return currentRole.url
+}
+function roleSwitchClearRevert() {
+  if (roleSwitchRevertTimer) { clearTimeout(roleSwitchRevertTimer); roleSwitchRevertTimer = null }
+}
+function applyRoleSwitchImage(key) {
+  if (!roleSwitchEnabled) { img.src = currentRole.url; return }
+  img.src = roleSwitchImageFor(key)
+}
+function roleSwitchEnterState(key) {
+  // 非工作状态（idle/done/toolError）进入即解除「最短停留」门控，避免陈旧 holdUntil 影响下一轮
+  if (!ROLE_SWITCH_GATED[key]) roleSwitchHoldUntil = 0
+  curSwitchState = key
+  applyRoleSwitchImage(key)
+  roleSwitchClearRevert()
+  if (key !== 'idle') {
+    var rv = roleSwitchStateOf(key).revert || {}
+    var sec = Number(rv.sec)
+    if (rv.on && isFinite(sec) && sec > 0) {
+      var waitMs = Math.round(sec * 1000)
+      roleSwitchRevertTimer = setTimeout(function () {
+        roleSwitchRevertTimer = null
+        if (!roleSwitchEnabled) return
+        if (curSwitchState !== key) return // 已被后续状态迁移打断
+        if (key === 'done' || key === 'toolError') {
+          // 「输出完成后」/「调用工具失败」结束：完整回到默认态
+          roleSwitchEnterState('idle')
+        } else {
+          // 深度思考/输出/调用工具：仅显示回到默认形象，检测态保持不变（避免与真实状态迁移打架）
+          applyRoleSwitchImage('idle')
+        }
+      }, waitMs)
+    }
+  }
+}
+function setRoleSwitchEnabled(v) {
+  roleSwitchEnabled = !!v
+  if (roleSwitchCfg) roleSwitchCfg.enabled = roleSwitchEnabled
+  roleSwitchToggle.checked = roleSwitchEnabled
+  roleSwitchHoldUntil = 0
+  roleSwitchPrevToolState = null
+  if (!roleSwitchEnabled) {
+    roleSwitchClearRevert()
+    curSwitchState = 'idle'
+    img.src = currentRole.url
+  } else {
+    roleSwitchEnterState('idle')
+  }
+  saveRoleSwitchConfig({ enabled: roleSwitchEnabled })
+}
+// 某状态的最短持续时间（秒）：按粒度取 全局 或 该状态 的 {on,sec}；未开启返回 0
+function roleSwitchEffectiveMinHold(key) {
+  try {
+    var mh = roleSwitchCfg && roleSwitchCfg.minHold
+    if (!mh) return 0
+    var v = mh.mode === 'perState' ? (mh.perState && mh.perState[key]) : mh.global
+    if (!v || !v.on) return 0
+    var sec = Number(v.sec)
+    return (isFinite(sec) && sec > 0) ? sec : 0
+  } catch (err) { return 0 }
+}
+// 工作状态（持续存在的采样态）：进入时受最短持续时间门控，防高频闪烁。
+// 边沿态（toolError/done）与终态（idle）始终立即生效，避免一闪即失。
+var ROLE_SWITCH_GATED = { thinking: true, output: true, tool: true }
+function roleSwitchRequestState(target) {
+  var gated = !!ROLE_SWITCH_GATED[target]
+  var now = Date.now()
+  var hold = gated ? roleSwitchEffectiveMinHold(target) : 0
+  if (gated && now < roleSwitchHoldUntil) return // 当前状态最短停留未结束，推迟切换到其它工作状态
+  roleSwitchEnterState(target)
+  roleSwitchHoldUntil = hold > 0 ? now + Math.round(hold * 1000) : 0
+}
+// 状态采样：以当前焦点会话的 DOM 为准。
+// 优先级：深度思考 > 调用工具失败(运行→失败边沿) > 调用工具 > 输出 > 默认。
+// 「输出完成后」由 host 的 turn/end（last-turn.json seq 递增，与任务结束音效同源）触发，不由 DOM 采样判定。
+function roleSwitchSample() {
+  try {
+    if (!roleSwitchEnabled) return
+    var flow = roleSwitchFlowEl
+    if (!flow || !flow.isConnected) {
+      flow = document.querySelector('[data-chat-flow]')
+      if (flow !== roleSwitchFlowEl) roleSwitchPrevToolState = null // 切换会话：重置「运行→失败」边沿记忆
+      roleSwitchFlowEl = flow
+    }
+    var thinking = !!flow && !!flow.querySelector('[data-variant="think"][data-state="running"]')
+    var streaming = !!flow && !!flow.querySelector('[data-streaming]')
+    var running = !!flow && !!flow.querySelector('[role="status"][aria-live="polite"]')
+    var toolRun = !!flow && !!flow.querySelector('[data-tool][data-state="running"]')
+    // 最末工具卡（DOM 顺序最后一个 [data-tool]）的 data-state，用于「运行→失败」边沿
+    var toolState = null
+    if (flow) {
+      var toolEls = flow.querySelectorAll('[data-tool]')
+      var lastTool = toolEls && toolEls.length ? toolEls[toolEls.length - 1] : null
+      if (lastTool) toolState = lastTool.getAttribute('data-state') || null
+    }
+    var toolErrorEdge = toolState === 'error' && roleSwitchPrevToolState === 'running'
+    roleSwitchPrevToolState = toolState
+    var anyWorking = thinking || streaming || running || toolRun
+    var target = null
+    if (thinking) target = 'thinking'
+    else if (toolErrorEdge) target = 'toolError'
+    else if (toolRun) target = 'tool'
+    else if (streaming) target = 'output'
+    else if (anyWorking) target = null // 运行中但无具体信号（工具结果处理间隙等）：保持当前状态，防闪烁
+    else if (curSwitchState === 'done' || curSwitchState === 'toolError') target = null // 边沿态保持，等 revert 或下一轮
+    else target = 'idle'
+    if (target !== null && target !== curSwitchState) roleSwitchRequestState(target)
+  } catch (err) {}
+}
+// 「输出完成后」触发：与任务结束音效同源（host turn/end → last-turn.json seq 递增）。
+// 由 pollLastTurn 在检测到新 seq 时调用，避免 DOM 采样在切换会话时误触发。
+function roleSwitchOnTurnEnd() {
+  try {
+    if (!roleSwitchEnabled) return
+    roleSwitchEnterState('done')
+  } catch (err) {}
+}
+function roleSwitchStartSampler() {
+  try {
+    if (roleSwitchSampleTimer) clearInterval(roleSwitchSampleTimer)
+    roleSwitchSampleTimer = setInterval(roleSwitchSample, 200)
+  } catch (err) {}
+}
+function loadRoleSwitchConfig() {
+  try {
+    fetch(ROLE_SWITCH_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d && d.ok && d.config) {
+          roleSwitchCfg = d.config
+          roleSwitchEnabled = !!d.config.enabled
+          roleSwitchToggle.checked = roleSwitchEnabled
+          if (roleSwitchEnabled) roleSwitchEnterState('idle')
+        }
+        roleSwitchStartSampler()
+      })
+      .catch(roleSwitchStartSampler)
+  } catch (err) { roleSwitchStartSampler() }
+}
+function saveRoleSwitchConfig(patch) {
+  try {
+    var cur = roleSwitchCfg || roleSwitchDefaultCfg()
+    var next = {}
+    next.enabled = patch && typeof patch.enabled === 'boolean' ? patch.enabled : !!cur.enabled
+    next.states = (cur.states && typeof cur.states === 'object') ? cur.states : roleSwitchDefaultCfg().states
+    if (patch && patch.states && typeof patch.states === 'object') next.states = patch.states
+    fetch(ROLE_SWITCH_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(next),
+    })
+      .then(function (r) { return r.json() })
+      .then(function (d) { if (d && d.ok && d.config) roleSwitchCfg = d.config })
+      .catch(function () {})
+  } catch (err) {}
+}
+
+// —— 「自定义角色」弹窗（风格同「自定义泡泡」） ——
+var roleSwitchMask = document.createElement('div')
+roleSwitchMask.className = 'dshwv-bubmask'
+roleSwitchMask.style.display = 'none'
+var roleSwitchCard = document.createElement('div')
+roleSwitchCard.className = 'dshwv-bubcard'
+var roleSwitchTitle = document.createElement('div')
+roleSwitchTitle.className = 'dshwv-bubtitle'
+roleSwitchTitle.textContent = '状态切换'
+roleSwitchCard.appendChild(roleSwitchTitle)
+var roleSwitchHint = document.createElement('div')
+roleSwitchHint.className = 'dshwv-bubhint'
+roleSwitchHint.textContent = '为每个对话状态分配形象；未分配的状态显示「角色」模块里当前选中的基础角色。'
+roleSwitchCard.appendChild(roleSwitchHint)
+var roleSwitchUIs = {} // key -> { btn, thumb, name, revertChk, revertInput, minHoldChk, minHoldInput, minHoldRow }
+var roleSwitchMinHoldModeRadios = {} // { global, perState }
+var roleSwitchMinHoldGlobalChk = null
+var roleSwitchMinHoldGlobalInput = null
+var roleSwitchMinHoldGlobalRow = null
+var roleSwitchEditorDirty = false
+var roleSwitchPickTarget = null
+var roleSwitchPickList = document.createElement('div')
+roleSwitchPickList.className = 'dshwv-rolelist'
+roleSwitchPickList.style.display = 'none'
+roleSwitchPickList.style.position = 'fixed'
+roleSwitchPickList.style.zIndex = '20600'
+
+function roleSwitchSelectedId(key) {
+  var s = roleSwitchDraftStateOf(key)
+  var arr = Array.isArray(s.images) ? s.images : []
+  return arr.length ? arr[0] : null
+}
+function roleSwitchRoleById(id) {
+  if (id === 'default') return { id: 'default', name: '小鲸鱼', url: roleUrl('default') }
+  for (var i = 0; i < roleList.length; i++) if (roleList[i].id === id) return roleList[i]
+  return null
+}
+function roleSwitchUpdateBtn(key) {
+  var ui = roleSwitchUIs[key]
+  if (!ui) return
+  var id = roleSwitchSelectedId(key)
+  var r = id ? roleSwitchRoleById(id) : null
+  if (r) {
+    ui.thumb.style.display = ''
+    ui.thumb.src = r.url
+    ui.name.textContent = r.name
+  } else {
+    ui.thumb.style.display = 'none'
+    ui.name.textContent = '跟随基础角色'
+  }
+}
+function roleSwitchMarkDirty() { roleSwitchEditorDirty = true }
+function closeRoleSwitchPickList() {
+  roleSwitchPickTarget = null
+  roleSwitchPickList.classList.remove('dshwv-rolelist-open')
+  roleSwitchPickList.style.display = 'none'
+}
+function roleSwitchOpenPickList(key, anchorEl) {
+  try {
+    roleSwitchPickTarget = key
+    roleSwitchPickList.innerHTML = ''
+    // 首项：清空（跟随基础角色）
+    var clearItem = document.createElement('div')
+    clearItem.className = 'dshwv-roleitem'
+    var clearName = makeNameCell('dshwv-rolename', '跟随基础角色')
+    clearItem.appendChild(clearName)
+    clearItem.addEventListener('click', function () {
+      var s = roleSwitchDraftStateOf(key)
+      s.images = []
+      roleSwitchUpdateBtn(key)
+      roleSwitchMarkDirty()
+      closeRoleSwitchPickList()
+    })
+    roleSwitchPickList.appendChild(clearItem)
+    // 各角色（含内置 default）
+    var all = [{ id: 'default', name: '小鲸鱼', url: roleUrl('default'), format: 'png' }].concat(roleList.filter(function (r) { return r.id !== 'default' }))
+    all.forEach(function (r) {
+      var item = document.createElement('div')
+      item.className = 'dshwv-roleitem' + (roleSwitchSelectedId(key) === r.id ? ' dshwv-roleitem-cur' : '')
+      var thumb = document.createElement('img')
+      thumb.className = 'dshwv-rolethumb'
+      thumb.src = r.url
+      thumb.alt = ''
+      thumb.draggable = false
+      item.appendChild(thumb)
+      item.appendChild(makeNameCell('dshwv-rolename', r.name))
+      item.addEventListener('click', function () {
+        var s = roleSwitchDraftStateOf(key)
+        s.images = [r.id]
+        roleSwitchUpdateBtn(key)
+        roleSwitchMarkDirty()
+        closeRoleSwitchPickList()
+      })
+      roleSwitchPickList.appendChild(item)
+    })
+    var rect = anchorEl.getBoundingClientRect()
+    var vp = viewport()
+    roleSwitchPickList.style.width = Math.max(200, Math.round(rect.width)) + 'px'
+    roleSwitchPickList.style.left = Math.max(4, Math.min(rect.left, vp.w - Math.max(200, Math.round(rect.width)) - 4)) + 'px'
+    roleSwitchPickList.style.top = Math.min(rect.bottom + 6, vp.h - 260) + 'px'
+    roleSwitchPickList.style.display = 'block'
+    roleSwitchPickList.classList.add('dshwv-rolelist-open')
+  } catch (err) {}
+}
+function roleSwitchBuildSection(key) {
+  var sec = document.createElement('div')
+  sec.className = 'dshwv-bubsec' + (key === 'idle' ? ' dshwv-bubsec-first' : '')
+  sec.textContent = ROLE_SWITCH_LABELS[key]
+  roleSwitchCard.appendChild(sec)
+  // 行A：形象选择按钮
+  var row = document.createElement('div')
+  row.className = 'dshwv-bubrow'
+  var btn = document.createElement('button')
+  btn.type = 'button'
+  btn.className = 'dshwv-slotbtn'
+  btn.style.display = 'flex'
+  btn.style.alignItems = 'center'
+  btn.style.gap = '6px'
+  var thumb = document.createElement('img')
+  thumb.className = 'dshwv-rolethumb'
+  thumb.alt = ''
+  thumb.draggable = false
+  var name = document.createElement('span')
+  name.className = 'dshwv-btnlabel'
+  btn.appendChild(thumb)
+  btn.appendChild(name)
+  btn.addEventListener('click', function (e) { e.stopPropagation(); roleSwitchOpenPickList(key, btn) })
+  row.appendChild(btn)
+  roleSwitchCard.appendChild(row)
+  var ui = { btn: btn, thumb: thumb, name: name, revertChk: null, revertInput: null, minHoldChk: null, minHoldInput: null, minHoldRow: null }
+  // 行B（非默认状态）：勾选框 + 秒数（参考「避让滚动条」）
+  if (key !== 'idle') {
+    var row2 = document.createElement('div')
+    row2.className = 'dshwv-bubrow'
+    row2.style.border = 'none'
+    row2.style.background = 'transparent'
+    row2.style.padding = '0 2px'
+    var chk = document.createElement('input')
+    chk.type = 'checkbox'
+    chk.className = 'dshwv-check'
+    var num = document.createElement('input')
+    num.type = 'number'
+    num.min = '0'
+    num.step = '1'
+    num.className = 'dshwv-number'
+    num.style.width = '56px'
+    num.value = '0'
+    num.disabled = true
+    var lab = document.createElement('span')
+    lab.style.color = '#203170'
+    lab.style.fontSize = '12px'
+    lab.textContent = '秒后回到默认'
+    chk.addEventListener('change', function () {
+      var s = roleSwitchDraftStateOf(key)
+      s.revert.on = chk.checked
+      num.disabled = !chk.checked
+      roleSwitchMarkDirty()
+    })
+    num.addEventListener('input', function () {
+      var s = roleSwitchDraftStateOf(key)
+      var n = Number(num.value)
+      s.revert.sec = isFinite(n) ? Math.max(0, Math.round(n)) : 0
+      roleSwitchMarkDirty()
+    })
+    row2.appendChild(chk)
+    row2.appendChild(num)
+    row2.appendChild(lab)
+    roleSwitchCard.appendChild(row2)
+    ui.revertChk = chk
+    ui.revertInput = num
+  }
+  // 行C（所有状态）：最短持续时间（仅「按状态」粒度时显示）
+  var mRow = document.createElement('div')
+  mRow.className = 'dshwv-bubrow'
+  mRow.style.border = 'none'
+  mRow.style.background = 'transparent'
+  mRow.style.padding = '0 2px'
+  var mChk = document.createElement('input')
+  mChk.type = 'checkbox'
+  mChk.className = 'dshwv-check'
+  var mNum = document.createElement('input')
+  mNum.type = 'number'
+  mNum.min = '0'
+  mNum.step = '1'
+  mNum.className = 'dshwv-number'
+  mNum.style.width = '56px'
+  mNum.value = '0'
+  mNum.disabled = true
+  var mTxt = document.createElement('span')
+  mTxt.style.color = '#203170'
+  mTxt.style.fontSize = '12px'
+  mTxt.textContent = '最短持续（秒）'
+  mChk.addEventListener('change', function () {
+    var v = roleSwitchDraftMinHoldOf(key)
+    v.on = mChk.checked
+    mNum.disabled = !mChk.checked
+    roleSwitchMarkDirty()
+  })
+  mNum.addEventListener('input', function () {
+    var v = roleSwitchDraftMinHoldOf(key)
+    var n = Number(mNum.value)
+    v.sec = isFinite(n) ? Math.max(0, Math.round(n)) : 0
+    roleSwitchMarkDirty()
+  })
+  mRow.appendChild(mChk)
+  mRow.appendChild(mNum)
+  mRow.appendChild(mTxt)
+  roleSwitchCard.appendChild(mRow)
+  ui.minHoldChk = mChk
+  ui.minHoldInput = mNum
+  ui.minHoldRow = mRow
+  roleSwitchUIs[key] = ui
+}
+function roleSwitchSyncMinHoldMode() {
+  try {
+    var mode = (roleSwitchDraft && roleSwitchDraft.minHold && roleSwitchDraft.minHold.mode) || 'global'
+    if (roleSwitchMinHoldModeRadios.global) roleSwitchMinHoldModeRadios.global.checked = (mode === 'global')
+    if (roleSwitchMinHoldModeRadios.perState) roleSwitchMinHoldModeRadios.perState.checked = (mode === 'perState')
+    if (roleSwitchMinHoldGlobalRow) roleSwitchMinHoldGlobalRow.style.display = (mode === 'global') ? '' : 'none'
+    for (var i = 0; i < ROLE_SWITCH_STATES.length; i++) {
+      var ui = roleSwitchUIs[ROLE_SWITCH_STATES[i]]
+      if (ui && ui.minHoldRow) ui.minHoldRow.style.display = (mode === 'global') ? 'none' : ''
+    }
+  } catch (err) {}
+}
+function roleSwitchBuildMinHoldSection() {
+  var sec = document.createElement('div')
+  sec.className = 'dshwv-bubsec'
+  sec.textContent = '最短持续时间（防状态快速切换闪烁）'
+  roleSwitchCard.appendChild(sec)
+  // 粒度选择
+  var modeRow = document.createElement('div')
+  modeRow.className = 'dshwv-bubrow'
+  modeRow.style.border = 'none'
+  modeRow.style.background = 'transparent'
+  modeRow.style.padding = '0 2px'
+  var gLab = document.createElement('span')
+  gLab.style.color = '#203170'
+  gLab.style.fontSize = '12px'
+  gLab.textContent = '粒度'
+  modeRow.appendChild(gLab)
+  function mkMode(label, val) {
+    var labEl = document.createElement('label')
+    labEl.style.display = 'inline-flex'
+    labEl.style.alignItems = 'center'
+    labEl.style.gap = '4px'
+    labEl.style.cursor = 'pointer'
+    labEl.style.fontSize = '12px'
+    labEl.style.color = '#203170'
+    var radio = document.createElement('input')
+    radio.type = 'radio'
+    radio.name = 'dshwv-roleSwitch-minHold-mode'
+    radio.value = val
+    radio.addEventListener('change', function () {
+      if (radio.checked) {
+        roleSwitchDraftMinHold().mode = val
+        roleSwitchMarkDirty()
+        roleSwitchSyncMinHoldMode()
+      }
+    })
+    var t = document.createElement('span')
+    t.textContent = label
+    labEl.appendChild(radio)
+    labEl.appendChild(t)
+    modeRow.appendChild(labEl)
+    roleSwitchMinHoldModeRadios[val] = radio
+    return radio
+  }
+  mkMode('全局', 'global')
+  mkMode('按状态', 'perState')
+  roleSwitchCard.appendChild(modeRow)
+  // 全局行
+  var gRow = document.createElement('div')
+  gRow.className = 'dshwv-bubrow'
+  gRow.style.border = 'none'
+  gRow.style.background = 'transparent'
+  gRow.style.padding = '0 2px'
+  var gChk = document.createElement('input')
+  gChk.type = 'checkbox'
+  gChk.className = 'dshwv-check'
+  var gNum = document.createElement('input')
+  gNum.type = 'number'
+  gNum.min = '0'
+  gNum.step = '1'
+  gNum.className = 'dshwv-number'
+  gNum.style.width = '56px'
+  gNum.value = '0'
+  gNum.disabled = true
+  var gTxt = document.createElement('span')
+  gTxt.style.color = '#203170'
+  gTxt.style.fontSize = '12px'
+  gTxt.textContent = '秒（全局）'
+  gChk.addEventListener('change', function () {
+    var g = roleSwitchDraftMinHold().global
+    g.on = gChk.checked
+    gNum.disabled = !gChk.checked
+    roleSwitchMarkDirty()
+  })
+  gNum.addEventListener('input', function () {
+    var g = roleSwitchDraftMinHold().global
+    var n = Number(gNum.value)
+    g.sec = isFinite(n) ? Math.max(0, Math.round(n)) : 0
+    roleSwitchMarkDirty()
+  })
+  gRow.appendChild(gChk)
+  gRow.appendChild(gNum)
+  gRow.appendChild(gTxt)
+  roleSwitchCard.appendChild(gRow)
+  roleSwitchMinHoldGlobalChk = gChk
+  roleSwitchMinHoldGlobalInput = gNum
+  roleSwitchMinHoldGlobalRow = gRow
+}
+function roleSwitchPopulateEditor() {
+  try {
+    for (var i = 0; i < ROLE_SWITCH_STATES.length; i++) {
+      var key = ROLE_SWITCH_STATES[i]
+      var ui = roleSwitchUIs[key]
+      if (!ui) continue
+      roleSwitchUpdateBtn(key)
+      if (ui.revertChk) {
+        var rv = roleSwitchDraftStateOf(key).revert || {}
+        ui.revertChk.checked = !!rv.on
+        ui.revertInput.disabled = !rv.on
+        ui.revertInput.value = String(isFinite(Number(rv.sec)) ? Math.max(0, Math.round(Number(rv.sec))) : 0)
+      }
+      if (ui.minHoldChk) {
+        var mv = roleSwitchDraftMinHoldOf(key)
+        ui.minHoldChk.checked = !!mv.on
+        ui.minHoldInput.disabled = !mv.on
+        ui.minHoldInput.value = String(isFinite(Number(mv.sec)) ? Math.max(0, Math.round(Number(mv.sec))) : 0)
+      }
+    }
+    var mh = roleSwitchDraftMinHold()
+    if (roleSwitchMinHoldGlobalChk) {
+      roleSwitchMinHoldGlobalChk.checked = !!mh.global.on
+      roleSwitchMinHoldGlobalInput.disabled = !mh.global.on
+      roleSwitchMinHoldGlobalInput.value = String(isFinite(Number(mh.global.sec)) ? Math.max(0, Math.round(Number(mh.global.sec))) : 0)
+    }
+    roleSwitchSyncMinHoldMode()
+  } catch (err) {}
+}
+function roleSwitchEditorConfigFromUI() {
+  var states = {}
+  for (var i = 0; i < ROLE_SWITCH_STATES.length; i++) {
+    var key = ROLE_SWITCH_STATES[i]
+    var ui = roleSwitchUIs[key] || {}
+    var images = []
+    var id = roleSwitchSelectedId(key)
+    if (id) images = [id]
+    var revert = { on: false, sec: 0 }
+    if (ui.revertChk) {
+      revert.on = !!ui.revertChk.checked
+      var n = Number(ui.revertInput && ui.revertInput.value)
+      revert.sec = isFinite(n) ? Math.max(0, Math.round(n)) : 0
+    }
+    states[key] = { images: images, revert: revert }
+  }
+  // minHold：从草稿读取（控件已把编辑写回草稿）
+  var mh = roleSwitchDraftMinHold()
+  var minHold = {
+    mode: mh.mode === 'perState' ? 'perState' : 'global',
+    global: { on: !!(mh.global && mh.global.on), sec: (mh.global && isFinite(Number(mh.global.sec))) ? Math.max(0, Math.round(Number(mh.global.sec))) : 0 },
+    perState: {},
+  }
+  for (var j = 0; j < ROLE_SWITCH_STATES.length; j++) {
+    var k = ROLE_SWITCH_STATES[j]
+    var v = mh.perState[k] || roleSwitchMinHoldDefault()
+    minHold.perState[k] = { on: !!v.on, sec: isFinite(Number(v.sec)) ? Math.max(0, Math.round(Number(v.sec))) : 0 }
+  }
+  return { v: 2, enabled: roleSwitchEnabled, minHold: minHold, states: states }
+}
+function openRoleSwitchEditor() {
+  try {
+    roleSwitchDraft = JSON.parse(JSON.stringify(roleSwitchCfg || roleSwitchDefaultCfg()))
+    roleSwitchEditorDirty = false
+    closeRoleSwitchPickList()
+    roleSwitchPopulateEditor()
+    roleSwitchMask.style.display = 'flex'
+  } catch (err) {}
+}
+function closeRoleSwitchEditor() {
+  roleSwitchMask.style.display = 'none'
+  closeRoleSwitchPickList()
+  roleSwitchEditorDirty = false
+  roleSwitchDraft = null
+}
+function roleSwitchEditorSave() {
+  try {
+    var cfg = roleSwitchEditorConfigFromUI()
+    cfg.enabled = roleSwitchEnabled
+    fetch(ROLE_SWITCH_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d && d.ok && d.config) {
+          roleSwitchCfg = d.config
+          roleSwitchEnabled = !!d.config.enabled
+          roleSwitchToggle.checked = roleSwitchEnabled
+          roleSwitchEditorDirty = false
+          roleSwitchEnterState(curSwitchState)
+          closeRoleSwitchEditor()
+        }
+      })
+      .catch(function () {})
+  } catch (err) {}
+}
+// 构建分区（先于按钮，保证按钮在最底部）：最短持续时间 + 各状态
+roleSwitchBuildMinHoldSection()
+for (var _rs = 0; _rs < ROLE_SWITCH_STATES.length; _rs++) roleSwitchBuildSection(ROLE_SWITCH_STATES[_rs])
+// 按钮行：取消 / 保存
+var roleSwitchBtns = document.createElement('div')
+roleSwitchBtns.className = 'dshwv-bubbtns'
+var roleSwitchCancelBtn = document.createElement('button')
+roleSwitchCancelBtn.type = 'button'
+roleSwitchCancelBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
+roleSwitchCancelBtn.textContent = '取消'
+roleSwitchCancelBtn.addEventListener('click', function (e) {
+  e.stopPropagation()
+  if (roleSwitchEditorDirty) showConfirm('放弃未保存的更改?', function () { closeRoleSwitchEditor() })
+  else closeRoleSwitchEditor()
+})
+var roleSwitchSaveBtn = document.createElement('button')
+roleSwitchSaveBtn.type = 'button'
+roleSwitchSaveBtn.className = 'dshwv-bubbtn dshwv-bubbtn-ok'
+roleSwitchSaveBtn.textContent = '保存'
+roleSwitchSaveBtn.addEventListener('click', function (e) { e.stopPropagation(); roleSwitchEditorSave() })
+roleSwitchBtns.appendChild(roleSwitchCancelBtn)
+roleSwitchBtns.appendChild(roleSwitchSaveBtn)
+roleSwitchCard.appendChild(roleSwitchBtns)
+roleSwitchMask.appendChild(roleSwitchCard)
+document.body.appendChild(roleSwitchMask)
+document.body.appendChild(roleSwitchPickList)
+// 点击遮罩空白处关闭（点卡片不关）
+roleSwitchMask.addEventListener('click', function (e) {
+  if (e.target === roleSwitchMask) {
+    if (roleSwitchEditorDirty) showConfirm('放弃未保存的更改?', function () { closeRoleSwitchEditor() })
+    else closeRoleSwitchEditor()
+  }
+})
+// 点击角色选择列表以外的位置时收起它（气泡阶段；点列表项本身由项内 click 处理）
+document.addEventListener('pointerdown', function (e) {
+  if (!roleSwitchPickTarget) return
+  try {
+    if (e.target && e.target.closest && e.target.closest('.dshwv-rolelist')) return
+  } catch (err) {}
+  closeRoleSwitchPickList()
+})
+
 function togglePin(id, pinned) {
   try {
     fetch('/dsh-whale/role-pin.json', {
@@ -15376,6 +16067,7 @@ render()
 applySoundSet()
 setupHitTest(initRoleUrl)
 loadRoles()
+loadRoleSwitchConfig()
 loadAudio()
 // 用量设置(任务结束音/预警/预算)加载,并据此初始化主菜单“任务结束”行
 loadUsageSettings(function () {
@@ -15514,6 +16206,7 @@ function pollLastTurn() {
             lastCostSeq = d.seq
             try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
             playTaskEndSound()
+            roleSwitchOnTurnEnd()
             if (d.turn !== null && d.amount !== null) {
               showCostBubble(Number(d.amount))
             }
@@ -15528,6 +16221,7 @@ function pollLastTurn() {
           lastCostSeq = d.seq
           try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
           playTaskEndSound()
+          roleSwitchOnTurnEnd()
           if (d.turn !== null && d.amount !== null) {
             showCostBubble(Number(d.amount))
           }

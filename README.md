@@ -67,6 +67,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 🎵 **任务结束音**：一轮回复完成时播放；内置两个预设音效 —— 默认 **Minecraft·经验球**（`assets/minecraft-exp-orb.wav`）与 **A**（`assets/task-end-a.wav`），也可选任意片段或音效组
 - ✂️ **音频片段管理**：导入时可视化裁剪、试听；资源管理窗口统一查看/试听/删除
 - 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
+- 🔁 **状态切换**：开关 + 「自定义」入口；为当前对话的状态各分配一个形象；每个非默认状态可设「N 秒后回到默认形象」和「最短持续时间」
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
 
 ### 自定义 API（多厂商余额 / 额度）
@@ -135,6 +136,7 @@ dsh-whale-widget/
 | `.dshw-usage.json.before-recharge-fix.bak` | 旧格式账本备份（0.3.1 首次写入旧账本前自动创建；已存在则不覆盖） |
 | `.dshw-turn.json` | 每轮消耗的 seq（避免热重载后前端把新轮次当旧轮次） |
 | `.dshw-bubble.json` | 自定义泡泡配置（点击序列 + 模块库 + 点按角色推进队列开关） |
+| `.dshw-role-switch.json` | 状态切换配置（6个状态各自的形象、「N 秒后回到默认」与「最短持续时间」设置） |
 | `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
@@ -435,6 +437,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
+- 「状态切换」的 6 个状态里，「输出完成后」的触发源与其余 5 个不同：它由 host 的 `turn/end`（`/dsh-whale/last-turn.json` seq 递增，与任务结束音效同源，走 `roleSwitchOnTurnEnd`）触发；其余状态由前端 DOM 采样（`roleSwitchSample`，200ms）判定。二者不要混为一谈。
 
 ## 致谢
 
