@@ -1,28 +1,56 @@
 name: Publish to npm
 
-# 事件驱动发布：main 分支有新提交即自动发布（不再需要外部定时轮询）
-# 版本管理：不自动递增，发布版本号 = 当前 package.json 的 version 字段
-# 发版流程：手动修改 version → push → 本 workflow 自动发布并创建同名 GitHub Release
+# ============================================================================
+# v775：改成**手动触发**（作者要求：业务无关的改动不该顺带发版）
+#
+# 为什么改：原实现是 `on: push: branches: [main]` —— **任何** push 都会跑这个 workflow，
+#   是否真的发版只由"package.json 的 version 在 npm 上是否已存在"决定。于是：
+#     · 不含 version 变更的 push（CI 优化 / 文档 / 仓库自动化调整）→ 跑一次、什么也不做（纯噪音）；
+#     · **只要某次 push 里带了 version 变更，就会立刻发布 npm + 建 Release，中间没有任何人工确认**
+#       —— npm 同名版本一旦发布就**不能覆盖**，只能 deprecate，所以这一步必须有人把关。
+# 现在：只有**手动**（GitHub UI 的 Run workflow，或 `gh workflow run publish.yml`）才会发布。
+#   日常 push 的检查改由 `.github/workflows/ci.yml` 承担（图层审计 + 语法 + 开发机路径扫描）。
+#
+# 版本管理：**不自动递增**，发布版本号 = 当前 package.json 的 version 字段。
+# 发版流程（手动）：改 version → push → 在 Actions 里 Run workflow（或 `gh workflow run publish.yml`）。
 # Release changelog：上一版本 tag（v*）到当前之间合入 main 的 PR 标题与编号；
-#                    仓库尚无任何 tag 时回退为全部已合并 PR
+#                    仓库尚无任何 tag 时回退为全部已合并 PR。
+# ============================================================================
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      reason:
+        description: '本次发版原因（可留空；非空时会写在 Release 说明最前面）'
+        required: false
+        default: ''
+      dry_run:
+        description: '只演练：跑全部检查并生成 Release 说明，但**不发布、不建 Release**'
+        type: boolean
+        default: false
 
-# 防止连续 push 导致并发发布冲突
+# 防止连续触发导致并发发布冲突（手动连点两次也只排队，不会互相踩）
 concurrency:
   group: npm-publish
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  id-token: write
+  contents: write   # 创建 tag / GitHub Release
+  id-token: write   # npm Trusted Publishing (OIDC) 换取临时凭证
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      # 安全闸：手动触发时 GitHub 允许选分支 —— 从非 main 的分支发版会把"那个分支的版本"发出去。
+      # 这里硬失败并给一句人话提示，避免出现"发了个来路不明的版本"。
+      - name: Guard (must run on main)
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::发布只允许在 main 上触发（当前 ${GITHUB_REF}）。请在 Run workflow 里把 Use workflow from 选成 main。"
+            exit 1
+          fi
+          echo "ref = ${GITHUB_REF}（OK）"
+
       # fetch-depth: 0 拉全量历史与 tag，changelog 需要 diff 上一个版本 tag
       - uses: actions/checkout@v4
         with:
@@ -50,33 +78,50 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
+      # 发版前门禁（与 ci.yml 同一项，这里再跑一次：**不允许在审计不通过时发布**）
       # 层级自检（issue #131 / #142）：候选表里出现未声明的名字、或 body 级 *Mask 浮层没登记，
-      # 都会静默失效（下拉被盖住 / 两个窗口互相盖）。这里让它在 CI 里硬失败，别等到用户报「点了没反应」。
+      # 都会静默失效（下拉被盖住 / 两个窗口互相盖）。让它在 CI 里硬失败，别等用户报「点了没反应」。
       - name: Layer audit (z-index invariants)
         run: node tools/z-layer-audit.mjs assets/whale-widget.js
 
-      # 当前版本是否已发布过（避免重复 push 同一版本时发布失败炸掉 workflow）
+      # 发版前门禁：语法 + 「不得含开发机绝对路径」（发布副本必须是 strip 过的 —— 本机踩过一次）
+      # 判据就用 `TestBox` 这个开发机专属目录名（覆盖 D:/TestBox 与 D:\TestBox 两种写法，
+      # 且不会误伤厂商接口里 https://api.moonshot.cn/v1/users/me/balance 这类合法字符串）。
+      # 与 `_strip-dev-paths.mjs` 同一份规则；跑过 strip 后该词出现次数为 0。
+      - name: Syntax + dev-path audit
+        run: |
+          node --check lib/index.js
+          node --check assets/whale-widget.js
+          if grep -n "TestBox" lib/index.js lib/accounting.mjs assets/whale-widget.js; then
+            echo "::error::发布文件里出现了开发机路径（发布副本必须先跑 _strip-dev-paths.mjs --apply 再提交）"
+            exit 1
+          fi
+          echo "语法与路径检查通过"
+
+      # 当前版本是否已发布过（避免重复触发同一版本时发布失败炸掉 workflow）
       - name: Check if version already published
         id: check
         run: |
           VERSION=$(node -p "require('./package.json').version")
           CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/dsh-whale-widget/${VERSION}")
+          echo "### dsh-whale-widget v${VERSION}" >> "$GITHUB_STEP_SUMMARY"
           if [ "$CODE" = "200" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "版本 ${VERSION} 已存在于 npm，跳过发布"
+            echo "版本 ${VERSION} 已存在于 npm，跳过发布" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "版本 ${VERSION} 未发布，开始发布"
+            echo "版本 ${VERSION} 未发布，开始发布" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Publish to npm
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.exists == 'false' && github.event.inputs.dry_run != 'true'
         run: npm publish --access public --registry https://registry.npmjs.org --provenance=false
         env:
           # 可选：若在仓库设置了 NPM_TOKEN secret 则用它；未设置时自动走 OIDC
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # 生成 changelog：上个 v* tag 之后合入 main 的 PR（标题 + 编号），无 tag 则取全部
+      # （dry_run 时这一步照样跑 —— 正好用来预览"这次会写出什么说明"）
       - name: Build release changelog
         id: changelog
         if: steps.check.outputs.exists == 'false'
@@ -102,6 +147,11 @@ jobs:
             echo "- 本次发布无关联的合并 PR" > pr_lines.md
           fi
           {
+            # 手动触发时填的"发版原因"（非空才写）
+            if [ -n "${{ github.event.inputs.reason }}" ]; then
+              echo "${{ github.event.inputs.reason }}"
+              echo
+            fi
             echo "## What's Changed"
             echo
             cat pr_lines.md
@@ -114,7 +164,7 @@ jobs:
 
       # 创建 GitHub Release 与 v<version> tag；幂等：release 已存在则跳过
       - name: Create GitHub Release
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.exists == 'false' && github.event.inputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -127,3 +177,10 @@ jobs:
             --target "${{ github.sha }}" \
             --title "v${VERSION}" \
             --notes-file release_notes.md
+
+      # dry_run 时给个明确结论，免得看日志的人以为发失败了
+      - name: Dry-run summary
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          echo "### 演练结束（未发布、未建 Release）" >> "$GITHUB_STEP_SUMMARY"
+          echo "上面 'Build release changelog' 那一步打印的就是本次会写入 Release 的说明。" >> "$GITHUB_STEP_SUMMARY"

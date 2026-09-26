@@ -1,0 +1,68 @@
+name: CI
+
+# ============================================================================
+# v775：把"每次 push 都要跑的检查"从 publish.yml 拆出来（作者要求发版改成手动触发）。
+#
+# 为什么要拆：原来仓库里只有 publish.yml 一个 workflow，图层审计是挂在它里面的
+#   —— 一旦把发布改成纯手动，普通 push 就**没有任何 CI 检查**了。所以这里补一个
+#   只做检查、永不发布的 workflow：
+#     · push / PR 到 main 都会跑；
+#     · 跑的都是"静默失效"类问题（错了不会报错的那些）：层级候选表、语法、开发机绝对路径。
+#   发布仍由 `publish.yml`（手动触发）负责；那边也保留同一组门禁，**审计不过就不许发布**。
+# ============================================================================
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      # 层级自检（issue #131 / #142）：候选表里出现未声明的名字、或 body 级 *Mask 浮层没登记，
+      # 都会静默失效（自绘下拉被父窗口盖住 / 两个窗口互相盖）。这类问题只能靠这条拦住。
+      # 脚本 0 依赖（只用 node:fs），所以不需要 npm install。
+      - name: Layer audit (z-index invariants)
+        run: node tools/z-layer-audit.mjs assets/whale-widget.js
+
+      # 语法：宿主是 ESM（.js + "type":"module"），前端是普通脚本 —— 两个都过一遍
+      - name: Syntax check
+        run: |
+          node --check lib/index.js
+          node --check assets/whale-widget.js
+          echo "两个文件的语法都通过"
+
+      # 「发布副本不得含开发机绝对路径」：宿主发布前必须跑一次
+      # `_strip-dev-paths.mjs --apply`（它会删掉 RUA_GIF_CANDIDATES / IMAGE_CANDIDATES 等
+      # 开发机候选路径）。忘跑过一次 —— 后果是老用户拿到的包会去读不存在的本机路径。
+      # 判据就用 `TestBox` 这个开发机专属目录名：覆盖 D:/TestBox 与 D:\TestBox 两种写法，
+      # 又不会误伤厂商接口里 https://api.moonshot.cn/v1/users/me/balance 这类合法字符串
+      # （本机用泛化的 C:/Users 试过，会被它骗到）。
+      - name: Dev-path audit (must be stripped)
+        run: |
+          if grep -n "TestBox" lib/index.js lib/accounting.mjs assets/whale-widget.js; then
+            echo "::error::发布文件里出现了开发机路径 —— 宿主发布副本必须先跑 _strip-dev-paths.mjs --apply 再提交"
+            exit 1
+          fi
+          echo "未发现开发机路径"
+
+      # package.json 必须能被解析，且 version 是 semver（发布流程按它取版本号）
+      - name: package.json sanity
+        run: |
+          node -e "
+            const p = require('./package.json')
+            if (!/^\d+\.\d+\.\d+/.test(String(p.version))) { console.error('version 不是 semver: ' + p.version); process.exit(1) }
+            if (p.name !== 'dsh-whale-widget') { console.error('包名意外: ' + p.name); process.exit(1) }
+            console.log('package.json OK: ' + p.name + '@' + p.version)
+          "
