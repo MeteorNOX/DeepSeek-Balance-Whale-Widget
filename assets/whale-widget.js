@@ -839,7 +839,42 @@ var css = [
   '.dshwv-resplay:hover{background:rgba(47,122,66,.08)}',
   '.dshwv-resimp{flex:0 0 auto;border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.08);color:#203170;font-size:11px;padding:1px 9px;cursor:pointer}',
   '.dshwv-resimp:hover{background:rgba(32,49,112,.16)}',
-  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}'
+  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}',
+  // —— 戳一戳(petpet)图层 ——
+  // z-index:0 = 压在角色图之上、气泡层(.dshwv-pop z-index:1)之下。
+  // img(z-index:auto,先入 DOM) < petwrap(0,后入) < 气泡(1) < 菜单按钮(2) < 彩蛋层(4)
+  '.dshwv-petwrap{position:absolute;display:none;opacity:0;pointer-events:none;z-index:0;transform-origin:50% 50%;will-change:transform,opacity}',
+  '.dshwv-petcanvas,.dshwv-petgif{position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;-webkit-user-drag:none;user-select:none}',
+  // —— 彩蛋图层(落体 / 烟雾 / 经验球 / 装备) ——
+  '.dshwv-fxwrap{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:4}',
+  '.dshwv-fx-anvil{position:absolute;object-fit:contain;transform-origin:50% 50%;pointer-events:none;-webkit-user-drag:none;user-select:none;will-change:transform,opacity;filter:drop-shadow(0 4px 6px rgba(0,0,0,.28))}',
+  '.dshwv-fx-streak{position:absolute;border-radius:3px;background:linear-gradient(to bottom,rgba(255,255,255,0),rgba(214,224,240,.6));pointer-events:none}',
+  '.dshwv-fx-shadow{position:absolute;border-radius:50%;background:radial-gradient(ellipse at center,rgba(18,22,32,.45),rgba(18,22,32,0) 72%);pointer-events:none}',
+  '.dshwv-fx-orb{position:absolute;object-fit:contain;pointer-events:none;-webkit-user-drag:none;user-select:none;will-change:transform,opacity}',
+  '.dshwv-fx-item{position:absolute;object-fit:contain;pointer-events:none;-webkit-user-drag:none;user-select:none;will-change:transform,opacity;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}',
+  '.dshwv-fx-smoke{position:absolute;left:0;top:0;background-repeat:no-repeat;background-size:800% 100%;pointer-events:none;-webkit-user-drag:none;user-select:none;will-change:transform,opacity}',
+  // Minecraft 原版贴图是 16x16 / 8x8 的像素画:必须最近邻放大,否则会被插值糊掉
+  '.dshwv-fx-anvil,.dshwv-fx-orb,.dshwv-fx-item,.dshwv-fx-smoke{image-rendering:pixelated;image-rendering:-moz-crisp-edges}',
+  '.dshwv-root.dshwv-shake .dshwv-body{animation:dshwv-shake .4s cubic-bezier(.36,.07,.19,.97) both}',
+  '@keyframes dshwv-shake{10%,90%{transform:translate(-3px,2px) scaleY(.97)}20%,80%{transform:translate(5px,-3px) scaleY(1.02)}30%,50%,70%{transform:translate(-7px,3px) scaleY(.98)}40%,60%{transform:translate(7px,-2px) scaleY(1.03)}}',
+  // —— 戳一戳 / 彩蛋设置窗口 ——
+  '.dshwv-petmask{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:23000;display:flex;align-items:center;justify-content:center;color-scheme:light}',
+  '.dshwv-petcard{width:min(600px,calc(100vw - 22px));max-height:min(88vh,900px);overflow:auto;background:#fff;border-radius:12px;padding:14px 16px 12px;box-shadow:0 14px 44px rgba(0,0,0,.32);color:#203170;font-size:12px;box-sizing:border-box}',
+  '.dshwv-pettitle{font-size:14px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;justify-content:space-between;gap:10px}',
+  '.dshwv-pethint{color:#8a97bb;font-size:11px;line-height:1.6;margin:2px 0 8px}',
+  '.dshwv-petstage{position:relative;width:150px;height:150px;flex:0 0 auto;border:1px dashed rgba(32,49,112,.35);border-radius:10px;overflow:hidden;background-color:#f3f5fb;background-image:linear-gradient(45deg,#e6eaf5 25%,transparent 25%,transparent 75%,#e6eaf5 75%),linear-gradient(45deg,#e6eaf5 25%,transparent 25%,transparent 75%,#e6eaf5 75%);background-size:16px 16px;background-position:0 0,8px 8px}',
+  '.dshwv-pvavatar{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;object-fit:contain;object-position:right bottom;pointer-events:none;-webkit-user-drag:none;user-select:none}',
+  '.dshwv-pvwrap{position:absolute;pointer-events:none;transform-origin:50% 50%}',
+  '.dshwv-pvcanvas,.dshwv-pvgif{position:absolute;left:0;top:0;width:100%;height:100%;display:block;object-fit:contain;pointer-events:none}',
+  '.dshwv-petnum{width:58px;flex:0 0 auto;border:1px solid rgba(32,49,112,.4);border-radius:6px;padding:2px 4px;font-size:12px;color:#203170;background:#fff;box-sizing:border-box;text-align:center}',
+  '.dshwv-petbtn{flex:0 0 auto;border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.08);color:#203170;font-size:11px;padding:3px 9px;cursor:pointer}',
+  '.dshwv-petbtn:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-petbtn-ok{background:#203170;border-color:#203170;color:#fff}',
+  '.dshwv-petbtn-ok:hover{background:#2c4187}',
+  '.dshwv-petbtn-del{color:#c9392b;border-color:rgba(201,57,43,.45);background:rgba(201,57,43,.06)}',
+  '.dshwv-petfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(32,49,112,.14)}',
+  '.dshwv-petarea{width:100%;box-sizing:border-box;min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:12px;line-height:1.5;border:1px solid rgba(32,49,112,.4);border-radius:8px;padding:8px;color:#203170;background:#fbfcff;resize:vertical}',
+  '.dshwv-peterr{color:#c9392b;font-size:11px;line-height:1.6;margin:6px 0 0;white-space:pre-wrap;word-break:break-all;min-height:16px}'
 ].join('\n')
 
 var styleEl = document.createElement('style')
@@ -13137,6 +13172,15 @@ function applySoundSet() {
 }
 function playPress() {
   if (!soundOn) return
+  // 彩蛋期间拦截挂件自带的按压/松开音效(不然会和铁砧闷响叠在一起)。
+  // 这里必须把状态一起复位成「按压已结束 / 松开已放过」:
+  // 否则 pressUp() 会按按压音剩余时长给松开音排一个排期,那个排期很可能在彩蛋结束之后才响 ——
+  // 表现就是彩蛋放完突然凭空冒出一声"嘎"。
+  if (egg.on) {
+    pressEnded = true
+    releasePlayed = true
+    return
+  }
   // v729 修复：**本轮状态复位必须放在「按压槽留空」分支之前**。
   // 原实现里 pressAudio 为空时直接 return，跳过了 releasePlayed = false；而 playRelease()
   // 一旦把 releasePlayed 置为 true 就再没有任何地方复位它 → 结果是只有第一次松开有声音，
@@ -13172,6 +13216,7 @@ function playPress() {
 // 当前取值：**40**（用户在 30/50 之间试听后选定）
 var RELEASE_LEAD_MS = 40
 function playRelease() {
+  if (egg.on) return // 彩蛋期间同样拦截(含已排期的松开音)
   if (releasePlayed || !releaseAudio || !soundOn) return
   releasePlayed = true
   try {
@@ -13195,6 +13240,15 @@ function playReleaseAt(delaySec) {
   } catch (err) {}
 }
 function pressDown() {
+  // 彩蛋期间屏蔽挂件自带的「按压 Q 弹」压扁:那个形变作用在 body 上,而彩蛋的压扁作用在 img 上,
+  // 两层叠在一起会把「按落体下坠深度同步压扁」的时序完全搅乱(看着就是提前压扁 / 压两倍)。
+  // 摆台期间 egg.on 就已经是 true,下坠期间用户再按也不该插进新的形变 —— 所以在这里统一挡掉。
+  if (egg.on) {
+    try { body.style.transform = 'scaleY(1) scaleX(1)' } catch (err) {}
+    pressing = true
+    playPress()
+    return
+  }
   body.style.transform = SQUISH
   pressing = true
   playPress()
@@ -15002,7 +15056,7 @@ function onDocPointerDown(e) {
         e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') ||
         e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
         e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
-        e.target.closest('.dshwv-resmask') ||
+        e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-petmask') ||
         e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
     // 菜单内的下拉切换按钮/导入按钮：它们自己的 click 负责开合，pointerdown 不干预
     if (e.target.closest('.dshwv-rolebtn') || e.target.closest('.dshwv-audiobtn') ||
@@ -15024,6 +15078,8 @@ function onDocPointerDown(e) {
   if (e.button !== 0 && e.pointerType === 'mouse') return
   if (!isWhaleHit(e)) return
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
+  // 戳一戳 / 彩蛋:按下就播(不等松开)。泡泡仍走松开判定,这样拖动不会误弹泡泡。
+  onWhalePress()
   var vp = viewport()
   var rect = root.getBoundingClientRect()
   drag = { active: true, startX: e.clientX, startY: e.clientY, origLeft: rect.left, origTop: rect.top, w: rect.width, h: rect.height, moved: false, vp: vp }
@@ -15064,7 +15120,7 @@ function onDocClickStopper(e) {
         e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') ||
         e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') ||
         e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
-        e.target.closest('.dshwv-resmask') ||
+        e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-petmask') ||
         e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
   }
   if (!isWhaleHit(e)) return
@@ -15085,7 +15141,7 @@ function onDocContextMenu(e) {
           e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') ||
           e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
           e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
-          e.target.closest('.dshwv-resmask') ||
+          e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-petmask') ||
           e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
     }
     if (!isWhaleHit(e)) return
@@ -15108,7 +15164,7 @@ function widgetUiHit(target) {
     target.closest('.dshwv-rolelist') || target.closest('.dshwv-audiolist') || target.closest('.dshwv-cropmask') ||
     target.closest('.dshwv-confirmmask') || target.closest('.dshwv-audiomask') || target.closest('.dshwv-snapmask') ||
     target.closest('.dshwv-bubmask') || target.closest('.dshwv-qedit') || target.closest('.dshwv-usagepanel') ||
-    target.closest('.dshwv-usage-mask') || target.closest('.dshwv-resmask') || target.closest('.dshwv-custmenu') ||
+    target.closest('.dshwv-usage-mask') || target.closest('.dshwv-resmask') || target.closest('.dshwv-petmask') || target.closest('.dshwv-custmenu') ||
     target.closest('.dshwv-custbtn') || target.closest('.dshwv-rolebtn') || target.closest('.dshwv-audiobtn') ||
     target.closest('.dshwv-roleimport') || target.closest('.dshwv-audioimport'))
 }
@@ -15175,6 +15231,11 @@ function onDocTouchMove(e) {
 }
 function onDocTouchEnd() {
   cancelTouchLongPress()
+  petPressRearm()
+  // 触摸被系统掐断时可能收不到 pointerup → 这里补一次「松开」,避免定格中的动画永远冻着
+  // (两处都调是安全的:eggGo/petGo 第二次会因为 pendingGo 已清空而直接返回)
+  eggGo()
+  petGo()
   if (touchDrag) touchEndedAt = Date.now()
   touchDrag = null
   touchStartPt = null
@@ -15246,7 +15307,7 @@ function onDocPointerMoveCursor(e) {
   }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
-  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
+  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-petmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
     setWidgetCursor('')
     if (!menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible')
     return
@@ -15265,6 +15326,10 @@ try { applyMenuBtnHideUI() } catch (err) {}
 function endDrag(e, clickAllowed, cancelled) {
   if (!drag || !drag.active) return
   drag.active = false
+  petPressRearm()
+  // 松开才开始跑:彩蛋(铁砧下坠)与戳一戳(素材定格结束)都是两段式
+  eggGo()
+  petGo()
   document.removeEventListener('pointermove', onDocPointerMove, true)
   document.removeEventListener('pointerup', onDocPointerUp, true)
   document.removeEventListener('pointercancel', onDocPointerCancel, true)
@@ -15537,6 +15602,1917 @@ function pollLastTurn() {
   } catch (err) {}
 }
 setInterval(pollLastTurn, 1000)
+// ============================================================================
+// 戳一戳(petpet)+ 彩蛋动画
+// ----------------------------------------------------------------------------
+// 两个功能共用一套「素材库 + 受限脚本 DSL + 实时预览」:
+//   · 戳一戳:点角色时在其上叠加素材动图(可选把角色合成进素材框),按脚本做位移/缩放/旋转
+//   · 彩蛋  :按概率触发的落体彩蛋 —— 落体砸下 → 命中抖动 / 变红 → 短暂消失
+//            → 烟雾 + 爆装备同时炸出 → 过几秒复原
+// 两者默认都是「两段式」:按下只定格、松开才播(各有一个开关可以关掉)。
+// 所有素材都可由用户上传替换,所有动画都可选内置脚本或自定义脚本。
+// ============================================================================
+var PET_CFG_URL = '/dsh-whale/pet.json'
+var PET_ASSETS_URL = '/dsh-whale/pet-assets.json'
+function petAssetUrl(id) { return '/dsh-whale/pet-asset.png?id=' + encodeURIComponent(String(id || '')) }
+
+var petCfg = null
+var petCfgLoaded = false
+var petCfgSavePending = false
+var petAssets = []
+// 无原型对象:配置/素材 id 来自 HTTP,普通 {} 上的 "constructor" / "__proto__" 会命中原型链
+var petAssetMap = Object.create(null)
+var petSaveTimer = null
+
+// ---------------------------------------------------------------- 受限表达式 DSL
+// 自定义脚本里的表达式在这里解释执行。**刻意不用 eval / new Function** ——
+// 这份配置能通过 HTTP PUT 写进来,一旦放行任意 JS 就等于给页面开了后门。
+// 只放行:变量 t(0..1 单圈进度) c(第几圈,从 0 起) PI;下表的函数;以及 + - * / % () ?: 比较与逻辑。
+var PET_DSL_FUNCS = {
+  sin: Math.sin,
+  cos: Math.cos,
+  tan: Math.tan,
+  abs: Math.abs,
+  floor: Math.floor,
+  ceil: Math.ceil,
+  round: Math.round,
+  sqrt: Math.sqrt,
+  sign: Math.sign || function (x) { return x > 0 ? 1 : (x < 0 ? -1 : 0) },
+  min: Math.min,
+  max: Math.max,
+  pow: Math.pow,
+  clamp: function (v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v) }
+}
+var PET_TRACK_KEYS = ['x', 'y', 'scale', 'rotate', 'opacity']
+function petIsDigit(c) { return c >= '0' && c <= '9' }
+function petIsAlpha(c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c === '_' }
+function petIsAlnum(c) { return petIsAlpha(c) || petIsDigit(c) }
+function petIsSpace(c) { return c === ' ' || c === String.fromCharCode(9) || c === String.fromCharCode(10) || c === String.fromCharCode(13) }
+function petDslLex(src) {
+  var s = String(src)
+  var out = []
+  var i = 0
+  while (i < s.length) {
+    var c = s.charAt(i)
+    if (petIsSpace(c)) { i++; continue }
+    if (petIsDigit(c) || (c === '.' && petIsDigit(s.charAt(i + 1)))) {
+      var j = i
+      while (j < s.length && (petIsDigit(s.charAt(j)) || s.charAt(j) === '.')) j++
+      var num = Number(s.slice(i, j))
+      if (!isFinite(num)) throw new Error('数字不合法: ' + s.slice(i, j))
+      out.push({ t: 'n', v: num })
+      i = j
+      continue
+    }
+    if (petIsAlpha(c)) {
+      var m = i
+      while (m < s.length && petIsAlnum(s.charAt(m))) m++
+      out.push({ t: 'i', v: s.slice(i, m) })
+      i = m
+      continue
+    }
+    var two = s.slice(i, i + 2)
+    if (two === '<=' || two === '>=' || two === '==' || two === '!=' || two === '&&' || two === '||') {
+      out.push({ t: 'o', v: two })
+      i += 2
+      continue
+    }
+    if ('+-*/%()?:<>,!'.indexOf(c) >= 0) { out.push({ t: 'o', v: c }); i++; continue }
+    throw new Error('不支持的字符: ' + c)
+  }
+  return out
+}
+function petDslParse(src) {
+  var tk = petDslLex(src)
+  var p = 0
+  function cur() { return tk[p] }
+  function isOp(v) { return !!tk[p] && tk[p].t === 'o' && tk[p].v === v }
+  function eat(v) { if (!isOp(v)) throw new Error('缺少 ' + v); p++ }
+  function primary() {
+    var x = cur()
+    if (!x) throw new Error('表达式意外结束')
+    if (x.t === 'n') { p++; return { k: 'num', v: x.v } }
+    if (x.t === 'i') {
+      p++
+      var name = x.v
+      if (isOp('(')) {
+        p++
+        var args = []
+        if (!isOp(')')) {
+          args.push(ternary())
+          while (isOp(',')) { p++; args.push(ternary()) }
+        }
+        eat(')')
+        if (!PET_DSL_FUNCS[name]) throw new Error('未知函数: ' + name)
+        return { k: 'call', name: name, a: args }
+      }
+      if (name === 'PI') return { k: 'num', v: Math.PI }
+      if (name !== 't' && name !== 'c') throw new Error('未知变量: ' + name + '(只支持 t / c / PI)')
+      return { k: 'vr', name: name }
+    }
+    if (isOp('(')) { p++; var e = ternary(); eat(')'); return e }
+    throw new Error('表达式语法错误')
+  }
+  function unary() {
+    if (isOp('-')) { p++; return { k: 'neg', a: unary() } }
+    if (isOp('+')) { p++; return unary() }
+    if (isOp('!')) { p++; return { k: 'not', a: unary() } }
+    return primary()
+  }
+  function mul() {
+    var a = unary()
+    while (isOp('*') || isOp('/') || isOp('%')) { var o = tk[p].v; p++; a = { k: 'bin', o: o, a: a, b: unary() } }
+    return a
+  }
+  function add() {
+    var a = mul()
+    while (isOp('+') || isOp('-')) { var o = tk[p].v; p++; a = { k: 'bin', o: o, a: a, b: mul() } }
+    return a
+  }
+  function cmp() {
+    var a = add()
+    while (isOp('<') || isOp('>') || isOp('<=') || isOp('>=') || isOp('==') || isOp('!=')) {
+      var o = tk[p].v
+      p++
+      a = { k: 'bin', o: o, a: a, b: add() }
+    }
+    return a
+  }
+  function and() {
+    var a = cmp()
+    while (isOp('&&')) { p++; a = { k: 'and', a: a, b: cmp() } }
+    return a
+  }
+  function or() {
+    var a = and()
+    while (isOp('||')) { p++; a = { k: 'or', a: a, b: and() } }
+    return a
+  }
+  function ternary() {
+    var a = or()
+    if (isOp('?')) {
+      p++
+      var b = ternary()
+      eat(':')
+      var c2 = ternary()
+      return { k: 'cond', c: a, a: b, b: c2 }
+    }
+    return a
+  }
+  var ast = ternary()
+  if (p !== tk.length) throw new Error('表达式尾部有多余内容')
+  return ast
+}
+function petDslEval(ast, env) {
+  switch (ast.k) {
+    case 'num': return ast.v
+    case 'vr': return env[ast.name]
+    case 'neg': return -petDslEval(ast.a, env)
+    case 'not': return petDslEval(ast.a, env) ? 0 : 1
+    case 'cond': return petDslEval(ast.c, env) ? petDslEval(ast.a, env) : petDslEval(ast.b, env)
+    case 'and': return (petDslEval(ast.a, env) && petDslEval(ast.b, env)) ? 1 : 0
+    case 'or': return (petDslEval(ast.a, env) || petDslEval(ast.b, env)) ? 1 : 0
+    case 'call': {
+      var args = []
+      for (var i = 0; i < ast.a.length; i++) args.push(petDslEval(ast.a[i], env))
+      return PET_DSL_FUNCS[ast.name].apply(null, args)
+    }
+    case 'bin': {
+      var x = petDslEval(ast.a, env)
+      var y = petDslEval(ast.b, env)
+      if (ast.o === '+') return x + y
+      if (ast.o === '-') return x - y
+      if (ast.o === '*') return x * y
+      if (ast.o === '/') return y === 0 ? 0 : x / y
+      if (ast.o === '%') return y === 0 ? 0 : x % y
+      if (ast.o === '<') return x < y ? 1 : 0
+      if (ast.o === '>') return x > y ? 1 : 0
+      if (ast.o === '<=') return x <= y ? 1 : 0
+      if (ast.o === '>=') return x >= y ? 1 : 0
+      if (ast.o === '==') return x === y ? 1 : 0
+      if (ast.o === '!=') return x !== y ? 1 : 0
+      return 0
+    }
+  }
+  throw new Error('表达式节点不合法')
+}
+// 无原型对象:否则 expr 恰好叫 "constructor" / "__proto__" 时会从原型链上取到
+// Object.prototype 的成员,被当成「已缓存的求值函数」,绕过解析与白名单。
+var petDslCache = Object.create(null)
+function petExpr(src) {
+  var key = String(src)
+  if (Object.prototype.hasOwnProperty.call(petDslCache, key)) return petDslCache[key]
+  var ast = petDslParse(key)
+  var fn = function (env) { return petDslEval(ast, env) }
+  if (Object.keys(petDslCache).length > 300) petDslCache = Object.create(null)
+  petDslCache[key] = fn
+  return fn
+}
+// 轨道求值:expr 优先;否则关键帧线性插值(时间轴与数值域已在宿主侧夹紧)
+function petTrackVal(track, env, dflt) {
+  if (!track) return dflt
+  if (typeof track.expr === 'string' && track.expr) {
+    try {
+      var v = petExpr(track.expr)(env)
+      return isFinite(v) ? v : dflt
+    } catch (err) { return dflt }
+  }
+  var k = track.k
+  if (!Array.isArray(k) || !k.length) return dflt
+  if (k.length === 1) return k[0][1]
+  var t = env.t
+  if (t <= k[0][0]) return k[0][1]
+  for (var i = 1; i < k.length; i++) {
+    if (t <= k[i][0]) {
+      var a = k[i - 1]
+      var b = k[i]
+      var span = b[0] - a[0]
+      var u = span <= 0 ? 1 : (t - a[0]) / span
+      return a[1] + (b[1] - a[1]) * u
+    }
+  }
+  return k[k.length - 1][1]
+}
+function petSortKeys(track) {
+  if (track && Array.isArray(track.k)) {
+    track.k = track.k.slice().sort(function (a, b) { return a[0] - b[0] })
+  }
+  return track
+}
+function petTracksOf(script) {
+  var out = {}
+  if (!script || !script.tracks) return out
+  for (var i = 0; i < PET_TRACK_KEYS.length; i++) {
+    var k = PET_TRACK_KEYS[i]
+    if (script.tracks[k]) out[k] = petSortKeys(script.tracks[k])
+  }
+  return out
+}
+
+// ---------------------------------------------------------------- 内置动画脚本
+var PET_BUILTIN_SCRIPTS = {
+  'builtin:classic': {
+    id: 'builtin:classic', name: '跟随素材(GIF 自播放 + 轻 Q 弹)', duration: 720, loop: true,
+    tracks: { scale: { expr: '1 + 0.05 * max(0, 1 - t * 6)' } }
+  },
+  'builtin:pat': {
+    id: 'builtin:pat', name: '拍击(上下点动)', duration: 420, loop: true,
+    tracks: { y: { expr: '2.6 * sin(t * PI * 2)' }, scale: { expr: '1 + 0.04 * sin(t * PI * 2)' } }
+  },
+  'builtin:shake': {
+    id: 'builtin:shake', name: '抖动', duration: 300, loop: true,
+    tracks: { x: { expr: '5 * sin(t * PI * 8)' }, rotate: { expr: '3 * sin(t * PI * 10)' } }
+  },
+  'builtin:bounce': {
+    id: 'builtin:bounce', name: '弹跳', duration: 640, loop: true,
+    tracks: { y: { expr: '-9 * abs(sin(t * PI))' }, scale: { expr: '1 + 0.08 * sin(t * PI * 2)' } }
+  },
+  'builtin:spin': {
+    id: 'builtin:spin', name: '旋转', duration: 900, loop: true,
+    tracks: { rotate: { expr: '360 * t' } }
+  }
+}
+function petScriptById(id) {
+  if (PET_BUILTIN_SCRIPTS[id]) return PET_BUILTIN_SCRIPTS[id]
+  var list = petCfg && Array.isArray(petCfg.scripts) ? petCfg.scripts : []
+  for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]
+  return null
+}
+function petScriptList() {
+  var out = []
+  for (var k in PET_BUILTIN_SCRIPTS) {
+    if (Object.prototype.hasOwnProperty.call(PET_BUILTIN_SCRIPTS, k)) out.push(PET_BUILTIN_SCRIPTS[k])
+  }
+  var extra = petCfg && Array.isArray(petCfg.scripts) ? petCfg.scripts : []
+  for (var i = 0; i < extra.length; i++) out.push(extra[i])
+  return out
+}
+function petIsBuiltinScript(id) { return !!PET_BUILTIN_SCRIPTS[id] }
+// 随机播放:开启后每次触发都从「内置 5 条 + 自定义」里抽一条,而不是固定用下拉里那条。
+function petPickScript(cfg) {
+  if (cfg && cfg.randomScript) {
+    var list = petScriptList()
+    if (list.length) return list[Math.floor(Math.random() * list.length)]
+  }
+  return petScriptById(cfg ? cfg.animId : null)
+}
+// 预览台本次用的脚本(开随机播放时每开窗 / 每点一次试播重抽一条,好让你看到不同的)
+var petPvScriptObj = null
+var petRandHintEl = null
+function petPvUseScript() {
+  var list = petScriptList()
+  if (petCfg && petCfg.pet.randomScript && list.length) {
+    petPvScriptObj = list[Math.floor(Math.random() * list.length)]
+  } else {
+    petPvScriptObj = null
+  }
+  if (petRandHintEl) {
+    petRandHintEl.textContent = petPvScriptObj ? ('本次随机:' + petPvScriptObj.name) : ''
+  }
+}
+
+// ---------------------------------------------------------------- 素材库
+function petAssetOpts(kind, filter) {
+  var out = []
+  for (var i = 0; i < petAssets.length; i++) {
+    var a = petAssets[i]
+    if (kind && a.kind !== kind) continue
+    if (filter && !filter(a)) continue
+    out.push([a.id, a.name + (a.builtin ? '' : ' (我的)')])
+  }
+  return out
+}
+function petIndexAssets(list) {
+  petAssets = list
+  petAssetMap = Object.create(null)
+  for (var i = 0; i < petAssets.length; i++) petAssetMap[petAssets[i].id] = petAssets[i]
+}
+function petLoadAssets(cb) {
+  fetch(PET_ASSETS_URL, { cache: 'no-store' })
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      if (d && Array.isArray(d.assets)) petIndexAssets(d.assets)
+      if (cb) cb()
+    })
+    .catch(function () { if (cb) cb() })
+}
+function petUploadAsset(file, kind, cb) {
+  try {
+    var fr = new FileReader()
+    fr.onload = function () {
+      var nm = String(file.name || '').replace(/\.[^.]+$/, '').slice(0, 40) || '素材'
+      fetch(PET_ASSETS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload', name: nm, kind: kind, data: fr.result })
+      })
+        .then(function (r) { return r.json() })
+        .then(function (d) {
+          if (d && Array.isArray(d.assets)) { petIndexAssets(d.assets); if (cb) cb(null); return }
+          if (cb) cb(new Error((d && d.error) || '上传失败'))
+        })
+        .catch(function (err) { if (cb) cb(err) })
+    }
+    fr.onerror = function () { if (cb) cb(new Error('读取文件失败')) }
+    fr.readAsDataURL(file)
+  } catch (err) { if (cb) cb(err) }
+}
+function petDeleteAsset(id, cb) {
+  fetch(PET_ASSETS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', id: id })
+  })
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      if (d && Array.isArray(d.assets)) { petIndexAssets(d.assets); if (cb) cb(null); return }
+      if (cb) cb(new Error((d && d.error) || '删除失败'))
+    })
+    .catch(function (err) { if (cb) cb(err) })
+}
+
+// ---------------------------------------------------------------- 配置读写
+function petLoadCfg() {
+  fetch(PET_CFG_URL, { cache: 'no-store' })
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      if (!d || !d.ok || !d.config) throw new Error('bad payload')
+      petCfg = d.config
+      petCfgLoaded = true
+      if (petCfgSavePending) { petCfgSavePending = false; try { petSaveCfg() } catch (err) {} }
+      petSyncMenu()
+    })
+    .catch(function () {
+      // 读取失败:绝不用内存里的默认值去 PUT(那正是「设置被洗成默认值」)
+      petCfg = null
+      petCfgLoaded = false
+      dshwvToast('⚠ 戳一戳 / 彩蛋设置读取失败,已暂停保存以免覆盖原有设置<br>请刷新页面重试')
+    })
+}
+function petSaveCfg() {
+  if (!petCfgLoaded || !petCfg) { petCfgSavePending = true; return }
+  petPutCfg(JSON.stringify({ pet: petCfg.pet, fx: petCfg.fx, scripts: petCfg.scripts }), false)
+}
+function petSaveSoon() {
+  if (petSaveTimer) clearTimeout(petSaveTimer)
+  petSaveTimer = setTimeout(function () { petSaveTimer = null; try { petSaveCfg() } catch (err) {} }, 350)
+}
+function petPutCfg(body, retried) {
+  return fetch(PET_CFG_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: body })
+    .then(function (r) { return r.json().catch(function () { return null }).then(function (d) { return { ok: r.ok, status: r.status, d: d } }) })
+    .then(function (x) {
+      if (x.ok && (!x.d || x.d.ok !== false)) {
+        if (x.d && x.d.config) petCfg = x.d.config
+        return true
+      }
+      if (!retried) return new Promise(function (res) { setTimeout(function () { res(petPutCfg(body, true)) }, 900) })
+      configSaveFailNotice((x.d && x.d.error) || ('HTTP ' + x.status))
+      return false
+    })
+    .catch(function (err) {
+      if (!retried) return new Promise(function (res) { setTimeout(function () { res(petPutCfg(body, true)) }, 900) })
+      configSaveFailNotice((err && err.message) || err)
+      return false
+    })
+}
+
+// ============================================================================
+// 图层与播放引擎
+// ============================================================================
+// 锚点框:avatar = 角色所在方框(与 .dshwv-img 完全对齐),widget = 整个挂件盒。
+// 放成 root 的子节点 → 拖拽/缩放/翻转/吸附全部自动跟随。
+var PET_ANCHOR_AVATAR = { left: '40.55%', top: '40.55%', width: '59.45%', height: '59.45%' }
+var PET_ANCHOR_WIDGET = { left: '0', top: '0', width: '100%', height: '100%' }
+
+var petLayer = null
+var petCanvasEl = null
+var petGifEl = null
+function petEnsureLayer() {
+  if (petLayer && petLayer.parentNode) return petLayer
+  petLayer = document.createElement('div')
+  petLayer.className = 'dshwv-petwrap'
+  petCanvasEl = document.createElement('canvas')
+  petCanvasEl.className = 'dshwv-petcanvas'
+  petGifEl = document.createElement('img')
+  petGifEl.className = 'dshwv-petgif'
+  petGifEl.draggable = false
+  petGifEl.alt = ''
+  petLayer.appendChild(petCanvasEl)
+  petLayer.appendChild(petGifEl)
+  body.appendChild(petLayer)
+  return petLayer
+}
+function petApplyGeomTo(wrapEl, anchor) {
+  if (!wrapEl) return
+  var g = anchor === 'widget' ? PET_ANCHOR_WIDGET : PET_ANCHOR_AVATAR
+  var s = wrapEl.style
+  s.left = g.left
+  s.top = g.top
+  s.width = g.width
+  s.height = g.height
+}
+function petXfString(x, y, scale, rot) {
+  var tr = 'translate(' + x + '%,' + y + '%) scale(' + scale + ')'
+  if (rot) tr += ' rotate(' + rot + 'deg)'
+  // root 贴左吸附时整体 scaleX(-1):素材要抵消,否则手/文字会反
+  if (state.flip) tr += ' scaleX(-1)'
+  return tr
+}
+// 合成:角色按 .dshwv-img 的 contain + 右下对齐铺进画布,再把素材帧盖上。
+// 素材用 <img> 而不是 ImageDecoder —— 浏览器自播 GIF,drawImage 取的就是当前帧,
+// 既省掉解码器兼容分支,也不用担心 APNG/WebP 动图的差异。
+// 角色绘制参数:优先用摆台时的快照(petCfg 可能在定格期间被一次保存响应整包替换),
+// 没有快照(还没摆台)时退回当前配置。
+function petAvatarParams() {
+  if (petPlay.stagedState) return petPlay.stagedState.avatar
+  return (petCfg && petCfg.pet) ? petCfg.pet : null
+}
+function petDrawComposite(canvasEl, gifEl, avatarEl, pcfg) {
+  if (!canvasEl || !canvasEl.getContext) return
+  var W = canvasEl.width
+  var H = canvasEl.height
+  var ctx = canvasEl.getContext('2d')
+  if (!ctx || !W || !H) return
+  ctx.clearRect(0, 0, W, H)
+  if (avatarEl && avatarEl.naturalWidth) {
+    var iw = avatarEl.naturalWidth
+    var ih = avatarEl.naturalHeight
+    var sc = Math.min(W / iw, H / ih) * (Number(pcfg.avatarScale) || 1)
+    var dw = iw * sc
+    var dh = ih * sc
+    var dx = (W - dw) + ((Number(pcfg.avatarX) || 0) / 100) * W
+    var dy = (H - dh) + ((Number(pcfg.avatarY) || 0) / 100) * H
+    try { ctx.drawImage(avatarEl, dx, dy, dw, dh) } catch (err) {}
+  }
+  if (gifEl && gifEl.complete && gifEl.naturalWidth) {
+    try { ctx.drawImage(gifEl, 0, 0, W, H) } catch (err) {}
+  }
+}
+function petCanvasSize(canvasEl, boxW, boxH) {
+  var dpr = Math.min(3, window.devicePixelRatio || 1)
+  var side = Math.max(48, Math.min(720, Math.round(Math.max(boxW, boxH, 24) * dpr)))
+  if (canvasEl.width !== side || canvasEl.height !== side) {
+    canvasEl.width = side
+    canvasEl.height = side
+  }
+}
+function petRestartGif(imgEl, url) {
+  if (!imgEl) return
+  if (imgEl.getAttribute('src') === url) {
+    // 同源重新播放:先摘掉 src 再挂回,浏览器会从第 1 帧重播(GIF 默认不重播)
+    try { imgEl.removeAttribute('src') } catch (err) {}
+  }
+  imgEl.setAttribute('src', url)
+}
+
+// 位置基准:素材落在「基准落点」上就是出厂调好的位置 —— 设置窗口里的 X / Y 滑块显示的是
+// 相对它的偏移量。想把默认落点整体挪一挪,改这两个数即可(不会改写用户已有的滑杆数值)。
+var PET_POS_BASE = { x: -3, y: -12 }
+
+var petPlay = { on: false, raf: 0, t0: 0, dur: 720, loops: 3, speed: 1, tracks: {}, base: null, composite: true, token: 0, pendingGo: null }
+function petStop() {
+  if (petPlay.raf) { try { cancelAnimationFrame(petPlay.raf) } catch (err) {} }
+  petPlay.raf = 0
+  petPlay.on = false
+  petPlay.token++ // 同上:作废已排队的陈旧帧回调,避免两个循环同时推进
+  petPlay.pendingGo = null // 定格待播状态一并取消
+  petPlay.stagedState = null
+  // 素材可能还没解码完就收场了:摘掉待补画定格的 load 监听,别留悬挂回调
+  try { petGifEl.removeEventListener('load', petStageDrawOnce) } catch (err) {}
+  if (petLayer) petLayer.style.display = 'none'
+}
+// 定格:把「第 0 帧」画到 canvas 上并停住。
+// 为什么要走 canvas —— <img> 里的 GIF 是浏览器自己在播的,没有暂停 API,画进 canvas 才冻得住。
+// 合成模式画「角色 + 素材」,叠加模式只画素材(角色原样透出来)。
+function petStageDraw() {
+  try {
+    if (!petPlay.on || typeof petPlay.pendingGo !== 'function' || !petPlay.base || !petCfg) return
+    var b = petPlay.base
+    var env0 = { t: 0, c: 0, PI: Math.PI }
+    var x = PET_POS_BASE.x + b.x + petTrackVal(petPlay.tracks.x, env0, 0)
+    var y = PET_POS_BASE.y + b.y + petTrackVal(petPlay.tracks.y, env0, 0)
+    var sc = b.scale * petTrackVal(petPlay.tracks.scale, env0, 1)
+    var ro = b.rotate + petTrackVal(petPlay.tracks.rotate, env0, 0)
+    var op = b.opacity * petTrackVal(petPlay.tracks.opacity, env0, 1)
+    petLayer.style.transform = petXfString(x, y, sc, ro)
+    petLayer.style.opacity = String(Math.max(0, Math.min(1, op)))
+    petCanvasEl.style.display = 'block'
+    petGifEl.style.opacity = '0'
+    petDrawComposite(petCanvasEl, petGifEl, petPlay.composite ? img : null, petAvatarParams())
+  } catch (err) {}
+}
+// 素材图可能还没解码好:加载完成后再补画一次定格帧
+function petStageDrawOnce() {
+  try { petGifEl.removeEventListener('load', petStageDrawOnce) } catch (err) {}
+  petStageDraw()
+}
+// 松开 → 定格结束,从第 1 帧开始播
+function petGo() {
+  if (typeof petPlay.pendingGo !== 'function') return false
+  var go = petPlay.pendingGo
+  petPlay.pendingGo = null
+  try { petGifEl.removeEventListener('load', petStageDrawOnce) } catch (err) {}
+  // 定格期间 GIF 在后台已经偷偷跑了一段,这里重挂 src 让它从第 1 帧开始
+  // 用摆台时快照的素材 id,保证「定格的」和「起播的」是同一张
+  var goAssetId = (petPlay.stagedState && petPlay.stagedState.assetId) || (petCfg && petCfg.pet ? petCfg.pet.assetId : '')
+  try { petRestartGif(petGifEl, petAssetUrl(petResolveAssetId(goAssetId))) } catch (err) {}
+  petCanvasEl.style.display = petPlay.composite ? 'block' : 'none'
+  petGifEl.style.opacity = petPlay.composite ? '0' : '1'
+  go()
+  return true
+}
+function petStart(force, staged) {
+  if (!petCfgLoaded || !petCfg) return false
+  // 彩蛋动画期间「防打断」:不让戳一戳盖到彩蛋上面去。
+  // 常规戳一戳不做这个限制 —— 两次戳一戳本来就该各播各的。
+  if (egg.on) return false
+  var cfg = petCfg.pet
+  if (!force && !cfg.enabled) return false
+  var script = petPickScript(cfg)
+  if (!script) return false
+  petEnsureLayer()
+  petApplyGeomTo(petLayer, cfg.anchor)
+  try { petStop() } catch (err) {}
+  petPlay.on = true
+  var petToken = petPlay.token
+  petPlay.t0 = 0
+  petPlay.dur = Math.max(80, Number(script.duration) || 700)
+  petPlay.loops = script.loop === false ? 1 : Math.max(1, Math.round(Number(cfg.loops)) || 1)
+  petPlay.speed = Math.max(0.2, Number(cfg.speed) || 1)
+  petPlay.tracks = petTracksOf(script)
+  petPlay.base = {
+    x: Number(cfg.x) || 0, y: Number(cfg.y) || 0, scale: Number(cfg.scale) || 1,
+    rotate: Number(cfg.rotate) || 0, opacity: Number(cfg.opacity)
+  }
+  if (!isFinite(petPlay.base.opacity)) petPlay.base.opacity = 1
+  petPlay.composite = cfg.mode === 'composite'
+  // 定格期间 petCfg 可能被一次保存响应整包替换(按下前刚改过设置、防抖 350ms 后才落盘)。
+  // 把这一次真正要用的素材与角色参数快照下来,免得松开时播的是另一张素材。
+  petPlay.stagedState = {
+    assetId: cfg.assetId,
+    avatar: {
+      avatarScale: Number(cfg.avatarScale) || 1,
+      avatarX: Number(cfg.avatarX) || 0,
+      avatarY: Number(cfg.avatarY) || 0,
+    },
+  }
+  // 不能写 '' —— .dshwv-petwrap 的 CSS 默认就是 display:none,清掉内联值会落回 none,
+  // 图层永远不显示(戳一戳「点了没反应」的元凶)。
+  petLayer.style.display = 'block'
+  // 立刻给一次透明度:CSS 默认 opacity:0 要等第一帧 rAF 才被覆盖,
+  // 页面不可见(后台标签)时 rAF 不跑,就会一直透不出来。
+  petLayer.style.opacity = String(Math.max(0, Math.min(1, petPlay.base.opacity)))
+  petRestartGif(petGifEl, petAssetUrl(petResolveAssetId(cfg.assetId)))
+  petGifEl.style.opacity = petPlay.composite ? '0' : '1'
+  petCanvasEl.style.display = petPlay.composite ? 'block' : 'none'
+  var r = petLayer.getBoundingClientRect()
+  petCanvasSize(petCanvasEl, r.width || 0, r.height || 0)
+  // 用闭包把「本轮 token」带进每一帧:petFrame 是顶层函数,直接引用 petStart 的局部变量会拿不到
+  function scheduleFrame() { petPlay.raf = requestAnimationFrame(function (n) { petFrame(n, petToken) }) }
+  if (staged) {
+    // 按下:只把素材定格在第 0 帧,时间轴一帧都不跑;等松开由 petGo() 起跑
+    petPlay.pendingGo = scheduleFrame
+    petStageDraw()
+    try { petGifEl.addEventListener('load', petStageDrawOnce) } catch (err) {}
+    return true
+  }
+  scheduleFrame()
+  return true
+}
+function petFrame(now, petToken) {
+  if (!petPlay.on || petPlay.token !== petToken) return
+  if (!petPlay.t0) petPlay.t0 = now
+  var el = (now - petPlay.t0) * petPlay.speed
+  var dur = petPlay.dur
+  var idx = Math.floor(el / dur)
+  if (idx >= petPlay.loops) { petStop(); return }
+  var t = (el - idx * dur) / dur
+  var env = { t: t, c: idx, PI: Math.PI }
+  var b = petPlay.base
+  var x = PET_POS_BASE.x + b.x + petTrackVal(petPlay.tracks.x, env, 0)
+  var y = PET_POS_BASE.y + b.y + petTrackVal(petPlay.tracks.y, env, 0)
+  var sc = b.scale * petTrackVal(petPlay.tracks.scale, env, 1)
+  var ro = b.rotate + petTrackVal(petPlay.tracks.rotate, env, 0)
+  var op = b.opacity * petTrackVal(petPlay.tracks.opacity, env, 1)
+  petLayer.style.transform = petXfString(x, y, sc, ro)
+  petLayer.style.opacity = String(Math.max(0, Math.min(1, op)))
+  if (petPlay.composite) petDrawComposite(petCanvasEl, petGifEl, img, petAvatarParams())
+  petPlay.raf = requestAnimationFrame(function (n) { petFrame(n, petToken) })
+}
+
+// ============================================================================
+// 彩蛋:铁砧砸下 → 消散 → 经验粒子 + 爆装备
+// ============================================================================
+var eggLayer = null
+var egg = { on: false, raf: 0, t0: 0, last: 0, impact: false, token: 0, staged: null }
+var petAudioCtx = null
+function petAC() {
+  if (petAudioCtx) return petAudioCtx
+  var C = window.AudioContext || window.webkitAudioContext
+  if (!C) return null
+  try { petAudioCtx = new C() } catch (err) { petAudioCtx = null }
+  return petAudioCtx
+}
+// 铁砧闷响:噪声爆(金属"脆")+ 三个非谐分音("铛")。纯 WebAudio 合成,不额外占素材。
+function eggClang() {
+  if (!soundOn) return
+  var ac = petAC()
+  if (!ac) return
+  try { if (ac.state === 'suspended' && ac.resume) ac.resume() } catch (err) {}
+  var vol = Math.max(0, Math.min(1, soundVol))
+  if (vol <= 0) return
+  var t0 = ac.currentTime + 0.01
+  try {
+    var dur = 0.5
+    var len = Math.floor(ac.sampleRate * dur)
+    var buf = ac.createBuffer(1, len, ac.sampleRate)
+    var d = buf.getChannelData(0)
+    for (var i = 0; i < len; i++) {
+      var e = Math.pow(1 - i / len, 6)
+      d[i] = (Math.random() * 2 - 1) * e
+    }
+    var src = ac.createBufferSource()
+    src.buffer = buf
+    var bp = ac.createBiquadFilter()
+    bp.type = 'bandpass'
+    bp.frequency.value = 2100
+    bp.Q.value = 1.1
+    var g = ac.createGain()
+    g.gain.value = 0.5 * vol
+    src.connect(bp)
+    bp.connect(g)
+    g.connect(ac.destination)
+    src.start(t0)
+  } catch (err) {}
+  var parts = [[392, 0.5, 0.3], [663, 0.34, 0.45], [1108, 0.2, 0.62]]
+  for (var k = 0; k < parts.length; k++) {
+    try {
+      var o = ac.createOscillator()
+      o.type = 'triangle'
+      o.frequency.value = parts[k][0]
+      var og = ac.createGain()
+      og.gain.setValueAtTime(0, t0)
+      og.gain.linearRampToValueAtTime(parts[k][1] * vol, t0 + 0.006)
+      og.gain.exponentialRampToValueAtTime(0.0001, t0 + parts[k][2] * 2.2)
+      o.connect(og)
+      og.connect(ac.destination)
+      o.start(t0)
+      o.stop(t0 + parts[k][2] * 2.4)
+    } catch (err) {}
+  }
+}
+function eggEnsureLayer() {
+  if (eggLayer && eggLayer.parentNode) return eggLayer
+  eggLayer = document.createElement('div')
+  eggLayer.className = 'dshwv-fxwrap'
+  body.appendChild(eggLayer)
+  return eggLayer
+}
+function eggEl(tag, cls, src) {
+  var e = document.createElement(tag)
+  if (cls) e.className = cls
+  if (src) {
+    e.src = src
+    e.draggable = false
+    e.alt = ''
+  }
+  eggLayer.appendChild(e)
+  return e
+}
+function eggStop() {
+  if (egg.raf) { try { cancelAnimationFrame(egg.raf) } catch (err) {} }
+  egg.raf = 0
+  // 作废本轮的所有帧回调:上一轮可能还有一个已排队的 rAF,它若在新一轮 egg.on=true 之后才跑起来,
+  // 会把自己再注册一次 —— 于是同一时刻有两个 tick 循环在推进,收尾/清理时序就不可预测了。
+  egg.token++
+  egg.on = false
+  // 这三个必须和 on 一起复位:只清 on/impact 的话,下一次 egg.t0 还是上一轮的旧时间戳,
+  // tick 里 "if (!egg.t0)" 不成立 → el = now - 旧t0 立刻超过总时长 → 第二次彩蛋一闪就没。
+  // 这正是「彩蛋只能触发一次 / 不能连续触发」的根因。
+  egg.t0 = 0
+  egg.last = 0
+  egg.impact = false
+  egg.staged = null
+  try { root.classList.remove('dshwv-shake') } catch (err) {}
+  eggRestoreWhale()
+  if (eggLayer) { while (eggLayer.firstChild) eggLayer.removeChild(eggLayer.firstChild) }
+}
+// —— 小鲸鱼的三个阶段:同步压扁 / 变红 / 淡出 ——
+function eggRestoreWhale() {
+  try {
+    img.style.opacity = ''
+    img.style.filter = ''
+    img.style.transform = ''
+    img.style.transformOrigin = ''
+  } catch (err) {}
+}
+// s = 压缩程度 0..1(0 = 原样 / 1 = 压到底)。彩蛋里只会从 0 单调压到 1,不做回弹。
+function eggWhaleSquash(s) {
+  try {
+    img.style.transformOrigin = '50% 100%'
+    img.style.transform = 'scale(' + (1 + 0.34 * s).toFixed(4) + ',' + (1 - 0.46 * s).toFixed(4) + ')'
+  } catch (err) {}
+}
+// k = 变红程度 0..1。用 sepia+saturate+hue-rotate 把角色整体染红,保留原有明暗层次。
+function eggWhaleRed(k) {
+  try {
+    if (k <= 0) { img.style.filter = ''; return }
+    var kk = Math.min(1, k)
+    img.style.filter = 'sepia(' + kk.toFixed(3) + ') saturate(' + (1 + 7 * kk).toFixed(2) +
+      ') hue-rotate(' + (-32 * kk).toFixed(1) + 'deg) brightness(' + (1 - 0.16 * kk).toFixed(3) + ')'
+  } catch (err) {}
+}
+function eggWhaleAlpha(a) {
+  try { img.style.opacity = String(Math.max(0, Math.min(1, a))) } catch (err) {}
+}
+// 彩蛋时间轴(毫秒)。想整体调快/调慢改这里就够了。
+var PET_EGG_T = {
+  FALL: 620,     // 铁砧下落(越过小鲸鱼头顶后才开始压扁)
+  RED: 170,      // 命中 → 变红
+  VANISH: 300,   // 变红 → 短暂消失
+  SMOKE: 400,    // 烟雾粒子之间的错开窗口(烟雾与装备是同一时刻触发的)
+  HOLD: 3200,    // 装备落到窗口底部后:绕竖轴缓慢旋转 + 上下轻微浮动的展示时长
+  RESTORE: 460   // 装备淡出 + 小鲸鱼复原
+}
+
+// 彩蛋动画预设。自定义脚本也能当彩蛋动画用 —— 它会驱动铁砧的额外位移/旋转/缩放。
+// 彩蛋预设:铁砧显不显示、爆不爆装备、展示时长倍数。自定义脚本按默认(铁砧 + 装备都开)。
+// 所谓「没有铁砧」= 铁砧/阴影/拖影都不画,但时间轴照旧 —— 小鲸鱼依旧会被「看不见的铁砧」压扁,
+// 所以整个动作节奏完全一致,只是少了那个落下来的铁块。
+var PET_FX_PRESETS = {
+  'builtin:anvil': { anvil: true, items: true, hold: 1 },
+  'builtin:anvil-lean': { anvil: true, items: false, hold: 0.45 },
+  'builtin:noanvil-drop': { anvil: false, items: true, hold: 1 },
+  'builtin:noanvil-lean': { anvil: false, items: false, hold: 0.45 }
+}
+var PET_FX_ANIMS = [
+  ['builtin:anvil', '完整铁砧彩蛋(铁砧 + 压扁 + 变红 + 烟雾 + 爆装备)'],
+  ['builtin:anvil-lean', '铁砧彩蛋·不爆装备(铁砧 + 压扁 + 变红 + 烟雾)'],
+  ['builtin:noanvil-drop', '无铁砧·爆装备(凭空压扁 + 变红 + 烟雾 + 爆装备)'],
+  ['builtin:noanvil-lean', '无铁砧·不爆装备(凭空压扁 + 变红 + 烟雾)']
+]
+function petFxAnimOpts() {
+  var out = PET_FX_ANIMS.slice()
+  var extra = petCfg && Array.isArray(petCfg.scripts) ? petCfg.scripts : []
+  for (var i = 0; i < extra.length; i++) out.push([extra[i].id, '自定义:' + extra[i].name])
+  return out
+}
+// ① 摆台:把铁砧挂在挂件上方、粒子/装备都建好但全透明 —— **时间轴一帧都不跑**。
+// 等松手调用 eggGo() 才真正开始下坠。按下到松手之间挂件可能被拖走,所以和视口相关的
+// 几何(装备落点/重力)推迟到第一帧再算。
+function eggStage() {
+  if (!petCfgLoaded || !petCfg) return false
+  if (egg.on) return false // 上一轮还在放(小鲸鱼没复原),不叠加
+  var cfg = petCfg.fx
+  var animId = String(cfg.animId)
+  var preset = PET_FX_PRESETS[animId] || { anvil: true, items: true, hold: 1 }
+  var customScript = animId.indexOf('builtin:') !== 0 ? petScriptById(animId) : null
+  try { petStop() } catch (err) {}
+  eggEnsureLayer()
+  eggStop()
+  egg.on = true
+  var eggToken = egg.token
+  // 压下就播 → 这一刻 body 多半正被「按压 Q 弹」压着,先清成原样,交给彩蛋自己控制形变
+  try { body.style.transform = 'scaleY(1) scaleX(1)' } catch (err) {}
+  var T = PET_EGG_T
+  var tFall = T.FALL
+  var tRed = tFall + T.RED
+  var tVanish = tRed + T.VANISH
+  // 烟雾和爆装备是**同一时刻**触发的(都在小鲸鱼消失完的那一刻),
+  // T.SMOKE 现在只用来让烟雾粒子之间彼此错开,不再把装备往后推。
+  var tBurst = tVanish
+  var tHold = tBurst + Math.round(T.HOLD * preset.hold)
+  var DUR = tHold + T.RESTORE
+
+  var iw = img.offsetWidth || body.offsetWidth * 0.5945 || 96
+  var ih = img.offsetHeight || iw
+  var cx = (img.offsetLeft || 0) + iw / 2 + ((Number(cfg.x) || 0) / 100) * iw
+  var cy = (img.offsetTop || 0) + ih * 0.5 + ((Number(cfg.y) || 0) / 100) * ih
+  var fscale = Math.max(0.2, Number(cfg.scale) || 1)
+  var AS = Math.max(24, iw * 0.72 * fscale)
+  var startY = -AS * 1.6
+  var targetY = cy - AS * 0.34
+  try { img.style.transformOrigin = '50% 100%' } catch (err) {}
+  // 小鲸鱼的「头顶」:铁砧底边越过它之后才开始压扁(而不是一出现就慢慢压)。
+  // 用图片按 contain + 右下对齐真正画出来的矩形,而不是图片元素的方框。
+  var whaleTop = img.offsetTop
+  if (img.naturalWidth && img.naturalHeight) {
+    var fitS = Math.min(iw / img.naturalWidth, ih / img.naturalHeight)
+    whaleTop = img.offsetTop + (ih - img.naturalHeight * fitS)
+  }
+  // 命中瞬间铁砧在头顶之上「埋」进去多深 —— 用它把压扁程度归一化到 0..1,命中时正好到满
+  var penAtImpact = (targetY + AS) - whaleTop
+  // 装备的落点 / 重力依赖「当前视口 + 挂件在视口里的位置」。按下到松手之间挂件可能被拖走,
+  // 所以这些量推迟到松手后的第一帧再算,否则落点会停在按下时的位置(拖远了装备会掉到屏幕外)。
+  var rootW = root.offsetWidth || 0
+  var rootH = root.offsetHeight || 0
+  var edgePad = Math.max(6, iw * 0.1)
+  var floorY = 0
+  var lx1 = 0
+  var lx2 = 0
+  function prepareBurst() {
+    var rr = root.getBoundingClientRect()
+    var vp = viewport()
+    var lscX = (rr.width > 0 && rootW > 0) ? rootW / rr.width : 1
+    var lscY = (rr.height > 0 && rootH > 0) ? rootH / rr.height : 1
+    floorY = (vp.h - edgePad - rr.top) * lscY
+    lx1 = (edgePad - rr.left) * lscX
+    lx2 = (vp.w - edgePad - rr.left) * lscX
+    if (state.flip && rootW > 0) { var lxT = lx1; lx1 = rootW - lx2; lx2 = rootW - lxT }
+    for (var i = 0; i < items.length; i++) {
+      var q = items[i]
+      var drop = Math.max(iw * 0.5, floorY - q.y)
+      q.g = drop * 12 // 重力跟着落差走 → 不管窗口多高、挂件多小落地都很快
+      q.vy = -Math.sqrt(2 * q.g * q.hopH)
+      q.floorY = Math.max(cy + q.size, floorY - q.size * 0.5 + (Math.random() - 0.5) * iw * 0.1)
+    }
+  }
+
+  var shadowW = AS * 0.95
+  var shadow = eggEl('div', 'dshwv-fx-shadow')
+  shadow.style.left = (cx - shadowW / 2) + 'px'
+  shadow.style.top = (cy + AS * 0.18) + 'px'
+  shadow.style.width = shadowW + 'px'
+  shadow.style.height = (shadowW * 0.3) + 'px'
+  shadow.style.opacity = '0'
+
+  var streak = eggEl('div', 'dshwv-fx-streak')
+  streak.style.left = (cx - AS * 0.035) + 'px'
+  streak.style.width = (AS * 0.07) + 'px'
+  streak.style.opacity = '0'
+
+  var anvil = eggEl('img', 'dshwv-fx-anvil', petAssetUrl(cfg.anvilId))
+  anvil.style.width = AS + 'px'
+  anvil.style.height = AS + 'px'
+  anvil.style.left = (cx - AS / 2) + 'px'
+  anvil.style.top = '0px'
+  anvil.style.transform = 'translate(0px,' + startY + 'px)'
+  // 「无铁砧」预设:三个铁砧相关的元素都不画,但下落进度照算 —— 小鲸鱼还是会被准时压扁
+  if (!preset.anvil) {
+    anvil.style.display = 'none'
+    shadow.style.display = 'none'
+    streak.style.display = 'none'
+  }
+
+  // —— MC 烟雾粒子:原版 generic_0..7 八帧精灵表,逐帧播放 ——
+  var smokeTex = petAssetUrl(cfg.smokeId || 'builtin_smoke')
+  var smokes = []
+  var nSmoke = Math.max(0, Math.min(60, Math.round(Number(cfg.smokeCount))))
+  if (!isFinite(nSmoke)) nSmoke = 0
+  for (var si = 0; si < nSmoke; si++) {
+    var sm = eggEl('div', 'dshwv-fx-smoke')
+    sm.style.backgroundImage = 'url("' + smokeTex + '")'
+    var ssz = Math.max(10, iw * 0.3 * (0.7 + Math.random() * 0.9))
+    sm.style.width = ssz + 'px'
+    sm.style.height = ssz + 'px'
+    sm.style.opacity = '0'
+    var sang = Math.random() * Math.PI * 2
+    var srad = iw * (0.04 + Math.random() * 0.26)
+    smokes.push({
+      el: sm, size: ssz,
+      x: cx + Math.cos(sang) * srad,
+      y: cy + Math.sin(sang) * srad * 0.7,
+      vx: Math.cos(sang) * iw * (0.22 + Math.random() * 0.5),
+      vy: -iw * (0.3 + Math.random() * 0.55),
+      delay: Math.random() * T.SMOKE * 0.6,
+      life: 520 + Math.random() * 340,
+      grow: 1.0 + Math.random() * 1.0
+    })
+  }
+
+  // —— 爆装备:迸射 → 在随机高度停下 → 绕竖轴缓慢旋转 + 上下轻微浮动 ——
+  var ids = Array.isArray(cfg.itemIds) && cfg.itemIds.length ? cfg.itemIds : ['builtin_item_sword']
+  var nItem = preset.items ? Math.max(0, Math.round(Number(cfg.itemCount) || 0)) : 0
+  var items = []
+  for (var j = 0; j < nItem; j++) {
+    var it = eggEl('img', 'dshwv-fx-item', petAssetUrl(ids[j % ids.length]))
+    var isz = Math.max(14, iw * 0.28 * (0.85 + Math.random() * 0.4))
+    it.style.width = isz + 'px'
+    it.style.height = isz + 'px'
+    it.style.opacity = '0'
+    // 抛射:斜着炸出去 → 受重力落到「窗口底部」→ 落在那里之后才原地转 + 浮动。
+    // 初速 / 重力 / 落点都在 prepareBurst() 里按「松手那一刻」的视口算。
+    items.push({
+      el: it, size: isz,
+      x: cx + (Math.random() - 0.5) * iw * 0.2,
+      y: cy - ih * 0.05,
+      vx: (Math.random() < 0.5 ? -1 : 1) * iw * (0.7 + Math.random() * 1.3),
+      hopH: iw * (0.4 + Math.random() * 0.55),
+      vy: 0,
+      g: 0,
+      floorY: 0,
+      landed: false,
+      landAt: 0,
+      delay: j * 42,
+      spin: 2 * Math.PI * (2.0 + Math.random() * 1.6),
+      phase: Math.random() * Math.PI * 2,
+      bobAmp: iw * (0.018 + Math.random() * 0.022)
+    })
+  }
+
+  // —— 经验球(Minecraft 原版 entity/experience_orb.png)。默认 0 个:
+  //    新流程里「消散」改成了 MC 烟雾,想要老版本的「消散成经验粒子」把数量调上去即可。 ——
+  var orbs = []
+  var nOrb = Math.max(0, Math.round(Number(cfg.orbCount) || 0))
+  for (var oi = 0; oi < nOrb; oi++) {
+    var o = eggEl('img', 'dshwv-fx-orb', petAssetUrl(cfg.orbId))
+    var os = Math.max(8, iw * 0.12 * (0.7 + Math.random() * 0.75))
+    o.style.width = os + 'px'
+    o.style.height = os + 'px'
+    o.style.opacity = '0'
+    var oang = -Math.PI / 2 + (Math.random() - 0.5) * 2.1
+    var osp = iw * (0.9 + Math.random() * 1.4)
+    orbs.push({
+      el: o, size: os,
+      x: cx + (Math.random() - 0.5) * iw * 0.3,
+      y: cy,
+      vx: Math.cos(oang) * osp * 0.55,
+      vy: Math.sin(oang) * osp * 0.5,
+      delay: Math.random() * 260,
+      life: 950 + Math.random() * 800,
+      tw: Math.random() * 6
+    })
+  }
+
+  function tick(now) {
+    if (!egg.on || egg.token !== eggToken) return
+    if (!egg.t0) { egg.t0 = now; egg.last = now; prepareBurst() }
+    var el = now - egg.t0
+    var dt = Math.min(0.05, Math.max(0.001, (now - egg.last) / 1000))
+    egg.last = now
+
+    // ① 铁砧下落 + 小鲸鱼按铁砧位置同步压扁
+    if (el < tFall) {
+      var p = el / tFall
+      var ee = p * p // 加速下落
+      var ay = startY + (targetY - startY) * ee
+      anvil.style.transform = 'translate(0px,' + ay + 'px)'
+      streak.style.top = (ay - AS * 1.1) + 'px'
+      streak.style.height = (AS * 1.1) + 'px'
+      streak.style.opacity = String(0.6 * ee)
+      shadow.style.opacity = String(0.1 + 0.8 * ee)
+      // 铁砧底边碰到头顶之前不压;碰到之后按「埋进去的深度」压到命中时到满
+      if (penAtImpact > 1) {
+        var pen = (ay + AS) - whaleTop
+        if (pen > 0) eggWhaleSquash(Math.min(1, pen / penAtImpact))
+      } else {
+        eggWhaleSquash(ee)
+      }
+    } else if (!egg.impact) {
+      egg.impact = true
+      anvil.style.transform = 'translate(0px,' + targetY + 'px)'
+      streak.style.opacity = '0'
+      if (cfg.shake !== false) {
+        try { root.classList.add('dshwv-shake') } catch (err) {}
+        setTimeout(function () { try { root.classList.remove('dshwv-shake') } catch (err) {} }, 470)
+      }
+      if (cfg.sound !== false) eggClang()
+    }
+
+    // ② 命中:保持压到底(只压缩,不回弹) → 变红 → 短暂消失;铁砧同时下沉淡出
+    if (el >= tFall) {
+      eggWhaleSquash(1)
+      eggWhaleRed(Math.min(1, (el - tFall) / T.RED))
+      if (el >= tRed) {
+        var vk = Math.min(1, (el - tRed) / T.VANISH)
+        eggWhaleAlpha(1 - vk)
+      }
+      var ap = Math.min(1, (el - tFall) / Math.max(1, T.VANISH + T.SMOKE))
+      anvil.style.transform = 'translate(0px,' + (targetY + AS * 0.1 * ap) + 'px) scale(' + (1 - 0.3 * ap) + ')'
+      anvil.style.opacity = String(1 - ap)
+      shadow.style.opacity = String(Math.max(0, 0.9 * (1 - ap * 1.7)))
+    }
+
+    // ③ MC 烟雾粒子
+    for (var a = 0; a < smokes.length; a++) {
+      var sp = smokes[a]
+      var spe = el - tVanish - sp.delay
+      if (spe <= 0) continue
+      var su = Math.min(1, spe / sp.life)
+      sp.x += sp.vx * dt
+      sp.y += sp.vy * dt
+      sp.vx *= (1 - 1.9 * dt)
+      sp.vy *= (1 - 1.3 * dt)
+      sp.el.style.transform = 'translate(' + (sp.x - sp.size / 2) + 'px,' + (sp.y - sp.size / 2) + 'px) scale(' + (0.55 + sp.grow * su).toFixed(3) + ')'
+      sp.el.style.opacity = String(su >= 1 ? 0 : (su < 0.16 ? su / 0.16 : (1 - su) * 1.05))
+      var fr = Math.min(7, Math.floor(su * 8))
+      sp.el.style.backgroundPositionX = (fr / 7 * 100).toFixed(2) + '%'
+    }
+
+    // ④ 爆装备
+    for (var b = 0; b < items.length; b++) {
+      var q = items[b]
+      var qe = el - tBurst - q.delay
+      if (qe <= 0) continue
+      if (!q.landed) {
+        q.vy += q.g * dt
+        q.x += q.vx * dt
+        q.y += q.vy * dt
+        q.vx *= (1 - 0.28 * dt)
+        if (lx2 > lx1) q.x = Math.max(lx1, Math.min(lx2, q.x))
+        if (q.vy > 0 && q.y >= q.floorY) {
+          q.y = q.floorY
+          q.vy = 0
+          q.vx *= 0.2
+          q.landed = true
+          q.landAt = qe
+        }
+      }
+      var sx = 1
+      var bob = 0
+      if (q.landed) {
+        var hu = (qe - q.landAt) / 1000
+        sx = Math.cos(hu * q.spin)      // 绕「高轴」(竖直轴)缓慢旋转:2D 上就是横向翻面
+        bob = Math.sin(hu * 2.4 + q.phase) * q.bobAmp
+      }
+      q.el.style.transform = 'translate(' + (q.x - q.size / 2).toFixed(2) + 'px,' + (q.y - q.size / 2 + bob).toFixed(2) + 'px) scaleX(' + sx.toFixed(4) + ')'
+      var op = qe < 120 ? qe / 120 : 1
+      if (el > tHold) op = Math.max(0, 1 - (el - tHold) / T.RESTORE)
+      q.el.style.opacity = String(op)
+    }
+
+    // ⑤ 经验球(可选)
+    for (var c = 0; c < orbs.length; c++) {
+      var op2 = orbs[c]
+      var oe = el - tBurst - op2.delay
+      if (oe <= 0) continue
+      op2.vy -= iw * 1.35 * dt
+      op2.vx *= (1 - 1.7 * dt)
+      op2.vy *= (1 - 0.95 * dt)
+      op2.x += op2.vx * dt
+      op2.y += op2.vy * dt
+      var ou = Math.min(1, oe / op2.life)
+      var oo = ou < 0.1 ? ou / 0.1 : (ou > 0.68 ? Math.max(0, (1 - ou) / 0.32) : 1)
+      var fl = 0.86 + 0.14 * Math.sin(oe * 0.02 + op2.tw)
+      op2.el.style.transform = 'translate(' + (op2.x - op2.size / 2) + 'px,' + (op2.y - op2.size / 2) + 'px) scale(' + fl.toFixed(3) + ')'
+      op2.el.style.opacity = String(oo)
+    }
+
+    // ⑥ 过几秒复原:小鲸鱼淡回 + 褪红 + 压缩量同步放回原样
+    //    (这一步和「淡入」同步,不构成命中后的回弹 —— 命中到消失之间压缩量恒为满)
+    if (el >= tHold) {
+      var rk = Math.min(1, (el - tHold) / T.RESTORE)
+      eggWhaleAlpha(rk)
+      eggWhaleRed(1 - rk)
+      eggWhaleSquash(1 - rk)
+    }
+    if (el >= DUR) { eggStop(); return }
+    egg.raf = requestAnimationFrame(tick)
+  }
+  // 定格在这里:tick 先存起来,等松手再排进 rAF
+  egg.staged = tick
+  return true
+}
+// ② 松手 → 铁砧下坠,后续动作按时间轴走
+function eggGo() {
+  if (!egg.on || typeof egg.staged !== 'function') return false
+  var go = egg.staged
+  egg.staged = null
+  egg.raf = requestAnimationFrame(go)
+  return true
+}
+// 整段播放(设置窗口的「试放一次」/ 自动化测试):直接摆台 + 开跑
+function playEasterEgg() {
+  if (!eggStage()) return false
+  if (!eggGo()) { eggStop(); return false } // 起不来就把摆好的收掉,别让它冻在那儿
+  return true
+}
+// —— 点击入口:鼠标/手指「按下」就播,不需要等松开 ——
+// 一次按下只播一个动画(按住了不会重复播),松开后才重新武装,下一次按下才再播。
+var petPressArmed = true
+function petPressRearm() { petPressArmed = true }
+// 在 pointerdown(用户手势)里把音频通道预热好:
+// AudioContext 必须在手势任务里 resume,否则一直是 suspended,铁砧闷响会完全没声。
+function petPrimeAudio() {
+  if (!soundOn) return
+  try {
+    var ac = petAC()
+    if (ac && ac.state === 'suspended' && ac.resume) ac.resume()
+  } catch (err) {}
+}
+function onWhalePress() {
+  try {
+    if (!petPressArmed) return
+    petPressArmed = false
+    petPrimeAudio()
+    if (!petCfgLoaded || !petCfg) return
+    // 彩蛋动画期间防打断:这一下彻底吞掉 —— 不重掷彩蛋、也不让戳一戳插进来
+    if (egg.on) return
+    var fx = petCfg.fx
+    if (fx.enabled && Number(fx.prob) > 0 && Math.random() * 100 < Number(fx.prob)) {
+      // 彩蛋:按下定格(默认)只摆出铁砧,松开才下坠;关掉开关就按下即整段播
+      if (fx.stageOnPress === false) playEasterEgg()
+      else eggStage()
+      return
+    }
+    // 戳一戳:同上 —— 按下定格在第 1 帧,松开才播;关掉开关就按下即播
+    if (petCfg.pet.enabled) petStart(false, petCfg.pet.stageOnPress !== false)
+  } catch (err) {}
+}
+
+// ============================================================================
+// 实时预览台(设置窗口内):用与播放引擎完全相同的几何 / 脚本求值,
+// 所见即所得。打开窗口期间持续循环播放当前脚本,拖滑块立刻能看到效果。
+// ============================================================================
+var petPv = null
+function petPvEnsure() {
+  if (petPv) return petPv
+  var stage = document.createElement('div')
+  stage.className = 'dshwv-petstage'
+  var avatar = document.createElement('img')
+  avatar.className = 'dshwv-pvavatar'
+  avatar.draggable = false
+  avatar.alt = ''
+  var wrap = document.createElement('div')
+  wrap.className = 'dshwv-pvwrap'
+  var canvas = document.createElement('canvas')
+  canvas.className = 'dshwv-pvcanvas'
+  var gif = document.createElement('img')
+  gif.className = 'dshwv-pvgif'
+  gif.draggable = false
+  gif.alt = ''
+  wrap.appendChild(canvas)
+  wrap.appendChild(gif)
+  stage.appendChild(avatar)
+  stage.appendChild(wrap)
+  petPv = { stage: stage, avatar: avatar, wrap: wrap, canvas: canvas, gif: gif, on: false, raf: 0, t0: 0 }
+  return petPv
+}
+function petPvAvatarSrc() {
+  try { return img.currentSrc || img.src || IMG_URL } catch (err) { return IMG_URL }
+}
+function petPvStart() {
+  var pv = petPvEnsure()
+  petPvUseScript() // 开随机播放时:每开窗 / 每点试播都重抽一条
+  try { pv.avatar.src = petPvAvatarSrc() } catch (err) {}
+  if (pv.on) return
+  pv.on = true
+  pv.t0 = 0
+  pv.gif.style.display = ''
+  pv.raf = requestAnimationFrame(petPvFrame)
+}
+function petPvStop() {
+  if (!petPv) return
+  petPv.on = false
+  if (petPv.raf) { try { cancelAnimationFrame(petPv.raf) } catch (err) {} }
+  petPv.raf = 0
+}
+// 素材可能被删掉、或内置清单变过(例如去掉 rua 动图):回退到第一个可用素材,
+// 绝不让「点击变成什么都不发生」。
+var PET_FALLBACK_ASSET_ID = 'builtin_petpet_template'
+function petResolveAssetId(id) {
+  if (!petAssets.length) return id || PET_FALLBACK_ASSET_ID
+  if (id && petAssetMap[id]) return id
+  for (var i = 0; i < petAssets.length; i++) {
+    if (petAssets[i].kind === 'pet') return petAssets[i].id
+  }
+  return id || PET_FALLBACK_ASSET_ID
+}
+function petPvRefreshAsset() {
+  var pv = petPvEnsure()
+  if (!petCfg) return
+  var url = petAssetUrl(petResolveAssetId(petCfg.pet.assetId))
+  if (pv.gif.getAttribute('src') !== url) {
+    pv.gif.removeAttribute('src')
+    pv.gif.setAttribute('src', url)
+  }
+}
+function petPvFrame(now) {
+  var pv = petPv
+  if (!pv || !pv.on || !petCfg) return
+  if (!pv.t0) pv.t0 = now
+  var cfg = petCfg.pet
+  var script = petPvScriptObj || petScriptById(cfg.animId)
+  var dur = Math.max(80, Number(script && script.duration) || 700)
+  var loops = script && script.loop === false ? 1 : Math.max(1, Math.round(Number(cfg.loops)) || 1)
+  var speed = Math.max(0.2, Number(cfg.speed) || 1)
+  var el = (now - pv.t0) * speed
+  var idx = Math.floor(el / dur)
+  if (idx >= loops) { pv.t0 = now; idx = 0; el = 0 }
+  var t = (el - idx * dur) / dur
+  var env = { t: t, c: idx, PI: Math.PI }
+  var tracks = petTracksOf(script)
+  petApplyGeomTo(pv.wrap, cfg.anchor)
+  var bx = Number(cfg.x) || 0
+  var by = Number(cfg.y) || 0
+  var bs = Number(cfg.scale) || 1
+  var bro = Number(cfg.rotate) || 0
+  var bop = Number(cfg.opacity)
+  if (!isFinite(bop)) bop = 1
+  var x = PET_POS_BASE.x + bx + petTrackVal(tracks.x, env, 0)
+  var y = PET_POS_BASE.y + by + petTrackVal(tracks.y, env, 0)
+  var sc = bs * petTrackVal(tracks.scale, env, 1)
+  var ro = bro + petTrackVal(tracks.rotate, env, 0)
+  var op = bop * petTrackVal(tracks.opacity, env, 1)
+  var tr = 'translate(' + x + '%,' + y + '%) scale(' + sc + ')'
+  if (ro) tr += ' rotate(' + ro + 'deg)'
+  pv.wrap.style.transform = tr
+  pv.wrap.style.opacity = String(Math.max(0, Math.min(1, op)))
+  var composite = cfg.mode === 'composite'
+  pv.canvas.style.display = composite ? 'block' : 'none'
+  pv.gif.style.opacity = composite ? '0' : '1'
+  if (composite) {
+    petCanvasSize(pv.canvas, pv.stage.clientWidth || 0, pv.stage.clientHeight || 0)
+    petDrawComposite(pv.canvas, pv.gif, pv.avatar, cfg)
+  }
+  pv.raf = requestAnimationFrame(petPvFrame)
+}
+
+// ============================================================================
+// 设置窗口通用小控件(沿用既有 .dshwv-audiorow / .dshwv-sound / .dshwv-check 风格)
+// ============================================================================
+function petRow(label, el) { return apiPanelRow(label, el) }
+function petSec(text) { return apiSec(text) }
+function petToggleEl(get, set) {
+  var i = document.createElement('input')
+  i.type = 'checkbox'
+  i.className = 'dshwv-check'
+  i.checked = !!get()
+  i.addEventListener('change', function () { set(i.checked) })
+  return i
+}
+function petSelectEl(opts, val, onPick) {
+  var s = apiSelectEl(opts, val)
+  s.addEventListener('change', function () { onPick(s.value) })
+  return s
+}
+function petNumberEl(val, min, max, step, onInput, w) {
+  var n = document.createElement('input')
+  n.type = 'number'
+  n.className = 'dshwv-petnum'
+  if (w) n.style.width = w
+  n.min = String(min)
+  n.max = String(max)
+  n.step = String(step)
+  n.value = String(val)
+  n.addEventListener('input', function () {
+    var v = Number(n.value)
+    if (!isFinite(v)) return
+    onInput(Math.max(min, Math.min(max, v)))
+  })
+  n.addEventListener('blur', function () {
+    var v = Number(n.value)
+    if (!isFinite(v)) v = min
+    v = Math.max(min, Math.min(max, v))
+    n.value = String(v)
+    onInput(v)
+  })
+  return n
+}
+function petSliderRow(label, get, set, min, max, step) {
+  var wrap = document.createElement('div')
+  wrap.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+  var r = document.createElement('input')
+  r.type = 'range'
+  r.className = 'dshwv-range'
+  r.min = String(min)
+  r.max = String(max)
+  r.step = String(step)
+  r.value = String(get())
+  var n = petNumberEl(get(), min, max, step, function (v) {
+    r.value = String(v)
+    set(v)
+  })
+  r.addEventListener('input', function () {
+    var v = Number(r.value)
+    n.value = String(v)
+    set(v)
+  })
+  wrap.appendChild(r)
+  wrap.appendChild(n)
+  return petRow(label, wrap)
+}
+function petBtnEl(label, cls, fn) {
+  var b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'dshwv-petbtn' + (cls ? ' ' + cls : '')
+  b.textContent = label
+  if (fn) b.addEventListener('click', function (e) { e.stopPropagation(); fn() })
+  return b
+}
+function petHiddenFile(accept, onFile) {
+  var f = document.createElement('input')
+  f.type = 'file'
+  f.accept = accept
+  f.style.display = 'none'
+  f.addEventListener('change', function () {
+    var file = f.files && f.files[0]
+    try { f.value = '' } catch (err) {}
+    if (file) onFile(file)
+  })
+  return f
+}
+function petCardShell(titleText) {
+  var card = document.createElement('div')
+  card.className = 'dshwv-petcard'
+  var title = document.createElement('div')
+  title.className = 'dshwv-pettitle'
+  var t = document.createElement('span')
+  t.textContent = titleText
+  title.appendChild(t)
+  card.appendChild(title)
+  return { card: card, title: title }
+}
+function petHint(card, text) {
+  var d = document.createElement('div')
+  d.className = 'dshwv-pethint'
+  d.innerHTML = text
+  card.appendChild(d)
+  return d
+}
+
+// ============================================================================
+// 窗口:戳一戳设置
+// ============================================================================
+var petMaskEl = null
+var petFxMaskEl = null
+var petUploadInput = null
+var petUploadAfter = null
+function petMaskEnsure(isFx) {
+  var el = isFx ? petFxMaskEl : petMaskEl
+  if (el) return el
+  el = document.createElement('div')
+  el.className = 'dshwv-petmask'
+  el.style.display = 'none'
+  el.addEventListener('click', function (e) { if (e.target === el) petCloseAll() })
+  document.body.appendChild(el)
+  if (isFx) petFxMaskEl = el
+  else petMaskEl = el
+  return el
+}
+function petCloseAll() {
+  if (petMaskEl) petMaskEl.style.display = 'none'
+  if (petFxMaskEl) petFxMaskEl.style.display = 'none'
+  petPvStop()
+}
+function petOpenMask(el) {
+  if (petMaskEl && petMaskEl !== el) petMaskEl.style.display = 'none'
+  if (petFxMaskEl && petFxMaskEl !== el) petFxMaskEl.style.display = 'none'
+  el.style.display = 'flex'
+}
+function petUploadOp(kind, after) {
+  petUploadAfter = after
+  if (!petUploadInput) {
+    petUploadInput = petHiddenFile('image/png,image/gif,image/webp,image/apng,image/jpeg', function (file) {
+      petUploadAsset(file, petUploadInput.getAttribute('data-kind') || 'pet', function (err) {
+        if (err) { dshwvToast('⚠ 素材上传失败:' + String(err.message || err).slice(0, 120)); return }
+        dshwvToast('素材已上传')
+        if (petUploadAfter) petUploadAfter()
+      })
+    })
+    document.body.appendChild(petUploadInput)
+  }
+  petUploadInput.setAttribute('data-kind', kind)
+  petUploadInput.click()
+}
+function petAssetRow(labelText, kind, get, set, after) {
+  var d = document.createElement('div')
+  d.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+  var sel = petSelectEl(petAssetOpts(kind), get(), function (v) { set(v); after() })
+  d.appendChild(sel)
+  d.appendChild(petBtnEl('上传', '', function () { petUploadOp(kind, after) }))
+  var a = petAssetMap[get()]
+  if (a && !a.builtin) {
+    d.appendChild(petBtnEl('删除', 'dshwv-petbtn-del', function () {
+      showConfirm('删除素材「' + a.name + '」?引用它的地方会回退到默认素材。', function () {
+        petDeleteAsset(a.id, function (err) {
+          if (err) { dshwvToast('⚠ 删除失败:' + String(err.message || err).slice(0, 120)); return }
+          after()
+        })
+      })
+    }))
+  }
+  return petRow(labelText, d)
+}
+// 开随机播放时,「编辑 / 删除」针对预览台这次抽到的那条(你能看到它的名字),否则就是下拉选中的那条。
+function petScriptRowTargetId() {
+  if (!petCfg) return ''
+  if (petCfg.pet.randomScript && petPvScriptObj) return petPvScriptObj.id
+  return petCfg.pet.animId || ''
+}
+function petScriptRow(after) {
+  var d = document.createElement('div')
+  d.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+  var opts = []
+  var list = petScriptList()
+  for (var i = 0; i < list.length; i++) opts.push([list[i].id, list[i].name + (petIsBuiltinScript(list[i].id) ? '' : ' (我的)')])
+  var sel = petSelectEl(opts, petCfg.pet.animId, function (v) { petCfg.pet.animId = v; petSaveSoon(); after() })
+  if (petCfg.pet.randomScript) {
+    // 开了随机播放,下拉只作为「基准」保留;真正播哪条每次触发时抽
+    sel.disabled = true
+    sel.title = '已开启随机播放:每次点击从全部脚本里随机抽一条'
+  }
+  d.appendChild(sel)
+  d.appendChild(petBtnEl('新建', '', function () { petOpenScriptEditor(null, after) }))
+  d.appendChild(petBtnEl('编辑', '', function () {
+    petOpenScriptEditor(petScriptRowTargetId(), after)
+  }))
+  var delId = petScriptRowTargetId()
+  if (delId && !petIsBuiltinScript(delId)) {
+    d.appendChild(petBtnEl('删除', 'dshwv-petbtn-del', function () {
+      var target = petScriptById(delId)
+      showConfirm('删除自定义脚本「' + ((target && target.name) || delId) + '」?', function () {
+        petCfg.scripts = (petCfg.scripts || []).filter(function (x) { return x.id !== delId })
+        if (petCfg.pet.animId === delId) petCfg.pet.animId = 'builtin:classic'
+        petSaveCfg()
+        after()
+      })
+    }))
+  }
+  return petRow('动画脚本', d)
+}
+function petPlayTest() {
+  petPvStart()
+  petPvRefreshAsset()
+  if (petCfg && petCfg.pet.enabled) petStart(true, false)
+}
+
+function petBuildModal() {
+  if (!petCfg) return
+  var el = petMaskEnsure(false)
+  while (el.firstChild) el.removeChild(el.firstChild)
+  var shell = petCardShell('戳一戳 · petpet')
+  var card = shell.card
+  shell.title.appendChild(petBtnEl('关闭', '', petCloseAll))
+  el.appendChild(card)
+  petHint(card, '点一下右下角的角色 → 播放这里的素材动画。素材、大小位置、动画脚本都可以改,上面就是实时预览。<br>位置 / 缩放都是相对「基准落点」的偏移,点「归零」即回到出厂调好的位置。')
+  card.appendChild(petRow('点击时播放', petToggleEl(
+    function () { return petCfg.pet.enabled },
+    function (v) { petCfg.pet.enabled = v; petSaveSoon(); petSyncMenu(); if (v) petPlayTest() }
+  )))
+  card.appendChild(petRow('按下定格', (function () {
+    var d = document.createElement('div')
+    d.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+    var chk = petToggleEl(
+      function () { return petCfg.pet.stageOnPress !== false },
+      function (v) { petCfg.pet.stageOnPress = v; petSaveSoon() }
+    )
+    chk.title = '开启:按下只把素材定格在第 1 帧,松开才播;关闭:按下立刻播'
+    d.appendChild(chk)
+    var hint = document.createElement('span')
+    hint.style.cssText = 'color:#8a97bb;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+    hint.textContent = '按下定格,松开才播'
+    d.appendChild(hint)
+    return d
+  })()))
+  var sw = document.createElement('div')
+  sw.style.cssText = 'display:flex;justify-content:center;margin:2px 0 8px'
+  sw.appendChild(petPvEnsure().stage)
+  card.appendChild(sw)
+
+  card.appendChild(petSec('素材'))
+  var rebuild = function () { petPvRefreshAsset(); petBuildModal() }
+  card.appendChild(petAssetRow('素材', 'pet', function () { return petCfg.pet.assetId }, function (v) { petCfg.pet.assetId = v; petSaveSoon() }, rebuild))
+  card.appendChild(petRow('显示方式', petSelectEl(
+    [['overlay', '叠加(素材盖在角色上) — 默认'], ['composite', '合成(角色画进素材框)']],
+    petCfg.pet.mode,
+    function (v) { petCfg.pet.mode = v; petSaveSoon(); petPvRefreshAsset() }
+  )))
+  card.appendChild(petRow('锚点', petSelectEl(
+    [['avatar', '角色区域'], ['widget', '整个挂件']],
+    petCfg.pet.anchor,
+    function (v) { petCfg.pet.anchor = v; petSaveSoon() }
+  )))
+
+  card.appendChild(petSec('素材大小 / 位置(基准落点 + 下面的偏移,单位 %)'))
+  card.appendChild(petSliderRow('左右 X', function () { return petCfg.pet.x }, function (v) { petCfg.pet.x = v; petSaveSoon() }, -100, 100, 0.5))
+  card.appendChild(petSliderRow('上下 Y', function () { return petCfg.pet.y }, function (v) { petCfg.pet.y = v; petSaveSoon() }, -100, 100, 0.5))
+  card.appendChild(petSliderRow('缩放', function () { return petCfg.pet.scale }, function (v) { petCfg.pet.scale = v; petSaveSoon() }, 0.1, 4, 0.01))
+  card.appendChild(petSliderRow('旋转', function () { return petCfg.pet.rotate }, function (v) { petCfg.pet.rotate = v; petSaveSoon() }, -180, 180, 1))
+  card.appendChild(petSliderRow('透明度', function () { return petCfg.pet.opacity }, function (v) { petCfg.pet.opacity = v; petSaveSoon() }, 0.05, 1, 0.01))
+
+  card.appendChild(petSec('角色微调(仅「合成」模式生效)'))
+  card.appendChild(petSliderRow('角色缩放', function () { return petCfg.pet.avatarScale }, function (v) { petCfg.pet.avatarScale = v; petSaveSoon() }, 0.1, 3, 0.01))
+  card.appendChild(petSliderRow('角色 X', function () { return petCfg.pet.avatarX }, function (v) { petCfg.pet.avatarX = v; petSaveSoon() }, -100, 100, 0.5))
+  card.appendChild(petSliderRow('角色 Y', function () { return petCfg.pet.avatarY }, function (v) { petCfg.pet.avatarY = v; petSaveSoon() }, -100, 100, 0.5))
+
+  card.appendChild(petSec('动画脚本'))
+  var srebuild = function () { petBuildModal() }
+  card.appendChild(petScriptRow(srebuild))
+  card.appendChild(petRow('随机播放', (function () {
+    var d = document.createElement('div')
+    d.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+    d.appendChild(petToggleEl(
+      function () { return !!petCfg.pet.randomScript },
+      function (v) { petCfg.pet.randomScript = v; petSaveSoon(); petBuildModal(); petPlayTest() }
+    ))
+    petRandHintEl = document.createElement('span')
+    petRandHintEl.style.cssText = 'color:#8a97bb;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+    d.appendChild(petRandHintEl)
+    return d
+  })()))
+  card.appendChild(petRow('循环圈数', petNumberEl(petCfg.pet.loops, 1, 20, 1, function (v) { petCfg.pet.loops = Math.round(v); petSaveSoon() }, '64px')))
+  card.appendChild(petRow('播放速度', petNumberEl(petCfg.pet.speed, 0.2, 4, 0.1, function (v) { petCfg.pet.speed = v; petSaveSoon() }, '64px')))
+
+  var foot = document.createElement('div')
+  foot.className = 'dshwv-petfoot'
+  foot.appendChild(petBtnEl('归零(回到基准)', '', function () { petResetToBase() }))
+  foot.appendChild(petBtnEl('试播一下', '', function () { petPlayTest() }))
+  foot.appendChild(petBtnEl('关闭', 'dshwv-petbtn-ok', petCloseAll))
+  card.appendChild(foot)
+}
+// 把素材图层与角色微调恢复成「基准」:各项偏移归零,画面回到出厂调好的落点。
+function petResetToBase() {
+  if (!petCfg) return
+  petCfg.pet.x = 0
+  petCfg.pet.y = 0
+  petCfg.pet.scale = 1
+  petCfg.pet.rotate = 0
+  petCfg.pet.opacity = 1
+  petCfg.pet.avatarScale = 1
+  petCfg.pet.avatarX = 0
+  petCfg.pet.avatarY = 0
+  petSaveCfg()
+  petBuildModal()
+  dshwvToast('已归零:素材回到基准落点')
+}
+function openPetModal() {
+  if (!petCfg) { dshwvToast('戳一戳设置还没加载完,请稍候再试'); return }
+  petPvEnsure()
+  petBuildModal()
+  petOpenMask(petMaskEl)
+  petPvStart()
+  petPvRefreshAsset()
+}
+
+// ============================================================================
+// 窗口:彩蛋设置(铁砧砸下 → 消散 → 经验粒子 + 爆装备)
+// ============================================================================
+function petFxItemPicker() {
+  var box = document.createElement('div')
+  box.style.cssText = 'flex:1;display:flex;flex-wrap:wrap;gap:6px 12px;min-width:0'
+  var fxAssets = petAssetOpts('fx')
+  if (!fxAssets.length) {
+    var em = document.createElement('span')
+    em.style.color = '#9fb0d9'
+    em.textContent = '(还没有素材)'
+    box.appendChild(em)
+    return box
+  }
+  for (var i = 0; i < fxAssets.length; i++) {
+    ;(function (pair) {
+      var lab = document.createElement('label')
+      lab.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#203170'
+      var c = document.createElement('input')
+      c.type = 'checkbox'
+      c.className = 'dshwv-check'
+      c.checked = (petCfg.fx.itemIds || []).indexOf(pair[0]) >= 0
+      c.addEventListener('change', function () {
+        var ids = (petCfg.fx.itemIds || []).slice()
+        var at = ids.indexOf(pair[0])
+        if (c.checked && at < 0) ids.push(pair[0])
+        if (!c.checked && at >= 0) ids.splice(at, 1)
+        if (!ids.length) { ids = [pair[0]]; c.checked = true }
+        petCfg.fx.itemIds = ids
+        petSaveSoon()
+      })
+      lab.appendChild(c)
+      var s = document.createElement('span')
+      s.textContent = pair[1]
+      lab.appendChild(s)
+      box.appendChild(lab)
+    })(fxAssets[i])
+  }
+  return box
+}
+function petBuildFxModal() {
+  if (!petCfg) return
+  var el = petMaskEnsure(true)
+  while (el.firstChild) el.removeChild(el.firstChild)
+  var shell = petCardShell('彩蛋 · Minecraft 铁砧')
+  var card = shell.card
+  shell.title.appendChild(petBtnEl('关闭', '', petCloseAll))
+  el.appendChild(card)
+  petHint(card, '点角色时按概率触发,完整动作:<br>① 铁砧从上方砸下,<b>小鲸鱼随铁砧高度同步压扁</b> → ② 命中:抖动 + 铁砧闷响 + 小鲸鱼<b>变红</b> → ③ <b>短暂消失</b> → ④ <b>MC 烟雾粒子</b> → ⑤ <b>爆装备</b>(迸射出去后停在随机高度,原地绕竖轴缓慢旋转 + 上下轻微浮动) → ⑥ 过几秒<b>复原</b>。<br>概率默认 <b>1%</b>,可以调;铁砧 / 烟雾 / 装备素材与数量都能换。')
+  card.appendChild(petRow('开启彩蛋', petToggleEl(
+    function () { return petCfg.fx.enabled },
+    function (v) { petCfg.fx.enabled = v; petSaveSoon(); petSyncMenu() }
+  )))
+  card.appendChild(petRow('按下定格', (function () {
+    var d = document.createElement('div')
+    d.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+    var chk = petToggleEl(
+      function () { return petCfg.fx.stageOnPress !== false },
+      function (v) { petCfg.fx.stageOnPress = v; petSaveSoon() }
+    )
+    chk.title = '开启:按下只把铁砧摆出来,松开才下坠;关闭:按下立刻整段播'
+    d.appendChild(chk)
+    var hint = document.createElement('span')
+    hint.style.cssText = 'color:#8a97bb;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'
+    hint.textContent = '按下只出铁砧,松开才砸下'
+    d.appendChild(hint)
+    return d
+  })()))
+  var probWrap = document.createElement('div')
+  probWrap.style.cssText = 'flex:1;display:flex;align-items:center;gap:8px;min-width:0'
+  var pr = document.createElement('input')
+  pr.type = 'range'
+  pr.className = 'dshwv-range'
+  pr.min = '0'
+  pr.max = '100'
+  pr.step = '0.1'
+  pr.value = String(petCfg.fx.prob)
+  var pn = petNumberEl(petCfg.fx.prob, 0, 100, 0.1, function (v) { petCfg.fx.prob = v; petSaveSoon() }, '70px')
+  pn.step = '0.1'
+  pr.addEventListener('input', function () {
+    var v = Number(pr.value)
+    pn.value = String(v)
+    petCfg.fx.prob = v
+    petSaveSoon()
+  })
+  pn.addEventListener('input', function () { pr.value = String(Number(pn.value) || 0) })
+  probWrap.appendChild(pr)
+  probWrap.appendChild(pn)
+  var pct = document.createElement('span')
+  pct.textContent = '%'
+  probWrap.appendChild(pct)
+  card.appendChild(petRow('触发概率', probWrap))
+  card.appendChild(petRow('彩蛋动画', petSelectEl(petFxAnimOpts(), petCfg.fx.animId, function (v) { petCfg.fx.animId = v; petSaveSoon() })))
+
+  var rebuild = function () { petBuildFxModal() }
+  card.appendChild(petSec('铁砧'))
+  card.appendChild(petAssetRow('铁砧素材', 'fx', function () { return petCfg.fx.anvilId }, function (v) { petCfg.fx.anvilId = v; petSaveSoon() }, rebuild))
+  card.appendChild(petSliderRow('铁砧缩放', function () { return petCfg.fx.scale }, function (v) { petCfg.fx.scale = v; petSaveSoon() }, 0.2, 4, 0.01))
+  card.appendChild(petSliderRow('左右 X', function () { return petCfg.fx.x }, function (v) { petCfg.fx.x = v; petSaveSoon() }, -100, 100, 0.5))
+  card.appendChild(petSliderRow('上下 Y', function () { return petCfg.fx.y }, function (v) { petCfg.fx.y = v; petSaveSoon() }, -100, 100, 0.5))
+
+  card.appendChild(petSec('经验粒子(可选,默认 0 个)'))
+  card.appendChild(petAssetRow('粒子素材', 'fx', function () { return petCfg.fx.orbId }, function (v) { petCfg.fx.orbId = v; petSaveSoon() }, rebuild))
+  card.appendChild(petRow('粒子数量', petNumberEl(petCfg.fx.orbCount, 0, 60, 1, function (v) { petCfg.fx.orbCount = Math.round(v); petSaveSoon() }, '64px')))
+
+  card.appendChild(petSec('命中烟雾(Minecraft 原版粒子)'))
+  card.appendChild(petAssetRow('烟雾素材', 'fx', function () { return petCfg.fx.smokeId }, function (v) { petCfg.fx.smokeId = v; petSaveSoon() }, rebuild))
+  card.appendChild(petRow('烟雾数量', petNumberEl(petCfg.fx.smokeCount, 0, 60, 1, function (v) { petCfg.fx.smokeCount = Math.round(v); petSaveSoon() }, '64px')))
+
+  card.appendChild(petSec('爆装备'))
+  card.appendChild(petRow('装备素材', petFxItemPicker()))
+  card.appendChild(petRow('装备数量', petNumberEl(petCfg.fx.itemCount, 0, 30, 1, function (v) { petCfg.fx.itemCount = Math.round(v); petSaveSoon() }, '64px')))
+
+  card.appendChild(petSec('表现'))
+  card.appendChild(petRow('屏幕抖动', petToggleEl(function () { return petCfg.fx.shake !== false }, function (v) { petCfg.fx.shake = v; petSaveSoon() })))
+  card.appendChild(petRow('音效', petToggleEl(function () { return petCfg.fx.sound !== false }, function (v) { petCfg.fx.sound = v; petSaveSoon() })))
+
+  var foot = document.createElement('div')
+  foot.className = 'dshwv-petfoot'
+  foot.appendChild(petBtnEl('试放一次', '', function () { playEasterEgg() }))
+  foot.appendChild(petBtnEl('关闭', 'dshwv-petbtn-ok', petCloseAll))
+  card.appendChild(foot)
+}
+function openFxModal() {
+  if (!petCfg) { dshwvToast('彩蛋设置还没加载完,请稍候再试'); return }
+  petBuildFxModal()
+  petOpenMask(petFxMaskEl)
+}
+
+// ============================================================================
+// 窗口:自定义动画脚本编辑器
+// ============================================================================
+var petScriptMaskEl = null
+var PET_SCRIPT_TEMPLATE = [
+  '{',
+  '  "x":       { "expr": "6 * sin(t * PI * 6)" },',
+  '  "y":       { "k": [[0, 0], [0.5, -6], [1, 0]] },',
+  '  "scale":   { "expr": "1 + 0.08 * sin(t * PI * 4)" },',
+  '  "rotate":  { "expr": "sin(t * PI * 2) * 10" },',
+  '  "opacity": { "expr": "t < 0.1 ? t / 0.1 : (t > 0.9 ? (1 - t) / 0.1 : 1)" }',
+  '}'
+].join(String.fromCharCode(10))
+function petScriptMaskEnsure() {
+  if (petScriptMaskEl) return petScriptMaskEl
+  petScriptMaskEl = document.createElement('div')
+  petScriptMaskEl.className = 'dshwv-petmask'
+  petScriptMaskEl.style.zIndex = '24000'
+  petScriptMaskEl.style.display = 'none'
+  petScriptMaskEl.addEventListener('click', function (e) { if (e.target === petScriptMaskEl) petScriptMaskEl.style.display = 'none' })
+  document.body.appendChild(petScriptMaskEl)
+  return petScriptMaskEl
+}
+function petOpenScriptEditor(id, after) {
+  var el = petScriptMaskEnsure()
+  while (el.firstChild) el.removeChild(el.firstChild)
+  var isBuiltin = id ? petIsBuiltinScript(id) : false
+  var src = id ? petScriptById(id) : null
+  var shell = petCardShell(isBuiltin ? '编辑内置脚本(会另存为自定义脚本)' : (id ? '编辑自定义脚本' : '新建自定义脚本'))
+  var card = shell.card
+  shell.title.appendChild(petBtnEl('关闭', '', function () { el.style.display = 'none' }))
+  el.appendChild(card)
+  petHint(card, '5 条轨道:x / y 是相对锚点框的平移百分比,scale 是倍数,rotate 是角度,opacity 是 0~1。<br>' +
+    '每条轨道二选一:<b>关键帧</b> <code>{"k":[[0,0],[1,10]]}</code>(时间 0~1 线性插值),或<b>表达式</b> <code>{"expr":"..."}</code>。<br>' +
+    '表达式里可用的变量与函数:<code>t</code>(0~1 单圈进度)、<code>c</code>(第几圈)、<code>PI</code>、' +
+    '<code>sin cos tan abs floor ceil round sqrt sign min max pow clamp</code>,以及 <code>+ - * / %</code>、比较、<code>&amp;&amp;</code>、<code>||</code>、<code>?:</code>。<br>' +
+    '出于安全,表达式不使用 eval,只支持上面这些。')
+  var nameEl = apiTextInput(src ? src.name : '我的脚本', '脚本名称', '100%')
+  card.appendChild(petRow('名称', nameEl))
+  var durWrap = document.createElement('div')
+  durWrap.style.cssText = 'flex:1;display:flex;align-items:center;gap:10px'
+  durWrap.appendChild(petNumberEl(src ? src.duration : 700, 100, 20000, 10, function () {}, '80px'))
+  var durInput = durWrap.firstChild
+  var loopWrap = document.createElement('label')
+  loopWrap.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer'
+  var loopChk = document.createElement('input')
+  loopChk.type = 'checkbox'
+  loopChk.className = 'dshwv-check'
+  loopChk.checked = src ? src.loop !== false : true
+  loopWrap.appendChild(loopChk)
+  var loopTxt = document.createElement('span')
+  loopTxt.textContent = '循环'
+  loopWrap.appendChild(loopTxt)
+  durWrap.appendChild(loopWrap)
+  card.appendChild(petRow('单圈时长', durWrap))
+  var area = document.createElement('textarea')
+  area.className = 'dshwv-petarea'
+  area.spellcheck = false
+  if (src && src.tracks) {
+    var t = src.tracks
+    var lines = ['{']
+    var keys = []
+    for (var i = 0; i < PET_TRACK_KEYS.length; i++) if (t[PET_TRACK_KEYS[i]]) keys.push(PET_TRACK_KEYS[i])
+    for (var j = 0; j < keys.length; j++) {
+      lines.push('  "' + keys[j] + '": ' + JSON.stringify(t[keys[j]]) + (j === keys.length - 1 ? '' : ','))
+    }
+    lines.push('}')
+    area.value = lines.join(String.fromCharCode(10))
+  } else {
+    area.value = PET_SCRIPT_TEMPLATE
+  }
+  card.appendChild(petSec('轨道(tracks)'))
+  card.appendChild(area)
+  var errEl = document.createElement('div')
+  errEl.className = 'dshwv-peterr'
+  card.appendChild(errEl)
+  function validate() {
+    var raw = area.value.trim()
+    if (!raw) raw = '{}'
+    var obj = JSON.parse(raw)
+    if (!obj || typeof obj !== 'object') throw new Error('轨道必须是 JSON 对象')
+    var tracks = (obj.tracks && typeof obj.tracks === 'object') ? obj.tracks : obj
+    var out = {}
+    var n = 0
+    for (var k in tracks) {
+      if (!Object.prototype.hasOwnProperty.call(tracks, k)) continue
+      if (PET_TRACK_KEYS.indexOf(k) < 0) throw new Error('未知轨道 "' + k + '",只支持 ' + PET_TRACK_KEYS.join(' / '))
+      var tv = tracks[k]
+      if (!tv || typeof tv !== 'object') throw new Error('轨道 "' + k + '" 必须是对象')
+      if (typeof tv.expr === 'string' && tv.expr) {
+        try { petDslParse(tv.expr) } catch (e) { throw new Error('轨道 "' + k + '" 表达式错误: ' + e.message) }
+        out[k] = { expr: tv.expr }
+        n++
+        continue
+      }
+      if (Array.isArray(tv.k)) {
+        var kk = []
+        for (var m = 0; m < tv.k.length; m++) {
+          var p = tv.k[m]
+          if (!Array.isArray(p) || p.length < 2) throw new Error('轨道 "' + k + '" 的关键帧必须是 [时间, 数值]')
+          var tt = Number(p[0])
+          var vv = Number(p[1])
+          if (!isFinite(tt) || !isFinite(vv)) throw new Error('轨道 "' + k + '" 的关键帧含非法数字')
+          kk.push([Math.max(0, Math.min(1, tt)), vv])
+        }
+        if (!kk.length) throw new Error('轨道 "' + k + '" 的关键帧为空')
+        out[k] = { k: kk }
+        n++
+        continue
+      }
+      throw new Error('轨道 "' + k + '" 需要 "expr" 或 "k"')
+    }
+    if (!n) throw new Error('至少要写一条轨道')
+    return out
+  }
+  var foot = document.createElement('div')
+  foot.className = 'dshwv-petfoot'
+  foot.appendChild(petBtnEl('插入示例', '', function () { area.value = PET_SCRIPT_TEMPLATE; errEl.textContent = '' }))
+  foot.appendChild(petBtnEl('取消', '', function () { el.style.display = 'none' }))
+  foot.appendChild(petBtnEl('保存', 'dshwv-petbtn-ok', function () {
+    var tracks
+    try {
+      tracks = validate()
+    } catch (e) {
+      errEl.textContent = '✗ ' + String(e.message || e)
+      return
+    }
+    errEl.textContent = ''
+    var name = String(nameEl.value || '').trim().slice(0, 40) || '自定义脚本'
+    var dur = Math.max(100, Math.min(20000, Number(durInput.value) || 700))
+    var loop = !!loopChk.checked
+    var list = petCfg.scripts || (petCfg.scripts = [])
+    var target = null
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) target = list[i]
+    if (target) {
+      target.name = name
+      target.duration = dur
+      target.loop = loop
+      target.tracks = tracks
+    } else {
+      var nid = 'custom_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
+      list.push({ id: nid, name: name, duration: dur, loop: loop, tracks: tracks })
+      petCfg.pet.animId = nid
+    }
+    petSaveCfg()
+    el.style.display = 'none'
+    if (after) after()
+  }))
+  card.appendChild(foot)
+  el.style.display = 'flex'
+}
+
+// ============================================================================
+// 主菜单入口 + 初始化
+// ============================================================================
+var petMenuToggle = null
+var petFxMenuToggle = null
+function petSyncMenu() {
+  if (!petCfg) return
+  if (petMenuToggle) petMenuToggle.checked = !!petCfg.pet.enabled
+  if (petFxMenuToggle) petFxMenuToggle.checked = petCfg.fx.enabled !== false
+}
+function petBuildMenuRows() {
+  var anchorEl = rowRes
+  if (!anchorEl || !anchorEl.parentNode) return
+  var rowPet = menuRow()
+  rowPet.appendChild(menuLabel('戳一戳'))
+  petMenuToggle = document.createElement('input')
+  petMenuToggle.type = 'checkbox'
+  petMenuToggle.className = 'dshwv-check'
+  petMenuToggle.title = '点击角色时播放 petpet 素材动画'
+  petMenuToggle.addEventListener('change', function () {
+    if (!petCfg) return
+    petCfg.pet.enabled = petMenuToggle.checked
+    petSaveSoon()
+  })
+  rowPet.appendChild(petMenuToggle)
+  rowPet.appendChild(petBtnEl('设置', '', function () { closeMenu(); openPetModal() }))
+  rowPet.lastChild.style.background = 'none'
+  rowPet.lastChild.style.padding = '0'
+  rowPet.lastChild.style.border = 'none'
+  rowPet.lastChild.style.textDecoration = 'underline'
+  rowPet.lastChild.style.color = '#203170'
+
+  var rowFx = menuRow()
+  rowFx.appendChild(menuLabel('彩蛋'))
+  petFxMenuToggle = document.createElement('input')
+  petFxMenuToggle.type = 'checkbox'
+  petFxMenuToggle.className = 'dshwv-check'
+  petFxMenuToggle.title = '按概率触发铁砧彩蛋动画'
+  petFxMenuToggle.addEventListener('change', function () {
+    if (!petCfg) return
+    petCfg.fx.enabled = petFxMenuToggle.checked
+    petSaveSoon()
+  })
+  rowFx.appendChild(petFxMenuToggle)
+  rowFx.appendChild(petBtnEl('设置', '', function () { closeMenu(); openFxModal() }))
+  rowFx.lastChild.style.background = 'none'
+  rowFx.lastChild.style.padding = '0'
+  rowFx.lastChild.style.border = 'none'
+  rowFx.lastChild.style.textDecoration = 'underline'
+  rowFx.lastChild.style.color = '#203170'
+
+  anchorEl.parentNode.insertBefore(rowPet, anchorEl)
+  anchorEl.parentNode.insertBefore(rowFx, anchorEl)
+}
+try { petBuildMenuRows() } catch (err) {}
+try { petLoadAssets(function () {}) } catch (err) {}
+try { petLoadCfg() } catch (err) {}
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshwTryStart(true) } catch (err) {}
