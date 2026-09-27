@@ -197,7 +197,7 @@ function sumWith(usedCr, capCr, extra) {
     ),
   )
 }
-// 逐字来自本机 session-fbb7dfbc 21:10:20 的 turn/end：每分钟 TPM 打满
+// 一次真实 turn/end 的报文（每分钟 TPM 打满），逐字照抄
 const TPM_429 = {
   message:
     '429: {"message":"Allocated quota exceeded, please increase your quota limit. ' +
