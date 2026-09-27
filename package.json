@@ -40,6 +40,7 @@
     "install:desktop": "node scripts/install-desktop.mjs",
     "install:mac": "node scripts/install-macos.mjs",
     "uninstall:mac": "node scripts/uninstall-macos.mjs",
-    "probe:mac": "node scripts/probe-macos.mjs"
+    "probe:mac": "node scripts/probe-macos.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\""
   }
 }
