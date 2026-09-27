@@ -595,4 +595,31 @@ t('summarize：两次官方读数进 payload 的 implied，单点则没有', () 
   assert.equal(single.implied, null)
 })
 
+t('parseLedger：calib 一路带进账本路径（与自估路径同一个系数口径）', () => {
+  const doc = { version: 1, days: { '2026-09-20': { tokenplan: { 'qwen3.8-flash': { inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0, calls: 1 } } } } }
+  const full = TP.parseLedger(doc, 'tokenplan')
+  const half = TP.parseLedger(doc, 'tokenplan', 0.5)
+  assert.equal(TP.round(full['2026-09-20'].credits, 3), 80) // 1e6 × 0.8 元/M × 100 = 80 Cr
+  assert.equal(TP.round(half['2026-09-20'].credits, 3), 40)
+})
+
+t('normalizeConfig：夜间折扣缺省不动（1），填 0.4 才生效；模型表有缺省', () => {
+  assert.equal(TP.normalizeConfig({}).nightDiscount, 1)
+  assert.equal(TP.normalizeConfig({ qwenNightDiscount: 0.4 }).nightDiscount, 0.4)
+  assert.equal(TP.normalizeConfig({ qwenNightDiscount: 1 }).nightDiscount, 1)
+  assert.deepEqual(TP.normalizeConfig({}).nightModels, ['qwen3.8-max', 'qwen3.8-flash'])
+  assert.deepEqual(TP.normalizeConfig({ qwenNightModels: ['QWEN3.8-MAX'] }).nightModels, ['qwen3.8-max'])
+})
+
+t('offPeakFactor：夜间 4 折只打给列出的模型，且只在 22:00–08:00（北京）', () => {
+  const cfg = TP.normalizeConfig({ qwenNightDiscount: 0.4 })
+  const at = (s) => Date.parse(s) // 本机时区即北京
+  assert.equal(TP.offPeakFactor('qwen3.8-flash', at('2026-09-27T23:30:00'), cfg), 0.4)
+  assert.equal(TP.offPeakFactor('qwen3.8-flash', at('2026-09-27T07:00:00'), cfg), 0.4)
+  assert.equal(TP.offPeakFactor('qwen3.8-flash', at('2026-09-27T12:00:00'), cfg), 1)
+  assert.equal(TP.offPeakFactor('glm-5.2', at('2026-09-27T23:30:00'), cfg), 1)
+  assert.equal(TP.offPeakFactor('qwen3.8-flash', at('2026-09-27T23:30:00'), TP.normalizeConfig({})), 1)
+  assert.equal(TP.offPeakFactor('qwen3.8-flash', at('2026-09-27T23:30:00'), cfg, undefined), 0.4)
+})
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ' (有失败)' : ''))
