@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const { UiStateStore } = require('./ui-state-store.cjs');
 const { shutdownCompanion } = require('./lifecycle.cjs');
 const { externalWebUrl } = require('./external-links.cjs');
+const { hostIsFrontmost: decideHostIsFrontmost } = require('./visibility.cjs');
 const { pathToFileURL } = require('node:url');
 const root = path.resolve(__dirname, '..');
 const dataDir = process.argv.find(a => a.startsWith('--whale-data='))?.slice(13);
@@ -59,24 +60,20 @@ function setTestCursor(point) { if (fixture) { testCursor = point; sendCursor(tr
 // while another application covers it, so the probe alone left the whale
 // floating over whatever the user had switched to. Show her only while Codex —
 // or the whale itself, while the user is clicking her — is frontmost, and keep
-// her when the Codex window simply sits on another display.
+// her when the Codex window simply sits on another display. The decision itself
+// lives in ./visibility.cjs so it can be tested without Electron.
 function hostIsFrontmost() {
   if (fixture) return true;
-  if (app.isActive()) return true;                              // whale menu, dialogs, clicked whale
-  const frontmost = Number(lastHost?.frontmostPid) || 0;
-  if (!frontmost) return true;                                  // probe cannot tell: never hide
-  if (frontmost === process.pid) return true;                   // the user is on the whale
-  if (frontmost === Number(lastHost?.hostPid)) return true;     // Codex is frontmost
-  if (Number(lastHost?.hostCoverage) >= 0.9) return false;      // covered by another app
-  return hostOnAnotherDisplay();
-}
-function hostOnAnotherDisplay() {
-  const host = lastHost?.bounds, other = lastHost?.frontmostBounds;
-  const complete = rect => rect && ['x', 'y', 'width', 'height'].every(key => Number.isFinite(rect[key]));
-  if (!complete(host) || !complete(other)) return false;
-  if (other.width < 40 || other.height < 40) return false;      // palettes, not real windows
-  try { return screen.getDisplayMatching(host).id !== screen.getDisplayMatching(other).id; }
-  catch { return false; }
+  return decideHostIsFrontmost({
+    selfActive: app.isActive(),
+    selfPid: process.pid,
+    frontmostPid: lastHost?.frontmostPid,
+    hostPid: lastHost?.hostPid,
+    hostCoverage: lastHost?.hostCoverage,
+    hostBounds: lastHost?.bounds,
+    frontmostBounds: lastHost?.frontmostBounds,
+    displayIdOf: rect => screen.getDisplayMatching(rect).id
+  });
 }
 function visibility() {
   if (!window || window.isDestroyed()) return;
