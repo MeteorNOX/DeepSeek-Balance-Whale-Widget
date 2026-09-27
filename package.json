@@ -31,5 +31,10 @@
       "patch": "./cordis.patch.yml"
     }
   },
+  "scripts": {
+    "test": "node test/tokenplan-usage.test.mjs && node test/tokenplan-server.test.mjs",
+    "check": "node scripts/check-tokenplan.mjs",
+    "calibrate": "node scripts/calibrate-tokenplan.mjs"
+  },
   "license": "MIT"
 }

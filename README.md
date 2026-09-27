@@ -464,6 +464,29 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
   - [@fangbm](https://github.com/fangbm)（[#15](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/15) / [#19](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/19) / [#31](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/31) / [#33](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/33) / [#46](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/46)）：多币种余额顺序稳定、每轮消耗泡泡两处缺陷、**周末全天谷价**、记账币种感知、发布时自动建 Release 并生成 PR changelog；
   - [@xiaolinnnnnnn](https://github.com/xiaolinnnnnnn)（[#26](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/26)）：Windows 桌面端（Tauri v2）重构。
 
+## 订阅额度：第二种额度来源（`quota.source`）
+
+额度读数过去只有一种来源：**模板里写了 `quota.url`，就去查接口**。但订阅类套餐（例如百度百炼 Token Plan）没有查询接口，数只能由本机 token 账本折算 —— 旧写法直接回 `NO_QUOTA`，消费方于是分不出一个 51% 是接口读来的还是本地折出来的。
+
+这条分支把「来源」做成契约字段，回落次序只写在 `fetchModelQuota()` 一处：
+
+| `quota.source` | 行为 |
+| --- | --- |
+| `api`（缺省） | 按 `quota.url` 取数；成功回包带 `source: 'api'`、`reliability: 'interface'` |
+| `estimate` | 不查网络，由 `lib/tokenplan-server.js` 同进程折算；回包带 `source: 'estimate'` 与 `reliability` |
+
+一个模板同时声明 `source: 'api'` 与 `quota.fallback: 'estimate'` 时，接口失败才降级到估算，并把 `degradedFrom` / `degradedNote` 一起带出去；既没有可查接口、也没有估算来源时，仍然如实回 `NO_QUOTA`，不编数字。
+
+`reliability` 只给类别（`calibrated` / `tier-table` / `tier-table-default` / `user-cap` / `unknown`），**不给数值** —— 阈值怎么用属于消费方（界面）的决定；原始出处 `capSource` / `calibSource` 一并带出，便于复核这个标签。
+
+第一个 `estimate` 实例是阿里云百炼 Token Plan：接线方式、配置文件、校准与验收命令、已知边界见 [`docs/tokenplan.md`](docs/tokenplan.md)。
+
+```bash
+npm test          # 估算引擎与只读路由的回归（零依赖）
+npm run check     # 一条命令看接线、账本、模板与额度链通没通
+npm run calibrate # 拿控制台两个读数对表，校准本地折算系数
+```
+
 ## 许可证
 
 本项目**代码**基于 **MIT License** 开源，详见 [LICENSE](LICENSE)。
