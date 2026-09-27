@@ -505,4 +505,94 @@ t('summarize：capSource 与 calibNote 一路带到前端读数（气泡明细�
   assert.equal(b.calibNote, '控制台 2026-09-23 14:30')
 })
 
+t('两点法：Δ官方 ÷ Δ本地 = 系数（只比增量，与窗口起点无关）', () => {
+  const dA = TP.localDayKey(Date.parse('2026-09-20T10:00:00'))
+  const dB = TP.localDayKey(Date.parse('2026-09-21T10:00:00'))
+  const day = (credits) => ({ credits, payg: credits / 100, tokens: 0, calls: 1, models: {}, unknown: {} })
+  const days = { [dA]: day(1000), [dB]: day(3000) }
+  const fit = TP.fitOfficialRatio(
+    [{ pct: 10, atMs: Date.parse('2026-09-20T00:00:00') }, { pct: 20, atMs: Date.parse('2026-09-22T00:00:00') }],
+    days,
+    10000,
+    {},
+  )
+  // Δ官方 = 10% × 10000 = 1000；Δ本地 = 09-20 全天 1000 + 09-21 全天 3000 = 4000
+  assert.equal(fit.ok, true)
+  assert.equal(fit.reason, 'delta')
+  assert.equal(fit.officialCredits, 1000)
+  assert.equal(fit.localCredits, 4000)
+  assert.equal(fit.k, 0.25)
+})
+
+t('两点法：Δ 小于 0.5% 视为控制台量化噪声，不给系数', () => {
+  const fit = TP.fitOfficialRatio(
+    [{ pct: 10, atMs: Date.parse('2026-09-20T00:00:00') }, { pct: 10.2, atMs: Date.parse('2026-09-21T00:00:00') }],
+    {},
+    45000,
+    {},
+  )
+  assert.equal(fit.ok, false)
+  assert.equal(fit.reason, 'quantized')
+})
+
+t('两点法：线段里跨了 429 触顶 → 标删失（触顶后的本地量不换官方量）', () => {
+  const dA = TP.localDayKey(Date.parse('2026-09-20T00:00:00'))
+  const day = (credits) => ({ credits, payg: credits / 100, tokens: 0, calls: 1, models: {}, unknown: {} })
+  const fit = TP.fitOfficialRatio(
+    [{ pct: 10, atMs: Date.parse('2026-09-20T00:00:00') }, { pct: 60, atMs: Date.parse('2026-09-21T00:00:00') }],
+    { [dA]: day(5000) },
+    45000,
+    { quotaHitAt: Date.parse('2026-09-20T12:00:00') },
+  )
+  assert.equal(fit.ok, false)
+  assert.equal(fit.censored, true)
+  assert.equal(fit.reason, 'censored-by-quota-hit')
+  assert.equal(fit.k, 4.5) // 22500 / 5000，值算出来但不可用
+})
+
+t('normalizeOfficialPoints：列表优先、非法项丢掉、空列表回落单点', () => {
+  const cfg = TP.normalizeConfig({
+    qwenOfficialPoints: [
+      { pct: 10.97, at: '2026-09-23 16:10' },
+      { pct: 'x', at: '2026-09-24 00:00' },
+      { pct: 100, at: '2026-09-27 22:24' },
+    ],
+    qwenOfficialPct: 100,
+    qwenOfficialAt: '2026-09-27 22:24',
+  })
+  assert.equal(cfg.officialPoints.length, 2)
+  assert.equal(cfg.officialPoints[0].pct, 10.97)
+  assert.equal(cfg.officialPoints[1].pct, 100)
+  assert.equal(TP.normalizeConfig({ qwenOfficialPct: 42, qwenOfficialAt: '2026-09-27 22:24' }).officialPoints.length, 1)
+  assert.equal(TP.normalizeConfig({ qwenOfficialPct: 42 }).officialPoints.length, 0)
+})
+
+t('summarize：两次官方读数进 payload 的 implied，单点则没有', () => {
+  const nowMs = Date.parse('2026-09-26T12:00:00')
+  const d1 = TP.localDayKey(Date.parse('2026-09-24T00:00:00'))
+  const d2 = TP.localDayKey(Date.parse('2026-09-25T00:00:00'))
+  const day = (credits) => ({ credits, payg: credits / 100, tokens: 0, calls: 1, models: {}, unknown: {} })
+  const base = {
+    ledgerDays: { [d1]: day(2000), [d2]: day(2000) },
+    selfDays: {},
+    nowMs,
+    cfg: TP.normalizeConfig({
+      qwenCap: 45000,
+      qwenWindowAnchor: '2026-09-20',
+      qwenResetAt: '2026-09-30 00:00',
+      qwenOfficialPoints: [{ pct: 10, at: '2026-09-24 00:00' }, { pct: 20, at: '2026-09-26 00:00' }],
+    }),
+  }
+  const out = TP.summarize(base)
+  assert.equal(out.officialPoints, 2)
+  assert.ok(out.implied, 'implied 应出现在 payload 里')
+  // Δ官方 = 10% × 45000 = 4500；Δ本地 = 09-24 + 09-25 = 4000 → k = 1.125
+  assert.equal(out.implied.k, 1.125)
+  const single = TP.summarize(Object.assign({}, base, {
+    cfg: TP.normalizeConfig({ qwenCap: 45000, qwenWindowAnchor: '2026-09-20', qwenResetAt: '2026-09-30 00:00', qwenOfficialPct: 20, qwenOfficialAt: '2026-09-26 00:00' }),
+  }))
+  assert.equal(single.officialPoints, 1)
+  assert.equal(single.implied, null)
+})
+
 console.log('\n' + passed + ' passed' + (process.exitCode ? ' (有失败)' : ''))
