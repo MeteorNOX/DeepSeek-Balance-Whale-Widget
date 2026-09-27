@@ -87,7 +87,12 @@ function visibility() {
     }
   } else window.hide();
 }
-function show() { manuallyHidden = false; manuallyShown = true; visibility(); }
+// `pin` is for the explicit gestures — the tray menu, Cmd+Option+W, the whale's
+// own ☰ menu: she stays put until the user is back on Codex. Requests that only
+// ask the desktop app to open her (/api/show, i.e.「打开小鲸鱼」) do not pin, so a
+// whale summoned while another application is in front cannot end up parked
+// over it.
+function show({ pin = false } = {}) { manuallyHidden = false; if (pin) manuallyShown = true; visibility(); }
 function toggle() {
   const showing = !!window && !window.isDestroyed() && window.isVisible();
   manuallyHidden = showing;
@@ -96,7 +101,7 @@ function toggle() {
 }
 function sendCommand(command) {
   if (!window || window.isDestroyed() || !command) return false;
-  show();
+  show({ pin: true });
   if (rendererReady) window.webContents.send('whale-command', command);
   else if (!pendingCommands.includes(command)) pendingCommands.push(command);
   return true;
@@ -320,7 +325,7 @@ else {
         { label: '停止当前挂件', click: pauseAndQuit },
       ] });
     } else {
-      trayTemplate.push({ label: 'API 设置', click: () => { show(); window.webContents.send('whale-settings'); } });
+      trayTemplate.push({ label: 'API 设置', click: () => { show({ pin: true }); window.webContents.send('whale-settings'); } });
     }
     trayTemplate.push({ type: 'separator' }, { label: '本次退出挂件（下次打开 Codex 恢复）', click: pauseAndQuit });
     tray.setContextMenu(Menu.buildFromTemplate(trayTemplate));

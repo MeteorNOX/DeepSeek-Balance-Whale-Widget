@@ -43,8 +43,11 @@ npm run install:mac
 - Codex 窗口被其它应用遮挡 90% 以上时隐藏；
 - 前台应用位于另一块屏幕时不隐藏 —— Codex 开在副屏、你在主屏用别的应用时她照常待着；
 - `Cmd+Option+W` 与托盘「显示 / 隐藏」是显式操作，切到别的应用也不会立刻收回，回到 Codex 后交还自动判定。
+- 「打开小鲸鱼」（`/api/show`）只请求打开、不钉住：Codex 不在前台时她不会浮在别的应用上面，而是等你回到 Codex 再出现。
 
 窗口探针从 `CGWindowList` 取前台应用、其最上层窗口矩形，以及 Codex 窗口被遮挡的采样比例，一并回传给 Electron 判定。探针主循环用 `RunLoop` 驱动：`NSWorkspace.frontmostApplication` 只在该进程的 run loop 派发通知时刷新，用 `Thread.sleep` 会把它冻结在探针启动那一刻的值。
+
+前台判定本身抽在 `desktop/visibility.cjs`（不依赖 Electron），六条分支连同「另一块屏」都可以在任意机器上跑 `npm test` 覆盖。
 
 ## 验证
 
@@ -52,6 +55,7 @@ npm run install:mac
 "$HOME/.codex/whale-widget/native/whale-window-probe" --once --bundle-id com.openai.codex
 node scripts/control.mjs status
 node scripts/control.mjs balance
+npm test
 ```
 
 前台可见性同样可以用 `node scripts/control.mjs status` 核对：切到别的应用后 `visible` 应变假、`frontmostBundleId` 变为该应用，切回 Codex 立即恢复。相关字段还有 `hostIsFrontmost`、`hostCoverage`（遮挡比例）与 `appActive`（挂件自己是否在前台）。
