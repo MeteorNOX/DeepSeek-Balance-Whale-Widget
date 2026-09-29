@@ -13963,10 +13963,11 @@ function viewport() {
   }
 }
 function rightGap() {
-  // 开关关闭：贴边（不避让滚动条）
-  if (!scrollGapOn) return 0
-  // 开启：用用户填写的像素；填 0 也贴边
-  return scrollGapPx > 0 ? scrollGapPx : 0
+  // 右侧保留宽度 = 滚动条避让(用户设置) + 右侧栏让位(自动)
+  var gap = 0
+  if (scrollGapOn && scrollGapPx > 0) gap += scrollGapPx
+  gap += rightInsetPx   // 定位用的右侧保留量（面板自身 or 输入框块右缘，见 upstream-body.part 三）
+  return gap
 }
 function fmt(balance, currency) {
   var num = Number(balance)
@@ -14319,6 +14320,7 @@ function configPut(payload, retried) {
 function saveConfig() {
   // issue #97：加载完成前只记待办，绝不 PUT（否则把默认值整包写进服务端）
   if (!configLoaded) { configSavePending = true; return null }
+  try { composerGluePushed = false } catch (err) {}   // 用户自己摆的位置：允许「贴输入框右缘」接管
   try {
     // 返回 Promise（v743：Codex 统计开关需要"等服务端确认后再刷新"）。
     // configPut 自带重试与失败提示、且链尾有 catch，所以不会有 unhandled rejection。
@@ -14336,14 +14338,14 @@ function saveAnchorPos() {
     var w = root.offsetWidth || root.getBoundingClientRect().width || 0
     var h = root.offsetHeight || root.getBoundingClientRect().height || 0
     var leftDist = isFinite(state.left) ? state.left : 0
-    var rightDist = vp.w - leftDist - w
+    var rightDist = (vp.w - panelInsetPx) - leftDist - w
     var topDist = isFinite(state.top) ? state.top : 0
     var bottomDist = vp.h - topDist - h
     var hAnchor = leftDist <= rightDist ? 'left' : 'right'
     // issue #102：离边距离必须非负。挂件一旦被算到屏幕外，min(leftDist, rightDist) 就是负数，
     // 存进去会变成"永久坏锚点"，此后每次启动都复现（刷新也恢复不了）。
     var hDistRaw = Math.max(0, Math.round(Math.min(leftDist, rightDist)))
-    var hDist = hAnchor === 'right' && scrollGapOn ? Math.max(0, hDistRaw - rightGap()) : hDistRaw
+    var hDist = hAnchor === 'right' && scrollGapOn ? Math.max(0, hDistRaw - (rightGap() - rightInsetPx)) : hDistRaw
     localStorage.setItem('dshw-pos', JSON.stringify({
       v: 2,
       hAnchor: hAnchor,
@@ -16560,7 +16562,7 @@ function widgetUiHit(target) {
 }
 var touchDrag = null // 正在接管滚动的触摸(仅"起点命中鲸鱼"的那一次手势)
 // —— 移动端长按唤出菜单(v632):仅当开启「隐藏菜单按钮」时生效,替代电脑端的右键唤出 ——
-var TOUCH_LONG_PRESS_MS = 1500
+var TOUCH_LONG_PRESS_MS = 600 // 1500 对触屏偏久，与 Android 系统长按手感对齐
 var TOUCH_LONG_PRESS_SLOP = 10 // 位移超过该像素即视为拖拽,取消长按
 var touchStartPt = null
 var touchNowPt = null
@@ -16785,7 +16787,7 @@ function applyAnchorPos() {
     var vp = viewport()
     var w = root.offsetWidth || root.getBoundingClientRect().width || 0
     var h = root.offsetHeight || root.getBoundingClientRect().height || 0
-    var maxOffH = Math.max(0, vp.w - w)
+    var maxOffH = Math.max(0, (vp.w - panelInsetPx) - w)
     var maxOffV = Math.max(0, vp.h - h)
     // issue #102 自愈：非法距离（负数 = 存进去时挂件已在屏幕外；超出视口 = 窗口变小/脏数据）
     // 一律夹回合法范围并把修正结果落盘 —— 老用户中了脏数据也能自己恢复，无需手清 localStorage。
@@ -16793,8 +16795,8 @@ function applyAnchorPos() {
     var vDist = isFinite(a.vDist) ? clamp(a.vDist, 0, maxOffV) : 0
     var healed = (hDist !== a.hDist || vDist !== a.vDist)
     // 与加载恢复一致：锚点存净距离，右锚点按当前避让开关叠加
-    var effectiveRightDist = a.hAnchor === 'right' ? hDist + (scrollGapOn ? rightGap() : 0) : hDist
-    var l = a.hAnchor === 'left' ? hDist : vp.w - effectiveRightDist - w
+    var effectiveRightDist = a.hAnchor === 'right' ? hDist + (scrollGapOn ? (rightGap() - rightInsetPx) : 0) : hDist
+    var l = a.hAnchor === 'left' ? hDist : (vp.w - panelInsetPx) - effectiveRightDist - w
     var t = a.vAnchor === 'top' ? vDist : vp.h - vDist - h
     state.left = clamp(l, 0, maxOffH)
     state.top = clamp(t, 0, maxOffV)
@@ -16809,9 +16811,294 @@ function applyAnchorPos() {
     return true
   } catch (err) { return false }
 }
+
+/* ============================================================================
+ * 提案：把挂件停在输入框正上方 + 右侧栏打开时跟着让位（仅改本文件）
+ *
+ * 动机：现有吸附是**视口四边**，没有「贴某个元素」的概念。手机上挂件停在视口
+ * 底部会盖住输入框区域的 步数/输出速度/模型/缓存/发送键；桌面端打开右侧文档
+ * 预览时，挂件会被面板压在底下。
+ *
+ * 做法：三条都是**纯坐标反馈**，不做坐标系/键盘高度假设；取不到目标元素时
+ * **行为与未改动完全一致**（这是能低成本合入的前提）。
+ *
+ * 1) 输入框上方：量「输入框块顶边 − 间距」与「挂件当前底边」的差，直接平移。
+ *    目标优先 [data-composer-seat]，取不到或高度为 0 时退回 [data-composer-card]。
+ * 2) 右侧栏让位：把右栏宽度当「右侧保留宽度」，与既有的「避让滚动条」合并进
+ *    rightGap() —— 所有定位/吸附/拖动/锚点逻辑一行都不用改。
+ *    DOM 契约：DSH 侧边栏 [data-rightbar-col] / [data-sidebar-right-open]
+ *    （dsh-client-ui-sidebar-right / dsh-client-ui-layout）。
+ * 3) 让位让到「输入框块右缘」，而不是「面板左缘」：面板展开后，输入框块自己还比
+ *    面板左缘内缩一截（桌面端约 10~22px，手机窄屏时更大），原来按面板左缘让位就会
+ *    多让出这一截 —— 真机现象是「面板展开后挂件停在输入框右缘偏左一点点」。
+ *    所以：**挂件本来就停在输入框块右缘附近**（≤ COMPOSER_GLUE_TOL）时，把参照物
+ *    换成输入框块右缘 —— 面板怎么动，挂件就跟着那块输入框动（相对间距不变）。
+ *    停在屏幕右下角那种（右缘越过输入框块右缘 16px 以上）不接管，照旧按面板让位。
+ *
+ * 三处坑（真机实测）：
+ *   1) .dshwv-root 带 transition:left/top .16s，**过渡中测量拿到的是动画中间态**，
+ *      同一差值被反复叠加 → 挂件每次事件往上飘、最终飞出屏幕。测量与应用期间
+ *      必须 transition:none（与既有 setScale() 同一手法）。
+ *   2) settle() 从锚点 vOff 重算 state.top，而「拖动结束」的 saveConfig() 会把
+ *      已抬高的位置存成新锚点 → 必须同步 vOff，否则每拖一次累积一个间距。
+ *   3) 让路条件：拖动中、吸附设置弹窗中不干预。
+ *   4) 参照物「换边」时（面板左缘 ↔ 输入框块右缘）必须把锚点换算一次，
+ *      否则挂件会跳一下；而参照物**自己移动**（面板展开、输入框变窄）不换算 ——
+ *      那正是要跟住的位移。
+ *
+ * 可调参数（都在这里）：
+ *   COMPOSER_AVOID_GAP  挂件底边与输入框顶边的间距(px)，0 = 紧贴
+ *   COMPOSER_SNAP_FRAC  触发区：挂件底边在屏幕下半才接管，拖到上半屏自由摆放
+ *   COMPOSER_GLUE_ON    横向参照物换成「输入框块右缘」的开关
+ *   COMPOSER_GLUE_TOL   判定「停在输入框块右缘附近」的容差(px)
+ *   PANEL_AVOID_ON      右侧栏让位开关；PANEL_K 让位比例（1 = 完全让开）
+ *   COMPOSER_SEAT_SEL / COMPOSER_CARD_SEL / PANEL_COL_SEL / PANEL_OPEN_SEL
+ * ========================================================================== */
+var COMPOSER_AVOID_GAP = 0
+var COMPOSER_SNAP_FRAC = 0.5
+var COMPOSER_GLUE_ON = true
+var COMPOSER_GLUE_TOL = 32
+var COMPOSER_SEAT_SEL = '[data-composer-seat]'
+var COMPOSER_CARD_SEL = '[data-composer-card]'
+var PANEL_AVOID_ON = true
+var PANEL_K = 1
+var PANEL_COL_SEL = '[data-rightbar-col]'
+var PANEL_OPEN_SEL = '[data-sidebar-right-open]'
+var composerObserved = null
+var composerTimer = null
+var composerAligning = false
+var panelInsetPx = 0            // 面板自身的让位量（= 持久化锚点 dshw-pos 的参照系，别动它的含义）
+var rightInsetPx = 0            // 定位实际用的右侧保留量：贴输入框时改用输入框块右缘
+var panelInsetEl = null
+var panelInsetElW = -1
+var panelInsetProbe = 0
+var composerGlueOn = false        // 当前横向参照物是否已换成「输入框块右缘」
+var composerGlueR = -1            // 上一次实测的输入框块右缘 x（参照物本身）
+var composerGluePushed = false    // 这个位置是「面板让位」推出来的（不是用户摆的）→ 不接管
+var rightRefKind = 'panel'        // 当前参照物种类：'panel' = 视口/右栏，'card' = 输入框块右缘
+var expressRaw = express
+
+/* ---------- 一、停在输入框上方 ---------- */
+function composerSeatEl() {
+  try {
+    var a = document.querySelector(COMPOSER_SEAT_SEL)
+    var ra = a ? a.getBoundingClientRect() : null
+    if (a && ra && ra.height > 0) return a
+    var b = document.querySelector(COMPOSER_CARD_SEL)
+    var rb = b ? b.getBoundingClientRect() : null
+    if (b && rb && rb.height > 0) return b
+    return a || b || null
+  } catch (err) { return null }
+}
+
+/* 挂件此刻是否停在输入框上方（与 composerAlign 的接管区一致：底锚总是算，其余看是否在下半屏） */
+function composerZoneOn() {
+  try {
+    if (state.v === 'bottom') return true
+    var rr = root.getBoundingClientRect()
+    return !!(rr && isFinite(rr.bottom) && rr.bottom >= viewport().h * COMPOSER_SNAP_FRAC)
+  } catch (err) { return false }
+}
+
+/* 输入框块的矩形（横向参照物优先用可见那块卡片 [data-composer-card]） */
+function composerCardRect() {
+  try {
+    var el = null
+    try { el = document.querySelector(COMPOSER_CARD_SEL) || document.querySelector(COMPOSER_SEAT_SEL) } catch (err) { el = null }
+    var r = el ? el.getBoundingClientRect() : null
+    return (r && r.width > 1 && r.height > 0 && isFinite(r.right)) ? r : null
+  } catch (err) { return null }
+}
+
+/* ---------- 三、横向参照物：贴输入框块右缘（见文件头 3)） ----------
+ * 返回 -1 = 不接管（沿用面板让位）；否则返回「视口右缘 → 参照物」的像素数。 */
+function composerGlueInset() {
+  var wasOn = composerGlueOn
+  var refPrev = composerGlueR
+  composerGlueOn = false
+  try {
+    if (!COMPOSER_GLUE_ON) return -1
+    if (drag && drag.active) return -1                 // 拖动中不接管（否则拖不出输入框那一列）
+    if (composerGluePushed) return -1                   // 被让位推出来的位置不算「用户摆在那儿」
+    if (!composerZoneOn()) return -1
+    var r = composerCardRect()
+    if (!r) return -1
+    var rr = null
+    try { rr = root.getBoundingClientRect() } catch (err) { rr = null }
+    if (!rr || !isFinite(rr.right)) return -1
+    if (!(rr.right > r.left + r.width / 2)) return -1   // 挂在输入框块**右半侧**才算「贴它右缘」
+    // 「还贴着输入框右缘吗」：已经贴上时按**上次的参照物**判 —— 面板开合时参照物先动、
+    // 挂件后跟（同一帧里量到的差是「还没跟上的那一段」），用新参照物判会把刚贴上的挂件判掉。
+    var ref = (wasOn && refPrev > 0) ? refPrev : r.right
+    if (!(Math.abs(ref - rr.right) <= COMPOSER_GLUE_TOL)) return -1
+    var vw = viewport().w
+    var n = Math.round(vw - r.right)
+    if (!isFinite(n) || n < 0) return -1
+    if (n >= vw - 1) return -1                          // 输入框块占满整屏：不让位（与面板那条同一判据）
+    composerGlueR = r.right
+    composerGlueOn = true
+    return n
+  } catch (err) { composerGlueOn = false; return -1 }
+}
+
+function composerAlign() {
+  try {
+    if (drag && drag.active) return          // 拖动中让路
+    if (snapEdit) return                     // 吸附设置弹窗中让路
+    var vpZ = viewport()
+    if (!composerZoneOn()) return
+    var el = composerSeatEl()
+    if (!el) return
+    var r = el.getBoundingClientRect()
+    if (!r || !isFinite(r.top) || r.height <= 0) return
+    root.style.transition = 'none'
+    var rr = root.getBoundingClientRect()
+    if (!rr || !isFinite(rr.bottom)) return
+    var delta = Math.round(r.top - COMPOSER_AVOID_GAP) - Math.round(rr.bottom)
+    if (!isFinite(delta) || Math.abs(delta) < 1) return
+    if (Math.abs(delta) > vpZ.h * 0.75) return               // 异常值：不动
+    state.top = Math.max(0, Math.round(state.top + delta))
+    // 只平移 + 按**当前锚点**同步 vOff，不改写用户的锚定语义（顶锚就同步顶锚的偏移；
+    // 自由摆放时 state.v 仍为 null，settle() 的 free 分支会照 state.top 走）。
+    if (state.v === 'top') state.vOff = Math.max(0, Math.round(state.top))
+    else if (state.v === 'bottom') state.vOff = Math.max(0, Math.round(vpZ.h - state.top - root.offsetHeight))
+    expressRaw()
+  } catch (err) {
+  } finally {
+    // 与 main 既有写法一致：直接还原为空（不额外保存上一次的值，少一种 transition 处理方式）
+    try { root.style.transition = '' } catch (err) {}
+  }
+}
+
+function composerResettle() {
+  if (composerAligning) return
+  composerAligning = true
+  setTimeout(function () {
+    composerAligning = false
+    try { panelInsetSync(false) } catch (err) {}   // 输入框块变窄/变宽 → 横向参照物可能也变了
+    composerAlign()
+  }, 0)
+}
+
+function setupComposerAvoid() {
+  try {
+    composerTimer = setInterval(function () {
+      try {
+        var el = composerSeatEl()
+        if (!el) return
+        if (el !== composerObserved) {
+          composerObserved = el
+          if (window.ResizeObserver) { try { new ResizeObserver(composerResettle).observe(el) } catch (err) {} }
+        }
+        composerAlign()
+        panelInsetSync(false)
+      } catch (err) {}
+    }, 1000)
+  } catch (err) {}
+  // window.resize 不在这里单独挂：本文件末尾已有一个 resize 监听，改为**合并**进那一个
+  // （由生成器在既有监听里补一行 composerResettle()），避免同一事件挂两个监听。
+  try { if (window.visualViewport) window.visualViewport.addEventListener('resize', composerResettle) } catch (err) {}
+  setupPanelAvoidWatch()
+}
+
+/* 包一层 express：每次位置表达后对齐一次 */
+express = function () {
+  expressRaw()
+  if (composerAligning) return
+  composerAlign()
+}
+
+/* ---------- 二、右侧栏打开时让位 ---------- */
+function panelInsetMeasure() {
+  try {
+    if (!PANEL_AVOID_ON) return 0
+    var col = panelInsetEl
+    if (!col || !col.isConnected) { col = panelInsetFrame(); panelInsetEl = col; panelInsetElW = -1 }
+    if (!col) return 0
+    // 整宽没变就先不做贵测量（每 10 次仍实测一次兜底）
+    var ow = col.offsetWidth || 0
+    if (ow === panelInsetElW && panelInsetElW >= 0) {
+      panelInsetProbe++
+      if (panelInsetProbe % 10 !== 1) return panelInsetPx
+    }
+    panelInsetElW = ow
+    var vw = viewport().w
+    var rect = null
+    try { rect = col.getBoundingClientRect() } catch (err) { rect = null }
+    var fr = null
+    try { fr = col.closest('[data-rightbar-fullscreen]') } catch (err) { fr = null }
+    if (fr && fr.getAttribute('data-rightbar-fullscreen') !== null) return 0   // 面板全屏：不让位
+    var w = 0
+    if (rect && isFinite(rect.left)) w = vw - rect.left
+    if (!(w > 0.5)) w = ow
+    if (!(w > 0.5)) return 0
+    if (w >= vw - 1) return 0                                                // 占满整屏：不让位
+    // 只留几何判据：收起时那一列宽度为 0/贴在右缘 → 上面两个 `w > 0.5` / `w >= vw-1` 分支已返回 0，
+    // 因此原来那个 [data-sidebar-right-open] 判据是多余的（也可能被别的元素骗到），删掉。
+    if (!(rect && rect.left < vw - 1)) return 0                               // 左缘没进视口：视为未展开
+    return PANEL_K === 1 ? Math.round(w) : Math.round(w * PANEL_K)
+  } catch (err) { return 0 }
+}
+
+function panelInsetFrame() {
+  try {
+    return document.querySelector(PANEL_COL_SEL) || document.querySelector('[data-rightbar-collapsed]')
+  } catch (err) { return null }
+}
+
+function panelInsetSync(force) {
+  // 两个量分开算：
+  //   panelInsetPx = 面板自身让位量（持久化锚点 dshw-pos 的参照系，跟 T-Auto 那条修复保持一致）
+  //   rightInsetPx = 定位实际用的右侧保留量（贴输入框时 = 视口右缘到输入框块右缘）
+  var glue = -1
+  try { glue = composerGlueInset() } catch (err) { glue = -1 }
+  var nPanel = 0
+  try { nPanel = panelInsetMeasure() } catch (err) { nPanel = 0 }
+  var nEff = glue >= 0 ? Math.max(glue, nPanel) : nPanel
+  var kind = composerGlueOn ? 'card' : 'panel'
+  if (!force && nPanel === panelInsetPx && nEff === rightInsetPx && kind === rightRefKind) return
+  // 参照物「换边」时把锚点换算成新参照物下的等值距离：位置不动，免得挂件跳一下。
+  // 参照物自己移动（面板展开、输入框变窄/变宽）不换算 —— 那正是要跟住的位移。
+  var flipped = kind !== rightRefKind
+  rightRefKind = kind
+  // 面板展开把挂件推走时打个标记：那个位置是「让位推出来的」，不该被当成「用户摆在那儿」
+  // 从而接管；用户自己拖一次（saveConfig）就清掉。
+  if (kind === 'panel') { if (nEff > rightInsetPx + 0.5) composerGluePushed = true; else if (nEff < rightInsetPx - 0.5) composerGluePushed = false }
+  panelInsetPx = nPanel
+  rightInsetPx = nEff
+  if (flipped && state.h === 'right') {
+    try {
+      var vp = viewport()
+      var w = root.offsetWidth || root.getBoundingClientRect().width || 0
+      state.hOff = Math.max(0, Math.round(vp.w - w - rightGap() - state.left))
+    } catch (err) {}
+  }
+  try { settle() } catch (err) {}
+}
+
+function setupPanelAvoidWatch() {
+  try {
+    var col = panelInsetFrame()
+    if (col && col !== panelInsetEl) {
+      panelInsetEl = col
+      panelInsetElW = -1
+      if (window.ResizeObserver) { try { new ResizeObserver(function () { panelInsetSync(false) }).observe(col) } catch (err) {} }
+    }
+  } catch (err) {}
+}
+try {
+  var panelInitDelays = [0, 900]   // 只探两次；之后靠 ResizeObserver + 500ms 兜底
+  for (var panelDi = 0; panelDi < panelInitDelays.length; panelDi++) {
+    setTimeout(function () { setupPanelAvoidWatch(); panelInsetSync(true) }, panelInitDelays[panelDi])
+  }
+} catch (err) {}
+try { setInterval(function () { setupPanelAvoidWatch(); panelInsetSync(false) }, 500) } catch (err) {}
+
+
 window.addEventListener('resize', function () {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
+  try { composerResettle() } catch (err) {}   // 合并：本文件的 resize 监听一并触发输入框对齐（少挂一个监听）
 })
 
 var rect0 = root.getBoundingClientRect()
