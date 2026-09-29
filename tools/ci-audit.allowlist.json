@@ -1,0 +1,26 @@
+{
+  "_说明": [
+    "ci-audit 第 ⑤ 项（注入面）的允许清单。",
+    "只有「右侧不是静态字面量」的 innerHTML/outerHTML 赋值才会走到这里 —— 也就是可能把外部数据当 HTML 写进页面的地方。",
+    "格式：\"<文件路径> :: <左侧表达式><.innerHTML|.outerHTML> = <右侧表达式>\"，左右都用 trim 后的原文匹配。",
+    "新增条目必须写明数据来源，并回答一句：这个值会不会随外部输入变化？答不上来就不要加，改成转义。"
+  ],
+  "allow": [
+    {
+      "key": "assets/whale-widget.js :: dshwvTplHelpEl.innerHTML = html",
+      "why": "占位符说明浮层。html 由本文件 bubbleTplHelpItems() 拼出，只含本文件写死的占位符名字，不接外部输入。"
+    },
+    {
+      "key": "assets/whale-widget.js :: el.innerHTML = html",
+      "why": "dshwvHintShow(html) 的落点。调用方传的都是本文件拼的静态说明串；后续若有人把响应数据传进来，这一条就得改。"
+    },
+    {
+      "key": "assets/whale-widget.js :: dshwvToastEl.innerHTML = msg",
+      "why": "已知未转义（issue #143 就是它）。msg 目前来自本文件拼的提示文本，但属于动态入口，保留在清单里以便有人动它时被看见。修掉之后请删掉本条。"
+    },
+    {
+      "key": "assets/whale-widget.js :: stage.innerHTML = svgEl.outerHTML",
+      "why": "把已经在本页里的 SVG 节点搬进 stage，不是外部数据。"
+    }
+  ]
+}
