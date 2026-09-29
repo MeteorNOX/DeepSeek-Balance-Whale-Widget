@@ -139,6 +139,56 @@ test('an earlier accepted press retains native input after the squish makes its 
   assert.equal(box.heldPointer, null); assert.deepEqual(enabled, [true, false], 'an unaccepted transparent-area press still passes through');
 });
 
+test('macOS keeps the transparent window interactive while a dismissible flyout is open', async () => {
+  const source = await fs.readFile(new URL('../desktop/ui/input.js', import.meta.url), 'utf8');
+  const start = source.indexOf('  const dismissSurfaces =');
+  const end = source.indexOf('  function updateKeyboardFocus()', start);
+  const run = (platform, openSelector) => {
+    const calls = [];
+    const flyout = { checkVisibility: () => true };
+    const box = {
+      heldPointer: null, externalDrag: false, point: { x: 40, y: 40 }, interactive: false,
+      surfaces: '.ordinary-surface', pet: { checkVisibility: () => false }, root: {},
+      rendering: { hitCache: { hit: () => false }, mirrorScale: () => 1 },
+      document: {
+        querySelectorAll: selector => selector.includes(openSelector) ? [flyout] : [],
+        elementFromPoint: () => null,
+      },
+      bridge: { platform, interactive: value => calls.push(value) },
+    };
+    vm.createContext(box); vm.runInContext(source.slice(start, end), box); vm.runInContext('update()', box);
+    return calls;
+  };
+  for (const selector of ['.dshwv-menu-open', '.dshwv-pop-open', '.whale-account-card']) {
+    assert.deepEqual(run('darwin', selector), [true], selector + ' must receive a blank click on macOS');
+    assert.deepEqual(run('win32', selector), [], 'Windows keeps native region-based click-through behavior');
+  }
+});
+
+test('a blank pointer press closes the popup opened from the character body', async () => {
+  const source = await fs.readFile(new URL('../assets/whale-widget.js', import.meta.url), 'utf8');
+  const start = source.indexOf('    function onDocPointerDown(e)');
+  const end = source.indexOf('    function onDocPointerMove(e)', start);
+  const run = ({ account = false, scene = null } = {}) => {
+    const calls = [];
+    const box = {
+      menuOpen: false, bubbleShown: !account, bubbleScene: scene,
+      document: { querySelector: selector => account && selector === '.whale-account-card' ? {} : null },
+      window: { WhaleAccountView: { close: () => calls.push('account') } },
+      closeMenu: () => calls.push('menu'), isWhaleHit: () => false,
+      hideBubble: () => calls.push('bubble'), hideCostBubble: () => calls.push('cost'),
+      hideUsageAlertBubble: () => calls.push('alert'),
+    };
+    vm.createContext(box); vm.runInContext(source.slice(start, end), box);
+    vm.runInContext("onDocPointerDown({target:{closest:()=>null},button:0,pointerType:'mouse'})", box);
+    return calls;
+  };
+  assert.deepEqual(run(), ['bubble']);
+  assert.deepEqual(run({ account: true }), ['account']);
+  assert.deepEqual(run({ scene: { kind: 'cost' } }), ['cost']);
+  assert.deepEqual(run({ scene: { kind: 'alert' } }), ['alert']);
+});
+
 test('failed task registration leaves a running installation untouched and cannot print success', { skip: process.platform !== 'win32' }, async t => {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-'));
   t.after(async () => {

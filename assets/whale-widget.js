@@ -11039,7 +11039,16 @@
         return;
       }
       if (e.button !== 0 && e.pointerType === 'mouse') return;
-      if (!isWhaleHit(e)) return;
+      if (!isWhaleHit(e)) {
+        if (document.querySelector('.whale-account-card')) {
+          if (window.WhaleAccountView) window.WhaleAccountView.close();
+        } else if (bubbleShown) {
+          if (bubbleScene && bubbleScene.kind === 'cost') hideCostBubble();
+          else if (bubbleScene && bubbleScene.kind === 'alert') hideUsageAlertBubble();
+          else hideBubble();
+        }
+        return;
+      }
       try {
         e.preventDefault();
         e.stopPropagation();
