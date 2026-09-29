@@ -15,7 +15,7 @@ function audioFixture() {
   }
   const context = { window: { addEventListener() {} }, AudioContext, fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }), setTimeout: callback => { idle = callback; return 1; }, clearTimeout() {} };
   vm.runInNewContext(read('audio-engine.js'), context);
-  return { api: context.window.WhaleAudio, sources, contexts: () => contexts, idle: () => idle() };
+  return { api: context.window.WhaleAudio, context, sources, contexts: () => contexts, idle: () => idle() };
 }
 test('zero volume never opens audio hardware or fetches, release interrupts a 20-second press immediately', async () => {
   const f = audioFixture(); await f.api.play({ url: '/press', volume: 0 }); assert.equal(f.contexts(), 0);
@@ -30,4 +30,12 @@ test('gesture presets separate press from rebound without changing root flip', (
 });
 test('late decoding cannot resurrect a cancelled gesture', async () => {
   const f = audioFixture(); const playing = f.api.play({ channel: 'gesture', url: '/press' }); f.api.stop('gesture'); await playing; assert.equal(f.sources.length, 0);
+});
+test('a quick pet click starts both the press and release sounds', async () => {
+  const f = audioFixture();
+  vm.runInNewContext(read('preferences-v3.js'), f.context);
+  f.context.window.WhaleFeedback.play('press', '/press', 1);
+  f.context.window.WhaleFeedback.play('release', '/release', 1);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.sources.filter(source => source.started).length, 2);
 });
