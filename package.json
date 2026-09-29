@@ -31,5 +31,8 @@
       "patch": "./cordis.patch.yml"
     }
   },
+  "scripts": {
+    "test": "node test/model-match.test.mjs && node test/active-model.test.mjs"
+  },
   "license": "MIT"
 }
