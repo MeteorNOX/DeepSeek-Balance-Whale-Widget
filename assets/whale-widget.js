@@ -816,6 +816,18 @@
     rowHide.appendChild(menuLabel('隐藏菜单按钮'));
     rowHide.appendChild(menuHideToggle);
     menuBox.appendChild(rowHide);
+    var outsideDismissToggle = document.createElement('input');
+    outsideDismissToggle.type = 'checkbox';
+    outsideDismissToggle.className = 'dshwv-check';
+    outsideDismissToggle.checked = false;
+    outsideDismissToggle.title = '开启后，点击挂件外的空白区域会关闭已打开的菜单、二级面板、账户卡片或人物气泡';
+    outsideDismissToggle.addEventListener('change', function () {
+      setOutsideDismissOn(outsideDismissToggle.checked);
+    });
+    var rowOutsideDismiss = menuRow();
+    rowOutsideDismiss.appendChild(menuLabel('点击空白关闭'));
+    rowOutsideDismiss.appendChild(outsideDismissToggle);
+    menuBox.appendChild(rowOutsideDismiss);
     var rowRes = menuRow();
     var resOpenBtn = document.createElement('button');
     resOpenBtn.type = 'button';
@@ -9095,6 +9107,7 @@
     var scrollGapOn = false;
     var scrollGapPx = 17;
     var menuBtnHide = false;
+    var outsideDismissOn = false;
     function saveConfig() {
       try {
         fetch(SIZE_URL, {
@@ -9113,7 +9126,8 @@
             turnCostCloseMs: turnCostCloseMs,
             scrollGapOn: scrollGapOn,
             scrollGapPx: scrollGapPx,
-            menuBtnHide: menuBtnHide
+            menuBtnHide: menuBtnHide,
+            outsideDismissOn: outsideDismissOn
           })
         });
         var vp = viewport();
@@ -9187,6 +9201,16 @@
       saveConfig();
       applyMenuBtnHideUI();
     }
+    function applyOutsideDismissUI() {
+      if (outsideDismissToggle) outsideDismissToggle.checked = outsideDismissOn;
+      document.body.dataset.whaleOutsideDismiss = outsideDismissOn ? 'true' : 'false';
+    }
+    function setOutsideDismissOn(v) {
+      outsideDismissOn = !!v;
+      applyOutsideDismissUI();
+      saveConfig();
+    }
+    applyOutsideDismissUI();
     function scaleToDisplay(s) {
       return Math.round((s - MIN_SCALE) / ((MAX_SCALE - MIN_SCALE) / 19)) + 1;
     }
@@ -11040,6 +11064,7 @@
       }
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       if (!isWhaleHit(e)) {
+        if (!outsideDismissOn) return;
         if (document.querySelector('.whale-account-card')) {
           if (window.WhaleAccountView) window.WhaleAccountView.close();
         } else if (bubbleShown) {
@@ -11341,6 +11366,10 @@
         if (menuHideToggle) menuHideToggle.checked = menuBtnHide;
         applyMenuBtnHideUI();
       }
+      if (d && typeof d.outsideDismissOn === 'boolean') {
+        outsideDismissOn = d.outsideDismissOn;
+      }
+      applyOutsideDismissUI();
       try {
         var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
         if (a && a.v === 2 && (a.hAnchor === 'left' || a.hAnchor === 'right') && Number.isFinite(a.hDist) && a.hDist >= 0 && (a.vAnchor === 'top' || a.vAnchor === 'bottom') && Number.isFinite(a.vDist) && a.vDist >= 0) {

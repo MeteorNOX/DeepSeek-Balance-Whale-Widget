@@ -26,12 +26,12 @@
     return visible(pet) && rendering.hitCache.hit(pet, p.x, p.y, rendering.mirrorScale(root) < 0);
   }
   function dismissSurfaceOpen() {
-    return bridge.platform === 'darwin' && [...document.querySelectorAll(dismissSurfaces)].some(visible);
+    return bridge.platform === 'darwin' && document.body.dataset.whaleOutsideDismiss === 'true' && [...document.querySelectorAll(dismissSurfaces)].some(visible);
   }
   function update() {
     // macOS has no native window region. Keep the transparent host window able
-    // to receive one outside press while a menu/flyout is open, then restore
-    // click-through as soon as its existing document handler dismisses it.
+    // to receive one outside press while an opted-in menu/flyout is open, then
+    // restore click-through as soon as its document handler dismisses it.
     const next = heldPointer !== null || !externalDrag && (hit(point) || dismissSurfaceOpen());
     if (next !== interactive) { interactive = next; bridge.interactive(next); }
   }
@@ -83,7 +83,7 @@
   rendering.onFrame(update);
   if(bridge.testMode)window.__whaleInputTest={hit};
   const request = () => { update(); updateKeyboardFocus(); rendering.presentFor(); };
-  new MutationObserver(request).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'src', 'open', 'hidden', 'inert'] });
+  new MutationObserver(request).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'src', 'open', 'hidden', 'inert', 'data-whale-outside-dismiss'] });
   document.addEventListener('transitionrun', e => {
     if (e.target.closest('.dshwv-root,.dshwv-position')) rendering.presentFor(600);
   }, true);

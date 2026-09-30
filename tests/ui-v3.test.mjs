@@ -28,6 +28,17 @@ test('gesture presets separate press from rebound without changing root flip', (
   window.WhaleGesture.apply(body, true, 'crisp'); assert.match(body.style.transition, /65ms/); assert.match(body.style.transform, /0.9/);
   window.WhaleGesture.apply(body, false, 'crisp'); assert.match(body.style.transition, /125ms/); assert.equal(body.style.transform, 'scaleY(1) scaleX(1)');
 });
+test('macOS gestures commit deterministic held and released shapes without a focused CSS timeline', () => {
+  const presents = [];
+  const window = { whaleDesktop: { platform: 'darwin', presentFor: ms => presents.push(ms) } };
+  vm.runInNewContext(read('gesture.js'), { window });
+  const body = { style: {}, get offsetWidth() { return 160; } };
+  window.WhaleGesture.apply(body, true, 'balanced');
+  assert.equal(body.style.transition, 'none'); assert.equal(body.style.transform, 'scaleY(0.88) scaleX(1.05)');
+  window.WhaleGesture.apply(body, false, 'balanced');
+  assert.equal(body.style.transition, 'none'); assert.equal(body.style.transform, 'scaleY(1) scaleX(1)');
+  assert.deepEqual(presents, [80, 80]);
+});
 test('late decoding cannot resurrect a cancelled gesture', async () => {
   const f = audioFixture(); const playing = f.api.play({ channel: 'gesture', url: '/press' }); f.api.stop('gesture'); await playing; assert.equal(f.sources.length, 0);
 });

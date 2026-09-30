@@ -18,7 +18,8 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
   try {
     const area = screen.getPrimaryDisplay().workArea;
     const dip = { x: area.x + 24, y: area.y + 24, width: 700, height: 550 };
-    await setHost({ hostAlive: true, hostPid: 123456, window: '0', visible: true, attached: true, bounds: screen.dipToScreenRect(null, dip) });
+    const hostBounds = rect => typeof screen.dipToScreenRect === 'function' ? screen.dipToScreenRect(null, rect) : rect;
+    await setHost({ hostAlive: true, hostPid: 123456, window: '0', visible: true, attached: true, bounds: hostBounds(dip) });
     await wait("document.querySelector('.dshwv-img')?.naturalWidth > 0 && localStorage.getItem('dshw-role') === 'default'", 'bad saved image falls back to the built-in role');
     await wait("window.__whaleRenderTest.status().balance === 12.3456 && !window.__whaleRenderTest.status().busy", 'startup size settings and initial data complete');
     assert.equal(window.isVisible(), true);
@@ -44,6 +45,41 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
       return result;
     })()`);
     assert.ok(edge, 'the original role must provide a press-animation boundary point');
+    const pressPoint = await ev(`(() => {
+      const img=document.querySelector('.dshwv-img'),root=document.querySelector('.dshwv-root'),r=img.getBoundingClientRect(),flipped=WhaleRendering.mirrorScale(root)<0;
+      const points=[];for(let y=Math.ceil(r.top)+4;y<r.bottom-4;y+=4)for(let x=Math.ceil(r.left)+4;x<r.right-4;x+=4){
+        const target=document.elementFromPoint(x,y);if(target?.closest('.dshwv-menu-btn,.dshwv-pop,.whale-account-card'))continue;
+        if(WhaleRendering.hitCache.hit(img,x,y,flipped))points.push({x,y,d:(x-(r.left+r.width/2))**2+(y-(r.top+r.height/2))**2});
+      }
+      points.sort((a,b)=>a.d-b.d);return points[0];
+    })()`);
+    assert.ok(pressPoint, 'the original role must provide an unobscured central press point');
+    const bodyTransform = () => ev(`(() => {const body=document.querySelector('.dshwv-body'),m=new DOMMatrix(getComputedStyle(body).transform);return {x:m.a,y:m.d,dragging:document.querySelector('.dshwv-root').classList.contains('dshwv-dragging')}})()`);
+    for (const mode of ['api', 'subscription']) {
+      assert.equal(await ev(`WhaleAccountView.setMode(${JSON.stringify(mode)})`), true);
+      await ev('window.__whaleRenderTest.close(); WhaleAccountView.close()'); await delay(360);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        setTestCursor(pressPoint); window.webContents.sendInputEvent({ type: 'mouseMove', ...pressPoint }); await delay(100);
+        window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...pressPoint }); await delay(180);
+        const pressed = await bodyTransform();
+        await delay(260); const held = await bodyTransform();
+        window.webContents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, ...pressPoint }); await delay(220);
+        const released = await bodyTransform();
+        const evidence = JSON.stringify({ pressed, held, released, inputEnabled: renderInfo().inputEnabled });
+        assert.ok(pressed.y < .94 && pressed.x > 1.02 && pressed.dragging, mode + ' attempt ' + attempt + ' must visibly squash on pointerdown: ' + evidence);
+        assert.ok(held.y < .94 && held.x > 1.02 && held.dragging, mode + ' attempt ' + attempt + ' must remain squashed while held: ' + evidence);
+        assert.ok(released.y > .99 && released.x < 1.01 && !released.dragging, mode + ' attempt ' + attempt + ' must rebound only after pointerup: ' + evidence);
+      }
+    }
+    await ev("WhaleAccountView.setMode('api'); window.__whaleRenderTest.close(); WhaleAccountView.close()"); await delay(360);
+    checks.push('API and Codex subscription modes repeatedly squash on press, stay held, and rebound only on release');
+    if (process.env.WHALE_PRESS_ONLY === '1') {
+      fs.writeFileSync(path.join(output, 'desktop-audit.json'), JSON.stringify({ ok: true, checks, viewport, dataDir, pressOnly: true }, null, 2));
+      ev('for (;;) {}').catch(() => {});
+      await delay(80);
+      app.quit();
+      return;
+    }
     setTestCursor(edge); window.webContents.sendInputEvent({ type: 'mouseMove', ...edge }); await delay(120);
     window.webContents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, ...edge }); await delay(320);
     assert.equal(await ev(`WhaleRendering.hitCache.hit(document.querySelector('.dshwv-img'),${edge.x},${edge.y},WhaleRendering.mirrorScale(document.querySelector('.dshwv-root'))<0)`), false, 'the test pixel must become transparent while pressed');
@@ -96,7 +132,7 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
     await setHost({hostAlive:false,hostPid:0,window:'0',visible:false,attached:false});
     await delay(180);
     assert.equal(window.isVisible(), true, 'standalone survives missing Codex host');
-    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:screen.dipToScreenRect(null,dip)});
+    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:hostBounds(dip)});
     assert.equal(await ev("whaleDesktop.command('follow')"), true);
     await delay(180);
     assert.equal(window.isVisible(), true);
@@ -118,9 +154,9 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
     assert.equal(await ev("getComputedStyle(document.querySelector('.dshwv-menu')).userSelect"),'none');
     checks.push('API/member switch changes the card only, preserves Codex config, and mode transition closes menu and clears selection');
     const p=await ev("(()=>{const r=document.querySelector('.dshwv-img').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()");
-    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:screen.dipToScreenRect(null,dip),mouseButtons:1});
+    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:hostBounds(dip),mouseButtons:1});
     setTestCursor(p);await delay(180);assert.equal(renderInfo().inputEnabled,false,'external drag never activates overlay');
-    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:screen.dipToScreenRect(null,dip),mouseButtons:0});
+    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:hostBounds(dip),mouseButtons:0});
     setTestCursor(p);await delay(180);
     checks.push('external mouse drag is passed through instead of stealing the host cursor');
     await ev("window.__whaleShapeTest.publish()");await delay(150);
@@ -182,13 +218,13 @@ export async function verifyDesktop({ app, window, screen, setHost, setTestCurso
     assert.ok(summary.includes('5 小时额度')&&summary.includes('每周额度')&&summary.includes('63.0%')&&summary.includes('32.0%')&&summary.includes('12,480 token')&&!summary.includes('999'));
     fs.writeFileSync(path.join(output,'dashboard-subscription.png'),(await window.webContents.capturePage()).toPNG());
     await ev("window.fetch=__dashboardFetch;void 0");
-    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:screen.dipToScreenRect(null,{...dip,width:360,height:320})});await delay(250);
+    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:hostBounds({...dip,width:360,height:320})});await delay(250);
     for(const page of ['overview','usage','settings']){
       await ev(`document.querySelector('[data-page=${page}]').click()`);
       assert.equal(await ev("(()=>{const m=document.querySelector('.dshwv-menu').getBoundingClientRect(),t=document.querySelector('.whale-dashboard-tabs').getBoundingClientRect();return m.left>=0&&m.top>=0&&m.right<=innerWidth&&m.bottom<=innerHeight&&t.bottom<m.bottom})()"),true,'small viewport retains tabs and bounds');
     }
     fs.writeFileSync(path.join(output,'dashboard-small.png'),(await window.webContents.capturePage()).toPNG());
-    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:screen.dipToScreenRect(null,dip)});
+    await setHost({hostAlive:true,hostPid:123456,window:'0',visible:true,attached:true,bounds:hostBounds(dip)});
     await ev("WhaleAccountView.setMode('api')");
     checks.push('B dashboard retains settings inventory, legacy API budgets/history, token usage, distinct quota windows and stable tabs at 360x320');
     await ev("if(document.querySelector('.dshwv-menu-open'))document.querySelector('.dshwv-menu-btn').click()");
