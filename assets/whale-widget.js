@@ -373,6 +373,8 @@ var css = [
   // 代价是 img 的**矩形**（含透明边距）会吞掉点击 → 由 setupHitTest() 用命中图的**凸包**做 clip-path
   // 裁掉透明区（凸包包含全部不透明像素，不会裁到角色本身），"点到透明处穿透到下层"的行为得以保留。
   '.dshwv-img{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;display:block;pointer-events:auto;-webkit-user-drag:none;user-select:none;object-fit:contain;object-position:right bottom}',
+  // Codex pet：同一只角色换成精灵表播放层。background 只露出当前一格，尺寸与 .dshwv-img 完全一致。
+  '.dshwv-pet{position:absolute;right:0;bottom:0;width:59.45%;height:59.45%;pointer-events:auto;background-repeat:no-repeat;background-position:right bottom}',
   // v751（PR #119）：光标不再写 document.body.style.cursor —— cursor 是可继承属性，写 <body> 会让 Blink
   // 失效**整棵文档树**的样式；而它在点击链路上按下/抬手各写一次，紧接着 isWhaleHit() 的
   // getBoundingClientRect() 与泡泡行测量的 getComputedStyle()/scrollWidth 会强制刷新样式+布局，
@@ -380,8 +382,8 @@ var css = [
   // 现在光标由挂件自己的类承担：命中鲸鱼不透明像素时让 .dshwv-img 接过指针并显示 grab / grabbing。
   // 鲸鱼区域本来就在吞指针事件（onDocPointerDown 的 isWhaleHit），这不是新增拦截；
   // 新增影响的只有滚轮，由 onWhaleWheel 转交给指针下方真正可滚动的容器。
-  '.dshwv-root.dshwv-cursor-grab .dshwv-img{pointer-events:auto;cursor:grab}',
-  '.dshwv-root.dshwv-cursor-grabbing .dshwv-img{pointer-events:auto;cursor:grabbing}',
+  '.dshwv-root.dshwv-cursor-grab .dshwv-img,.dshwv-root.dshwv-cursor-grab .dshwv-pet{pointer-events:auto;cursor:grab}',
+  '.dshwv-root.dshwv-cursor-grabbing .dshwv-img,.dshwv-root.dshwv-cursor-grabbing .dshwv-pet{pointer-events:auto;cursor:grabbing}',
   // 拖动期间握点相对挂件固定，让整个盒接过指针以保持 grabbing（类由按下时加、endDrag 摘）
   '.dshwv-root.dshwv-dragging .dshwv-body{pointer-events:auto;cursor:grabbing}',
   '.dshwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026)}',
@@ -965,6 +967,10 @@ try {
 img.src = initRoleUrl
 img.alt = 'DeepSeek 余额'
 img.draggable = false
+// Codex pet 播放层：和 img 叠在同一位置，普通角色时隐藏。
+var petEl = document.createElement('div')
+petEl.className = 'dshwv-pet'
+petEl.style.display = 'none'
 
 var menuBtn = document.createElement('button')
 menuBtn.type = 'button'
@@ -1689,14 +1695,14 @@ var roleImportBtn = document.createElement('button')
 roleImportBtn.type = 'button'
 roleImportBtn.className = 'dshwv-roleimport'
 roleImportBtn.textContent = '导入'
-roleImportBtn.title = '导入自定义角色图片'
+roleImportBtn.title = '导入自定义角色图片或 Codex .pet 桌宠包'
 var rowRole = menuRow()
 rowRole.appendChild(menuLabel('角色'))
 rowRole.appendChild(roleBtn)
 rowRole.appendChild(roleImportBtn)
 var roleFileInput = document.createElement('input')
 roleFileInput.type = 'file'
-roleFileInput.accept = 'image/*'
+roleFileInput.accept = 'image/*,.pet,application/zip,application/x-zip-compressed'
 roleFileInput.style.display = 'none'
 roleBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleRolePanel() })
 roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); roleFileInput.click() })
@@ -5252,8 +5258,14 @@ function resRenderData(wrap, roles, bubbleImgs, audio) {
     roles.forEach(function (r) {
       anyImg = true
       var isDefault = r.id === 'default'
-      var tag = resMkTag(isDefault ? '默认角色' : '自定义角色', isDefault)
-      imgEnt.body.appendChild(resImgRow(r.url, r.name || r.id, '', [tag, resMkDel('删除', isDefault, function () { resDelRole(r.id) })]))
+      var tag = resMkTag(isDefault ? '默认角色' : (r.format === 'pet' ? 'PET 角色' : '自定义角色'), isDefault)
+      var row = resImgRow(r.format === 'pet' ? '' : r.url, r.name || r.id, '', [tag, resMkDel('删除', isDefault, function () { resDelRole(r.id) })])
+      imgEnt.body.appendChild(row)
+      // 资源列表里的缩略图同样只取 idle 第一格，避免把整张精灵表缩成一条。
+      if (r.format === 'pet' && r.pet) {
+        var thumb = row.querySelector('img')
+        petFrameUrl(r.url, r.pet, function (frame) { if (frame && thumb) thumb.src = frame })
+      }
     })
     bubbleImgs.forEach(function (im) {
       anyImg = true
@@ -11899,6 +11911,7 @@ function clampWidgetTop(v, maxT) {
 var body = document.createElement('div')
 body.className = 'dshwv-body'
 body.appendChild(img)
+body.appendChild(petEl)
 body.appendChild(bubbleBox)
 root.appendChild(body)
 root.appendChild(menuBtn)
@@ -13880,6 +13893,7 @@ function bubblePreviewInto(container, mods, widthPx) {
 //  - 正显示第 1 次点击泡泡:不切换内容,仅重置留存计时
 function whaleClick() {
   try {
+    petReact('wave', 900) // 点一下挥个手；生成中 / 等待用户时 petReact 自己会让路
     if (!bubbleOn) return
     if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return // 消耗/预警提醒期间点鲸鱼不动作(点泡泡才关)
     if (!bubbleShown) {
@@ -14722,6 +14736,7 @@ function setScale(v) {
   }
   state.top = clampWidgetTop(Math.min(Math.max(fy - r2.height, 0), Math.max(0, vp.h - r2.height)))
   express()
+  if (petState) paintPetFrame()
   // 恢复过渡必须延迟到下一帧：本帧 left/top 已在 none 下设置并提交，
   // 立即恢复会让浏览器对「刚改过的 left/top」重新评估并播放过渡动画
   // （翻转时叠加 transform .3s 更明显，表现为抽搐）。
@@ -15025,8 +15040,9 @@ function loadRoles() {
           if (roleList[i].id === saved) { found = roleList[i]; break }
         }
         if (found) {
-          // 角色仍在：若初始已按此角色渲染（initRoleUrl 一致）则不重复切换，只补全 name/panel
-          if (currentRole.id !== found.id) applyRole(found.id, found.name, found.url)
+          // 角色仍在：普通图若初始已按此角色渲染（initRoleUrl 一致）则不重复切换，只补全 name/panel。
+          // pet 必须再走一次 applyRole：首屏只有精灵表 URL，没有帧信息，播不了动画。
+          if (currentRole.id !== found.id || found.format === 'pet') applyRole(found.id, found.name, found.url)
           else renderRolePanel()
         } else if (saved && saved !== 'default') {
           // 保存的角色已被删除：回退默认鲸鱼娘
@@ -15124,14 +15140,210 @@ function makeNameCell(className, text) {
   outer.appendChild(inner)
   return outer
 }
+function roleById(id) {
+  for (var i = 0; i < roleList.length; i++) if (roleList[i] && roleList[i].id === id) return roleList[i]
+  return null
+}
+// —— Codex pet：按挂件状态切换精灵表的行，和 Codex 桌宠同一张表。——
+// 行序（@petx/core）：0 idle / 1 running-right / 2 running-left / 3 waving /
+// 4 jumping / 5 failed / 6 waiting / 7 running / 8 review。缺行时回退 idle。
+var PET_TRACKS = {
+  idle:    { row: 0, count: 6, fps: 8, loop: true },
+  drag:    { row: 1, count: 8, fps: 12, loop: true },
+  running: { row: 7, count: 6, fps: 10, loop: true },
+  waiting: { row: 6, count: 6, fps: 6, loop: true },
+  review:  { row: 8, count: 6, fps: 8, loop: true },
+  wave:    { row: 3, count: 4, fps: 8, loop: false },
+  jump:    { row: 4, count: 5, fps: 10, loop: false },
+  failed:  { row: 5, count: 8, fps: 8, loop: false },
+}
+var petTimer = null
+var petState = null
+var petMood = '' // '' | 'running' | 'waiting' | 'review' | 'failed' | 'wave' | 'jump'
+var petMoodUntil = 0
+function stopPet() {
+  try { if (petTimer) { clearInterval(petTimer); petTimer = null } } catch (err) {}
+  petState = null
+  petMood = ''
+  petMoodUntil = 0
+  try {
+    petEl.style.display = 'none'
+    petEl.style.backgroundImage = ''
+    img.style.visibility = ''
+  } catch (err) {}
+}
+function paintPetFrame() {
+  if (!petState) return
+  try {
+    var col = petState.frames[petState.index] || 0
+    var size = petEl.clientWidth || petEl.getBoundingClientRect().width
+    if (!size) return
+    // 格子是 192×208 的竖格，而播放层是正方形。用 contain 把整格放进正方形，
+    // 多余的高度留在上方（角色贴底），和静态角色的 object-position:right bottom 一致。
+    var scale = size / Math.max(petState.frameW, petState.frameH)
+    var cellW = petState.frameW * scale
+    var cellH = petState.frameH * scale
+    petEl.style.backgroundSize = (petState.columns * cellW) + 'px ' + (petState.rows * cellH) + 'px'
+    petEl.style.backgroundPosition = ((size - cellW) - col * cellW) + 'px ' + ((size - cellH) - petState.row * cellH) + 'px'
+  } catch (err) {}
+}
+function petTrackFor(name) {
+  var track = PET_TRACKS[name] || PET_TRACKS.idle
+  if (!petState) return track
+  // 短图集（行数不够）没有这一行 → 用 idle，避免播到空白格。
+  if (track.row >= petState.rows) return PET_TRACKS.idle
+  return track
+}
+function petApplyTrack(name) {
+  if (!petState) return
+  var track = petTrackFor(name)
+  if (petState.track === (track === PET_TRACKS.idle && name !== 'idle' ? 'idle' : name) && petState.row === track.row) return
+  var frames = []
+  for (var i = 0; i < track.count; i++) frames.push(i)
+  petState.frames = frames
+  petState.row = track.row
+  petState.index = 0
+  petState.track = track === PET_TRACKS.idle && name !== 'idle' ? 'idle' : name
+  petState.loop = track.loop
+  try { if (petTimer) clearInterval(petTimer) } catch (err) {}
+  petTimer = setInterval(stepPet, Math.round(1000 / track.fps))
+  paintPetFrame()
+}
+function stepPet() {
+  if (!petState || !petState.frames.length) return
+  // 一次性动作（挥手 / 跳跃 / 失败）播完一遍就结束，回到当前持续状态。
+  // 必须先清掉 mood：否则 petDesiredTrack 还会返回这个动作，等于无限重播。
+  if (!petState.loop && petState.index >= petState.frames.length - 1) {
+    if (petState.track === petMood) { petMood = ''; petMoodUntil = 0 }
+    var back = petDesiredTrack()
+    if (back === petState.track) {
+      petState.loop = true
+      petState.index = 0
+    }
+    petApplyTrack(back)
+    return
+  }
+  petState.index = (petState.index + 1) % petState.frames.length
+  paintPetFrame()
+}
+// 持续状态的优先级：拖动 > 失败 > 等待用户 > 审阅 > 生成中 > 待机。
+function petDesiredTrack() {
+  if (typeof drag !== 'undefined' && drag && drag.active && drag.moved) return 'drag'
+  if (petMood === 'failed' || petMood === 'wave' || petMood === 'jump') {
+    if (!petMoodUntil || Date.now() < petMoodUntil) return petMood
+    petMood = ''
+    petMoodUntil = 0
+  }
+  if (petMood === 'waiting' || petMood === 'review' || petMood === 'running') return petMood
+  return 'idle'
+}
+function petSync() {
+  if (!petState) return
+  var want = petDesiredTrack()
+  if (petState.track !== want) petApplyTrack(want)
+}
+// 一次性动作。生成中 / 等待用户时不打断，避免把正在跑的动画切掉。
+function petReact(name, holdMs) {
+  if (!petState) return
+  if (petMood === 'running' || petMood === 'waiting' || petMood === 'review') return
+  petMood = name
+  petMoodUntil = Date.now() + (holdMs || 0)
+  petApplyTrack(name)
+}
+function petSetMood(name) {
+  if (!petState) { petMood = name || ''; return }
+  var next = name || ''
+  if (petMood === next) { petSync(); return }
+  petMood = next
+  petMoodUntil = 0
+  petApplyTrack(petDesiredTrack())
+}
+var petResultSeenAt = 0
+// activity：{ working, result, at }，来自 /dsh-whale/wait.json。pending 是正在等用户的提问/授权。
+function petApplyActivity(activity, pending) {
+  if (!petState) return
+  var act = activity || {}
+  var at = Number(act.at) || 0
+  if (pending && pending.kind) {
+    // 提问用等待，授权用审阅：两行都是“停下来看你”的姿态，授权更偏核对。
+    petSetMood(pending.kind === 'approval' ? 'review' : 'waiting')
+    return
+  }
+  if (act.working) { petSetMood('running'); return }
+  // 一轮刚结束：失败类播一次失败，被打断跳一下，正常完成挥手。at 只在每次新的结束时变化。
+  if (at && at !== petResultSeenAt) {
+    petResultSeenAt = at
+    var kind = String(act.result || '')
+    petMood = ''
+    petMoodUntil = 0
+    if (kind === 'error' || kind === 'blocked' || kind === 'max-tokens') petReact('failed', 1600)
+    else if (kind === 'aborted' || kind === 'interrupted') petReact('jump', 900)
+    else if (kind === 'completed') petReact('wave', 900)
+    else petSetMood('')
+    return
+  }
+  if (petMood === 'running' || petMood === 'waiting' || petMood === 'review') petSetMood('')
+}
+function startPet(url, pet) {
+  try { if (petTimer) { clearInterval(petTimer); petTimer = null } } catch (err) {}
+  petState = {
+    columns: Number(pet.columns) || 8,
+    rows: Number(pet.rows) || 9,
+    frameW: Number(pet.frameWidth) || 192,
+    frameH: Number(pet.frameHeight) || 208,
+    frames: [0],
+    row: 0,
+    index: 0,
+    track: '',
+    loop: true,
+  }
+  petEl.style.backgroundImage = 'url("' + url + '")'
+  petEl.style.display = 'block'
+  img.style.visibility = 'hidden'
+  petApplyTrack(petDesiredTrack())
+}
+// 缩略图 / 命中图不能用整张精灵表：裁出 idle 第一格，其余透明。
+function petFrameUrl(url, pet, cb) {
+  try {
+    var probe = new Image()
+    probe.onload = function () {
+      try {
+        var fw = Number(pet.frameWidth) || 192
+        var fh = Number(pet.frameHeight) || 208
+        var col = (pet.frames && pet.frames.length) ? (Number(pet.frames[0]) || 0) : 0
+        var cols = Number(pet.columns) || 8
+        var c = document.createElement('canvas')
+        c.width = fw
+        c.height = fh
+        c.getContext('2d').drawImage(probe, (col % cols) * fw, Math.floor(col / cols) * fh, fw, fh, 0, 0, fw, fh)
+        cb(c.toDataURL('image/png'))
+      } catch (err) { cb('') }
+    }
+    probe.onerror = function () { cb('') }
+    probe.src = url
+  } catch (err) { cb('') }
+}
 function applyRole(id, name, url) {
   currentRole = { id: id, name: name, url: url }
-  img.src = url
+  var role = roleById(id)
+  var pet = role && role.format === 'pet' && role.pet ? role.pet : null
+  if (pet) startPet(url, pet)
+  else stopPet()
+  // pet 的可见像素由 petEl 画，img 只是命中图的载体，不能把整张精灵表塞进去，
+  // 否则凸包会把 8 列都包住，点空白处也点到角色。
+  if (!pet) img.src = url
   setRoleBtnText(name)
   try { localStorage.setItem('dshw-role', id) } catch (err) {}
   hitReady = false
   hitFailed = false
-  setupHitTest(url)
+  if (pet) {
+    petFrameUrl(url, pet, function (frame) {
+      if (currentRole.id !== id) return
+      setupHitTest(frame || url)
+    })
+  } else {
+    setupHitTest(url)
+  }
   closeRolePanel()
   renderRolePanel()
 }
@@ -15166,18 +15378,21 @@ function renderRolePanel() {
       item.className = 'dshwv-roleitem' + (currentRole.id === r.id ? ' dshwv-roleitem-cur' : '')
       var thumb = document.createElement('img')
       thumb.className = 'dshwv-rolethumb'
-      thumb.src = r.url
+      thumb.src = r.format === 'pet' ? '' : r.url
       thumb.alt = ''
       thumb.draggable = false
+      if (r.format === 'pet' && r.pet) {
+        petFrameUrl(r.url, r.pet, function (frame) { if (frame) thumb.src = frame })
+      }
       var name = makeNameCell('dshwv-rolename', r.name)
       // 动图标签 + 名称包进同一容器（总宽受控）：标签在前固定宽，名称超长省略，
       // 不会被长名称挤出/撑宽面板
       var nameWrap = document.createElement('span')
       nameWrap.className = 'dshwv-rolenamewrap'
-      if (r.format === 'gif' || r.format === 'apng') {
+      if (r.format === 'gif' || r.format === 'apng' || r.format === 'pet') {
         var gifTag = document.createElement('span')
         gifTag.className = 'dshwv-roleGifTag'
-        gifTag.textContent = r.format === 'apng' ? 'APNG' : 'GIF'
+        gifTag.textContent = r.format === 'apng' ? 'APNG' : (r.format === 'pet' ? 'PET' : 'GIF')
         nameWrap.appendChild(gifTag)
       }
       nameWrap.appendChild(name)
@@ -15338,11 +15553,43 @@ function isAnimatedPng(bytes) {
     return false
   } catch (err) { return false }
 }
+function isPetFile(f) {
+  if (!f) return false
+  return /\.pet$/i.test(f.name || '') || /zip/i.test(f.type || '')
+}
+function uploadPetFile(f) {
+  try {
+    var reader = new FileReader()
+    reader.onload = function () {
+      var name = String(f.name || '').replace(/\.pet$/i, '').replace(/\.zip$/i, '').trim().slice(0, 16)
+      fetch(ROLE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, format: 'pet', image: reader.result }),
+      })
+        .then(function (r) { return r.json() })
+        .then(function (d) {
+          if (!d || !d.ok || !Array.isArray(d.roles)) return
+          roleList = d.roles
+          renderRolePanel()
+          var newest = null
+          for (var i = 0; i < roleList.length; i++) {
+            if (roleList[i].id !== 'default' && (!newest || roleList[i].createdAt > newest.createdAt)) newest = roleList[i]
+          }
+          if (newest) applyRole(newest.id, newest.name, roleUrl(newest.id))
+        })
+        .catch(function () {})
+    }
+    reader.readAsDataURL(f)
+  } catch (err) {}
+}
 function onRoleFileChosen(input) {
   try {
     var f = input && input.files && input.files[0]
     input.value = ''
     if (!f) return
+    // Codex .pet（以及同结构的 .zip）不是图片：整包上传，由服务端拆出精灵表。
+    if (isPetFile(f)) { uploadPetFile(f); return }
     if (!/^image\//.test(f.type)) return
     var reader = new FileReader()
     reader.onload = function () {
@@ -16607,6 +16854,9 @@ function applyHitClip(clip) {
   try {
     img.style.clipPath = clip || ''
     img.style.webkitClipPath = clip || ''
+    // pet 播放层盖在 img 上接指针，裁切必须同步，否则整格矩形都会挡住下层。
+    petEl.style.clipPath = clip || ''
+    petEl.style.webkitClipPath = clip || ''
   } catch (err) {}
 }
 function convexHull(pts) {
@@ -16726,7 +16976,9 @@ function onDocPointerMove(e) {
   if (!drag || !drag.active) return
   var dx = e.clientX - drag.startX
   var dy = e.clientY - drag.startY
-  if (dx * dx + dy * dy >= CLICK_SQ) drag.moved = true
+  if (dx * dx + dy * dy >= CLICK_SQ) {
+    if (!drag.moved) { drag.moved = true; petSync() } // 从“按下”变成“拖动”：切到跑步
+  }
   // Keep the pre-drag flip orientation while dragging (state.h/v stay as they
   // were); on release endDrag() recomputes the anchors and settle() flips the
   // class with a smooth transition instead of reverting instantly.
@@ -16959,6 +17211,7 @@ function endDrag(e, clickAllowed, cancelled) {
   document.removeEventListener('pointercancel', onDocPointerCancel, true)
   pressUp()
   root.classList.remove('dshwv-dragging')
+  petSync() // 松手：拖动中的跑步回到当前持续状态
   // issue #79 缺陷2：pointercancel（Android 把手势判成页面滚动、或系统抢走手势时派发）的
   // clientX/clientY 常常是 0，而 endDrag 又是「按坐标收尾 + saveConfig() 落盘」——
   // 于是位移被算成"一口气拖到了 (0,0)"，归边判定吃进左上角，损坏锚点被写进 localStorage。
@@ -17057,6 +17310,8 @@ function applyAnchorPos() {
 window.addEventListener('resize', function () {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
+  // 精灵表按像素定位，挂件缩放后要重算当前帧，否则格子会被拉变形。
+  if (petState) paintPetFrame()
 })
 
 var rect0 = root.getBoundingClientRect()
@@ -17211,6 +17466,8 @@ function pollWaitState() {
         if (!d || !d.ok) return
         if (typeof d.sessionName === 'string') waitSessionName = d.sessionName
         var p = d.pending || null
+        // pet 动画：生成中跑起来，等用户时切等待，一轮出结果时挥手 / 跳一下 / 播失败。
+        petApplyActivity(d.activity, p)
         if (!p || !p.kind) {
           // 挂起已解除：收起泡泡，并允许下一次挂起照常响
           waitSeenId = ''
