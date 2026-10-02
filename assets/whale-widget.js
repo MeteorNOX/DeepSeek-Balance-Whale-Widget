@@ -7938,7 +7938,11 @@
       }
       return RANDOM_GROUPS[RANDOM_GROUPS.length - 1].lines();
     }
+    function resetBubbleLineStyles() {
+      [labelEl, amountEl, hintEl].forEach(function (el) { el.removeAttribute('style'); });
+    }
     function applyBubbleLines(lines) {
+      resetBubbleLineStyles();
       if (lines && lines.gif) {
         gifEl.style.display = 'block';
         labelEl.style.display = 'none';
@@ -7963,6 +7967,7 @@
     
     
     function restoreBubbleLines() {
+      resetBubbleLineStyles();
       gifEl.style.display = 'none';
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
@@ -8166,7 +8171,7 @@
       var entry = bubbleSceneEpoch;
       bubbleScene = { kind: kind, ttlMs: ttlMs || 0 };
       bubbleShown = true;
-      costBubbleActive = kind === 'cost';
+      costBubbleActive = kind === 'cost' || kind === 'subscription-cost';
       bubbleRandomActive = kind === 'random';
       // Build once at entry. Data callbacks cannot repaint either live buffer.
       bubbleFrames.open(function (parts) {
@@ -8186,7 +8191,7 @@
         if (!committed) {
           bubbleScene = previousScene;
           bubbleShown = wasOpen;
-          costBubbleActive = !!previousScene && previousScene.kind === 'cost';
+          costBubbleActive = !!previousScene && (previousScene.kind === 'cost' || previousScene.kind === 'subscription-cost');
           bubbleRandomActive = !!previousScene && previousScene.kind === 'random';
           if (!wasOpen) bubbleCloseVisual();
           return;
@@ -8197,7 +8202,7 @@
     }
     function bubbleAutoClose() {
       bubbleTtlTimer = null;
-      if (bubbleScene && bubbleScene.kind === 'cost') {
+      if (costBubbleActive) {
         if (whaleSysSwapNext()) return;
         hideCostBubble();
         return;
@@ -8224,8 +8229,27 @@
     function bubbleRenderRandom(lines) {
       applyBubbleLines(lines);
     }
+    function bubbleRenderSubscription(summary) {
+      summary = summary || ({ label: 'Codex 剩余额度', amount: '正在读取…', hint: '点击气泡查看小鲸鱼留言' });
+      applyBubbleLines([
+        { t: summary.label || 'Codex 剩余额度', s: 'A' },
+        { t: summary.amount || '暂无可用额度快照', s: 'B', w: true },
+        { t: summary.hint || '', s: 'C' }
+      ]);
+      var isQuota = summary.amount && summary.amount.indexOf('5h 额度') === 0;
+      labelEl.style.fontSize = 'calc(var(--dshw-u) * 58)';
+      labelEl.style.lineHeight = '1.1';
+      amountEl.style.fontSize = isQuota ? 'calc(var(--dshw-u) * 88)' : 'calc(var(--dshw-u) * 72)';
+      amountEl.style.lineHeight = '1.1';
+      amountEl.style.whiteSpace = isQuota ? 'nowrap' : 'normal';
+      hintEl.style.fontSize = 'calc(var(--dshw-u) * 62)';
+      hintEl.style.lineHeight = '1.1';
+      hintEl.style.whiteSpace = 'nowrap';
+      hintEl.style.minHeight = '0';
+    }
     function bubbleRenderCost(amount, notice) {
       notice = notice || WhaleTurnNotice.snapshot({ amount: amount }, state.currency);
+      resetBubbleLineStyles();
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
       labelEl.textContent = notice.label;
@@ -8298,6 +8322,39 @@
       } else {
         sceneOpen('normal', bubbleRenderDefault, BUBBLE_MS);
       }
+    }
+    function bubbleItemUsesApi(item) {
+      if (!item || item.kind === 'normal') return true;
+      if (item.kind !== 'custom' || !Array.isArray(item.modules)) return false;
+      return item.modules.some(function (mod) {
+        if (!mod) return false;
+        if (mod.type === 'balance' || mod.type === 'today') return true;
+        var text = String(mod.text || '') + ' ' + String(mod.tpl || '');
+        return /当前\s*API\s*余额|\{(?:balance|expense)_api\}/i.test(text);
+      });
+    }
+    function bubblePickSubscriptionStep(step) {
+      if (!bubbleIsChoice(step)) return step;
+      var options = bubbleChoiceOptions(step).filter(function (option) {
+        return option && !bubbleItemUsesApi(option.item);
+      });
+      return options.length ? bubblePickChoiceStep({ kind: 'choice', options: options }) : null;
+    }
+    function bubbleShowSubscriptionNext() {
+      while (bubbleSeqIdx < bubbleSeq.length) {
+        var step = bubbleSeq[bubbleSeqIdx++];
+        var item = bubblePickSubscriptionStep(step);
+        if (!item || bubbleItemUsesApi(item)) continue;
+        if (item.kind === 'random') {
+          var lines = pickRandomLines();
+          bubbleRandomLines = lines;
+          sceneOpen('random', function () { bubbleRenderRandom(lines); }, BUBBLE_MS);
+        } else if (item.kind === 'custom') {
+          sceneOpen('custom', function () { bubbleRenderModules(item.modules || []); }, BUBBLE_MS);
+        }
+        return;
+      }
+      hideBubble();
     }
     function bubbleModuleFontU(level) {
       var n = Number(level) || 6;
@@ -8736,8 +8793,14 @@
     function whaleClick() {
       try {
         if (!bubbleOn) return;
-        if (window.WhaleAccountView?.mode === 'subscription') { window.WhaleAccountView.toggleBubble(root); return; }
-        if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return;
+        if (window.WhaleAccountView?.mode === 'subscription') {
+          if (costBubbleActive || bubbleScene && bubbleScene.kind === 'alert') return;
+          if (!bubbleShown) showSubscriptionBubble();
+          else if (bubbleRoundOn && bubbleSeqIdx > 1) { bubbleSeqIdx = 0; bubbleShowSubscriptionNext(); }
+          else bubbleResetTtl();
+          return;
+        }
+        if (costBubbleActive || bubbleScene && bubbleScene.kind === 'alert') return;
         if (!bubbleShown) {
           bubbleRoundOn = true;
           bubbleSeqIdx = 0;
@@ -8756,7 +8819,7 @@
     function bubbleNext() {
       try {
         if (!bubbleShown) return;
-        if (bubbleScene && bubbleScene.kind === 'cost') {
+        if (costBubbleActive) {
           hideCostBubble();
           return;
         }
@@ -8765,19 +8828,31 @@
           return;
         }
         if (bubbleRoundOn && bubbleSeqIdx < bubbleSeq.length) {
-          bubbleShowSeqNext();
+          if (window.WhaleAccountView?.mode === 'subscription') bubbleShowSubscriptionNext();
+          else bubbleShowSeqNext();
           return;
         }
         hideBubble();
       } catch (err) {}
     }
     function showBubble() {
-      if (window.WhaleAccountView?.mode === 'subscription') return;
+      if (window.WhaleAccountView?.mode === 'subscription') { showSubscriptionBubble(); return; }
       if (!bubbleOn) return;
       if (costBubbleActive) return;
       bubbleRoundOn = true;
       bubbleSeqIdx = 0;
       bubbleShowSeqNext();
+    }
+    function showSubscriptionBubble() {
+      if (!bubbleOn || !window.WhaleAccountView) return;
+      bubbleRoundOn = true;
+      bubbleSeqIdx = 0;
+      sceneOpen('subscription', function () { bubbleRenderSubscription(); }, BUBBLE_MS);
+      var requestEpoch = bubbleSceneEpoch;
+      Promise.resolve(window.WhaleAccountView.refresh()).then(function (summary) {
+        if (!summary || requestEpoch !== bubbleSceneEpoch || !bubbleScene || bubbleScene.kind !== 'subscription') return;
+        sceneOpen('subscription', function () { bubbleRenderSubscription(summary); }, BUBBLE_MS);
+      }).catch(function () {});
     }
     function hideBubble() {
       bubbleClearAll();
@@ -8804,6 +8879,12 @@
         notice: notice,
         rank: 3
       });
+    }
+    function showSubscriptionCostBubble(notice) {
+      if (!bubbleOn || !turnCostOn || !window.WhaleAccountView) return;
+      var summary = window.WhaleAccountView.notice(notice);
+      if (!summary) return;
+      whaleSysPush({ kind: 'subscription-cost', summary: summary, rank: 3 });
     }
     function hideCostBubble() {
       if (whaleSysSwapNext()) return;
@@ -8864,6 +8945,10 @@
           sceneOpen('cost', function () {
             bubbleRenderCost(item.amount, item.notice);
           }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
+        } else if (item.kind === 'subscription-cost') {
+          sceneOpen('subscription-cost', function () {
+            bubbleRenderSubscription(item.summary);
+          }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
         } else {
           sceneOpen('alert', function () {
             bubbleRenderModules(item.mods || []);
@@ -8890,6 +8975,10 @@
         if (item.kind === 'cost') {
           sceneOpen('cost', function () {
             bubbleRenderCost(item.amount, item.notice);
+          }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
+        } else if (item.kind === 'subscription-cost') {
+          sceneOpen('subscription-cost', function () {
+            bubbleRenderSubscription(item.summary);
           }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
         } else {
           sceneOpen('alert', function () {
@@ -9268,7 +9357,7 @@
       try {
         if (pressAudio) { pressAudio.pause(); pressAudio.removeAttribute('src'); pressAudio.load(); }
         if (releaseAudio) { releaseAudio.pause(); releaseAudio.removeAttribute('src'); releaseAudio.load(); }
-        if (window.WhaleAudio) { window.WhaleAudio.stop('gesture-press'); window.WhaleAudio.stop('gesture-release'); ['press', 'release'].forEach(function (slot) { if (!audioGroupSlotEmpty(soundSet, slot)) window.WhaleAudio.warm('/dsh-whale/sound/' + slot + '.mp3?set=' + encodeURIComponent(soundSet)).catch(function () {}); }); pressAudio = null; releaseAudio = null; return; }
+        if (window.WhaleAudio) { if (window.WhaleFeedback?.cancelGesture) window.WhaleFeedback.cancelGesture(); else window.WhaleAudio.stop('gesture'); ['press', 'release'].forEach(function (slot) { if (!audioGroupSlotEmpty(soundSet, slot)) window.WhaleAudio.warm('/dsh-whale/sound/' + slot + '.mp3?set=' + encodeURIComponent(soundSet)).catch(function () {}); }); pressAudio = null; releaseAudio = null; return; }
         var pEmpty = audioGroupSlotEmpty(soundSet, 'press');
         var rEmpty = audioGroupSlotEmpty(soundSet, 'release');
         if (pEmpty) {
@@ -11052,7 +11141,7 @@
         if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu-btn')) return;
         if (e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
         if (e.target.closest('.dshwv-rolebtn') || e.target.closest('.dshwv-audiobtn') || e.target.closest('.dshwv-roleimport') || e.target.closest('.dshwv-audioimport')) return;
-        if (e.target.closest('.dshwv-menu,.whale-account-card')) {
+        if (e.target.closest('.dshwv-menu')) {
           closeRolePanel();
           closeAudioGroupPanel();
           return;
@@ -11065,10 +11154,8 @@
       if (e.button !== 0 && e.pointerType === 'mouse') return;
       if (!isWhaleHit(e)) {
         if (!outsideDismissOn) return;
-        if (document.querySelector('.whale-account-card')) {
-          if (window.WhaleAccountView) window.WhaleAccountView.close();
-        } else if (bubbleShown) {
-          if (bubbleScene && bubbleScene.kind === 'cost') hideCostBubble();
+        if (bubbleShown) {
+          if (costBubbleActive) hideCostBubble();
           else if (bubbleScene && bubbleScene.kind === 'alert') hideUsageAlertBubble();
           else hideBubble();
         }
@@ -11124,7 +11211,7 @@
     function onDocClickStopper(e) {
       if (e.target && e.target.closest) {
         if (e.target.closest('.dshwv-fx-info')) return;
-        if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu,.whale-account-card') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
+        if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
       }
       if (!isWhaleHit(e)) return;
       try {
@@ -11136,7 +11223,7 @@
       try {
         if (!menuBtnHide) return;
         if (e.target && e.target.closest) {
-          if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu,.whale-account-card') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
+          if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
         }
         if (!isWhaleHit(e)) return;
         e.preventDefault();
@@ -11164,7 +11251,7 @@
       try {
         el = document.elementFromPoint(e.clientX, e.clientY);
       } catch (err) {}
-      if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu,.whale-account-card') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
+      if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
         setWidgetCursor('');
         if (!menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible');
         return;
@@ -11198,7 +11285,7 @@
       setWidgetCursor(isWhaleHit(e) ? 'grab' : '');
       if (clickAllowed && !drag.moved) {
         whaleClick();
-        refresh(true);
+        if (window.WhaleAccountView?.mode !== 'subscription') refresh(true);
         return;
       }
       e = e && Number.isFinite(e.clientX) ? e : { clientX: drag.startX + state.left - drag.origLeft, clientY: drag.startY + state.top - drag.origTop };
@@ -11300,7 +11387,7 @@
         refresh: refresh, usage: refreshUsageMain, next: bubbleNext, close: hideBubble,
         poll: pollLastTurn, importRole: onRoleFileChosen, importBubble: bubbleUploadImg,
         openHistory: openUsageRecordsWindow,
-        showCost: showCostBubble,
+        showCost: showCostBubble, showSubscriptionCost: showSubscriptionCostBubble,
         open: whaleClick,
         queue: function (items) { hideBubble(); bubbleSeq = items; },
         place: function (x, y, flip) { state.left = x; state.top = y; state.flip = !!flip; express(); },
@@ -11432,7 +11519,7 @@
           if (!fresh) return;
           var notice = WhaleTurnNotice.snapshot(d, state.currency);
           window.dispatchEvent(new CustomEvent('whale-turn-notice', {detail:notice}));
-          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { if(turnCostOn)window.WhaleAccountView.notice(notice); return; }
+          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { showSubscriptionCostBubble(notice); return; }
           if (notice.completionKind === 'success') playTaskEndSound();
           else if (typeof window !== 'undefined' && window.WhaleFeedback) window.WhaleFeedback.play(notice.completionKind, '', soundOn ? soundVol : 0);
           showCostBubble(notice.amount, notice);

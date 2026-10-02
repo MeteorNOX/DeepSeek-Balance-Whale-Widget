@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   let ctx, idle;
-  const buffers = new Map(), pending = new Map(), active = new Map(), epochs = new Map();
+  const buffers = new Map(), pending = new Map(), active = new Map(), completions = new Map(), epochs = new Map();
   function context() { if (!ctx || ctx.state === 'closed') ctx = new AudioContext(); return ctx; }
   function touch() { clearTimeout(idle); idle = setTimeout(() => { stop(); buffers.clear(); pending.clear(); const old = ctx; ctx = null; old?.close().catch(() => {}); }, 60000); }
   async function warm(url) {
@@ -14,9 +14,11 @@
     pending.set(url, job); return job;
   }
   function stop(channel) {
-    for (const key of channel ? [channel] : [...new Set([...active.keys(), ...epochs.keys()])]) {
+    for (const key of channel ? [channel] : [...new Set([...active.keys(), ...completions.keys(), ...epochs.keys()])]) {
       epochs.set(key, (epochs.get(key) || 0) + 1);
-      for (const node of active.get(key) || []) { try { node.stop(); } catch {} }
+      const nodes = active.get(key) || [];
+      for (const node of nodes) { try { node.stop(); } catch {} }
+      completions.get(key)?.();
       active.delete(key);
     }
   }
@@ -41,7 +43,19 @@
         for (let i = 0; i < tones.length; i++) { const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(tones[i], now); o.connect(gain); nodes.push(o); o.start(now + i * .035); o.stop(now + .19); }
       }
       active.set(channel, nodes);
-      nodes[nodes.length - 1].onended = () => { gain.disconnect(); if (active.get(channel) === nodes) active.delete(channel); };
+      await new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          try { gain.disconnect(); } catch {}
+          if (active.get(channel) === nodes) active.delete(channel);
+          if (completions.get(channel) === finish) completions.delete(channel);
+          resolve();
+        };
+        completions.set(channel, finish);
+        nodes[nodes.length - 1].onended = finish;
+      });
     } catch { /* Missing or unsupported audio must never block interaction. */ }
   }
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => { if (document.hidden) { stop(); ctx?.suspend().catch(() => {}); } });

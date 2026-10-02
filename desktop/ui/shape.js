@@ -20,7 +20,7 @@
     const add=(el,opening=false)=>{if(!visible(el,opening))return;const r=bounds(el);if(!r)return;const key=JSON.stringify(r);if(!seen.has(key)){seen.add(key);result.push(r);}};
     // The region excludes all empty client space even while a menu accepts input.
     document.querySelectorAll('.dshwv-img,.dshwv-pop-open,.dshwv-menu-btn-visible,.dshwv-menu-open').forEach(e=>add(e,true));
-    document.querySelectorAll('dialog[open],.whale-account-card,.dshwv-rolelist,.dshwv-audiolist,.dshwv-qedit,.dshwv-usagepanel,.dshwv-custmenu,.dshwv-tplhelp,.dshwv-fx-info,#toast:not([hidden])').forEach(e=>add(e));
+    document.querySelectorAll('dialog[open],.dshwv-rolelist,.dshwv-audiolist,.dshwv-qedit,.dshwv-usagepanel,.dshwv-custmenu,.dshwv-tplhelp,.dshwv-fx-info,#toast:not([hidden])').forEach(e=>add(e));
     // Modal backdrops are viewport-sized. Include their cards, not the backdrop.
     function card(el,depth=0){if(!visible(el))return;const r=el.getBoundingClientRect();if(depth<3&&r.width>=innerWidth*.95&&r.height>=innerHeight*.95){for(const child of el.children)card(child,depth+1);}else add(el);}
     document.querySelectorAll('[class*="mask"]').forEach(e=>{if(!e.closest('.dshwv-root'))card(e);});
@@ -33,7 +33,7 @@
   // changing its own attributes or the document viewport. Track the surfaces too.
   const observed=new Set(),resizeObserver=new ResizeObserver(request);
   function trackSurfaces(){
-    const targets=new Set(document.querySelectorAll('.dshwv-img,.dshwv-root,.dshwv-menu,dialog,.whale-account-card,[class*="mask"]>*'));
+    const targets=new Set(document.querySelectorAll('.dshwv-img,.dshwv-root,.dshwv-menu,dialog,[class*="mask"]>*'));
     targets.add(document.documentElement);
     for(const el of observed)if(!targets.has(el)){resizeObserver.unobserve(el);observed.delete(el);}
     for(const el of targets)if(!observed.has(el)){observed.add(el);resizeObserver.observe(el);}

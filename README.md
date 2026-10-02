@@ -2,11 +2,13 @@
 
 **Codex v0.3.0 · For-Codex 分支**
 
-仓库所有者为 [MeteorNOX](https://github.com/MeteorNOX)；本次由协作者 Yang-huai406 发布，不涉及所有权变更。本机用户已确认本次光标修复生效；长期显示稳定性、Mac 实机及真实订阅账号仍有待验证项，见下方限制。
+> **维护范围：仅 macOS。** Windows 相关源码与安装脚本暂时保留，便于对照上游和减少合并冲突，但本分支不再构建、测试或维护 Windows 版本，也不保证其可用性。
+
+仓库所有者为 [MeteorNOX](https://github.com/MeteorNOX)；本分支由协作者 Yang-huai406 维护，不涉及所有权变更。macOS 长期显示稳定性及真实订阅账号仍有待持续验证，见下方限制。
 
 Codex 适配维护：[Yang-huai406](https://github.com/Yang-huai406)。上游及 macOS 贡献者见文末致谢。
 
-用于 Codex 的 Windows/macOS 挂件：查看当前 API 余额、本机 token 和订阅额度快照；可跟随 Codex，也可独立留在桌面。
+用于 Codex 的 macOS 挂件：查看当前 API 余额、本机 token 和订阅额度快照；可跟随 Codex，也可独立留在桌面。
 
 ## 界面与兼容性
 
@@ -29,9 +31,9 @@ Codex 适配维护：[Yang-huai406](https://github.com/Yang-huai406)。上游及
 
 下载 `api-balance-whale-v0.3.0.zip` 并完整解压。附带 SHA-256 用于校验；源码和 GitHub 文档在 `api-balance-whale-v0.3.0-source.zip`。这不是预装运行时的离线 EXE，首次安装需联网下载 Electron。
 
-需要包含 npm 的 Node.js 24+ 与支持插件功能的 Codex 桌面应用，桌面组件使用 Electron 44.3.0。Windows 本机验证环境为 x64；不要从 ZIP 内直接运行安装脚本。
+需要包含 npm 的 Node.js 24+ 与支持插件功能的 Codex 桌面应用，桌面组件使用 Electron 44.3.0；不要从 ZIP 内直接运行安装脚本。
 
-**Windows**：把完整包解压到固定目录，运行 `安装插件.cmd`。也可在 Windows PowerShell 中执行：
+**Windows（遗留、不维护）**：下列脚本仅作为上游遗留代码保留，本分支不再验证、发布或提供 Windows 支持：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-package.ps1 -CheckOnly
@@ -78,7 +80,7 @@ macOS 运行 `回滚 Mac 更新.command`（如该平台包提供），或 `node 
 
 ## 已知限制
 
-- 本次通过关闭 Windows 鼠标移动转发修复光标干扰，用户已确认生效；偶发显示与多设备兼容性仍需持续验证。Windows 挂件默认软件合成；这是兼容措施，短时测试通过不代表所有设备已根治。
+- Windows 代码仅为减少上游合并冲突而保留，已经退出本分支的维护和验证范围。
 - Mac 脚本目前安装桌面组件和 LaunchAgent，不自动完成 Codex 插件市场的技能/MCP 注册；相关平台流程仍待实机补充验证。
 
 - macOS Apple Silicon/Intel、Spaces、多屏、睡眠唤醒仍需实机验收。

@@ -160,7 +160,7 @@ test('macOS only keeps the transparent window interactive for opted-in outside d
     vm.createContext(box); vm.runInContext(source.slice(start, end), box); vm.runInContext('update()', box);
     return calls;
   };
-  for (const selector of ['.dshwv-menu-open', '.dshwv-pop-open', '.whale-account-card']) {
+  for (const selector of ['.dshwv-menu-open', '.dshwv-pop-open']) {
     assert.deepEqual(run('darwin', selector, true), [true], selector + ' must receive a blank click when enabled on macOS');
     assert.deepEqual(run('darwin', selector, false), [], selector + ' must stay click-through when disabled on macOS');
     assert.deepEqual(run('win32', selector, true), [], 'Windows keeps native region-based click-through behavior');
@@ -171,12 +171,11 @@ test('an opted-in blank pointer press closes the popup opened from the character
   const source = await fs.readFile(new URL('../assets/whale-widget.js', import.meta.url), 'utf8');
   const start = source.indexOf('    function onDocPointerDown(e)');
   const end = source.indexOf('    function onDocPointerMove(e)', start);
-  const run = ({ account = false, scene = null, enabled = true } = {}) => {
+  const run = ({ scene = null, enabled = true } = {}) => {
     const calls = [];
     const box = {
-      menuOpen: false, bubbleShown: !account, bubbleScene: scene, outsideDismissOn: enabled,
-      document: { querySelector: selector => account && selector === '.whale-account-card' ? {} : null },
-      window: { WhaleAccountView: { close: () => calls.push('account') } },
+      menuOpen: false, bubbleShown: true, bubbleScene: scene, costBubbleActive: scene?.kind === 'cost' || scene?.kind === 'subscription-cost', outsideDismissOn: enabled,
+      document: { querySelector: () => null }, window: {},
       closeMenu: () => calls.push('menu'), isWhaleHit: () => false,
       hideBubble: () => calls.push('bubble'), hideCostBubble: () => calls.push('cost'),
       hideUsageAlertBubble: () => calls.push('alert'),
@@ -186,8 +185,8 @@ test('an opted-in blank pointer press closes the popup opened from the character
     return calls;
   };
   assert.deepEqual(run(), ['bubble']);
-  assert.deepEqual(run({ account: true }), ['account']);
   assert.deepEqual(run({ scene: { kind: 'cost' } }), ['cost']);
+  assert.deepEqual(run({ scene: { kind: 'subscription-cost' } }), ['cost']);
   assert.deepEqual(run({ scene: { kind: 'alert' } }), ['alert']);
   assert.deepEqual(run({ enabled: false }), []);
 });
