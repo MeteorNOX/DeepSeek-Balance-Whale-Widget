@@ -3271,6 +3271,7 @@ function usageAlertBudgetEditor(key, onSave) {
 // ===== 自定义 API 模型（v657）：状态 / 拉取 / 每模型提醒 / 模型设置窗口 =====
 var apiModels = [] // 最近一次拉到的模型列表（含实时余额 / 今日已用）
 var apiTemplates = [] // 可选厂商模板
+var apiFx = null // 自动汇率（host 随模型列表下发）：{ rate, at, source, error }
 var apiModelsLoaded = false
 var apiAlertFired = {} // modelId+阈值 → 已弹过（低于阈值后恢复会复位）
 var apiBudgetFired = {} // modelId+当日+金额 → 已弹过
@@ -3355,6 +3356,7 @@ function apiModelsFetch(tries) {
       if (d && d.ok && Array.isArray(d.models)) {
         apiModels = d.models
         apiTemplates = Array.isArray(d.templates) ? d.templates : []
+        apiFx = d.fx && typeof d.fx === 'object' ? d.fx : null
         apiModelsLoaded = true
         apiModelsError = ''
         apiModelsLoading = false
@@ -3684,6 +3686,34 @@ function openApiModelPanel(modelId) {
     card.appendChild(apiPanelRow('输出', pOut))
     card.appendChild(apiPanelRow('币种', pCur))
     card.appendChild(apiPanelRow('汇率', pRate))
+    // 自动汇率（USD→CNY）：勾选后记账按 host 抓到的实时汇率换算；取不到时回到上面手填的兜底汇率
+    var pAuto = document.createElement('input')
+    pAuto.type = 'checkbox'
+    pAuto.className = 'dshwv-check'
+    pAuto.checked = prc.rateAuto === true
+    pAuto.title = '按实时汇率（USD→CNY）换算，每 12 小时自动刷新一次；取不到时用上面填写的兜底汇率'
+    card.appendChild(apiPanelRow('自动汇率', pAuto))
+    var pFxHint = document.createElement('div')
+    pFxHint.className = 'dshwv-bubhint'
+    pFxHint.style.margin = '0 0 6px'
+    function refreshFxHint() {
+      var r = apiFx && isFinite(Number(apiFx.rate)) ? Number(apiFx.rate) : 0
+      pRate.title = pAuto.checked ? '兜底汇率：自动汇率取不到时用它' : '仅美元时需要：汇率（元/USD），例 7.1'
+      if (!pAuto.checked) {
+        pFxHint.textContent = '开启后按实时汇率换算（只对「币种 = 美元」的模型生效）；账本统一按人民币结算。'
+        return
+      }
+      if (!(r > 0)) {
+        pFxHint.textContent = '尚未取到实时汇率（打开面板时会自动重试）；期间用上面填写的兜底汇率记账。'
+        return
+      }
+      var mins = apiFx.at ? Math.max(0, Math.round((Date.now() - Number(apiFx.at)) / 60000)) : null
+      var when = mins === null ? '' : '（' + (mins < 1 ? '刚刚获取' : mins + ' 分钟前获取') + '）'
+      pFxHint.textContent = '当前自动汇率 1 USD ≈ ' + r.toFixed(4) + ' 元' + when + '；取不到时用上面填写的兜底汇率。'
+    }
+    pAuto.addEventListener('change', refreshFxHint)
+    refreshFxHint()
+    card.appendChild(pFxHint)
     var pTip = document.createElement('div')
     pTip.className = 'dshwv-bubhint'
     pTip.style.margin = '0 0 6px'
@@ -3730,7 +3760,7 @@ function openApiModelPanel(modelId) {
             return o
           })(),
           matchIds: (matchInp.value || '').split(',').map(function (s) { return s.trim() }).filter(function (s) { return s.length > 0 }),
-          price: { hit: (pHit.value || '').trim(), miss: (pMiss.value || '').trim(), out: (pOut.value || '').trim(), cur: pCur.value, rate: (pRate.value || '').trim() },
+          price: { hit: (pHit.value || '').trim(), miss: (pMiss.value || '').trim(), out: (pOut.value || '').trim(), cur: pCur.value, rate: (pRate.value || '').trim(), rateAuto: pAuto.checked },
         },
       }
       var uu = (uUrl.value || '').trim()
