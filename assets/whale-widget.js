@@ -1,6 +1,153 @@
 (function () {
-if (window.__dshWhaleWidget) return
+// Lifecycle bridge: the current client instance owns every browser side effect it creates.
+// A stale script may remain in an SPA after host unload, so stop() is explicit and dominant.
+var dshwPreviousLifecycle = window.__dshWhaleLifecycle
+if (dshwPreviousLifecycle && dshwPreviousLifecycle.active === true) return
+var dshwInstanceToken = {}
+var dshwLifecycleActive = true
+var dshwLifecycleStopped = false
+var dshwTimers = []
+var dshwObservers = []
+var dshwListeners = []
+var dshwAbortControllers = []
+var dshwOwnedNodes = []
+var dshwAudioEls = []
+var dshwAudioContexts = []
+var dshwAudioNodes = []
+var dshwNativeSetTimeout = window.setTimeout
+var dshwNativeClearTimeout = window.clearTimeout
+var dshwNativeSetInterval = window.setInterval
+var dshwNativeClearInterval = window.clearInterval
+var dshwNativeRequestAnimationFrame = window.requestAnimationFrame
+var dshwNativeCancelAnimationFrame = window.cancelAnimationFrame
+var dshwNativeFetch = window.fetch
+var dshwHostRouteServed = false
+
+function dshwIsActive() { return dshwLifecycleActive === true && dshwLifecycleStopped !== true }
+function dshwTrackTimer(kind, id) { dshwTimers.push({ kind: kind, id: id }); return id }
+function dshwForgetTimer(id) {
+  for (var i = dshwTimers.length - 1; i >= 0; i--) if (dshwTimers[i].id === id) dshwTimers.splice(i, 1)
+}
+function setTimeout(fn, delay) {
+  var id = dshwNativeSetTimeout.call(window, function () {
+    dshwForgetTimer(id)
+    if (dshwIsActive()) return fn.apply(this, arguments)
+  }, delay)
+  return dshwTrackTimer('timeout', id)
+}
+function clearTimeout(id) { dshwNativeClearTimeout.call(window, id); dshwForgetTimer(id) }
+function setInterval(fn, delay) {
+  var id = dshwNativeSetInterval.call(window, function () {
+    if (dshwIsActive()) return fn.apply(this, arguments)
+  }, delay)
+  return dshwTrackTimer('interval', id)
+}
+function clearInterval(id) { dshwNativeClearInterval.call(window, id); dshwForgetTimer(id) }
+function requestAnimationFrame(fn) {
+  if (typeof dshwNativeRequestAnimationFrame !== 'function') return setTimeout(fn, 0)
+  var id = dshwNativeRequestAnimationFrame.call(window, function () {
+    dshwForgetTimer(id)
+    if (dshwIsActive()) return fn.apply(this, arguments)
+  })
+  return dshwTrackTimer('raf', id)
+}
+function cancelAnimationFrame(id) {
+  if (typeof dshwNativeCancelAnimationFrame === 'function') dshwNativeCancelAnimationFrame.call(window, id)
+  else clearTimeout(id)
+  dshwForgetTimer(id)
+}
+function dshwTrackObserver(observer) { if (observer && dshwObservers.indexOf(observer) < 0) dshwObservers.push(observer); return observer }
+function dshwTrackNode(node) { if (node && dshwOwnedNodes.indexOf(node) < 0) dshwOwnedNodes.push(node); return node }
+function dshwTrackAbortController(controller) { if (controller && dshwAbortControllers.indexOf(controller) < 0) dshwAbortControllers.push(controller); return controller }
+function dshwTrackAudioContext(context) { if (context && dshwAudioContexts.indexOf(context) < 0) dshwAudioContexts.push(context); return context }
+function dshwTrackAudioNode(node) { if (node && dshwAudioNodes.indexOf(node) < 0) dshwAudioNodes.push(node); return node }
+// Whale-owned listener registration. Other scripts keep the native document/window methods,
+// so stopping this instance can never remove or silence listeners it does not own.
+function dshwOnTarget(target, type, listener, options) {
+  if (!dshwIsActive() || !target || typeof listener !== 'function') return
+  dshwListeners.push({ target: target, type: type, listener: listener, options: options })
+  try { target.addEventListener(type, listener, options) } catch (err) {}
+}
+function dshwOnDocument(type, listener, options) { dshwOnTarget(document, type, listener, options) }
+function dshwOnWindow(type, listener, options) { dshwOnTarget(window, type, listener, options) }
+function dshwFetch(input, init) {
+  if (!dshwIsActive()) return Promise.reject(new Error('whale client stopped'))
+  var opts = init ? Object.assign({}, init) : {}
+  var controller = null
+  if (!opts.signal && typeof AbortController === 'function') {
+    controller = dshwTrackAbortController(new AbortController())
+    opts.signal = controller.signal
+  }
+  var p = dshwNativeFetch.call(window, input, opts)
+  return p.then(function (response) {
+    // Host unload has no published browser callback, so the invalidation of an existing host
+    // route is the only available bridge. Requiring that this instance already saw the host
+    // serve a /dsh-whale/ route keeps a missing optional route or a single transient 404 from
+    // silently disabling the widget.
+    var requestPath = String(input && input.url || input || '')
+    var isHostRoute = requestPath.indexOf('/dsh-whale/') >= 0
+    if (isHostRoute && response && response.ok === true) dshwHostRouteServed = true
+    if (isHostRoute && dshwHostRouteServed && response && (response.status === 404 || response.status === 410)) dshwStop('host-unavailable')
+    return response
+  }).finally(function () {
+    if (!controller) return
+    var i = dshwAbortControllers.indexOf(controller)
+    if (i >= 0) dshwAbortControllers.splice(i, 1)
+  })
+}
+function dshwStop(reason) {
+  if (dshwLifecycleStopped) return false
+  dshwLifecycleStopped = true
+  dshwLifecycleActive = false
+  try { dshwLifecycle.reason = reason || 'client-stop' } catch (err) {}
+  for (var i = dshwTimers.length - 1; i >= 0; i--) {
+    var t = dshwTimers[i]
+    try { if (t.kind === 'interval') dshwNativeClearInterval.call(window, t.id); else if (t.kind === 'raf' && typeof dshwNativeCancelAnimationFrame === 'function') dshwNativeCancelAnimationFrame.call(window, t.id); else dshwNativeClearTimeout.call(window, t.id) } catch (err) {}
+  }
+  dshwTimers.length = 0
+  for (var oi = dshwObservers.length - 1; oi >= 0; oi--) try { dshwObservers[oi].disconnect() } catch (err) {}
+  dshwObservers.length = 0
+  for (var ai = dshwAbortControllers.length - 1; ai >= 0; ai--) try { dshwAbortControllers[ai].abort() } catch (err) {}
+  dshwAbortControllers.length = 0
+  for (var li = dshwListeners.length - 1; li >= 0; li--) {
+    var l = dshwListeners[li]
+    try { if (l.target && typeof l.target.removeEventListener === 'function') l.target.removeEventListener(l.type, l.listener, l.options) } catch (err) {}
+  }
+  dshwListeners.length = 0
+  for (var si = dshwAudioEls.length - 1; si >= 0; si--) try { if (dshwAudioEls[si] && dshwAudioEls[si].pause) dshwAudioEls[si].pause() } catch (err) {}
+  dshwAudioEls.length = 0
+  for (var sni = dshwAudioNodes.length - 1; sni >= 0; sni--) try { dshwAudioNodes[sni].stop() } catch (err) {}
+  dshwAudioNodes.length = 0
+  for (var sci = dshwAudioContexts.length - 1; sci >= 0; sci--) try { if (dshwAudioContexts[sci] && dshwAudioContexts[sci].close) dshwAudioContexts[sci].close() } catch (err) {}
+  dshwAudioContexts.length = 0
+  for (var ni = dshwOwnedNodes.length - 1; ni >= 0; ni--) {
+    try { var n = dshwOwnedNodes[ni]; if (n && n.parentNode) n.parentNode.removeChild(n) } catch (err) {}
+  }
+  dshwOwnedNodes.length = 0
+  try { if (dshwBodyNodes) dshwBodyNodes.length = 0 } catch (err) {}
+  try { if (dshwvDeferredBody) dshwvDeferredBody.length = 0 } catch (err) {}
+  if (window.__dshWhaleLifecycle === dshwLifecycle) window.__dshWhaleLifecycle.active = false
+  try { root = null } catch (err) {}
+  if (window.__dshWhaleLifecycle === dshwLifecycle || window.__dshWhaleLifecycle == null) {
+    try { if (window.__dshWhaleRoot) window.__dshWhaleRoot = null } catch (err) {}
+    try { if (window.__dshwRemindMask) window.__dshwRemindMask = null } catch (err) {}
+    try { if (window.__dshwCustBound) window.__dshwCustBound = false } catch (err) {}
+    try { if (window.__dshwQeditBound) window.__dshwQeditBound = false } catch (err) {}
+    try { if (window.__dshwColorBound) window.__dshwColorBound = false } catch (err) {}
+    try { if (window.__dshwRgbDocBound) window.__dshwRgbDocBound = false } catch (err) {}
+    try { if (window.__dshwFontDocBound) window.__dshwFontDocBound = false } catch (err) {}
+    try { if (window.__dshWhaleInit === dshwInstanceToken) window.__dshWhaleInit = false } catch (err) {}
+    try { window.__dshWhaleWidget = false } catch (err) {}
+  }
+  return true
+}
+// The lifecycle object is the documented host/test seam. `hostFetch` is the instrumented host
+// request wrapper: it aborts in-flight requests on stop and treats the invalidation of an already
+// served /dsh-whale/ route as "the host is gone".
+var dshwLifecycle = { active: true, stop: dshwStop, dispose: dshwStop, reason: null, hostFetch: dshwFetch }
+window.__dshWhaleLifecycle = dshwLifecycle
 window.__dshWhaleWidget = true
+var fetch = dshwFetch
 
 // —— 页面自检：只在 DSH 主聊天界面挂载挂件 ——
 // 挂件脚本通过 tapIndex 注入 DSH 的每一个 index 页面（含插件市场等 SPA 视图）。
@@ -33,13 +180,14 @@ function dshwIsChatRoot(r) {
 }
 var dshwStarted = false
 function dshwStartOnce() {
-  if (dshwStarted) return
+  if (!dshwIsActive() || dshwStarted) return
   dshwStarted = true
   try { dshwInit() } catch (err) {}
 }
 // 是否已到主聊天界面；是则启动（只启动一次，之后由 dshwInit 内部标记去重）
 var dshwLastCheck = 0
 function dshwTryStart(force) {
+  if (!dshwIsActive()) return false
   if (dshwStarted) return true
   var now = Date.now()
   // 连续 DOM 变化时合并检查，避免每次 mutation 都 querySelector
@@ -60,14 +208,16 @@ try {
     var dshwObserver = null
     try {
       if (typeof MutationObserver === 'function') {
-        dshwObserver = new MutationObserver(function () {
+        dshwObserver = dshwTrackObserver(new MutationObserver(function () {
+          if (!dshwIsActive()) return
           if (dshwTryStart()) { try { dshwObserver.disconnect() } catch (err) {} }
-        })
+        }))
         dshwObserver.observe(document.documentElement || document.body, { childList: true, subtree: true })
       }
     } catch (err) {}
     // 兜底：observer 不可用时低频轮询继续等（不设上限，找到即停）
     var dshwFallbackPoll = setInterval(function () {
+      if (!dshwIsActive()) return
       if (dshwTryStart(true)) {
         clearInterval(dshwFallbackPoll)
         try { if (dshwObserver) dshwObserver.disconnect() } catch (err) {}
@@ -77,7 +227,7 @@ try {
 } catch (err) {}
 function dshwInit() {
 if (window.__dshWhaleInit) return
-window.__dshWhaleInit = true
+window.__dshWhaleInit = dshwInstanceToken
 
 // ===== 音效播放（v745：Web Audio + 预解码 + 同步起播 + 可调衔接）=====
 // 目标：既要 0.3.0 那种"贴手"的响应，又不让 macOS 把音效注册进系统「正在播放」（Touch Bar 播放条 + 卡顿）。
@@ -124,7 +274,7 @@ function dshwvAudio() {
     if (!dshwvAudioCtx) {
       var AC = window.AudioContext || window.webkitAudioContext
       // 显式用 'interactive'（该 API 的最低延迟档），起播尽量贴手
-      dshwvAudioCtx = new AC({ latencyHint: 'interactive' })
+      dshwvAudioCtx = dshwTrackAudioContext(new AC({ latencyHint: 'interactive' }))
     }
     if (dshwvAudioCtx.state === 'suspended') { try { dshwvAudioCtx.resume() } catch (err) {} }
     dshwvAudioIdleArm() // 每次（重新）进入 running 都重新计时：静默满 1 分钟就挂起
@@ -252,7 +402,7 @@ function dshwvSound(url) {
     try {
       if (!el._gain) { el._gain = c.createGain(); el._gain.connect(c.destination) }
       el._gain.gain.value = Math.max(0, Math.min(1, Number(el.volume) || 0))
-      var src = c.createBufferSource()
+      var src = dshwTrackAudioNode(c.createBufferSource())
       src.buffer = buf
       src.connect(el._gain)
       src.onended = function () {
@@ -318,8 +468,8 @@ var dshwvComposing = false
 var dshwvDeferredBody = []
 function dshwvComposingNow() { return dshwvComposing === true }
 try {
-  document.addEventListener('compositionstart', function () { dshwvComposing = true }, true)
-  document.addEventListener('compositionend', function () {
+  dshwOnDocument('compositionstart', function () { dshwvComposing = true }, true)
+  dshwOnDocument('compositionend', function () {
     dshwvComposing = false
     setTimeout(function () { try { dshwvFlushDeferredBody() } catch (err) {} }, 0)
   }, true)
@@ -335,10 +485,10 @@ try {
     try { document.removeEventListener('pointerdown', dshwvAudioUnlock, true) } catch (err) {}
     try { document.removeEventListener('keydown', dshwvAudioUnlock, true) } catch (err) {}
   }
-  document.addEventListener('pointerdown', dshwvAudioUnlock, true)
-  document.addEventListener('keydown', dshwvAudioUnlock, true)
+  dshwOnDocument('pointerdown', dshwvAudioUnlock, true)
+  dshwOnDocument('keydown', dshwvAudioUnlock, true)
   // v753（issue #135）：页面被隐藏（切标签 / 最小化）时立刻挂起，直接覆盖"开着过夜"这个场景
-  document.addEventListener('visibilitychange', function () {
+  dshwOnDocument('visibilitychange', function () {
     try { if (document.hidden) dshwvAudioSuspendNow() } catch (err) {}
   })
 } catch (err) {}
@@ -901,6 +1051,7 @@ var styleEl = document.createElement('style')
 styleEl.setAttribute('data-plugin', 'dsh-whale-widget')
 styleEl.textContent = css
 document.head.appendChild(styleEl)
+dshwTrackNode(styleEl)
 
 // ===== v743：body 挂载登记器（DOM 守护的基础设施，见下面 dshwReattachRoot）=====
 // 挂件会把 30 多个节点挂到 document.body 上（主节点、菜单、各种遮罩/面板、隐藏的 file input…）。
@@ -929,6 +1080,7 @@ function dshwBodyAppend(el) {
     // 注意：这里必须是**原始**的 document.body.appendChild —— 不能走 dshwBodyAppend 自己
     // （v743 批量改写时曾误替换成自我递归，被 try/catch 吞掉后表现为"登记了但从未挂上"）
     document.body.appendChild(el)
+    dshwTrackNode(el)
     if (dshwBodyNodes.indexOf(el) < 0) dshwBodyNodes.push(el)
   } catch (err) {}
   return el
@@ -1057,7 +1209,7 @@ function dshwCustSelClose() {
 }
 if (!window.__dshwCustBound) {
   window.__dshwCustBound = true
-  document.addEventListener('pointerdown', function (e) {
+  dshwOnDocument('pointerdown', function (e) {
     var o = dshwCustSelOpen
     if (!o) return
     try {
@@ -1071,12 +1223,12 @@ if (!window.__dshwCustBound) {
     } catch (err) {}
     dshwCustSelClose()
   }, true)
-  document.addEventListener('keydown', function (e) {
+  dshwOnDocument('keydown', function (e) {
     // v789（issue #179）：组字中按 Esc 是输入法的「取消组字」，别抢
     if (dshwvComposingNow()) return
     if (e.key === 'Escape') dshwCustCloseNow()
   }, true)
-  window.addEventListener('resize', function () { dshwCustCloseNow() })
+  dshwOnWindow('resize', function () { dshwCustCloseNow() })
 }
 function dshwCustCloseNow() {
   dshwCustSelClose()
@@ -2571,7 +2723,7 @@ function openSoundSettingsPanel() {
     // ③ 点文档任意处也刷新一次（覆盖「音效组」这种从 body 级子面板里改、不发卡内事件的路径），
     //    该监听在 cleanup 里摘掉。摘要只写 textContent，成本很低。
     function sndDocRefresh() { refreshSummaries() }
-    try { document.addEventListener('click', sndDocRefresh, true) } catch (err) {}
+    try { dshwOnDocument('click', sndDocRefresh, true) } catch (err) {}
     try { card.addEventListener('input', refreshSummaries) } catch (err) {}
     try { card.addEventListener('change', refreshSummaries) } catch (err) {}
     refreshSummaries()
@@ -4651,7 +4803,7 @@ function openBalanceAdjustment(modelId) {
   mask.addEventListener('click', function (e) { if (e.target === mask) close() })
   dshwBodyAppend(mask)
   accountingMask = mask
-  document.addEventListener('keydown', keyHandler)
+  dshwOnDocument('keydown', keyHandler)
   var rows = []
   var selected = null
   function renderSelection() {
@@ -6340,9 +6492,9 @@ function startSnapLineDrag(e, key, horizontal) {
       factor: domain / (horizontal ? Math.max(1, snapPvH) : Math.max(1, snapPvW)),
       orig: set[key]
     }
-    document.addEventListener('pointermove', onSnapLineMove, true)
-    document.addEventListener('pointerup', onSnapLineUp, true)
-    document.addEventListener('pointercancel', onSnapLineUp, true)
+    dshwOnDocument('pointermove', onSnapLineMove, true)
+    dshwOnDocument('pointerup', onSnapLineUp, true)
+    dshwOnDocument('pointercancel', onSnapLineUp, true)
   } catch (err) {}
 }
 function onSnapLineMove(e) {
@@ -7762,10 +7914,10 @@ function renderBubbleFirst() {
 // 因此只对"触摸手势"取消原生拖拽(按 pointerType=touch 的时间窗判定),不再用 (pointer: coarse)
 // 媒体查询——触屏笔记本/设备模式下它可能为真,会把电脑端的鼠标拖拽也一起废掉。
 var lastTouchAt = 0
-document.addEventListener('pointerdown', function (e) { try { if (e && e.pointerType === 'touch') lastTouchAt = Date.now() } catch (err) {} }, true)
+dshwOnDocument('pointerdown', function (e) { try { if (e && e.pointerType === 'touch') lastTouchAt = Date.now() } catch (err) {} }, true)
 function bubbleNativeDragBlocked() { return lastTouchAt > 0 && Date.now() - lastTouchAt < 1500 }
 // 兜底:触摸手势期间,挂件内任何元素(行/手柄/A-B chip/图片/文本选区)发起的原生拖拽一律取消
-document.addEventListener('dragstart', function (e) {
+dshwOnDocument('dragstart', function (e) {
   try {
     if (!bubbleNativeDragBlocked()) return
     var t = e.target
@@ -7775,7 +7927,7 @@ document.addEventListener('dragstart', function (e) {
 }, true)
 // 长按拖拽成立后,抑制随之而来的那次 click(否则会顺带打开编辑窗/误触删除)
 var rowDragSuppressAt = 0
-document.addEventListener('click', function (e) {
+dshwOnDocument('click', function (e) {
   try {
     if (Date.now() >= rowDragSuppressAt) return
     if (!bubbleMoreListEl || !e.target || !e.target.closest) return
@@ -8133,9 +8285,9 @@ function rowTouchStart(e) {
     rowTouchSetDraggable(row, idx, false)
     var t = e.touches[0]
     rowTouchArm = { row: row, idx: idx, x: t.clientX, y: t.clientY, timer: setTimeout(rowTouchEnter, ROW_TOUCH_HOLD_MS) }
-    document.addEventListener('touchmove', rowTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', rowTouchEnd, true)
-    document.addEventListener('touchcancel', rowTouchEnd, true)
+    dshwOnDocument('touchmove', rowTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', rowTouchEnd, true)
+    dshwOnDocument('touchcancel', rowTouchEnd, true)
   } catch (err) {}
 }
 function rowTouchMove(e) {
@@ -8213,7 +8365,7 @@ function rowTouchEnd(e) {
   try { if (e && e.touches && e.touches.length > 0) return } catch (err) {}
   rowTouchFinish(true)
 }
-document.addEventListener('touchstart', rowTouchStart, { passive: true })
+dshwOnDocument('touchstart', rowTouchStart, { passive: true })
 function bubbleUnpairStep(idx) {
   try {
     var arr = bubbleEditItems
@@ -8456,7 +8608,7 @@ function qeditEnsure() {
   dshwBodyAppend(qeditEl)
   if (!window.__dshwQeditBound) {
     window.__dshwQeditBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!qeditEl || qeditEl.style.display === 'none') return
       // 点击悬浮窗内部,或悬浮窗唤起的自绘下拉(菜单/触发钮/字体/取色)都不关闭
       if (e.target && e.target.closest && (e.target.closest('.dshwv-qedit') ||
@@ -8470,7 +8622,7 @@ function qeditEnsure() {
       } catch (err) {}
       qeditClose()
     }, true)
-    document.addEventListener('keydown', function (e) {
+    dshwOnDocument('keydown', function (e) {
       // v789（issue #179）：组字中按 Esc 是输入法的事，别抢
       if (dshwvComposingNow()) return
       if (e.key === 'Escape') qeditClose()
@@ -8607,7 +8759,7 @@ function qColorSelectBuild(current, onPick, opts) {
   })
   if (!window.__dshwColorBound) {
     window.__dshwColorBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleColorOpenMenu) return
       try { if (e.target && e.target.closest && (e.target.closest('.dshwv-qcolwrap') || e.target.closest('.dshwv-rgbmenu'))) return } catch (err) {}
       bubbleColorOpenMenu.classList.remove('dshwv-rgbopen')
@@ -9427,9 +9579,9 @@ function pvTouchStart(e) {
     // 本次手势内关掉该元素的原生可拖(document 级 dragstart 还有一层兜底)
     try { el.draggable = false } catch (err) {}
     pvTouchArm = { kind: kind, el: el, ri: ri, mi: mi, key: key, x: t.clientX, y: t.clientY, timer: setTimeout(pvTouchEnter, PV_TOUCH_HOLD_MS) }
-    document.addEventListener('touchmove', pvTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', pvTouchEnd, true)
-    document.addEventListener('touchcancel', pvTouchEnd, true)
+    dshwOnDocument('touchmove', pvTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', pvTouchEnd, true)
+    dshwOnDocument('touchcancel', pvTouchEnd, true)
   } catch (err) {}
 }
 function pvTouchMove(e) {
@@ -9516,9 +9668,9 @@ function pvTouchEnd(e) {
   try { if (e && e.touches && e.touches.length > 0) return } catch (err) {}
   pvTouchFinish(true)
 }
-document.addEventListener('touchstart', pvTouchStart, { passive: true })
+dshwOnDocument('touchstart', pvTouchStart, { passive: true })
 // 长按拖拽成立后,抑制随之而来的那次 click(否则会顺带打开模块编辑窗/误删/重复新增)
-document.addEventListener('click', function (e) {
+dshwOnDocument('click', function (e) {
   try {
     if (Date.now() >= pvTouchSuppressAt) return
     if (!e.target || !e.target.closest) return
@@ -10278,7 +10430,7 @@ function bubbleRgbSelect(current, cb) {
   // 外点关闭(仅绑定一次)
   if (!window.__dshwRgbDocBound) {
     window.__dshwRgbDocBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleRgbOpenMenu) return
       try {
         if (e.target && e.target.closest && e.target.closest('.dshwv-rgbwrap')) return
@@ -10392,7 +10544,7 @@ function bubbleFontEditRow(getVal, setVal) {
   })
   if (!window.__dshwFontDocBound) {
     window.__dshwFontDocBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleFontOpenMenu) return
       try { if (e.target && e.target.closest && (e.target.closest('.dshwv-fontwrap') || e.target.closest('.dshwv-rgbmenu'))) return } catch (err) {}
       bubbleFontOpenMenu.classList.remove('dshwv-rgbopen')
@@ -11916,6 +12068,7 @@ dshwBodyAppend(menuBox)
 // 另外 root 还在、只有个别节点被摘掉的"局部移除"也要能自愈，所以做了节流的全量核对。
 try { window.__dshWhaleRoot = root } catch (err) {}
 function dshwReattachRoot() {
+  if (!dshwIsActive()) return
   try {
     for (var i = 0; i < dshwBodyNodes.length; i++) {
       var el = dshwBodyNodes[i]
@@ -11926,7 +12079,7 @@ function dshwReattachRoot() {
 try {
   if (typeof MutationObserver === 'function') {
     var dshwGuardLastFull = 0
-    var dshwRootGuard = new MutationObserver(function () {
+    var dshwRootGuard = dshwTrackObserver(new MutationObserver(function () {
       try {
         if (!root) return
         if (!dshwConnected(root)) { dshwReattachRoot(); dshwGuardLastFull = Date.now(); return }
@@ -11934,7 +12087,7 @@ try {
         var now = Date.now()
         if (now - dshwGuardLastFull > 1500) { dshwGuardLastFull = now; dshwReattachRoot() }
       } catch (err) {}
-    })
+    }))
     dshwRootGuard.observe(document.documentElement, { childList: true, subtree: true })
   }
 } catch (err) {}
@@ -11978,7 +12131,7 @@ try {
 } catch (err) {}
 setTimeout(measureBubbleCenter, 120)
 try {
-  window.addEventListener('load', function () { measureBubbleCenter() })
+  dshwOnWindow('load', function () { measureBubbleCenter() })
 } catch (err) {}
 
 // Position model: the widget is ALWAYS expressed in left/top px (so edge snaps
@@ -12273,9 +12426,9 @@ function bubbleTtlSweep() {
 // 三条触发路径：页面重新可见（切标签回来）、窗口重新拿到焦点（最小化还原）、以及每秒一次的兜底巡检。
 // 正常前台运行时计时器按时收敛，巡检永远提前返回（不会误收下一个泡泡）。
 try {
-  document.addEventListener('visibilitychange', function () { try { if (!document.hidden) bubbleTtlSweep() } catch (err) {} })
-  window.addEventListener('focus', function () { bubbleTtlSweep() })
-  window.addEventListener('pageshow', function () { bubbleTtlSweep() })
+  dshwOnDocument('visibilitychange', function () { try { if (!document.hidden) bubbleTtlSweep() } catch (err) {} })
+  dshwOnWindow('focus', function () { bubbleTtlSweep() })
+  dshwOnWindow('pageshow', function () { bubbleTtlSweep() })
   setInterval(bubbleTtlSweep, 1000)
 } catch (err) {}
 var bubbleScene = null // { kind:'normal'|'random'|'cost', ttlMs }
@@ -13111,14 +13264,14 @@ function bubbleTplHelpToggle(m, anchor) {
       dshwvTplHelpEl = document.createElement('div')
       dshwvTplHelpEl.className = 'dshwv-tplhelp'
       dshwBodyAppend(dshwvTplHelpEl)
-      document.addEventListener('pointerdown', function (e) {
+      dshwOnDocument('pointerdown', function (e) {
         if (!dshwvTplHelpEl || dshwvTplHelpEl.style.display === 'none') return
         try {
           if (e.target && e.target.closest && (e.target.closest('.dshwv-tplq') || e.target.closest('.dshwv-tplhelp'))) return
         } catch (err) {}
         dshwvTplHelpEl.style.display = 'none'
       }, true)
-      document.addEventListener('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvTplHelpEl.style.display = 'none' })
+      dshwOnDocument('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvTplHelpEl.style.display = 'none' })
     }
     if (dshwvTplHelpEl.style.display === 'block') { dshwvTplHelpEl.style.display = 'none'; return }
     var items = bubbleTplHelpItems(m)
@@ -13155,14 +13308,14 @@ function dshwvHintEnsure() {
   dshwvHintEl.className = 'dshwv-tplhelp dshwv-hintbox'
   dshwvHintEl.style.display = 'none'
   dshwBodyAppend(dshwvHintEl)
-  document.addEventListener('pointerdown', function (e) {
+  dshwOnDocument('pointerdown', function (e) {
     if (!dshwvHintEl || dshwvHintEl.style.display === 'none') return
     try {
       if (e.target && e.target.closest && (e.target.closest('.dshwv-askq') || e.target.closest('.dshwv-hintbox'))) return
     } catch (err) {}
     dshwvHintHide()
   }, true)
-  document.addEventListener('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvHintHide() })
+  dshwOnDocument('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvHintHide() })
   return dshwvHintEl
 }
 function dshwvHintShow(html, anchor, pinned) {
@@ -16718,9 +16871,9 @@ function onDocPointerDown(e) {
   root.classList.add('dshwv-dragging')
   pressDown()
   setWidgetCursor('grabbing')
-  document.addEventListener('pointermove', onDocPointerMove, true)
-  document.addEventListener('pointerup', onDocPointerUp, true)
-  document.addEventListener('pointercancel', onDocPointerCancel, true)
+  dshwOnDocument('pointermove', onDocPointerMove, true)
+  dshwOnDocument('pointerup', onDocPointerUp, true)
+  dshwOnDocument('pointercancel', onDocPointerCancel, true)
 }
 function onDocPointerMove(e) {
   if (!drag || !drag.active) return
@@ -16782,9 +16935,9 @@ function onDocContextMenu(e) {
     toggleMenu()
   } catch (err) {}
 }
-document.addEventListener('pointerdown', onDocPointerDown, true)
-document.addEventListener('click', onDocClickStopper, true)
-document.addEventListener('contextmenu', onDocContextMenu, true)
+dshwOnDocument('pointerdown', onDocPointerDown, true)
+dshwOnDocument('click', onDocClickStopper, true)
+dshwOnDocument('contextmenu', onDocContextMenu, true)
 
 // ===== 移动端触摸支持(v631) =====
 // 鲸鱼是 pointer-events:none 的穿透层,手指真正按到的其实是下层页面元素(通常是可滚动区),
@@ -16841,9 +16994,9 @@ function onDocTouchStart(e) {
       touchLongPressTimer = setTimeout(fireTouchLongPressMenu, TOUCH_LONG_PRESS_MS)
     }
     try { e.preventDefault() } catch (err) {}
-    document.addEventListener('touchmove', onDocTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', onDocTouchEnd, true)
-    document.addEventListener('touchcancel', onDocTouchEnd, true)
+    dshwOnDocument('touchmove', onDocTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', onDocTouchEnd, true)
+    dshwOnDocument('touchcancel', onDocTouchEnd, true)
   } catch (err) {}
 }
 function onDocTouchMove(e) {
@@ -16872,7 +17025,7 @@ function onDocTouchEnd() {
   document.removeEventListener('touchend', onDocTouchEnd, true)
   document.removeEventListener('touchcancel', onDocTouchEnd, true)
 }
-document.addEventListener('touchstart', onDocTouchStart, { capture: true, passive: false })
+dshwOnDocument('touchstart', onDocTouchStart, { capture: true, passive: false })
 
 var widgetCursor = ''
 function setWidgetCursor(v) {
@@ -16946,7 +17099,7 @@ function onDocPointerMoveCursor(e) {
   // 否则这一次 toggle 会把常显状态撤掉（issue #91 缺陷2 修完又被自己抹掉）。
   if (!menuBtnHide) menuBtn.classList.toggle('dshwv-menu-btn-visible', over || menuOpen || dshwvTouchUI())
 }
-document.addEventListener('pointermove', onDocPointerMoveCursor, true)
+dshwOnDocument('pointermove', onDocPointerMoveCursor, true)
 // 启动即应用一次菜单按钮可见性：触屏上 ☰ 常显（issue #91 缺陷2）。
 // 配置读回来之后还会再应用一次，这里是配置请求失败时的兜底。
 try { applyMenuBtnHideUI() } catch (err) {}
@@ -17054,7 +17207,7 @@ function applyAnchorPos() {
     return true
   } catch (err) { return false }
 }
-window.addEventListener('resize', function () {
+dshwOnWindow('resize', function () {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
 })
