@@ -134,10 +134,18 @@ dsh-whale-widget/
 │   ├── bubble-petpet.gif     # 内置泡泡图：petpet
 │   └── bubble-money1.gif     # 内置泡泡图：money1（余额预警默认内容的配图）
 ├── docs/
-│   └── widget-interaction-validation.md # 前端交互修复的验证与回滚
+│   ├── widget-interaction-validation.md # 前端交互修复的验证与回滚
+│   ├── session-events-validation.md # 会话事件验证与回滚
+│   ├── ledger-coverage.md    # 记账覆盖与历史账本验证
+│   └── bubble-layout-validation.md # 泡泡布局验证与回滚
 ├── tests/
 │   ├── api-config.test.mjs   # API 配置回归测试（模拟网络与内存注册表）
-│   └── widget-interaction.test.mjs # 无需安装DSH的前端行为回归测试
+│   ├── widget-interaction.test.mjs # 前端交互行为回归
+│   ├── session-events.test.mjs # 会话事件与前端投递回归
+│   ├── accounting.test.mjs   # 账本与跨日观测回归
+│   ├── accounting-view.test.mjs # 账本显示接线回归
+│   └── bubble-layout.test.mjs # 几何与阅读行为回归
+├── tools/bubble-layout-browser.mjs # 可选的独立浏览器截图验证
 └── whale-widget-prompt.md    # 完整规格/维护提示词（面向二次开发）
 ```
 
@@ -458,6 +466,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 ## 开发与维护
 
 - 前端交互回归可直接运行 `node --test tests/*.test.mjs`，无需安装插件；具体边界、实机复验和回滚见 [验证说明](docs/widget-interaction-validation.md)。
+- 多行泡泡的几何边界、长文阅读和浏览器复验见 [泡泡布局验证](docs/bubble-layout-validation.md)。
 - 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。

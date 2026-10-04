@@ -27,3 +27,6 @@ node_modules/
 *.bak2
 *.bak-devpaths
 _patch_*.patch
+
+# 本地浏览器布局验证截图与度量（可重新生成，不进入运行包）
+/qa-output/

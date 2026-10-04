@@ -36,7 +36,7 @@
 dsh-whale-widget/
 ├── package.json                     35 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml                 15 行   插件挂载声明
-├── README.md                       481 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
+├── README.md                       496 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
 ├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
 ├── whale-widget-prompt.md          202 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
 │
@@ -52,7 +52,7 @@ dsh-whale-widget/
 ├── docs/ledger-coverage.md                 观测覆盖、验证及数据兼容/回滚说明
 │
 ├── assets/
-│   ├── whale-widget.js          17,341 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
+│   ├── whale-widget.js          17,536 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
 │   ├── DSH2.png / DSniang1.png / DSniang02.png   角色图与 README 展示图
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
@@ -62,7 +62,11 @@ dsh-whale-widget/
 │   └── api-config.test.mjs                 API 配置回归测试（node --test；无网络/用户数据访问）
 │
 ├── tools/
-│   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   ├── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   └── bubble-layout-browser.mjs          可选的独立浏览器布局验证（外部提供Playwright）
+│
+├── tests/bubble-layout.test.mjs           泡泡几何与行为回归（CI与发布流程都会跑）
+├── docs/bubble-layout-validation.md       泡泡布局验证范围与回滚
 │
 ├── tests/
 │   └── widget-interaction.test.mjs         前端真实函数行为测试（不安装DSH；CI与发布流程都会跑）
@@ -108,4 +112,4 @@ dsh-whale-widget/
 
 ### 关于那两个超大文件
 
-`assets/whale-widget.js`（17,341 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+`assets/whale-widget.js`（17,536 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
