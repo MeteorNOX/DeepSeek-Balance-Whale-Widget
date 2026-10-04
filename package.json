@@ -1,6 +1,6 @@
 {
   "name": "api-balance-whale",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Codex API balance and subscription usage companion for Windows and macOS",
   "type": "module",
   "private": true,
@@ -15,5 +15,7 @@
     "install:mac": "node scripts/install-macos.mjs",
     "uninstall:mac": "node scripts/uninstall-macos.mjs",
     "probe:mac": "node scripts/probe-macos.mjs"
-  }
+  },
+  "codexBuild": "candidate-20261005",
+  "distributionName": "Codex-v0.4"
 }

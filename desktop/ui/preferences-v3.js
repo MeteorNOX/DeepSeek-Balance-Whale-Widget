@@ -7,7 +7,7 @@
   function play(event, url, master = 1, override) {
     const cfg = (override || settings).events[event];
     if (!cfg) return false;
-    window.WhaleAudio.play({ channel: event === 'press' || event === 'release' ? 'gesture' : 'notice', url, preset: cfg.preset, volume: cfg.preset === 'silent' ? 0 : cfg.volume * master });
+    window.WhaleAudio.play({ channel: event === 'press' || event === 'release' ? 'gesture' : 'notice', url: Array.isArray(url) ? undefined : url, urls: Array.isArray(url) ? url : undefined, preset: cfg.preset, volume: cfg.preset === 'silent' ? 0 : cfg.volume * master });
     return true;
   }
   function open() {

@@ -42,7 +42,14 @@
     const add=(el,opening=false)=>{if(!visible(el,opening))return;const r=bounds(el);if(!r)return;const key=JSON.stringify(r);if(!seen.has(key)){seen.add(key);result.push(r);}};
     // Drawing lifetime is separate from input.js's open/visible hit surfaces.
     // Keep only these bounded UI islands, never a viewport-sized input backdrop.
-    document.querySelectorAll('.dshwv-img').forEach(e=>add(e,true));
+    document.querySelectorAll('.dshwv-img').forEach(e=>{
+      add(e,true);
+      const stable=window.WhaleRendering?.petInteraction?.protectedBounds(e,e.closest('.dshwv-root'));
+      if(visible(e,true)&&stable){
+        const r=bounds({getBoundingClientRect:()=>stable});
+        if(r){const key=JSON.stringify(r);if(!seen.has(key)){seen.add(key);result.push(r);}}
+      }
+    });
     for(const el of document.querySelectorAll('.dshwv-pop,.dshwv-menu-btn,.dshwv-menu')){
       if(!visible(el,true))continue;
       const animations=paintingAnimations(el);
@@ -76,6 +83,7 @@
   document.addEventListener('load',request,true);
   window.addEventListener('resize',request);
   window.addEventListener('whale-shape-request',()=>{last='';publish(true);});
+  window.addEventListener('whale-interaction-geometry',()=>publish(true));
   for(const name of ['transitionrun','transitionend','transitioncancel','animationstart','animationend','animationcancel'])document.addEventListener(name,request,true);
   window.WhaleRendering?.onFrame(()=>publish());
   if(bridge.testMode)window.__whaleShapeTest={publish:()=>publish(true),status:()=>({updates,rectangles})};

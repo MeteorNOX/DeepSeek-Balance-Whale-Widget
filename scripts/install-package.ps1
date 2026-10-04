@@ -1,4 +1,4 @@
-param([string]$Source, [string]$DataDir, [string]$CodexCli, [switch]$CheckOnly, [switch]$Resume, [switch]$KeepExistingTask)
+﻿param([string]$Source, [string]$DataDir, [string]$CodexCli, [switch]$CheckOnly, [switch]$Resume, [switch]$KeepExistingTask)
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSEdition -ne 'Desktop') { throw 'Run this installer with Windows PowerShell (powershell.exe), not pwsh.' }
 . (Join-Path $PSScriptRoot 'package-common.ps1')
@@ -11,7 +11,7 @@ $DataDir = Get-WhaleFullPath $DataDir
 foreach ($location in @($Source,$target,$DataDir)) { Assert-WhalePlainPath $location }
 if ($DataDir -eq $target -or $DataDir.StartsWith($target + '\',[StringComparison]::OrdinalIgnoreCase) -or $target.StartsWith($DataDir + '\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Plugin code and user data must be separate directories.' }
 $manifest = Get-Content -LiteralPath (Join-Path $Source '.codex-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($manifest.name -cne 'api-balance-whale' -or $manifest.version -notmatch '^0\.3\.0(?:\+codex\.[A-Za-z0-9.-]+)?$') { throw 'This installer requires an unmodified v0.3.0 release manifest.' }
+if ($manifest.name -cne 'api-balance-whale' -or $manifest.version -notmatch '^\d+\.\d+\.\d+(?:\+[A-Za-z0-9.-]+)?$') { throw 'This installer requires a valid api-balance-whale release manifest.' }
 $node = Find-WhaleNode
 Invoke-WhaleCommand $node @((Join-Path $Source 'scripts\check-package.mjs'))
 $cli = Find-WhaleCodex $CodexCli
@@ -72,7 +72,7 @@ try {
         $catalog = & $cli plugin list --json
         if ($LASTEXITCODE -ne 0) { throw 'Cannot verify installed plugin registration.' }
         $installed = @((($catalog | ConvertFrom-Json).installed) | Where-Object { $_.pluginId -ceq ('api-balance-whale@' + $marketplaceInfo.marketplaceName) -and $_.version -ceq $manifest.version -and $_.installed -eq $true -and $_.enabled -eq $true })
-        if ($installed.Count -ne 1) { throw 'Codex did not report one enabled v0.3.0 installation.' }
+        if ($installed.Count -ne 1) { throw ('Codex did not report one enabled v' + $manifest.version + ' installation.') }
         # Explicit resume is opt-in; the original pause marker is already backed up.
         if ($Resume) { Remove-Item -LiteralPath (Join-Path $DataDir 'pause-until-host-exit.json') -Force -ErrorAction SilentlyContinue }
         if ($KeepExistingTask) { Start-ScheduledTask -TaskName 'Codex API Balance Whale' -ErrorAction Stop }
@@ -82,7 +82,7 @@ try {
     $receipt.stage='complete'; Write-WhaleReceipt (Join-Path $backupRoot 'installation.json') $receipt
     $null = New-Item -ItemType Directory -Path $DataDir -Force
     Write-WhaleReceipt (Join-Path $DataDir 'package-installation.json') @{ receipt=(Join-Path $backupRoot 'installation.json'); version=$manifest.version }
-    Write-Output ('Installed v0.3.0. Private rollback receipt: ' + (Join-Path $backupRoot 'installation.json'))
+    Write-Output ('Installed v' + $manifest.version + '. Private rollback receipt: ' + (Join-Path $backupRoot 'installation.json'))
     Write-Output 'Open a new Codex chat to load the updated skill and tools. User settings, media and usage records were retained.'
 } catch {
     $receipt.failure=$_.Exception.Message; Write-WhaleReceipt (Join-Path $backupRoot 'installation.json') $receipt

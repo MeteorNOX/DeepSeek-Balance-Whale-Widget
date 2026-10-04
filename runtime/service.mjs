@@ -2,8 +2,10 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { ConfigStore } from './config.mjs';
 import { BalanceProvider } from './providers.mjs';
-import { UsageLedger, usageDefaults } from './ledger.mjs';
-import { readJson, writeJson, rounded } from './paths.mjs';
+import { UsageLedger, usageDefaults, normalizeTurnCost } from './ledger.mjs';
+import { readJson, writeJson } from './paths.mjs';
+import { decimalDifference, decimalAdd, decimalMultiply } from './money-precision.mjs';
+import { accountNoticeScope } from './account-notices.mjs';
 import { TurnJournal, safeSample, safeTurn, safeUsage } from './turn-journal.mjs';
 
 export class WhaleService {
@@ -11,7 +13,7 @@ export class WhaleService {
     this.config = options.config || new ConfigStore(options);
     this.provider = options.provider || new BalanceProvider(options);
     this.ledger = new UsageLedger(this.config.dataDir);
-    this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set();
+    this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set(); this.settlingContexts = new Map();
     this.balanceSequence = 0; this.latestSamples = new Map(); this.latestQueries = new Map();
     this.lastFile = path.join(this.config.dataDir, 'last-turn.json');
     this.usageSettingsFile = path.join(this.config.dataDir, 'usage-settings.json');
@@ -30,6 +32,36 @@ export class WhaleService {
     // conversion settings do; never compare readings expressed on two scales.
     return JSON.stringify([c.accountId, s.provider, s.currency, s.balancePath, s.balanceField,
       s.usedField, s.balanceScale, s.billingUsageDivisor, s.quotaPerUnit]);
+  }
+  accountActivityCount(c) {
+    const identity = this.balanceIdentity(c);
+    return [...this.turns.values(), ...this.settlingContexts.values()].filter(turn => !turn.isSubagent && this.balanceIdentity(turn.context) === identity).length;
+  }
+  accountNoticeContext() {
+    const context = this.config.resolve(), identity = this.balanceIdentity(context);
+    const meterKey = createHash('sha256').update(identity).digest('hex');
+    let currency = this.latestQueries.get(identity)?.payload.currency;
+    if (!currency) {
+      // The adapter may return USD even when a display preference is CNY.
+      // Restore the last actual meter currency without requiring a network call.
+      const matches = this.ledger.scopes().filter(scope => scope.startsWith(context.accountId + '-'))
+        .map(scope => ({ scope, ledger: this.ledger.load(scope) }))
+        .filter(entry => entry.ledger.accountNotices?.meterKey === meterKey)
+        .sort((a, b) => (b.ledger.lastObservation?.at || 0) - (a.ledger.lastObservation?.at || 0));
+      currency = matches[0]?.scope.slice(-3) || context.setting.currency;
+    }
+    const scope = this.scope(context, currency);
+    return { scope, meterKey, publicScope: accountNoticeScope(scope, meterKey) };
+  }
+  accountNotices() {
+    const { scope, meterKey, publicScope } = this.accountNoticeContext();
+    const notice = this.closed ? null : this.ledger.accountNotice(scope, meterKey);
+    return { ok: true, scope: publicScope, notices: notice ? [notice] : [] };
+  }
+  ackAccountNotices(ids) {
+    if (this.closed) throw new Error('挂件正在退出，请稍后重试账户消费通知确认');
+    const { scope, meterKey, publicScope } = this.accountNoticeContext();
+    return { ok: true, scope: publicScope, acknowledged: this.ledger.acknowledgeNotices(scope, meterKey, ids) };
   }
   isCurrentBalanceContext(c) {
     try { return this.balanceIdentity(c) === this.balanceIdentity(this.config.resolve()); }
@@ -71,6 +103,7 @@ export class WhaleService {
     if (!force && cached && Date.now() - cached.at < Math.min(c.setting.refreshSeconds, 25) * 1000) return deliver(this.decorate(c, cached.payload));
     if (this.inFlight.has(cacheKey)) return deliver(await this.inFlight.get(cacheKey));
     const sequence = ++this.balanceSequence;
+    const activityAtStart = this.accountActivityCount(c);
     const request = (async () => {
       try {
         const payload = await this.provider.balance(c);
@@ -85,7 +118,8 @@ export class WhaleService {
             ...(latest.identity !== identity ? { stale: true } : {}) };
         }
         const meterKey = createHash('sha256').update(identity).digest('hex');
-        this.ledger.observe(scope, { ...payload, meterKey });
+        if (!payload.stale && payload.ok !== false) this.ledger.observe(scope, { ...payload, meterKey,
+          concurrentCount: Math.max(activityAtStart, this.accountActivityCount(c)) });
         const sample = { at: Date.now(), sequence, identity, payload };
         this.latestSamples.set(scope, sample);
         this.latestQueries.set(identity, sample);
@@ -107,9 +141,14 @@ export class WhaleService {
     if (activate && this.isCurrentBalanceContext(c)) this.activeScope = scope;
     return { ...payload, todayUsage: records.today.total, observedSince: records.today.since, usageMode: 'ledger', usageNote: records.note };
   }
-  usageRecords() {
+  usageScopes() {
     const c = this.config.resolve();
-    const scope = this.activeScope?.startsWith(c.accountId + '-') ? this.activeScope : this.scope(c, c.setting.currency);
+    return { ok: true, scopes: this.ledger.scopes().map(scope => ({ scope, currency: scope.slice(-3), current: scope.startsWith(c.accountId + '-'), label: '匿名账户 ' + scope.slice(0, 8) + ' · ' + scope.slice(-3) })) };
+  }
+  usageRecords({ scope: requestedScope = null } = {}) {
+    const c = this.config.resolve();
+    const scope = requestedScope || (this.activeScope?.startsWith(c.accountId + '-') ? this.activeScope : this.scope(c, c.setting.currency));
+    if (requestedScope && !this.ledger.scopes().includes(requestedScope)) throw new Error('历史账本不存在');
     return { ...this.ledger.records(scope), currency: scope.slice(-3), settings: this.readUsageSettings() };
   }
   readUsageSettings() {
@@ -132,7 +171,7 @@ export class WhaleService {
     const last = readJson(this.lastFile, { ok: true, seq: 0, turn: null, amount: null, tokens: null, ts: null });
     const c = this.config.resolve();
     if (last.accountId && last.accountId !== c.accountId) return { ok: true, seq: last.seq, turn: null, amount: null, tokens: null, ts: null };
-    return last;
+    return normalizeTurnCost(last);
   }
   beginTurn(meta) {
     if (this.closed || this.settling.has(meta.id)) return;
@@ -213,9 +252,9 @@ export class WhaleService {
     const turn = this.turns.get(meta.id);
     if (!turn) return Promise.resolve();
     this.turns.delete(meta.id);
-    this.settling.add(meta.id);
+    this.settling.add(meta.id); this.settlingContexts.set(meta.id, turn);
     this.persistTurn(turn, 'settling', meta);
-    const job = this.settleTurn(meta, turn).finally(() => { this.settling.delete(meta.id); this.jobs.delete(job); });
+    const job = this.settleTurn(meta, turn).finally(() => { this.settling.delete(meta.id); this.settlingContexts.delete(meta.id); this.jobs.delete(job); });
     this.jobs.add(job); return job;
   }
   async settleTurn(meta, turn) {
@@ -250,23 +289,23 @@ export class WhaleService {
     if (estimate !== null && !turn.partial && !children.some(e => e.partial)) {
       amount = estimate; currency = context.setting.currency; source = 'configured-pricing-estimate'; costState = 'estimated';
       note = '根据 Codex 记录的 token 数量与手动配置价格估算，包含本主轮已记录的子任务用量；服务商折扣、缓存策略和账单延迟可能造成差异。';
-    } else if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency) {
-      if (typeof start.totalUsed === 'number' && typeof end.totalUsed === 'number' && end.totalUsed >= start.totalUsed) amount = rounded(end.totalUsed - start.totalUsed);
-      else if (start.totalUsed == null && end.totalUsed == null && typeof start.totalBalance === 'number' && typeof end.totalBalance === 'number' && end.totalBalance <= start.totalBalance) amount = rounded(start.totalBalance - end.totalBalance);
-      if (amount !== null) {
-        source = 'shared-key-interval'; costState = amount > 0 ? 'observed' : 'pending';
-        if (costState === 'pending') amount = null;
-        note = costState === 'pending' ? '结束采样尚未出现可归属扣费，可能尚未入账或本次未计费；稍后的同密钥扣费不会直接归入本轮。' :
-          '这是本轮运行期间同一 API 密钥的已观测合计扣费，可能含其他任务或设备的调用；并非逐请求最终账单。';
-        note += (turn.partial ? ' 挂件在本轮开始后启动，仅覆盖启动后的时段。' : '') + (turn.concurrent ? ' 检测到同时运行的任务。' : '');
-      }
     }
+    // Account observations have no request attribution, even when no local
+    // parallel turn is visible (another device may use the same API key).
+    let accountIntervalAmount = null;
+    if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency) {
+      if (Number.isFinite(start.totalUsed) && Number.isFinite(end.totalUsed) && end.totalUsed >= start.totalUsed) accountIntervalAmount = decimalDifference(end.totalUsed, start.totalUsed);
+      else if (start.totalUsed == null && end.totalUsed == null && Number.isFinite(start.totalBalance) && Number.isFinite(end.totalBalance) && end.totalBalance <= start.totalBalance) accountIntervalAmount = decimalDifference(start.totalBalance, end.totalBalance);
+    }
+    if (amount === null) note = '没有可验证的本轮账单或完整 token 价格估算，本轮费用未知；账户期间扣费可能来自其他对话、设备或延迟入账，不能归给本轮。';
     if (meta.historical && amount === null) note = '已恢复任务状态及可用 token 记录；任务结束时没有可靠余额采样，不能把停机期间其他扣费归入本轮。';
-    const label = source === 'configured-pricing-estimate' ? '上一轮消耗（估算）:' : source === 'shared-key-interval' ? (turn.partial ? '本轮已观测期间扣费:' : '上一轮期间 API 扣费:') : '上一轮 token 用量:';
+    const label = source === 'configured-pricing-estimate' ? '本轮消耗（估算）:' : '本轮费用未知:';
     const tokens = tokenTotal(combined);
     if(this.cancelledOutcomes.has(meta.id)){outcome='aborted';base.outcome='aborted';base.failureKind=null;}
     const completionKind = outcome === 'completed' ? 'success' : ['failed','interrupted','superseded'].includes(outcome) ? 'failed' : outcome === 'aborted' ? 'cancelled' : null;
     const event = { ...base, ok: true, turn: meta.turnId || meta.id, amount, cost: amount, costState, tokens, currency, source, label, note,
+      accountIntervalAmount, accountIntervalCurrency: end.currency || start.currency || context.setting.currency,
+      conversationRef: createHash('sha256').update(String(base.sessionId || base.id)).digest('hex').slice(0, 8),
       completionKind, notify: !meta.historical && !!completionKind && (outcome === 'completed' ? meta.notify !== false : meta.statusNotify === true || outcome === 'aborted' && this.cancelledOutcomes.has(meta.id)),
       concurrent: !!turn.concurrent, childTurns: children.length, ownByModel: ownUsage, byModel: combined,
       pricing: context.setting.models };
@@ -402,8 +441,8 @@ function mergeUsage(parts) {
 }
 
 export function estimateUsage(byModel, settings, ts) {
-  if (!Object.keys(byModel).length) return null;
-  let total = 0;
+  if (!Object.keys(byModel).length || tokenTotal(byModel) <= 0) return null;
+  let total = '0';
   for (const [model, u] of Object.entries(byModel)) {
     const p = Object.hasOwn(settings.models || {}, model) ? settings.models[model] : null;
     if (!p) return null;
@@ -411,7 +450,10 @@ export function estimateUsage(byModel, settings, ts) {
     const write = Math.min(Math.max(0, u.input_tokens - cached), u.cache_write_input_tokens || 0);
     const miss = Math.max(0, u.input_tokens - cached - write);
     // Reasoning tokens are already a subset of output_tokens in Codex events.
-    total += (miss * p.input + write * (p.cacheWrite ?? p.input) + cached * p.cachedInput + u.output_tokens * p.output) / 1e6;
+    for (const [count, price] of [[miss, p.input], [write, p.cacheWrite ?? p.input], [cached, p.cachedInput], [u.output_tokens, p.output]]) {
+      if (!Number.isFinite(count) || !Number.isFinite(price) || count < 0 || price < 0) return null;
+      total = decimalAdd(total, decimalMultiply(decimalMultiply(count, price), '0.000001'));
+    }
   }
-  return rounded(total);
+  return Number.isFinite(Number(total)) ? Number(total) : null;
 }

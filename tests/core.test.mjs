@@ -173,7 +173,7 @@ test('turn settlement records interval scope and keeps its sequence after restar
   const service = new WhaleService({ config: c, provider: fake });
   service.beginTurn({ id: 'one', turnId: '1', partial: false });
   await service.finishTurn({ id: 'one', turnId: '1', byModel: { model: usage(10, 0, 5) } });
-  assert.equal(service.lastTurn().amount, 1); assert.equal(service.lastTurn().source, 'shared-key-interval'); assert.equal(service.lastTurn().tokens, 15);
+  assert.equal(service.lastTurn().amount, null); assert.equal(service.lastTurn().accountIntervalAmount, 1); assert.equal(service.lastTurn().source, 'token-only'); assert.equal(service.lastTurn().tokens, 15);
   const restarted = new WhaleService({ config: c, provider: fake });
   assert.equal(restarted.lastTurn().seq, 1);
 });
@@ -187,4 +187,24 @@ test('transient failures keep the last successful balance but auth failures do n
   await service.getBalance(); mode = 'NETWORK';
   assert.equal((await service.getBalance({ force: true })).stale, true);
   mode = 'AUTH'; assert.equal((await service.getBalance({ force: true })).ok, false);
+});
+
+
+test('billing preserves a positive debit below eight decimal places', async t => {
+  const c = config(t); c.save({ provider: 'billing' });
+  const p = new BalanceProvider({ fetchImpl: async url => url.endsWith('/subscription') ? reply({ hard_limit_usd: 1 }) : reply({ total_usage: 0.00000001 }) });
+  const result = await p.balance(c.resolve());
+  assert.equal(result.totalUsed, 1e-10);
+  assert.equal(result.totalBalance, 0.9999999999);
+});
+
+test('custom scaling retains provider precision instead of truncating tiny balances and debits', async t => {
+  const c = config(t); c.save({ provider: 'custom-json', balancePath: '/my/balance', balanceField: 'wallet.remaining', usedField: 'wallet.spent', balanceScale: 0.01, currency: 'USD' });
+  const source = { remaining: 0.000000123456789, spent: 0.00000000123456789 };
+  const p = new BalanceProvider({ fetchImpl: async () => reply({ wallet: source }) });
+  const result = await p.balance(c.resolve());
+  assert.equal(result.totalBalance, source.remaining * 0.01);
+  assert.equal(result.totalUsed, source.spent * 0.01);
+  assert.ok(result.totalBalance > 0 && result.totalBalance < 1e-8);
+  assert.ok(result.totalUsed > 0 && result.totalUsed < 1e-10);
 });

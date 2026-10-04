@@ -71,7 +71,7 @@ test('late same-key debits update daily totals without being falsely assigned to
   const { make, provider, scope } = fixture(t, { pendingCostMs: 30 }), service = make(), meta = round('late');
   service.beginTurn(meta); await service.turns.get(meta.id).start;
   await service.finishTurn({ ...meta, outcome: 'completed', byModel: usage(10) });
-  assert.equal(service.lastTurn().costState, 'pending'); assert.equal(service.lastTurn().amount, null);
+  assert.equal(service.lastTurn().costState, 'unknown'); assert.equal(service.lastTurn().amount, null);
   const seq = service.lastTurn().seq;
   provider.used = 3; await service.getBalance({ force: true });
   await waitFor(() => service.ledger.find(scope, meta)?.costState === 'unknown');
@@ -112,12 +112,12 @@ test('a prompt retry suppresses high demand; cancellation reports neutral observ
   provider.used = 2; await service.finishTurn({ ...retry, outcome: 'completed', byModel: usage(10) });
   await delay(110);
   assert.equal(service.lastTurn().seq, 1); assert.equal(service.lastTurn().completionKind, 'success');
-  assert.equal(service.ledger.find(scope, failed).cost, 1);
+  assert.equal(service.ledger.find(scope, failed).cost, null);
   const cancelled = round('cancelled'); service.beginTurn(cancelled); await service.turns.get(cancelled.id).start;
   provider.used = 3; await service.finishTurn({ ...cancelled, outcome: 'aborted', statusNotify: true, notify: false, byModel: usage(10) });
   await waitFor(()=>service.lastTurn().seq===2);
-  assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().amount,1); assert.equal(service.ledger.find(scope, cancelled).cost, 1);
-  assert.equal(service.lastTurn().amount, 1);
+  assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().amount,null);assert.equal(service.lastTurn().accountIntervalAmount,1); assert.equal(service.ledger.find(scope, cancelled).cost, null);
+  assert.equal(service.lastTurn().amount, null);
 });
 
 test('recovery journal is a whitelist and never persists credentials or provider configuration', async t => {
@@ -156,7 +156,7 @@ test('a still-running restored task keeps its original meter baseline and accumu
   fs.appendFileSync(file, [tokens(300), event('task_complete', 'ongoing')].map(JSON.stringify).join('\n') + '\n');
   await waitFor(() => restarted.lastTurn().seq === 1);
   const saved = restarted.ledger.find(scope, meta);
-  assert.equal(saved.tokens, 300); assert.equal(saved.cost, 4); assert.equal(saved.partial, false); assert.equal(saved.historical, false);
+  assert.equal(saved.tokens, 300); assert.equal(saved.cost, null); assert.equal(saved.partial, false); assert.equal(saved.historical, false);
 });
 
 test('quit during an in-flight settlement is bounded and restores the pending record silently', async t => {
@@ -206,7 +206,7 @@ test('unmarked terminal API error settles observed consumption without waiting f
   parser.accept(event('error','unexpected',{message:'SYNTHETIC-PRIVATE-API-ERROR'}));
   await Promise.all(jobs);
   const notice=service.lastTurn();assert.equal(notice.completionKind,'failed');assert.equal(notice.failureKind,null);
-  assert.equal(notice.notify,true);assert.equal(notice.amount,0.25);assert.equal(notice.tokens,40);
+  assert.equal(notice.notify,true);assert.equal(notice.amount,null);assert.equal(notice.accountIntervalAmount,0.25);assert.equal(notice.tokens,40);
   assert.equal(JSON.stringify(notice).includes('SYNTHETIC-PRIVATE'),false);
   parser.accept(event('task_complete','unexpected',{status:'failed'}));await Promise.all(jobs);
   assert.equal(service.lastTurn().seq,notice.seq);assert.equal(service.ledger.load(scope).events.filter(e=>e.id==='main:unexpected').length,1);
@@ -229,7 +229,7 @@ test('immediately starting another turn does not suppress cancellation consumpti
   service.beginTurn(first);await service.turns.get(first.id).start;provider.used=0.4;
   const finish=service.finishTurn({...first,outcome:'aborted',statusNotify:true,notify:false,byModel:usage(40)});
   service.beginTurn(round('next'));await finish;
-  assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().amount,0.4);
+  assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().amount,null);assert.equal(service.lastTurn().accountIntervalAmount,0.4);
 });
 
 test('high demand survives settlement and journal sanitization without saving error text', async t => {
@@ -242,7 +242,7 @@ test('high demand survives settlement and journal sanitization without saving er
   await service.finishTurn({ ...meta, outcome: 'failed', statusNotify: true, notify: false, byModel: usage(10) });
   await waitFor(() => service.lastTurn().seq === 1);
   assert.equal(service.lastTurn().failureKind, 'high-demand');
-  assert.equal(service.ledger.find(scope, meta).cost, 0.25);
+  assert.equal(service.ledger.find(scope, meta).cost, null);
   assert.ok(!fs.readFileSync(service.lastFile, 'utf8').includes('SYNTHETIC-PRIVATE-ERROR'));
 });
 
@@ -252,6 +252,57 @@ test('cancel after a terminal overload replaces its queued phrase with neutral s
   await service.finishTurn({...meta,outcome:'failed',failureKind:'high-demand',statusNotify:true,notify:false});
   await service.finishTurn({...meta,outcome:'aborted',statusCorrection:true,notify:false,statusNotify:false});
   await delay(120);
-  assert.equal(service.lastTurn().seq,1);assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().failureKind,null);assert.equal(service.lastTurn().amount,0.3);assert.equal(service.ledger.find(scope,meta).cost,0.3);
+  assert.equal(service.lastTurn().seq,1);assert.equal(service.lastTurn().completionKind,'cancelled');assert.equal(service.lastTurn().failureKind,null);assert.equal(service.lastTurn().amount,null);assert.equal(service.lastTurn().accountIntervalAmount,0.3);assert.equal(service.ledger.find(scope,meta).cost,null);
   assert.equal(service.ledger.find(scope,meta).outcome,'aborted');
+});
+
+
+test('parallel zero-token failure never receives another conversation debit', async t => {
+  const { make, provider, scope } = fixture(t), service = make();
+  const a = round('A', { sessionId: 'session-A' }), b = round('B', { sessionId: 'session-B' });
+  service.beginTurn(a); await service.turns.get(a.id).start;
+  service.beginTurn(b); await service.turns.get(b.id).start;
+  provider.used = 0.25;
+  await service.finishTurn({ ...b, outcome: 'failed', statusNotify: true, byModel: usage(0) });
+  const failed = service.lastTurn();
+  assert.equal(failed.amount, null); assert.equal(failed.costState, 'unknown');
+  assert.equal(failed.accountIntervalAmount, 0.25); assert.equal(failed.concurrent, true);
+  assert.match(failed.conversationRef, /^[a-f0-9]{8}$/);
+  await service.finishTurn({ ...a, byModel: usage(100) });
+  assert.equal(service.ledger.records(scope).today.total, 0.25);
+});
+
+test('decimal accumulation retains repeated sub-round8 debits across reload and recharge', t => {
+  const { dir, scope } = fixture(t); let ledger = new UsageLedger(dir);
+  ledger.observe(scope, { totalBalance: 1 });
+  for (let i = 1; i <= 20; i++) ledger.observe(scope, { totalBalance: Number((1 - i * 1e-10).toFixed(10)) });
+  ledger = new UsageLedger(dir);
+  assert.equal(ledger.records(scope).today.total, 2e-9);
+  ledger.observe(scope, { totalBalance: 2 });
+  ledger.observe(scope, { totalBalance: 1.9999999999 });
+  assert.equal(ledger.records(scope).today.total, 2.1e-9);
+});
+
+test('history is anonymously selectable and legacy interval projection does not rewrite storage', t => {
+  const { make, scope } = fixture(t), service = make(), old = 'b'.repeat(24) + '-CNY';
+  service.ledger.observe(old, { totalUsed: 1 }); service.ledger.observe(old, { totalUsed: 3 });
+  service.ledger.append(old, { id: 'legacy', ts: Date.now(), source: 'shared-key-interval', cost: 2, amount: 2, currency: 'CNY' });
+  const list = service.usageScopes(); assert.equal(list.scopes[0].current, false);
+  assert.equal(JSON.stringify(list).includes('FIXTURE-SECRET'), false);
+  const history = service.usageRecords({ scope: old });
+  assert.equal(history.today.total, 2); assert.equal(history.all.events[0].cost, null);
+  assert.equal(history.all.events[0].accountIntervalAmount, 2);
+  assert.equal(service.ledger.load(old).events[0].cost, 2);
+  assert.throws(() => service.usageRecords({ scope: '../secret' }));
+});
+
+
+test('positive tiny token estimates retain precision while zero tokens remain unknown', async t => {
+  const { make } = fixture(t, { setting: { models: { model: { input: 0.0001, cachedInput: 0.0001, output: 0.0001 } } } }), service = make();
+  const tiny = round('tiny'); service.beginTurn(tiny); await service.turns.get(tiny.id).start;
+  await service.finishTurn({ ...tiny, byModel: usage(1) });
+  assert.equal(service.lastTurn().amount, 1e-10); assert.equal(service.lastTurn().costState, 'estimated');
+  const zero = round('zero'); service.beginTurn(zero); await service.turns.get(zero.id).start;
+  await service.finishTurn({ ...zero, byModel: usage(0), outcome: 'failed', statusNotify: true });
+  assert.equal(service.lastTurn().amount, null); assert.equal(service.lastTurn().costState, 'unknown');
 });

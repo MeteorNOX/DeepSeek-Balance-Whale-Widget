@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 function Get-WhaleFullPath([string]$Path) { return [IO.Path]::GetFullPath($Path).TrimEnd('\') }
 function Assert-WhalePlainPath([string]$Path) {
     $cursor = Get-WhaleFullPath $Path

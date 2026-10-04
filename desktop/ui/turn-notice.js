@@ -19,13 +19,15 @@
   }
   function snapshot(record, nativeCurrency = 'USD', random = Math.random) {
     const completionKind = kind(record);
-    const known = record.amount !== null && record.amount !== undefined && Number.isFinite(Number(record.amount)) &&
+    const known = record.source !== 'shared-key-interval' && record.amount !== null && record.amount !== undefined && Number.isFinite(Number(record.amount)) &&
       !['pending', 'unknown'].includes(record.costState);
     const failureKind = completionKind === 'failed' && record.failureKind === 'high-demand' ? 'high-demand' : null;
     return Object.freeze({
       id: String(record.id || ''), completionKind,
       failureKind,
-      label: failureKind ? '挤不进去...' : completionKind !== 'success' ? (record.source === 'configured-pricing-estimate' ? '本轮消耗（估算）:' : record.source === 'token-only' ? '本轮 token 用量:' : '本轮已观测消耗:') : String(record.label || '上一轮期间 API 扣费:'),
+      label: failureKind ? '挤不进去...' : known ? (record.source === 'configured-pricing-estimate' ? '本轮消耗（估算）:' : '本轮消耗:') : record.tokens > 0 ? '本轮用量已记录' : '本轮已结束',
+      conversationRef: /^[a-f0-9]{8}$/.test(record.conversationRef || '') ? record.conversationRef : '',
+      accountIntervalAmount: record.accountIntervalAmount ?? (record.source === 'shared-key-interval' ? record.amount : null),
       amount: known ? Number(record.amount) : null,
       currency: record.currency || nativeCurrency,
       costState: known ? record.costState || 'observed' : record.costState === 'pending' ? 'pending' : 'unknown',

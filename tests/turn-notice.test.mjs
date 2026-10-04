@@ -50,9 +50,16 @@ test('ordinary failure consumption follows the main switch while high-demand kee
   assert.equal(notices.enabled(failed, { failed: true }, false), false);
   assert.equal(notices.enabled(cancelled, { failed: false, cancelled: true }, false), false);
   assert.equal(notices.enabled(cancelled, {}, true), true);
-  assert.equal(cancelled.label,'本轮已观测消耗:');assert.equal(cancelled.failureKind,null);
+  assert.equal(cancelled.label,'本轮消耗:');assert.equal(cancelled.failureKind,null);
   assert.equal(notices.enabled(notices.snapshot(record({ outcome: 'failed', failureKind: 'high-demand' })), { failed: false }, false), true);
   assert.equal(notices.enabled(failed, { failed: false }, true), true);
-  assert.equal(failed.label,'本轮已观测消耗:');assert.equal(failed.failureKind,null);
+  assert.equal(failed.label,'本轮消耗:');assert.equal(failed.failureKind,null);
   assert.equal(notices.enabled(success, { failed: true, cancelled: true }, false), false);
+});
+
+
+test('legacy interval notices cannot present another turn spending as this turn', () => {
+  const value = notices.snapshot(record({ source: 'shared-key-interval', outcome: 'failed', amount: 0.25, costState: 'observed' }));
+  assert.equal(value.amount, null); assert.equal(value.costState, 'unknown');
+  assert.equal(value.label, '本轮用量已记录'); assert.equal(value.accountIntervalAmount, 0.25);
 });

@@ -4,7 +4,9 @@ title: "[Bug] "
 body:
   - type: markdown
     attributes:
-      value: 请勿提交 API 密钥、认证文件、完整聊天日志或未脱敏的账户截图。
+      value: |
+        请先查看包内 README.md、docs/KNOWN-ISSUES-0.4.md 与 CHANGELOG.md，并注明版本、发布标签及是否自行修改。v0.4.0 对应 codex-v0.4.0；candidate-20261005 是其运行构建标识。
+        请勿提交 API 密钥、认证文件、完整聊天日志或未脱敏的账户截图。
   - type: textarea
     id: environment
     attributes:

@@ -1,4 +1,4 @@
-param([string]$DataDir)
+﻿param([string]$DataDir)
 $ErrorActionPreference = 'Stop'
 $whaleRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (!$DataDir) { $whaleCodex = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }; $DataDir = if ($env:WHALE_HOME) { $env:WHALE_HOME } else { Join-Path $whaleCodex 'whale-widget' } }

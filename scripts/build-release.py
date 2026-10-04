@@ -8,21 +8,31 @@ import struct
 import zipfile
 from urllib.parse import unquote
 
+# Never let Python optimization disable the release privacy gates below.
+if not __debug__:
+    raise RuntimeError('Release privacy validation requires Python without optimization.')
+
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--release-tag', help='Public release tag; omitted for local candidate builds')
+parser.add_argument('--publication-ready', action='store_true', help='Record explicit user authorization to publish; requires --release-tag and never uploads')
 parser.add_argument('--output', type=Path, default=ROOT / 'dist')
 args = parser.parse_args()
+if args.publication_ready and not args.release_tag:
+    parser.error('--publication-ready requires --release-tag')
 output = args.output.resolve()
 allowed = {'.codex-plugin', '.github', 'assets', 'desktop', 'docs', 'lib', 'runtime', 'scripts', 'skills', 'tests', 'vendor'}
 root_files = {'.mcp.json', '.gitignore', '.gitattributes', 'package.json', 'package-lock.json', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'RELEASE_NOTES.md', 'PROVENANCE.md', 'SECURITY.md'}
 blocked = {'node_modules', '.git', 'dist', 'qa', 'qa-output', 'backups', 'desktop-profile', 'desktop-runtime', '__pycache__', 'archive', 'packages'}
-private_names = {'auth.json', 'config.toml', 'api-settings.json', 'usage-settings.json', 'runtime.json', 'service.lock', 'installation.json', 'ui-state.json', 'follow-state.json', 'last-turn.json'}
-private_ext = {'.log', '.jsonl', '.db', '.sqlite', '.sqlite3', '.pem', '.key', '.pfx', '.bak', '.tmp', '.mp4', '.exe', '.dll'}
-text_ext = {'.json', '.js', '.mjs', '.cjs', '.md', '.ps1', '.cmd', '.command', '.swift', '.txt', '.html', '.css', '.cs', '.py', '.yml', '.yaml'}
-patterns = [re.compile(r'[A-Z]:[/\\]+(?:Users[/\\]+PC(?:[/\\]|\b)|Codex_work(?:place)?(?:[/\\]|\b)|QQ[/\\]+downloads)', re.I),
+private_names = {'auth.json', 'config.toml', 'api-settings.json', 'usage-settings.json', 'runtime.json', 'service.lock', 'installation.json', 'ui-state.json', 'follow-state.json', 'last-turn.json', 'turn-journal.json', 'follow-config.json', 'follow-install.json', 'desktop-enabled.json', 'desktop-shutdown.json', '.dshw-size.json', '.dshw-bubble.json', 'display-mode.json'}
+private_ext = {'.log', '.jsonl', '.db', '.sqlite', '.sqlite3', '.pem', '.key', '.pfx', '.bak', '.tmp', '.mp4', '.exe', '.dll', '.zip', '.7z', '.rar', '.tar', '.gz'}
+text_ext = {'.json', '.js', '.mjs', '.cjs', '.md', '.ps1', '.cmd', '.command', '.swift', '.txt', '.html', '.css', '.cs', '.py', '.yml', '.yaml', '.ts', '.toml', '.ini'}
+media_ext = {'.png', '.gif', '.mp3', '.wav'}
+patterns = [re.compile(r'[A-Z]:[/\\]+(?:Users[/\\]+[^/\\\s<>"\']+[/\\]|Codex_work(?:place)?(?:[/\\]|\b)|QQ[/\\]+downloads)', re.I),
+            re.compile(r'/(?:Users|home)/[^/\s<>"\']+/', re.I),
             re.compile(r'any' + r'router', re.I), re.compile(r'sk-[A-Za-z0-9_-]{24,}'),
-            re.compile(r'codex-clipboard-[0-9a-f-]{30,}', re.I), re.compile(r'gh[pousr]_[A-Za-z0-9]{30,}')]
+            re.compile(r'codex-clipboard-[0-9a-f-]{30,}', re.I), re.compile(r'gh[pousr]_[A-Za-z0-9]{30,}'),
+            re.compile(r'github_pat_[A-Za-z0-9_]{30,}'), re.compile(r'eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}')]
 removed = []
 
 def sanitize_gif(name, data):
@@ -58,6 +68,8 @@ def sanitize_gif(name, data):
             if label == 0xff and data[start + 2] == 11 and data[start + 3:start + 14] == b'XMP DataXMP':
                 kinds.append('GIF-XMP')
                 continue
+            if label == 0xff:
+                assert data[start + 3:start + 14] in {b'NETSCAPE2.0', b'ANIMEXTS1.0'}, 'Review unknown GIF application metadata: ' + name
         elif tag == 0x2c:
             assert offset + 10 < len(data), 'Invalid GIF image: ' + name
             packed = data[offset + 9]
@@ -88,6 +100,7 @@ def sanitize(name, data):
             offset = end
         data = b''.join(parts)  # IDAT bytes remain unchanged: no pixel recompression.
     if name.endswith('.mp3'):
+        assert not any(marker in data for marker in (b'APETAGEX', b'LYRICSBEGIN', b'LYRICS200')), 'Review audio trailing metadata: ' + name
         while data.startswith(b'ID3'):
             assert len(data) >= 10 and all(n < 128 for n in data[6:10]), 'Invalid ID3: ' + name
             size = sum(n << shift for n, shift in zip(data[6:10], [21, 14, 7, 0]))
@@ -111,13 +124,14 @@ for file in sorted(ROOT.rglob('*')):
     if file.resolve().is_relative_to(output):
         continue
     # The vendored parser's dist folder is a required runtime dependency.
-    if any(p in blocked - {'dist'} or p.startswith(('qa-', 'private-backup')) for p in rel.parts):
+    if any(p in blocked - {'dist'} or p.startswith(('qa-', 'private-')) for p in rel.parts):
         continue
     if rel.parts[0] == 'dist' or name.startswith('docs/images/'):
         continue
     assert not file.is_symlink(), 'Unexpected symlink: ' + name
     assert rel.parts[0] in allowed or name in root_files or len(rel.parts) == 1 and file.suffix in {'.cmd', '.command'}, 'Unexpected file: ' + name
     assert file.name not in private_names and not file.name.startswith('.env') and file.suffix.lower() not in private_ext, 'Private or binary file: ' + name
+    assert file.suffix.lower() in text_ext | media_ext or file.name in {'.gitattributes', '.gitignore', 'LICENSE', 'NOTICE'}, 'Unexpected file type: ' + name
     assert 'rollback-target' not in file.name and not file.name.endswith('-installation.json'), 'Private receipt: ' + name
     data = sanitize(name, file.read_bytes())
     # Match .gitattributes independent of the OS/check-out line-ending policy.
@@ -126,14 +140,28 @@ for file in sorted(ROOT.rglob('*')):
         data = data.replace(b'\r\n', b'\n')
         if file.suffix.lower() in {'.cmd', '.ps1'}:
             data = data.replace(b'\n', b'\r\n')
-    if file.suffix.lower() in text_ext:
+        if file.suffix.lower() == '.ps1':
+            # Windows PowerShell 5.1 otherwise treats UTF-8 source as the local
+            # ANSI code page. Preserve Chinese messages and quoted paths.
+            data = b'\xef\xbb\xbf' + data.removeprefix(b'\xef\xbb\xbf')
+    if file.suffix.lower() in text_ext or file.name in {'.gitattributes', '.gitignore', 'LICENSE', 'NOTICE'}:
         content = data.decode('utf-8-sig').replace('\\\\', '\\')
         for pattern in patterns:
             assert not pattern.search(content), 'Privacy review required: ' + name
     files[name] = data
 
 manifest = json.loads(files['.codex-plugin/plugin.json'].decode('utf-8-sig'))
-assert manifest['name'] == 'api-balance-whale' and manifest['version'].split('+')[0] == '0.3.0'
+version = manifest['version']
+assert manifest['name'] == 'api-balance-whale' and re.fullmatch(r'\d+\.\d+\.\d+', version), 'Release version must be stable semver'
+package = json.loads(files['package.json'])
+distribution = package.get('distributionName', 'api-balance-whale-v' + version)
+assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,79}', distribution), 'Invalid distribution name'
+lock = json.loads(files['package-lock.json'])
+runtime = files['runtime/paths.mjs'].decode('utf-8-sig')
+assert package['version'] == lock['version'] == lock['packages']['']['version'] == version, 'Package version mismatch'
+assert re.search(r"export const VERSION = ['\"]" + re.escape(version) + r"['\"]", runtime), 'Runtime version mismatch'
+if args.release_tag:
+    assert args.release_tag == 'codex-v' + version, 'Codex release tag/version mismatch'
 assert manifest['author']['name'] == 'Yang-huai406'
 for name in ['vendor/smol-toml/dist/index.js', 'desktop/ui/dashboard.js', 'desktop/ui/shape.js', 'desktop/macos/window-probe.swift', 'scripts/install-package.ps1', 'scripts/install-macos.mjs']:
     assert name in files, 'Missing runtime dependency: ' + name
@@ -155,7 +183,7 @@ def archive(name, selected):
     destination = output / name
     with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for relative, data in selected.items():
-            info = zipfile.ZipInfo('api-balance-whale/' + relative, (2026, 9, 29, 0, 0, 0))
+            info = zipfile.ZipInfo('api-balance-whale/' + relative, (2026, 10, 5, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED; info.create_system = 3
             info.external_attr = (0o100755 if relative.endswith('.command') else 0o100644) << 16
             z.writestr(info, data)
@@ -167,10 +195,12 @@ def archive(name, selected):
     (output / (name + '.sha256')).write_text(digest + '  ' + name + '\n', encoding='utf-8')
     return {'name': name, 'sha256': digest, 'bytes': destination.stat().st_size, 'files': len(selected)}
 
-artifacts = [archive('api-balance-whale-v0.3(fixed).zip', {p: d for p, d in files.items() if not p.startswith(('.github/', 'tests/'))}),
-             archive('api-balance-whale-v0.3(fixed)-source.zip', files)]
-report = {'displayVersion': 'v0.3(fixed)', 'internalVersion': manifest['version'], 'status': 'release-build' if args.release_tag else 'local-test-candidate-awaiting-user-acceptance',
-          'lineEndings': 'LF for source and Mac launchers; CRLF for Windows .cmd and .ps1',
+artifacts = [archive(distribution + '.zip', {p: d for p, d in files.items() if not p.startswith(('.github/', 'tests/'))}),
+             archive(distribution + '-source.zip', files)]
+report = {'displayVersion': 'v' + version, 'internalVersion': version, 'candidateRevision': package.get('codexBuild', ''), 'status': 'release-ready-user-authorized' if args.publication_ready else 'local-test-candidate-awaiting-user-acceptance', 'publicationReady': args.publication_ready, 'published': False,
+          'publishedFieldScope': 'Local build time only; this script never publishes. Consult the GitHub Release for current publication status.',
+          'distributionName': distribution,
+          'lineEndings': 'LF for source and Mac launchers; CRLF for Windows .cmd/.ps1; UTF-8 BOM for Windows PowerShell',
           'releaseTag': args.release_tag, 'offlineInstaller': False, 'macOS': 'static-checks-no-hardware-acceptance', 'subscriptionLiveAccount': 'unverified',
           'macOSPR': 'https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128',
           'privacyScan': 'passed-public-files-only', 'archiveIntegrity': 'passed', 'localLinksChecked': links,

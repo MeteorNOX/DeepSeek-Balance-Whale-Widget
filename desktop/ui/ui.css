@@ -112,3 +112,10 @@ html.desktop .whale-quota-box progress{-webkit-appearance:none;appearance:none;b
 html.desktop .whale-quota-box progress::-webkit-progress-bar{background:#edf0f7;border-radius:6px}
 html.desktop .whale-quota-box progress::-webkit-progress-value{background:#4964bc;border-radius:6px}
 html.desktop .whale-quota-box:nth-child(2) progress::-webkit-progress-value{background:#618b83}
+
+/* One inset rectangle shared by every bubble scene. Its corners sit inside the
+   white ellipse (center 454,248; radii 373,232 in the 1026x700 SVG). */
+.desktop .dshwv-text:has(>.dshwv-frame){left:44.25%;top:35.43%;width:50%;height:38%}
+.desktop .dshwv-frame{inset:auto;left:50%;top:50%;width:calc(100% / var(--whale-fit-scale,1));height:auto;min-height:0;transform:translate(-50%,-50%) scale(var(--whale-fit-scale,1));transform-origin:center;overflow:visible}
+.desktop .dshwv-frame>.dshwv-trow,.desktop .dshwv-frame>.dshwv-label,.desktop .dshwv-frame>.dshwv-amount,.desktop .dshwv-frame>.dshwv-hint{max-width:100%!important;white-space:pre-wrap!important;overflow-wrap:anywhere;word-break:break-word}
+.desktop .dshwv-frame>.dshwv-mimg,.desktop .dshwv-frame>.dshwv-gif{max-width:100%;object-fit:contain}

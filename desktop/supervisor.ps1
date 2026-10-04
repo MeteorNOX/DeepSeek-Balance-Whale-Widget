@@ -1,4 +1,4 @@
-param([string]$DataDir, [switch]$Probe, [switch]$Stop, [switch]$Hit, [int]$X, [int]$Y)
+﻿param([string]$DataDir, [switch]$Probe, [switch]$Stop, [switch]$Hit, [int]$X, [int]$Y)
 $ErrorActionPreference = 'Stop'
 if (!$DataDir) { $whaleCodex = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }; $DataDir = if ($env:WHALE_HOME) { $env:WHALE_HOME } else { Join-Path $whaleCodex 'whale-widget' } }
 $DataDir = [IO.Path]::GetFullPath($DataDir)

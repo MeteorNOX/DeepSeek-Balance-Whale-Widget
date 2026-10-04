@@ -4,7 +4,7 @@
   if (!bridge || !rendering) return;
   const pet = document.querySelector('.dshwv-img'), root = document.querySelector('.dshwv-root');
   const failedRoleSources = new Set();
-  let pointerEventAt=0;
+  let pointerEventAt=0, nativeButtonsAt=0, releasedPointer=null;
   let point = { x: -1, y: -1 }, heldPointer = null, releaseEpoch = 0, interactive = false, keyboardFocus = false, ready = false, lastStorage = '', externalDrag = false;
   const surfaces = '.whale-account-card,dialog[open],.dshwv-menu-open,.dshwv-menu-btn-visible:not(.dshwv-menu-btn-hidden),.dshwv-rolelist,.dshwv-audiolist,.dshwv-qedit,.dshwv-usagepanel,.dshwv-custmenu,.dshwv-custbtn,.dshwv-tplhelp,.dshwv-fx-info,#toast:not([hidden])';
   const keyboardSurfaces = 'dialog[open],.dshwv-menu-open,.dshwv-rolelist,.dshwv-audiolist,[class*="mask"],.dshwv-qedit,.dshwv-usagepanel,.dshwv-custmenu,.dshwv-fx-info';
@@ -28,10 +28,12 @@
     for(const mask of document.querySelectorAll('[class*="mask"]'))if(visible(mask)&&[...mask.children].some(c=>cardHit(c)))return true;
     const target = document.elementFromPoint(p.x, p.y);
     if (target?.closest('.dshwv-pop-open') && !target.closest('[inert]')) return true;
-    return visible(pet) && rendering.hitCache.hit(pet, p.x, p.y, rendering.mirrorScale(root) < 0);
+    return visible(pet) && (rendering.petInteraction ? rendering.petInteraction.hit(pet, root, p.x, p.y) :
+      rendering.hitCache.hit(pet, p.x, p.y, rendering.mirrorScale(root) < 0));
   }
   function update() {
-    const next = heldPointer !== null || !externalDrag && hit(point);
+    rendering.petInteraction?.move(point);
+    const next = heldPointer !== null || rendering.petInteraction?.holding() || !externalDrag && hit(point);
     if (next !== interactive) { interactive = next; bridge.interactive(next); }
   }
   function updateKeyboardFocus() {
@@ -47,6 +49,7 @@
   document.addEventListener('mousemove', track, true);
   document.addEventListener('pointermove', track, true);
   document.addEventListener('pointerdown', e => {
+    pointerEventAt = Date.now(); releasedPointer = null;
     externalDrag = false;
     ++releaseEpoch;
     point = { x: e.clientX, y: e.clientY };
@@ -59,6 +62,7 @@
     update();
   }, true);
   function release(e) {
+    pointerEventAt = Date.now(); releasedPointer = e?.pointerId ?? null;
     externalDrag = false;
     if (e?.clientX !== undefined) point = { x: e.clientX, y: e.clientY };
     const epoch = ++releaseEpoch;
@@ -66,21 +70,38 @@
     // native window's input flags. A pressed/turning sprite may miss this pixel.
     requestAnimationFrame(() => { if (epoch === releaseEpoch) { heldPointer = null; update(); } });
   }
+  function cancelInteraction() {
+    pointerEventAt = Date.now(); releasedPointer = null;
+    ++releaseEpoch; heldPointer = null; externalDrag = false; point = { x: -1, y: -1 };
+    rendering.petInteraction?.cancel(); update();
+  }
   document.addEventListener('pointerup', release, true);
-  document.addEventListener('pointercancel', release, true);
-  document.addEventListener('lostpointercapture', release, true);
-  window.addEventListener('blur', () => { ++releaseEpoch; heldPointer = null; point = { x: -1, y: -1 }; update(); });
+  document.addEventListener('pointercancel', cancelInteraction, true);
+  document.addEventListener('lostpointercapture', e => {
+    // Normal pointerup releases native capture before its DOM click. A later
+    // lost-capture event belongs to that release, not to a new cancellation.
+    if (root.hasPointerCapture?.(e.pointerId) || releasedPointer === e.pointerId || rendering.petInteraction?.releasing(e.pointerId)) return;
+    cancelInteraction();
+  }, true);
+  window.addEventListener('blur', cancelInteraction);
   bridge.onCursor(p => {
     // Preserve the real pointer during a captured drag; native fallback only discovers hover.
     if (heldPointer === null) {
-      if (typeof p.buttons === 'number' && (!p.sampledAt || p.sampledAt>=pointerEventAt)) externalDrag = p.buttons > 0;
+      // Coordinates are sampled now, while buttons may come from an older
+      // native heartbeat. Never let a late down sample override a real up.
+      if (typeof p.buttons === 'number' && Number.isFinite(p.sampledAt) && p.sampledAt > Math.max(pointerEventAt, nativeButtonsAt)) {
+        nativeButtonsAt = p.sampledAt; externalDrag = p.buttons > 0;
+      }
       point = p; update();
       window.dispatchEvent(new CustomEvent('whale-hover', { detail: externalDrag ? {x:-1,y:-1} : p }));
     }
   });
-  window.addEventListener('whale-mode-changing', () => { ++releaseEpoch; heldPointer=null; externalDrag=false; point={x:-1,y:-1}; update(); });
+  window.addEventListener('whale-mode-changing', cancelInteraction);
+  window.addEventListener('whale-desktop-mode', cancelInteraction);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) cancelInteraction(); });
+  window.addEventListener('whale-interaction-geometry', update);
   rendering.onFrame(update);
-  if(bridge.testMode)window.__whaleInputTest={hit};
+  if(bridge.testMode)window.__whaleInputTest={hit,status:()=>({interactive,heldPointer,externalDrag,pointerEventAt,nativeButtonsAt})};
   const request = () => { updateKeyboardFocus(); rendering.presentFor(); };
   new MutationObserver(request).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'src', 'open', 'hidden', 'inert'] });
   document.addEventListener('transitionrun', e => {
@@ -125,6 +146,7 @@
   // than repeatedly serializing localStorage while Codex is minimized.
   setInterval(() => { if (!document.hidden) save(); }, 800);
   document.addEventListener('visibilitychange', save);
+  window.addEventListener('whale-position-committed', save);
   window.addEventListener('beforeunload', save);
   request();
 })();

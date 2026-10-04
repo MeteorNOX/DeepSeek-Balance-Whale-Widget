@@ -1,3 +1,5 @@
+> 历史开发专题，保留当时实现与验证范围。当前 v0.4 状态以 [版本说明](RELEASE-0.4.md) 和 [验收清单](TEST-CHECKLIST-0.4.md) 为准；旧构建号、专用回滚入口或测试数量不代表本包。
+
 # v0.3 Windows 显示候选修复
 
 本次针对“Codex 内小鲸鱼偶发不可见，操作软件外部后又出现”。保留 v0.3 功能、Windows 鼠标移动不转发的光标修复，以及 [macOS PR #128](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128) 的兼容代码与署名。

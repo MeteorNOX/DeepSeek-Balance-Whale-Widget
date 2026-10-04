@@ -20,19 +20,25 @@
       active.delete(key);
     }
   }
-  async function play({ channel = 'preview', url, preset = 'original', volume = .9 } = {}) {
+  async function play({ channel = 'preview', url, urls, preset = 'original', volume = .9 } = {}) {
     stop(channel); const epoch = epochs.get(channel);
     if (!(Number(volume) > 0)) return;
     try {
       const c = context(); touch(); await c.resume();
-      const buffer = preset === 'original' ? await warm(url) : null;
+      // Decode the complete group before scheduling so release follows the full press.
+      // A missing slot must not prevent the remaining slots from playing.
+      const sequence = preset === 'original' ? (await Promise.all((urls || [url]).filter(Boolean).map(src => warm(src).catch(() => null)))).filter(Boolean) : [];
       if (epochs.get(channel) !== epoch || c !== ctx) return;
       const gain = c.createGain(); gain.connect(c.destination);
       const now = c.currentTime, nodes = [];
       if (preset === 'original') {
-        if (!buffer) { gain.disconnect(); return; }
-        const source = c.createBufferSource(); source.buffer = buffer; source.connect(gain);
-        gain.gain.value = Math.min(1, volume); nodes.push(source); source.start();
+        if (!sequence.length) { gain.disconnect(); return; }
+        gain.gain.value = Math.min(1, volume);
+        let offset = now;
+        for (const buffer of sequence) {
+          const source = c.createBufferSource(); source.buffer = buffer; source.connect(gain);
+          nodes.push(source); source.start(offset); offset += buffer.duration;
+        }
       } else {
         // Original procedural tones: no third-party samples or network assets.
         const tones = { pearl: [660, 880], bubble: [260, 520], glass: [1046, 1318] }[preset] || [440, 660];

@@ -1,4 +1,4 @@
-param([long]$Overlay, [int]$OverlayPid, [long]$FixtureHost, [int]$FixturePid)
+﻿param([long]$Overlay, [int]$OverlayPid, [long]$FixtureHost, [int]$FixturePid)
 $ErrorActionPreference='Stop'
 $whaleRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $whaleHostProcess=Get-CimInstance Win32_Process -Filter ('ProcessId='+$FixturePid)

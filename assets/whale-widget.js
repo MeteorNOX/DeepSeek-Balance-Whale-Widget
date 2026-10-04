@@ -37,6 +37,11 @@
       return data;
     }
     function assetFailure(error) { assetNotice(error && error.message || '保存未完成，请重试'); }
+    // Track composition at the document boundary, including engines which omit isComposing.
+    var whaleComposing = false;
+    document.addEventListener('compositionstart', function () { whaleComposing = true; }, true);
+    document.addEventListener('compositionend', function () { whaleComposing = false; }, true);
+    function whaleImeKey(e) { return whaleComposing || !!e.isComposing || e.keyCode === 229; }
     function mediaDataUrl(blob) {
       return new Promise(function (resolve, reject) {
         var reader = new FileReader();
@@ -194,6 +199,7 @@
         dshwCustSelClose();
       }, true);
       document.addEventListener('keydown', function (e) {
+      if (whaleImeKey(e)) return;
         if (e.key === 'Escape') dshwCustCloseNow();
       }, true);
       window.addEventListener('resize', function () {
@@ -446,7 +452,15 @@
         var sel = usageSet.taskEnd.sel || taskEndSel.value || '';
         var url = '';
         if (sel.indexOf('grp:') === 0) {
-          if (window.WhaleFeedback) { window.WhaleFeedback.play('success', '/dsh-whale/sound/press.mp3?set=' + encodeURIComponent(sel.slice(4)), soundOn ? soundVol : 0); return; }
+          if (window.WhaleFeedback) {
+            var groupId = sel.slice(4);
+            var sources = ['press', 'release'].filter(function (slot) { return !audioGroupSlotEmpty(groupId, slot); })
+              .map(function (slot) { return '/dsh-whale/sound/' + slot + '.mp3?set=' + encodeURIComponent(groupId); });
+            window.WhaleFeedbackSources = window.WhaleFeedbackSources || {};
+            window.WhaleFeedbackSources.success = sources;
+            if (sources.length) window.WhaleFeedback.play('success', sources, soundOn ? soundVol : 0);
+            return;
+          }
           playTaskEndGroupClick(sel.slice(4));
           return;
         }
@@ -743,6 +757,7 @@
       if (!currencyNote.hidden && !currencyNote.contains(e.target) && !fxInfoBtn.contains(e.target)) closeFxInfo();
     }, true);
     document.addEventListener('keydown', function (e) {
+      if (whaleImeKey(e)) return;
       if (e.key === 'Escape' && !currencyNote.hidden) { e.preventDefault(); e.stopPropagation(); closeFxInfo(true); }
     }, true);
     window.addEventListener('resize', function () { closeFxInfo(); });
@@ -3099,6 +3114,7 @@
           return;
         }
         snapCheck();
+        commitPosition();
       } catch (err) {}
     }
     snapMask = document.createElement('div');
@@ -4141,11 +4157,15 @@
     function bubbleChoiceWeight(o) {
       return Math.max(1, Math.round(Number(o && o.w) || 1));
     }
+    function bubbleNamedItem(source, target) {
+      if (source && typeof source.name === 'string') target.name = source.name;
+      return target;
+    }
     function bubbleSingleFromItem(itm) {
-      return {
+      return bubbleNamedItem(itm, {
         kind: 'custom',
         modules: itm && Array.isArray(itm.modules) ? itm.modules : []
-      };
+      });
     }
     function bubbleStepToBubble(step) {
       if (bubbleIsChoice(step)) {
@@ -4153,10 +4173,10 @@
         step = o0 ? o0.item : null;
       }
       var mods = step && Array.isArray(step.modules) ? step.modules : bubbleDefaultModules(step && step.kind === 'random' ? 'random' : 'normal');
-      return {
+      return bubbleNamedItem(step, {
         kind: 'custom',
         modules: JSON.parse(JSON.stringify(mods))
-      };
+      });
     }
     function renderBubbleFirst() {
       var it = bubbleEditItems[0] || ({
@@ -4525,6 +4545,14 @@
       }
     }
     function openBubbleEditor() {
+      if (bubbleOpening || bubbleMask.style.display === 'flex') return;
+      bubbleOpening = true;
+      loadBubbleCfg().then(function () {
+        bubbleEditorRevision = bubbleRevision;
+        buildBubbleEditor();
+      }).catch(assetFailure).finally(function () { bubbleOpening = false; });
+    }
+    function buildBubbleEditor() {
       try {
         closeRolePanel();
         closeAudioGroupPanel();
@@ -4544,30 +4572,30 @@
               var oi2 = src.options[oi] || ({});
               var srcItem = oi2.item || ({});
               var srcMods = Array.isArray(srcItem.modules) ? JSON.parse(JSON.stringify(srcItem.modules)) : srcItem.kind === 'random' ? bubbleDefaultSecondModules() : [];
-              opts.push({
+              opts.push(bubbleNamedItem(oi2, {
                 w: bubbleChoiceWeight(oi2),
-                item: {
+                item: bubbleNamedItem(srcItem, {
                   kind: 'custom',
                   modules: srcMods
-                }
-              });
+                })
+              }));
             }
             if (opts.length === 1) {
               bubbleEditItems.push(bubbleSingleFromItem(opts[0].item));
               continue;
             }
             if (opts.length >= 2) {
-              bubbleEditItems.push({
+              bubbleEditItems.push(bubbleNamedItem(src, {
                 kind: 'choice',
                 options: opts
-              });
+              }));
               continue;
             }
           }
-          bubbleEditItems.push({
+          bubbleEditItems.push(bubbleNamedItem(src, {
             kind: src.kind === 'random' ? 'random' : src.kind === 'custom' ? 'custom' : 'normal',
             modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined
-          });
+          }));
         }
         bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib]);
         renderBubbleEditor();
@@ -4590,6 +4618,7 @@
           var items = [];
           for (var i = 0; i < bubbleEditItems.length; i++) items.push(bubbleStepToSaved(bubbleEditItems[i]));
           saveBubbleCfg({
+            expectedRevision: bubbleEditorRevision,
             v: 1,
             items: items,
             lib: bubbleLib
@@ -4606,25 +4635,25 @@
           var itm = o && o.item || ({});
           var mods = Array.isArray(itm.modules) ? itm.modules : bubbleDefaultModules(itm.kind === 'random' ? 'random' : 'normal');
           bubbleRowsCanon(mods);
-          return {
+          return bubbleNamedItem(o, {
             w: bubbleChoiceWeight(o),
-            item: {
+            item: bubbleNamedItem(itm, {
               kind: 'custom',
               modules: mods
-            }
-          };
+            })
+          });
         });
-        return {
+        return bubbleNamedItem(step, {
           kind: 'choice',
           options: opts
-        };
+        });
       }
       var mods = Array.isArray(step.modules) ? step.modules : bubbleDefaultModules(step.kind);
       bubbleRowsCanon(mods);
-      return {
+      return bubbleNamedItem(step, {
         kind: 'custom',
         modules: mods
-      };
+      });
     }
     var bubbleItemMask = null;
     var bubbleEditItemIdx = -1;
@@ -4720,6 +4749,7 @@
           qeditClose();
         }, true);
         document.addEventListener('keydown', function (e) {
+      if (whaleImeKey(e)) return;
           if (e.key === 'Escape') qeditClose();
         });
       }
@@ -7093,6 +7123,7 @@
     moduleNamePromptMask.appendChild(moduleNamePromptCard);
     document.body.appendChild(moduleNamePromptMask);
     moduleNameInput.addEventListener('keydown', function (e) {
+      if (whaleImeKey(e)) return;
       try {
         if (e.key === 'Enter') saveModuleNamePrompt(); else if (e.key === 'Escape') closeModuleNamePrompt();
       } catch (err) {}
@@ -7735,6 +7766,8 @@
       message: '',
       flip: false
     };
+    // Persist the intended edge distances, never a temporarily clamped frame.
+    var positionIntent = null;
     var SNAP_KEY = 'dshw-snap';
     var SNAP_VER = 3;
     var SNAP_DEFAULTS = {
@@ -7966,6 +7999,10 @@
     var bubbleSeqIdx = 0;
     var bubbleRoundOn = false;
     var bubbleCfg = null;
+    var bubbleRevision = null;
+    var bubbleEditorRevision = null;
+    var bubbleOpening = false;
+    var bubbleCfgReadSeq = 0;
     var bubbleLib = [];
     function bubbleCloneModule(m) {
       var copy = JSON.parse(JSON.stringify(m || ({})));
@@ -8012,16 +8049,17 @@
               }; else citem = {
                 kind: 'normal'
               };
-              opts.push({
+              bubbleNamedItem(cit, citem);
+              opts.push(bubbleNamedItem(co, {
                 w: bubbleChoiceWeight(co),
                 item: citem
-              });
+              }));
             }
             if (opts.length) {
-              seq.push({
+              seq.push(bubbleNamedItem(it, {
                 kind: 'choice',
                 options: opts
-              });
+              }));
               continue;
             }
           }
@@ -8033,24 +8071,30 @@
           }); else seq.push({
             kind: 'normal'
           });
+          bubbleNamedItem(it, seq[seq.length - 1]);
         }
         if (seq.length) bubbleSeq = seq;
       } catch (err) {}
     }
     function loadBubbleCfg() {
-      try {
-        fetch(BUBBLE_URL, {
+        var readSeq = ++bubbleCfgReadSeq;
+        return fetch(BUBBLE_URL, {
           cache: 'no-store'
         }).then(function (r) {
           return r.json();
         }).then(function (d) {
-          if (d && d.ok && d.config) {
+          requireSaved(d);
+          if (d.config !== null && (!d.config || typeof d.config !== 'object')) throw new Error('气泡配置读取失败，请重试');
+          if (readSeq !== bubbleCfgReadSeq) return d;
+          if (d && d.ok) {
+            bubbleRevision = d.revision;
             bubbleCfg = d.config;
-            bubbleLib = d.config.lib && Array.isArray(d.config.lib) ? JSON.parse(JSON.stringify(d.config.lib)) : [];
+            bubbleLib = d.config && Array.isArray(d.config.lib) ? JSON.parse(JSON.stringify(d.config.lib)) : [];
+            if (d.config === null) bubbleSeq = bubbleDefaultQueue();
             applyBubbleCfgSeq();
           }
-        }).catch(function () {});
-      } catch (err) {}
+          return d;
+        });
     }
     function saveBubbleCfg(cfg, okFn) {
       try {
@@ -8065,6 +8109,9 @@
         }).then(function (d) {
           requireSaved(d);
           if (d && d.ok && d.config) {
+            ++bubbleCfgReadSeq;
+            bubbleRevision = d.revision;
+            bubbleEditorRevision = d.revision;
             bubbleCfg = d.config;
             applyBubbleCfgSeq();
             if (okFn) okFn();
@@ -8147,17 +8194,52 @@
       bubbleBox.classList.remove('dshwv-pop-open');
     }
     
-    function sceneOpen(kind, renderFn, ttlMs) {
-      var wasOpen = bubbleShown;
-      var previousScene = bubbleScene;
+    function sceneOpen(kind, renderFn, ttlMs, systemItem) {
+      if (bubbleScene && bubbleScene.pending && bubbleScene.systemItem && typeof bubbleScene.systemItem.onDiscard === 'function') bubbleScene.systemItem.onDiscard();
+      // The queue owns the same generation as its scene. A pending render is
+      // never a rollback target: only the last committed frame can be restored.
+      var previousScene = bubbleScene && bubbleScene.pending ? bubbleScene.previousScene : bubbleScene;
       bubbleClearAll();
       var entry = bubbleSceneEpoch;
-      bubbleScene = { kind: kind, ttlMs: ttlMs || 0 };
+      var scene = { kind: kind, ttlMs: ttlMs || 0, deadline: 0,
+        systemItem: systemItem || null, pending: true, previousScene: previousScene };
+      bubbleScene = scene;
+      whaleSysItem = scene.systemItem;
       bubbleShown = true;
       costBubbleActive = kind === 'cost';
       bubbleRandomActive = kind === 'random';
+      function settled(committed) {
+        if (entry !== bubbleSceneEpoch || bubbleScene !== scene) return;
+        bindBubbleParts(bubbleFrames.front);
+        if (!committed) {
+          if (systemItem && typeof systemItem.onDiscard === 'function') systemItem.onDiscard();
+          // Advancing a system queue consumes its former item. Do not restore
+          // a dismissed permanent alert (or its already expired deadline).
+          var restore = systemItem && previousScene && previousScene.systemItem ? null : previousScene;
+          bubbleScene = restore;
+          bubbleShown = !!restore;
+          whaleSysItem = restore && restore.systemItem || null;
+          costBubbleActive = !!restore && restore.kind === 'cost';
+          bubbleRandomActive = !!restore && restore.kind === 'random';
+          if (!restore) bubbleCloseVisual();
+        } else {
+          scene.pending = false;
+          scene.previousScene = null;
+          if (systemItem && typeof systemItem.isValid === 'function' && !systemItem.isValid()) {
+            if (typeof systemItem.onDiscard === 'function') systemItem.onDiscard();
+            bubbleScene = null; bubbleShown = false; whaleSysItem = null; costBubbleActive = false;
+            bubbleCloseVisual(); whaleSysTick(); return;
+          }
+          if (systemItem && typeof systemItem.onShown === 'function') systemItem.onShown();
+          try { WhaleMoney.refreshBindings(menuBox); } catch (error) {}
+          if (ttlMs > 0) scene.deadline = Date.now() + ttlMs;
+        }
+        armBubbleDeadline();
+        whaleSysTick();
+      }
       // Build once at entry. Data callbacks cannot repaint either live buffer.
-      bubbleFrames.open(function (parts) {
+      var opening;
+      try { opening = bubbleFrames.open(function (parts) {
         bubbleBuilding = true;
         bindBubbleParts(parts);
         try {
@@ -8166,23 +8248,26 @@
         }
         finally { bubbleBuilding = false; bindBubbleParts(bubbleFrames.front); }
       }, function () {
+        if (entry !== bubbleSceneEpoch || bubbleScene !== scene) return;
         bubbleBox.classList.add('dshwv-pop-open');
         WhaleRendering.presentFor(650);
-      }).then(function (committed) {
-        if (entry !== bubbleSceneEpoch) return;
-        bindBubbleParts(bubbleFrames.front);
-        if (!committed) {
-          bubbleScene = previousScene;
-          bubbleShown = wasOpen;
-          costBubbleActive = !!previousScene && previousScene.kind === 'cost';
-          bubbleRandomActive = !!previousScene && previousScene.kind === 'random';
-          if (!wasOpen) bubbleCloseVisual();
-          return;
-        }
-        WhaleMoney.refreshBindings(menuBox);
-        if (ttlMs > 0) bubbleTtlTimer = setTimeout(bubbleAutoClose, ttlMs);
-      });
+      }); } catch (error) { settled(false); return; }
+      Promise.resolve(opening).then(settled, function () { settled(false); });
     }
+    function armBubbleDeadline() {
+      if (bubbleTtlTimer) clearTimeout(bubbleTtlTimer);
+      bubbleTtlTimer = null;
+      if (!bubbleScene || !bubbleScene.deadline) return;
+      var epoch = bubbleSceneEpoch;
+      var remaining = bubbleScene.deadline - Date.now();
+      if (remaining <= 0) { bubbleAutoClose(); return; }
+      bubbleTtlTimer = setTimeout(function () {
+        if (epoch !== bubbleSceneEpoch) return;
+        armBubbleDeadline();
+      }, remaining);
+    }
+    window.addEventListener('focus', armBubbleDeadline);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) armBubbleDeadline(); });
     function bubbleAutoClose() {
       bubbleTtlTimer = null;
       if (bubbleScene && bubbleScene.kind === 'cost') {
@@ -8204,7 +8289,8 @@
           bubbleTtlTimer = null;
         }
       } catch (err) {}
-      if (bubbleScene && bubbleScene.ttlMs > 0) bubbleTtlTimer = setTimeout(bubbleAutoClose, bubbleScene.ttlMs);
+      if (bubbleScene && bubbleScene.ttlMs > 0) bubbleScene.deadline = Date.now() + bubbleScene.ttlMs;
+      armBubbleDeadline();
     }
     function bubbleRenderDefault() {
       restoreBubbleLines();
@@ -8216,27 +8302,37 @@
       notice = notice || WhaleTurnNotice.snapshot({ amount: amount }, state.currency);
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
-      labelEl.textContent = notice.label;
+      var completionLabel = notice.completionKind === 'failed' ? '失败' : notice.completionKind === 'cancelled' ? '取消' : '完成';
+      labelEl.textContent = (notice.conversationRef ? '对话 ' + String(notice.conversationRef).slice(0, 12) + ' · ' + completionLabel + '\n' : '') + notice.label;
       labelEl.style.color = '';
       labelEl.style.width = '100%';
       labelEl.style.maxWidth = '100%';
-      labelEl.style.whiteSpace = 'normal';
+      labelEl.style.whiteSpace = 'pre-line';
       labelEl.style.overflowWrap = 'anywhere';
       labelEl.style.fontSize = 'calc(var(--dshw-u) * 40)';
       labelEl.style.lineHeight = '1.2';
       labelEl.style.letterSpacing = '.02em';
       amountEl.style.display = '';
       amountEl.className = 'dshwv-amount';
-      if (notice.amount === null) amountEl.textContent = notice.costState === 'pending' ? '待记账' : '金额未知';
+      if (notice.amount === null) amountEl.textContent = notice.tokens == null ? '用量待确认' : notice.tokens.toLocaleString('en-US') + ' tokens';
       else {
-        WhaleMoney.bind(amountEl, function () { return fmt(notice.amount, notice.currency); });
+        WhaleMoney.bind(amountEl, function () {
+          var formatted = fmt(notice.amount, notice.currency);
+          amountEl.style.fontSize = 'calc(var(--dshw-u) * ' + Math.min(100, 760 / Math.max(8, formatted.length)) + ')';
+          return formatted;
+        });
       }
+      amountEl.style.width = '100%';
+      amountEl.style.maxWidth = '100%';
+      amountEl.style.whiteSpace = 'nowrap';
+      amountEl.style.lineHeight = '1.1';
+      if (notice.amount === null) amountEl.style.fontSize = 'calc(var(--dshw-u) * 52)';
       amountEl.title = notice.note;
       amountEl.style.color = '#e0433f';
       hintEl.style.display = '';
-      hintEl.textContent = (notice.tokens === null ? '' : notice.tokens.toLocaleString('en-US') + ' tokens · ') +
-        (notice.costState === 'pending' ? '等待账单确认' : notice.costState === 'unknown' ? '以服务商账单为准' :
-          notice.costState === 'estimated' ? '配置价格估算' : '同密钥区间观测');
+      hintEl.textContent = (notice.amount > 0 && notice.amount < 0.01 ? '小额用量已累计 · ' : '') +
+        (notice.noticeType === 'account' ? '自上次提示以来' + (notice.concurrent ? ' · 含并行任务' : ' · 账户合计') :
+          notice.amount === null ? '本轮费用未单独确认' : notice.costState === 'estimated' ? '配置价格估算' : '账单确认');
       hintEl.title = notice.note;
       hintEl.style.color = '';
       hintEl.style.width = '100%';
@@ -8341,6 +8437,7 @@
             dshwvTplHelpEl.style.display = 'none';
           }, true);
           document.addEventListener('keydown', function (e) {
+      if (whaleImeKey(e)) return;
             if (e.key === 'Escape') dshwvTplHelpEl.style.display = 'none';
           });
         }
@@ -8768,6 +8865,7 @@
       bubbleShowSeqNext();
     }
     function hideBubble() {
+      for (var pendingItem of [whaleSysItem].concat(whaleSysQueue || [])) { if (pendingItem && typeof pendingItem.onDiscard === 'function') pendingItem.onDiscard(); }
       bubbleClearAll();
       costBubbleActive = false;
       whaleSysQueue = [];
@@ -8794,6 +8892,7 @@
       });
     }
     function hideCostBubble() {
+      if (whaleSysItem && typeof whaleSysItem.onDiscard === 'function') whaleSysItem.onDiscard();
       if (whaleSysSwapNext()) return;
       bubbleClearAll();
       costBubbleActive = false;
@@ -8811,7 +8910,6 @@
     function whaleSysPush(item) {
       try {
         if (!bubbleOn || !bubbleBox || !textBox) return false;
-        if (costBubbleActive && !whaleSysItem) return false;
         if (!item || !item.kind) return false;
         var rank = Number(item.rank);
         if (!(rank >= 1)) rank = 2;
@@ -8835,33 +8933,45 @@
       }
     }
     function whaleSysTick() {
+      if (whaleSysTimer) clearTimeout(whaleSysTimer);
       whaleSysTimer = null;
       try {
         if (!bubbleOn || !bubbleBox || !textBox) {
+          for (var pendingItem of [whaleSysItem].concat(whaleSysQueue || [])) { if (pendingItem && typeof pendingItem.onDiscard === 'function') pendingItem.onDiscard(); }
           whaleSysQueue = [];
           whaleSysItem = null;
           return;
         }
-        if (whaleSysItem) return;
-        if (!whaleSysQueue.length) return;
-        if (costBubbleActive || bubbleScene && bubbleScene.kind === 'alert') return;
-        var item = whaleSysQueue.shift();
-        if (!item) return;
-        whaleSysItem = item;
-        if (item.kind === 'cost') {
-          sceneOpen('cost', function () {
-            bubbleRenderCost(item.amount, item.notice);
-          }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
-        } else {
-          sceneOpen('alert', function () {
-            bubbleRenderModules(item.mods || []);
-          }, item && item.ttlMs != null ? item.ttlMs : USAGE_ALERT_TTL);
+        // Scene ownership is authoritative; obsolete booleans cannot strand
+        // the queue after a failed, replaced or closed asynchronous render.
+        whaleSysItem = bubbleScene && bubbleScene.systemItem || null;
+        if (bubbleScene && (bubbleScene.pending || bubbleShown &&
+            (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert'))) return;
+        while (whaleSysQueue.length) {
+          var item = whaleSysQueue.shift();
+          if (item && whaleSysOpenItem(item)) return;
         }
       } catch (err) {}
     }
+    function whaleSysOpenItem(item) {
+      if (typeof item.isValid === 'function' && !item.isValid()) {
+        if (typeof item.onDiscard === 'function') item.onDiscard();
+        return false;
+      }
+      if (item.kind === 'cost') {
+        sceneOpen('cost', function () {
+          bubbleRenderCost(item.amount, item.notice);
+        }, turnCostCloseMs > 0 ? turnCostCloseMs : 0, item);
+      } else {
+        sceneOpen('alert', function () {
+          bubbleRenderModules(item.mods || []);
+        }, item.ttlMs != null ? item.ttlMs : USAGE_ALERT_TTL, item);
+      }
+      return true;
+    }
     function whaleSysDone() {
       try {
-        whaleSysItem = null;
+        whaleSysItem = bubbleScene && bubbleScene.systemItem || null;
         if (whaleSysTimer) {
           clearTimeout(whaleSysTimer);
           whaleSysTimer = null;
@@ -8872,19 +8982,11 @@
     function whaleSysSwapNext() {
       try {
         if (!whaleSysQueue.length || !bubbleOn || !bubbleShown) return false;
-        var item = whaleSysQueue.shift();
-        if (!item) return false;
-        whaleSysItem = item;
-        if (item.kind === 'cost') {
-          sceneOpen('cost', function () {
-            bubbleRenderCost(item.amount, item.notice);
-          }, turnCostCloseMs > 0 ? turnCostCloseMs : 0);
-        } else {
-          sceneOpen('alert', function () {
-            bubbleRenderModules(item.mods || []);
-          }, item && item.ttlMs != null ? item.ttlMs : USAGE_ALERT_TTL);
+        while (whaleSysQueue.length) {
+          var item = whaleSysQueue.shift();
+          if (item && whaleSysOpenItem(item)) return true;
         }
-        return true;
+        return false;
       } catch (err) {
         return false;
       }
@@ -8892,6 +8994,7 @@
     function hideUsageAlertBubble() {
       if (whaleSysSwapNext()) return;
       bubbleClearAll();
+      costBubbleActive = false;
       bubbleScene = null;
       bubbleShown = false;
       bubbleRandomActive = false;
@@ -9005,9 +9108,13 @@
     }
     function refreshFlip() {
       try {
-        if (state.h === 'left') {
+        // A persistence anchor can describe a free position. Only an actual
+        // edge overrides the configured flip line; disabled snapping never flips.
+        if (!snapConfig || snapConfig.mode === 'off') {
+          state.flip = false;
+        } else if (state.h === 'left' && state.hOff === 0) {
           state.flip = true;
-        } else if (state.h === 'right') {
+        } else if (state.h === 'right' && state.hOff === 0) {
           state.flip = false;
         } else {
           var w = root.offsetWidth || root.getBoundingClientRect().width || 0;
@@ -9095,14 +9202,8 @@
     var scrollGapOn = false;
     var scrollGapPx = 17;
     var menuBtnHide = false;
-    function saveConfig() {
-      try {
-        fetch(SIZE_URL, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
+    function configSnapshot() {
+      return {
             scale: state.scale,
             sound: soundOn,
             vol: soundVol,
@@ -9114,25 +9215,71 @@
             scrollGapOn: scrollGapOn,
             scrollGapPx: scrollGapPx,
             menuBtnHide: menuBtnHide
-          })
-        });
+      };
+    }
+    // Partial writes prevent defaults and delayed startup reads from erasing unrelated preferences.
+    function createSettingsWriter(snapshot, write, failed) {
+      var previous = Object.assign({}, snapshot), pending = {}, edited = {}, chain = Promise.resolve();
+      return {
+        loaded: function (server) {
+          var merged = Object.assign({}, server);
+          Object.keys(edited).forEach(function (key) { merged[key] = previous[key]; });
+          previous = Object.assign({}, previous, merged);
+          return merged;
+        },
+        save: function (current) {
+          Object.keys(current).forEach(function (key) {
+            if (current[key] !== previous[key]) { pending[key] = current[key]; edited[key] = true; }
+          });
+          previous = Object.assign({}, current);
+          chain = chain.then(function () {
+            var patch = Object.assign({}, pending);
+            if (!Object.keys(patch).length) return;
+            return write(patch).then(function () {
+              Object.keys(patch).forEach(function (key) { if (pending[key] === patch[key]) delete pending[key]; });
+            });
+          }).catch(failed);
+          return chain;
+        }
+      };
+    }
+    var settingsWriter = createSettingsWriter(configSnapshot(), function (patch) {
+      return fetch(SIZE_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) })
+        .then(function (r) { return r.json(); }).then(requireSaved);
+    }, assetFailure);
+    function saveConfig() {
+      return settingsWriter.save(configSnapshot());
+    }
+    function commitPosition() {
+      // Only completed user position edits replace the saved intent.
+      try {
         var vp = viewport();
         var w = root.offsetWidth || root.getBoundingClientRect().width || 0;
         var h = root.offsetHeight || root.getBoundingClientRect().height || 0;
-        var leftDist = state.left;
-        var rightDist = vp.w - state.left - w;
-        var topDist = state.top;
-        var bottomDist = vp.h - state.top - h;
+        var leftDist = clamp(state.left, 0, Math.max(0, vp.w - w));
+        var rightDist = Math.max(0, vp.w - leftDist - w);
+        var topDist = clamp(state.top, 0, Math.max(0, vp.h - h));
+        var bottomDist = Math.max(0, vp.h - topDist - h);
         var hAnchor = leftDist <= rightDist ? 'left' : 'right';
         var hDistRaw = Math.round(Math.min(leftDist, rightDist));
         var hDist = hAnchor === 'right' && scrollGapOn ? Math.max(0, hDistRaw - rightGap()) : hDistRaw;
-        localStorage.setItem('dshw-pos', JSON.stringify({
+        positionIntent = {
           v: 2,
           hAnchor: hAnchor,
           hDist: hDist,
           vAnchor: topDist <= bottomDist ? 'top' : 'bottom',
           vDist: Math.round(Math.min(topDist, bottomDist))
-        }));
+        };
+        persistPositionIntent();
+        applyAnchorPos();
+      } catch (err) {}
+    }
+    function persistPositionIntent() {
+      try {
+        if (positionIntent) {
+          localStorage.setItem('dshw-pos', JSON.stringify(positionIntent));
+          window.dispatchEvent(new Event('whale-position-committed'));
+        }
       } catch (err) {}
     }
     function setUsageMode(v) {
@@ -9166,6 +9313,7 @@
       scrollGapInput.disabled = !scrollGapOn;
       saveConfig();
       settle();
+      persistPositionIntent();
     }
     function setScrollGapPx(v) {
       if (!scrollGapOn) return;
@@ -9174,6 +9322,7 @@
       scrollGapInput.value = String(n);
       saveConfig();
       settle();
+      persistPositionIntent();
     }
     function applyMenuBtnHideUI() {
       try {
@@ -9201,7 +9350,6 @@
       root.style.setProperty('--dshw-scale', String(next));
       scaleInput.value = String(next);
       scaleNumber.value = String(scaleToDisplay(next));
-      saveConfig();
       var r2 = whaleLayoutRect();
       var vp = viewport();
       if (state.flip) {
@@ -9211,6 +9359,8 @@
       }
       state.top = Math.min(Math.max(fy - r2.height, 0), Math.max(0, vp.h - r2.height));
       express();
+      commitPosition();
+      saveConfig();
       requestAnimationFrame(function () {
         positioner.style.transition = prevTrans;
       });
@@ -9321,7 +9471,6 @@
       closeAudioGroupPanel();
       closeUsagePanel();
       positioner.style.transition = '';
-      snapCheck();
     }
     function snapCheck() {
       if (!snapConfig || snapConfig.mode === 'off') return;
@@ -10277,6 +10426,7 @@
       } catch (err) {}
     }
     function hideAudioEditor() {
+      hideAudioCrop();
       stopAudioEditPreview();
       audioEditMask.style.display = 'none';
       editingAudioGroupId = null;
@@ -10450,7 +10600,10 @@
     audioCropFileInput.style.display = 'none';
     document.body.appendChild(audioCropFileInput);
     var audioCropTarget = null;
+    // Decoding is offline; only an active preview owns an output-device context.
     var audioCropCtx = null;
+    var audioCropGeneration = 0;
+    var audioCropPreviewGeneration = 0;
     var audioCropBuffer = null;
     var audioCropFileBase = '';
     var audioCropZoom = 1;
@@ -10467,52 +10620,57 @@
       var f = audioCropFileInput.files && audioCropFileInput.files[0];
       audioCropFileInput.value = '';
       if (!f) return;
+      var ticket = ++audioCropGeneration;
+      stopAudioCropPreview();
       try {
         await WhaleMediaGuard.validateAudioFile(f);
-        openAudioCrop(await f.arrayBuffer(), f.name);
-      } catch (err) { assetNotice(err.message); }
+        var data = await f.arrayBuffer();
+        if (ticket === audioCropGeneration) await openAudioCrop(data, f.name);
+      } catch (err) { if (ticket === audioCropGeneration) assetNotice(err.message); }
     });
-    function openAudioCrop(arrayBuf, fileName) {
+    function cancelAudioCropWork() {
+      audioCropGeneration++;
+      stopAudioCropPreview();
+    }
+    window.addEventListener('blur', cancelAudioCropWork);
+    window.addEventListener('beforeunload', cancelAudioCropWork);
+    document.addEventListener('visibilitychange', function () { if (document.hidden) cancelAudioCropWork(); });
+    async function openAudioCrop(arrayBuf, fileName) {
+      var ticket = ++audioCropGeneration;
+      stopAudioCropPreview();
+      audioCropBuffer = null;
       try {
         audioCropFileBase = (fileName || '音频片段').replace(/.[^.]+$/, '');
         audioCropZoom = 1;
         audioCropOffset = 0;
-        stopAudioCropPreview();
-        if (!audioCropCtx) {
-          try {
-            audioCropCtx = new (window.AudioContext || window.webkitAudioContext)();
-          } catch (err) {
-            audioCropCtx = null;
-          }
-        }
-        if (!audioCropCtx) {
+        var Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        if (!Offline) {
           assetNotice('当前环境不支持音频解码');
           return;
         }
-        audioCropCtx.decodeAudioData(arrayBuf, function (buf) {
-          var policy = WhaleMediaGuard.getPolicy();
-          if (!isFinite(buf.duration) || buf.duration <= 0 || buf.duration > policy.maxAudioSeconds ||
-              buf.numberOfChannels > policy.maxAudioChannels || buf.sampleRate > policy.maxAudioSampleRate) {
-            assetNotice('音频超出时长、声道或采样率限制，请选择较短的音频');
-            return;
-          }
-          audioCropBuffer = buf;
-          audioCropStart.value = '0';
-          audioCropEnd.value = '100';
-          audioCropStartNum.max = buf.duration.toFixed(3);
-          audioCropEndNum.max = buf.duration.toFixed(3);
-          audioCropZoomRange.value = '1';
-          audioCropZoomNum.value = '1';
-          drawAudioCrop();
-          try {
-            audioCropName.value = '';
-          } catch (err) {}
-          updateAudioCropOkState();
-          audioCropMask.style.display = 'flex';
-        }, function () {
-          assetNotice('音频解码失败');
-        });
-      } catch (err) {}
+        var decoder = new Offline(1, 1, 44100);
+        var buf = await decoder.decodeAudioData(arrayBuf);
+        if (ticket !== audioCropGeneration) return;
+        var policy = WhaleMediaGuard.getPolicy();
+        if (!isFinite(buf.duration) || buf.duration <= 0 || buf.duration > policy.maxAudioSeconds ||
+            buf.numberOfChannels > policy.maxAudioChannels || buf.sampleRate > policy.maxAudioSampleRate) {
+          assetNotice('音频超出时长、声道或采样率限制，请选择较短的音频');
+          return;
+        }
+        audioCropBuffer = buf;
+        audioCropStart.value = '0';
+        audioCropEnd.value = '100';
+        audioCropStartNum.max = buf.duration.toFixed(3);
+        audioCropEndNum.max = buf.duration.toFixed(3);
+        audioCropZoomRange.value = '1';
+        audioCropZoomNum.value = '1';
+        drawAudioCrop();
+        try {
+          audioCropName.value = '';
+        } catch (err) {}
+        updateAudioCropOkState();
+        audioCropMask.style.display = 'flex';
+      } catch (err) { if (ticket === audioCropGeneration) assetNotice('音频解码失败'); }
     }
     function audioCropRange() {
       var b = audioCropBuffer;
@@ -10788,7 +10946,7 @@
       audioCropDualDrag = null;
     }
     function hideAudioCrop() {
-      stopAudioCropPreview();
+      cancelAudioCropWork();
       audioCropMask.style.display = 'none';
       audioCropBuffer = null;
       audioCropTarget = null;
@@ -10800,37 +10958,53 @@
     }
     var audioCropPreviewNode = null;
     function stopAudioCropPreview() {
-      try {
-        if (audioCropPreviewNode) {
-          audioCropPreviewNode.stop();
-          audioCropPreviewNode.disconnect();
-          audioCropPreviewNode = null;
-        }
-      } catch (err) {}
+      audioCropPreviewGeneration++;
+      var node = audioCropPreviewNode, context = audioCropCtx;
+      audioCropPreviewNode = null;
+      audioCropCtx = null;
+      if (node) {
+        node.onended = null;
+        try { node.stop(); } catch (err) {}
+        try { node.disconnect(); } catch (err) {}
+      }
+      try { if (context && context.state !== 'closed') Promise.resolve(context.close()).catch(function () {}); } catch (err) {}
     }
-    function previewAudioCrop() {
+    async function previewAudioCrop() {
+      stopAudioCropPreview();
+      var ticket = audioCropPreviewGeneration, generation = audioCropGeneration, context = null;
       try {
-        if (!audioCropBuffer || !audioCropCtx) return;
-        stopAudioCropPreview();
+        if (!audioCropBuffer) return;
         var r = audioCropRange();
         var len = Math.floor((r.end - r.start) * audioCropBuffer.sampleRate);
         if (len < 1) return;
-        var slice = audioCropCtx.createBuffer(audioCropBuffer.numberOfChannels, len, audioCropBuffer.sampleRate);
-        for (var c = 0; c < audioCropBuffer.numberOfChannels; c++) {
-          var src = audioCropBuffer.getChannelData(c);
-          var dst = slice.getChannelData(c);
-          var off = Math.floor(r.start * audioCropBuffer.sampleRate);
-          for (var i = 0; i < len; i++) dst[i] = src[off + i] || 0;
-        }
-        var srcNode = audioCropCtx.createBufferSource();
-        srcNode.buffer = slice;
-        srcNode.connect(audioCropCtx.destination);
+        context = new (window.AudioContext || window.webkitAudioContext)();
+        audioCropCtx = context;
+        await context.resume();
+        if (ticket !== audioCropPreviewGeneration || generation !== audioCropGeneration || audioCropCtx !== context) return;
+        var srcNode = context.createBufferSource();
+        srcNode.buffer = audioCropBuffer;
+        srcNode.connect(context.destination);
         audioCropPreviewNode = srcNode;
         srcNode.onended = function () {
-          if (audioCropPreviewNode === srcNode) audioCropPreviewNode = null;
+          if (audioCropPreviewNode === srcNode) stopAudioCropPreview();
         };
-        srcNode.start();
-      } catch (err) {}
+        srcNode.start(0, Math.floor(r.start * audioCropBuffer.sampleRate) / audioCropBuffer.sampleRate, len / audioCropBuffer.sampleRate);
+      } catch (err) {
+        if (ticket === audioCropPreviewGeneration) {
+          stopAudioCropPreview();
+          assetNotice('音频预览失败，请重试');
+        }
+      }
+    }
+    // WAV encoding needs channel samples, not an AudioContext or output device.
+    function audioCropSlice(buffer, start, len) {
+      var offset = Math.floor(start * buffer.sampleRate);
+      var channels = [];
+      for (var channel = 0; channel < buffer.numberOfChannels; channel++) {
+        channels.push(buffer.getChannelData(channel).subarray(offset, offset + len));
+      }
+      return { numberOfChannels:buffer.numberOfChannels, length:len, sampleRate:buffer.sampleRate,
+        getChannelData:function (channel) { return channels[channel]; } };
     }
     function encodeWav(buffer) {
       var numCh = buffer.numberOfChannels;
@@ -10858,9 +11032,11 @@
       writeStr(36, 'data');
       dv.setUint32(40, dataSize, true);
       var offset = 44;
+      var channels = [];
+      for (var channel = 0; channel < numCh; channel++) channels.push(buffer.getChannelData(channel));
       for (var i = 0; i < len; i++) {
         for (var c = 0; c < numCh; c++) {
-          var v = buffer.getChannelData(c)[i];
+          var v = channels[c][i];
           var s = Math.max(-1, Math.min(1, v));
           dv.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
           offset += 2;
@@ -10874,6 +11050,7 @@
       try {
         if (!audioCropBuffer) return;
         stopAudioCropPreview();
+        var ticket = audioCropGeneration, target = audioCropTarget;
         var fragName = String(audioCropName.value || '').trim();
         if (!fragName) {
           try {
@@ -10897,23 +11074,18 @@
           assetNotice('所选音频片段过大，请缩短后再保存');
           return;
         }
-        var slice = audioCropCtx.createBuffer(audioCropBuffer.numberOfChannels, len, audioCropBuffer.sampleRate);
-        for (var c = 0; c < audioCropBuffer.numberOfChannels; c++) {
-          var src = audioCropBuffer.getChannelData(c);
-          var dst = slice.getChannelData(c);
-          var off = Math.floor(r.start * audioCropBuffer.sampleRate);
-          for (var i = 0; i < len; i++) dst[i] = src[off + i] || 0;
-        }
+        var slice = audioCropSlice(audioCropBuffer, r.start, len);
         var blob = encodeWav(slice);
         WhaleMediaGuard.checkFile(blob, 'wav');
         var reader = new FileReader();
         reader.onload = function () {
+          if (ticket !== audioCropGeneration) return;
           uploadAudioFragment(reader.result, fragName, function (ok) {
-            if (ok) {
-              if (audioCropTarget === 'press') {
+            if (ok && ticket === audioCropGeneration) {
+              if (target === 'press') {
                 audioEditPressVal = lastUploadedFragmentId || audioEditPressVal;
                 audioSlotBtnText(audioEditPressBtn, audioEditPressVal);
-              } else if (audioCropTarget === 'release') {
+              } else if (target === 'release') {
                 audioEditReleaseVal = lastUploadedFragmentId || audioEditReleaseVal;
                 audioSlotBtnText(audioEditReleaseBtn, audioEditReleaseVal);
               }
@@ -10922,7 +11094,7 @@
             }
           });
         };
-        reader.onerror = function () { assetNotice('音频读取失败，请重试'); };
+        reader.onerror = function () { if (ticket === audioCropGeneration) assetNotice('音频读取失败，请重试'); };
         reader.readAsDataURL(blob);
       } catch (err) { assetNotice(err.message); }
     }
@@ -11015,12 +11187,13 @@
       WhaleRendering.hitCache.prepare(url || IMG_URL);
     }
     function whaleLayoutRect() {
-      var origin = positioner.getBoundingClientRect();
+      // CSS transitions expose an intermediate painted rectangle, not intent.
       var width = root.offsetWidth, height = root.offsetHeight;
-      return { left: origin.left, top: origin.top, right: origin.left + width, bottom: origin.top + height, width: width, height: height };
+      return { left: state.left, top: state.top, right: state.left + width, bottom: state.top + height, width: width, height: height };
     }
     function isWhaleHit(e) {
-      return !!e && WhaleRendering.hitCache.hit(img, e.clientX, e.clientY, WhaleRendering.mirrorScale(root) < 0);
+      return !!e && (WhaleRendering.petInteraction ? WhaleRendering.petInteraction.hit(img, root, e.clientX, e.clientY) :
+        WhaleRendering.hitCache.hit(img, e.clientX, e.clientY, WhaleRendering.mirrorScale(root) < 0));
     }
     function onDocPointerDown(e) {
       if (e.target && e.target.closest) {
@@ -11045,7 +11218,13 @@
         e.stopPropagation();
       } catch (err) {}
       var vp = viewport();
+      // A new user grab takes ownership of the currently painted position,
+      // including a previous snap animation that has not reached its target.
       var rect = positioner.getBoundingClientRect();
+      positioner.style.transition = 'none';
+      state.left = rect.left;
+      state.top = rect.top;
+      express();
       try { root.setPointerCapture(e.pointerId); } catch (err) {}
     drag = {
         active: true,
@@ -11059,7 +11238,7 @@
         vp: vp
       };
       root.classList.add('dshwv-dragging');
-      positioner.style.transition = 'none';
+      WhaleRendering.petInteraction?.begin(img, root, e.pointerId);
       pressDown();
       setWidgetCursor('grabbing');
       document.addEventListener('pointermove', onDocPointerMove, true);
@@ -11085,7 +11264,7 @@
       endDrag(e, true);
     }
     function onDocPointerCancel(e) {
-      endDrag(e, false);
+      endDrag(e, false, true);
     }
     function onDocClickStopper(e) {
       if (e.target && e.target.closest) {
@@ -11171,16 +11350,26 @@
     window.addEventListener('whale-hover', function (e) { onDocPointerMoveCursor({ clientX: e.detail.x, clientY: e.detail.y }); });
     root.addEventListener('lostpointercapture', function (e) { endDrag(e, false); });
     window.addEventListener('blur', function () { endDrag(null, false); });
-    window.addEventListener('whale-mode-changing', function () { endDrag(null,false); closeMenu(); resetMenuButtonHover(); hideBubble(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
-    window.addEventListener('whale-desktop-mode', function () { endDrag(null,false); closeMenu(); resetMenuButtonHover(); hideBubble(); settle(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
+    window.addEventListener('whale-mode-changing', function () { endDrag(null,false,true); closeMenu(); resetMenuButtonHover(); hideBubble(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
+    window.addEventListener('whale-desktop-mode', function () { endDrag(null,false,true); closeMenu(); resetMenuButtonHover(); hideBubble(); applyAnchorPos(); settle(); window.getSelection()?.removeAllRanges(); setWidgetCursor(''); });
     window.addEventListener('whale-account-view', function () {
       // A display-mode switch updates this menu in place, retaining its open state.
       hideBubble(); refresh(true);
       requestAnimationFrame(function () { if (menuOpen) positionMenu(); });
     });
-    function endDrag(e, clickAllowed) {
+    function endDrag(e, clickAllowed, preserveIntent) {
       if (!drag || !drag.active) return;
       drag.active = false;
+      var validEnd = e && Number.isFinite(e.clientX) && Number.isFinite(e.clientY);
+      // Mark a successful release before native capture is relinquished. The
+      // same finite geometry protects rapid clicks throughout the rebound.
+      if (WhaleRendering.petInteraction) {
+        if (clickAllowed && validEnd && !preserveIntent) {
+          var feel = window.WhaleFeedback && window.WhaleFeedback.feel || 'balanced';
+          var preset = window.WhaleGesture && window.WhaleGesture.presets[feel];
+          WhaleRendering.petInteraction.end(e.pointerId, preset ? preset.release : 140);
+        } else WhaleRendering.petInteraction.cancel();
+      }
     try { if (e && root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId); } catch (err) {}
       document.removeEventListener('pointermove', onDocPointerMove, true);
       document.removeEventListener('pointerup', onDocPointerUp, true);
@@ -11189,12 +11378,13 @@
       root.classList.remove('dshwv-dragging');
       positioner.style.transition = '';
       setWidgetCursor(isWhaleHit(e) ? 'grab' : '');
-      if (clickAllowed && !drag.moved) {
-        whaleClick();
-        refresh(true);
+      // pointercancel/lost capture/blur never commit an unfinished gesture.
+      // Restore the saved intent instead of interpreting zero/missing points.
+      if (preserveIntent || !clickAllowed || !validEnd || !drag.moved) {
+        applyAnchorPos(); settle();
+        if (clickAllowed && validEnd && !drag.moved) { whaleClick(); refresh(true); }
         return;
       }
-      e = e && Number.isFinite(e.clientX) ? e : { clientX: drag.startX + state.left - drag.origLeft, clientY: drag.startY + state.top - drag.origTop };
       var dx = e.clientX - drag.startX;
       var dy = e.clientY - drag.startY;
       var left = clamp(drag.origLeft + dx, 0, Math.max(0, drag.vp.w - drag.w));
@@ -11225,12 +11415,18 @@
       state.left = left;
       state.top = top;
       settle();
+      commitPosition();
       saveConfig();
     }
     function applyAnchorPos() {
       try {
-        var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
-        if (!a || a.v !== 2 || a.hAnchor !== 'left' && a.hAnchor !== 'right' || (!Number.isFinite(a.hDist) || a.hDist < 0) || a.vAnchor !== 'top' && a.vAnchor !== 'bottom' || (!Number.isFinite(a.vDist) || a.vDist < 0)) return false;
+        if (!positionIntent) {
+          var saved = null;
+          try { saved = JSON.parse(localStorage.getItem('dshw-pos') || 'null'); } catch (err) {}
+          positionIntent = saved && saved.v === 2 && (saved.hAnchor === 'left' || saved.hAnchor === 'right') && Number.isFinite(saved.hDist) && saved.hDist >= 0 && (saved.vAnchor === 'top' || saved.vAnchor === 'bottom') && Number.isFinite(saved.vDist) && saved.vDist >= 0
+            ? saved : {v:2,hAnchor:'right',hDist:0,vAnchor:'bottom',vDist:0};
+        }
+        var a = positionIntent;
         var vp = viewport();
         var w = root.offsetWidth || root.getBoundingClientRect().width || 0;
         var h = root.offsetHeight || root.getBoundingClientRect().height || 0;
@@ -11253,20 +11449,25 @@
       // A shrinking viewport can put the old position wholly outside its new
       // region. Commit the clamped location directly, without interpolating
       // through invisible coordinates during desktop/follow or DPI changes.
+      if (drag && drag.active) endDrag(null, false, true);
       positioner.style.transition = 'none';
-      if (!(state.h === null && state.v === null && applyAnchorPos())) settle();
+      applyAnchorPos(); settle();
       void positioner.getBoundingClientRect();
       requestAnimationFrame(function () { positioner.style.transition = ''; });
     });
     // Resolve the intended anchor before the first frame, rather than painting
     // at the CSS wrapper origin and moving after the asynchronous size request.
+    positioner.style.transition = 'none';
     state.left = Math.max(0, viewport().w - root.offsetWidth - rightGap());
     state.top = Math.max(0, viewport().h - root.offsetHeight);
     applyAnchorPos();
     express();
+    void positioner.getBoundingClientRect();
+    requestAnimationFrame(function () { positioner.style.transition = ''; });
     window.addEventListener('whale-reset-position', function () {
       endDrag(null, false); closeMenu(); hideBubble();
-      localStorage.setItem('dshw-pos', JSON.stringify({v:2,hAnchor:'right',hDist:12,vAnchor:'bottom',vDist:12}));
+      positionIntent = {v:2,hAnchor:'right',hDist:12,vAnchor:'bottom',vDist:12};
+      persistPositionIntent();
       applyAnchorPos(); settle();
     });
     applySoundSet();
@@ -11287,7 +11488,7 @@
         }, 1500);
       } catch (err) {}
     });
-    loadBubbleCfg();
+    loadBubbleCfg().catch(assetFailure);
     if (window.whaleDesktop && window.whaleDesktop.testMode) {
       window.__whaleRenderTest = Object.freeze({
         refresh: refresh, usage: refreshUsageMain, next: bubbleNext, close: hideBubble,
@@ -11299,6 +11500,7 @@
         place: function (x, y, flip) { state.left = x; state.top = y; state.flip = !!flip; express(); },
         scale: setScale, role: applyRole,
         scene: function (modules, ttl) { sceneOpen('custom', function () { bubbleRenderModules(modules); }, ttl || 0); },
+        cost: function (record) { var notice = WhaleTurnNotice.snapshot(record, state.currency); sceneOpen('cost', function () { bubbleRenderCost(notice.amount, notice); }, 0); },
         status: function () { return { switching: bubbleFrames.switching, busy: busy, shown: bubbleShown, scene: bubbleScene && bubbleScene.kind, epoch: bubbleSceneEpoch, balance: state.balance, today: state.todayUsage, status: state.status, front: bubbleFrames.front.root.dataset.buffer, randomPicks: bubbleFrames.front.root.innerText, hitCache: Object.assign({}, WhaleRendering.hitCache.stats), scale: state.scale, flip: state.flip }; }
       });
     }
@@ -11307,6 +11509,9 @@
     }).then(function (r) {
       return r.json();
     }).then(function (d) {
+      positioner.style.transition = 'none';
+      if (!d || d.ok === false) throw new Error(d && d.error || '设置读取失败');
+      d = settingsWriter.loaded(d);
       if (d && typeof d.scale === 'number' && d.scale >= MIN_SCALE - 0.1 && d.scale <= MAX_SCALE + 0.1) {
         state.scale = d.scale;
         root.style.setProperty('--dshw-scale', String(d.scale));
@@ -11359,26 +11564,12 @@
         if (menuHideToggle) menuHideToggle.checked = menuBtnHide;
         applyMenuBtnHideUI();
       }
-      try {
-        var a = JSON.parse(localStorage.getItem('dshw-pos') || 'null');
-        if (a && a.v === 2 && (a.hAnchor === 'left' || a.hAnchor === 'right') && Number.isFinite(a.hDist) && a.hDist >= 0 && (a.vAnchor === 'top' || a.vAnchor === 'bottom') && Number.isFinite(a.vDist) && a.vDist >= 0) {
-          var vpA = viewport();
-          var wA = root.offsetWidth || root.getBoundingClientRect().width || 0;
-          var hA = root.offsetHeight || root.getBoundingClientRect().height || 0;
-          var effectiveRightDist = a.hAnchor === 'right' ? a.hDist + (scrollGapOn ? rightGap() : 0) : a.hDist;
-          var lA = a.hAnchor === 'left' ? a.hDist : vpA.w - effectiveRightDist - wA;
-          var tA = a.vAnchor === 'top' ? a.vDist : vpA.h - a.vDist - hA;
-          state.left = clamp(lA, 0, Math.max(0, vpA.w - wA));
-          state.top = clamp(tA, 0, Math.max(0, vpA.h - hA));
-          state.h = a.hAnchor;
-          state.hOff = a.hDist;
-          state.v = a.vAnchor;
-          state.vOff = a.vDist;
-          settle();
-        }
-      } catch (err) {}
+      applyAnchorPos(); settle();
+      void positioner.getBoundingClientRect();
+      requestAnimationFrame(function () { positioner.style.transition = ''; });
       refresh(false);
-    }).catch(function () {
+    }).catch(function (error) {
+      assetFailure(error);
       refresh(false);
     });
     setInterval(function () {
@@ -11388,6 +11579,23 @@
       refresh(true);
     });
     var LAST_TURN_URL = '/dsh-whale/last-turn.json';
+    var accountNoticeClient = window.WhaleAccountNotices && window.WhaleAccountNotices.create({
+      enabled: function () { return bubbleOn && turnCostOn && !document.hidden && (!window.WhaleAccountView || window.WhaleAccountView.mode !== 'subscription'); },
+      enqueue: function (record, hooks) {
+        var notice = Object.freeze({ noticeType: 'account', id: record.id, scope: record.scope,
+          label: '账户新增消耗', amount: record.amount, currency: record.currency, costState: 'observed',
+          tokens: null, concurrent: record.concurrent,
+          note: '自上次消费提示以来的账户已观测新增扣费；可能包含并行任务、其他设备或延迟入账，不归属于某个对话。' });
+        return whaleSysPush({ kind: 'cost', amount: notice.amount, notice: notice, rank: 2,
+          isValid: hooks.valid, onShown: hooks.shown, onDiscard: hooks.discarded });
+      }
+    });
+    function pollAccountNotices() { if (accountNoticeClient) return accountNoticeClient.poll(); }
+    if (accountNoticeClient) {
+      document.addEventListener('visibilitychange', function () { if (document.hidden) accountNoticeClient.invalidate(); else pollAccountNotices(); });
+      window.addEventListener('whale-account-view', function () { accountNoticeClient.invalidate(); pollAccountNotices(); });
+      window.addEventListener('whale-refresh', function () { accountNoticeClient.invalidate(); pollAccountNotices(); });
+    }
     var lastCostSeq = 0;
     var lastCostAligned = false;
     var lastCostId = '';
@@ -11421,14 +11629,15 @@
           if (!fresh) return;
           var notice = WhaleTurnNotice.snapshot(d, state.currency);
           window.dispatchEvent(new CustomEvent('whale-turn-notice', {detail:notice}));
-          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { if(turnCostOn)window.WhaleAccountView.notice(notice); return; }
           if (notice.completionKind === 'success') playTaskEndSound();
-          else if ((notice.completionKind === 'cancelled' || notice.failureKind === 'high-demand') && typeof window !== 'undefined' && window.WhaleFeedback) window.WhaleFeedback.play(notice.completionKind, '', soundOn ? soundVol : 0);
+          else if ((notice.completionKind === 'cancelled' || notice.failureKind === 'high-demand') && usageSet && usageSet.taskEnd && usageSet.taskEnd.on && soundOn && typeof window !== 'undefined' && window.WhaleFeedback) window.WhaleFeedback.play(notice.completionKind, '', soundVol);
+          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { if(turnCostOn)window.WhaleAccountView.notice(notice); return; }
           showCostBubble(notice.amount, notice);
         }).catch(function () {}).finally(function () { lastCostPending = false; });
       } catch (err) { lastCostPending = false; }
     }
     setInterval(pollLastTurn, 1000);
+    setInterval(pollAccountNotices, 1000);
   }
   if (dshwEnabled) {
     try {

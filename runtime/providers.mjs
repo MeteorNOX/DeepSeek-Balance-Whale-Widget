@@ -1,4 +1,5 @@
-import { rounded } from './paths.mjs';
+import { decimalDifference } from './money-precision.mjs';
+import { VERSION } from './paths.mjs';
 
 export class ProviderError extends Error {
   constructor(code, message, transient = false) { super(message); this.code = code; this.transient = transient; }
@@ -49,7 +50,7 @@ export class BalanceProvider {
   async json(url, key) {
     let response;
     try {
-      response = await this.fetch(url, { headers: { Authorization: 'Bearer ' + key, Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/0.3.0' }, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
+      response = await this.fetch(url, { headers: { Authorization: 'Bearer ' + key, Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/' + VERSION }, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
     } catch { throw new ProviderError('NETWORK', '余额接口暂时无法连接，请稍后刷新', true); }
     if (!response.ok) {
       try { await response.body?.cancel(); } catch {}
@@ -76,7 +77,7 @@ export class BalanceProvider {
     const rawUsed = numeric(usage.total_usage);
     if (total === null || rawUsed === null || rawUsed < 0) throw new ProviderError('SHAPE', '兼容账单接口缺少有效的额度或消耗字段');
     const used = rawUsed / c.setting.billingUsageDivisor;
-    return { totalBalance: rounded(total - used), totalGranted: total, totalUsed: rounded(used), currency: 'USD', adapter: 'billing', balanceScope: 'api-billing', balanceLabel: 'API 可用余额', unitNote: '账单额度为美元；total_usage 按接口约定除以 ' + c.setting.billingUsageDivisor, unlimited: false };
+    return { totalBalance: decimalDifference(total, used), totalGranted: total, totalUsed: used, currency: 'USD', adapter: 'billing', balanceScope: 'api-billing', balanceLabel: 'API 可用余额', unitNote: '账单额度为美元；total_usage 按接口约定除以 ' + c.setting.billingUsageDivisor, unlimited: false };
   }
   async newapi(c) {
     const payload = await this.json(new URL('/api/usage/token', c.baseUrl).href, c.key);
@@ -96,7 +97,7 @@ export class BalanceProvider {
     const balance = field(d, c.setting.balanceField);
     const used = c.setting.usedField ? field(d, c.setting.usedField) : null;
     if (balance === null) throw new ProviderError('SHAPE', '所选字段不是有效金额');
-    return { totalBalance: rounded(balance * c.setting.balanceScale), totalUsed: used === null ? null : rounded(used * c.setting.balanceScale), currency: c.setting.currency, adapter: 'custom-json', balanceScope: 'custom', balanceLabel: '自定义 API 余额', unlimited: false };
+    return { totalBalance: balance * c.setting.balanceScale, totalUsed: used === null ? null : used * c.setting.balanceScale, currency: c.setting.currency, adapter: 'custom-json', balanceScope: 'custom', balanceLabel: '自定义 API 余额', unlimited: false };
   }
   async deepseek(c) {
     const d = await this.json(new URL('/user/balance', c.baseUrl).href, c.key);

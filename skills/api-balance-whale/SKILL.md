@@ -3,7 +3,7 @@ name: api-balance-whale
 description: 显示跟随 Codex 窗口的小鲸鱼，查询当前 API 余额和已观测用量，管理角色、音效、气泡和自动跟随。适用于用户提到小鲸鱼、当前 API 余额或挂件用量；普通编码任务无需使用。
 ---
 
-# API 余额小鲸鱼 v0.3.0
+# API 余额小鲸鱼 v0.4.0
 
 只处理小鲸鱼及 API 余额相关请求。优先使用本插件已连接的 MCP 工具；工具不可用时，可从插件根目录运行 `node scripts/control.mjs status` 检查，明确说明实际结果。
 

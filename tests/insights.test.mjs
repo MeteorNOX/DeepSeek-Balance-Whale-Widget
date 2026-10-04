@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import {InsightAccumulator,quotaWindows} from '../runtime/insights-worker.mjs';
 import {pricingSchedule} from '../runtime/pricing-schedule.mjs';
 const now=Date.parse('2026-09-28T10:00:00+08:00');
+
+test('next transition never crosses the verified calendar boundary', () => {
+  const c = { baseUrl: 'https://api.deepseek.com/v1' };
+  const lastPeak = pricingSchedule(c, Date.parse('2026-12-31T17:59:59+08:00'));
+  assert.equal(lastPeak.nextChangeAt, Date.parse('2026-12-31T18:00:00+08:00'));
+  for (const date of ['2026-12-31T18:00:00+08:00', '2026-12-31T23:59:59+08:00']) {
+    const p = pricingSchedule(c, Date.parse(date));
+    assert.equal(p.phase, 'off-peak'); assert.equal(p.nextChangeAt, null); assert.match(p.note, /后续时段需更新/);
+  }
+  for (const date of ['2027-01-01T00:00:00+08:00', '2026-09-18T23:59:59+08:00']) {
+    const p = pricingSchedule(c, Date.parse(date));
+    assert.equal(p.phase, 'unknown'); assert.equal(p.nextChangeAt, null); assert.equal(p.stale, true);
+  }
+  assert.equal(pricingSchedule(c, NaN).phase, 'unknown');
+});
 test('DeepSeek only: official host, time zones, holidays and boundary',()=>{
   assert.equal(pricingSchedule({baseUrl:'https://example.org',model:'deepseek-flash'},now).visible,false);
   const c={baseUrl:'https://api.deepseek.com/v1'};
