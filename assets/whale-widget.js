@@ -4508,12 +4508,7 @@ function refreshUsageMain() {
       try { requestAnimationFrame(function () { usageScrollRestore(snap) }) } catch (err) {}
       // 用量面板刷新只更新泡泡状态数据;不在泡泡正显示时整泡重绘,
       // 数值由“泡泡消失→下一次显示”的渲染自然采用最新 state
-      if (d && d.ok && d.today && isFinite(Number(d.today.total))) {
-        var recTotal = Number(d.today.total)
-        state.todayUsage = recTotal
-        state.todayUsageCurrency = d.today.currency || 'CNY'
-        state.usageLabel = d.today.label || '本地估算'
-      }
+      if (d && d.ok && d.today) applyUsageSummary(d.today)
     })
     .catch(function () { if (usageMainEl && !usageMainEl.firstChild) usageMainEl.textContent = '记录加载失败' })
 }
@@ -5992,7 +5987,8 @@ function fillUsageRecordsWindow(d) {
     usageCollapseBlock(body, '跨日待归属净变化（' + d.unassignedIntervals.length + ' 段，不计入消费）', false, function (inner) {
       var warning = document.createElement('div')
       warning.className = 'dshwv-usage-hint'
-      warning.textContent = '这些区间跨越日期边界且没有完整流水，可能同时含充值与消费，不能自动分配到某一天；区间内完全未观测的日期也属未知。请对照官方流水核对。'
+      warning.textContent = '这些区间跨越日期边界且没有完整流水，可能同时含充值与消费，不能自动分配到某一天；区间内完全未观测的日期也属未知。请对照官方流水核对。' +
+        (d.gapDatesTruncated ? ' 超长缺口仅展开部分未知日期，完整起止范围仍保留在下方。' : '')
       inner.appendChild(warning)
       d.unassignedIntervals.slice().reverse().forEach(function (gap) {
         var item = document.createElement('div')
@@ -12050,6 +12046,7 @@ var state = {
   todayUsage: null,
   todayUsageCurrency: 'CNY',
   usageLabel: '本地估算',
+  usageCoverage: null,
   isPeak: false,
   peakNextChangeAt: null,
   peakHolidays: null,
@@ -12712,8 +12709,20 @@ function bubbleAmountText() {
   if (v === null) return '…'
   return fmt(v, state.currency)
 }
+function applyUsageSummary(summary) {
+  summary = summary || {}
+  state.todayUsage = summary.amount != null && isFinite(Number(summary.amount)) ? Number(summary.amount) : null
+  state.todayUsageCurrency = summary.currency || 'CNY'
+  state.usageLabel = summary.label || '本地估算'
+  state.usageCoverage = summary
+}
+function bubbleTodayValue() {
+  if (state.todayUsage == null) return '未观测'
+  return fmt(state.todayUsage, state.todayUsageCurrency || state.currency) +
+    (state.usageCoverage && state.usageCoverage.partialDay ? ' · 部分观测' : '')
+}
 function bubbleTodayText() {
-  return (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+  return (state.usageLabel || '今日已用') + ' ' + bubbleTodayValue()
 }
 // v782：赠金 / 充值余额两个数值模块的取数（与「总余额(充值金额+赠金)」同源：宿主余额返回体）。
 //   ⚠️ 两个数字**可能拿不到**（厂商没有该字段、或未登录账号）⇒ 显示 `—`，**不显示 0**
@@ -13104,7 +13113,7 @@ function bubbleContentTokenMap(m) {
     // v782：充值余额模块（{recharge_ds}）。
     map['recharge_ds'] = bubbleRechargeText()
   } else if (m.type === 'today') {
-    v = (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    v = bubbleTodayValue()
     map['expense_ds'] = v
   } else if (m.type === 'session') {
     // v768：对话名模块 —— {session} = 当前对话标题（按模块的「保留长度」截断）
@@ -13544,7 +13553,7 @@ function bubbleRowContentOf(mod) {
   if (mod.type === 'bonus') return { txt: bubbleContentText(mod, bubbleBonusText()), line: null }
   if (mod.type === 'recharge') return { txt: bubbleContentText(mod, bubbleRechargeText()), line: null }
   if (mod.type === 'today') {
-    var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : bubbleTodayValue()
     return { txt: bubbleContentText(mod, '今日已用 ' + tv2), line: null }
   }
   if (mod.type === 'session') {
@@ -14296,9 +14305,10 @@ function render() {
     hint = '加载中…'
   } else {
     amount = shown !== null ? fmt(shown, state.currency) : fmt(state.balance, state.currency)
-    hint = (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    hint = bubbleTodayText()
   }
   amountEl.textContent = amount
+  hintEl.title = usageCoverageText(state.usageCoverage)
   if (bubbleRandomActive && bubbleRandomLines) {
     applyBubbleLines(bubbleRandomLines)
   } else {
@@ -14470,12 +14480,13 @@ function refresh(manual) {
         state.currency = nc
         state.message = ''
         balanceRetryLeft = 2
-        state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null
-        state.todayUsageCurrency = data.todayUsageCurrency || data.currency || 'CNY'
+        applyUsageSummary(data.accounting || {
+          amount: data.todayUsage, currency: data.todayUsageCurrency || data.currency,
+          label: data.usageLabel, hasObservation: data.usageSource === 'balance-unobserved' ? false : undefined
+        })
         // v781：赠金 / 充值余额（宿主两条路都下发；缺失给 null ⇒ 模块显示 —）
         state.bonusBalance = isFinite(Number(data.bonusBalance)) ? Number(data.bonusBalance) : null
         state.rechargeBalance = isFinite(Number(data.rechargeBalance)) ? Number(data.rechargeBalance) : null
-        state.usageLabel = data.usageLabel || '本地估算'
         if (data.stale) state.usageLabel += ' · 余额未刷新'
         state.isPeak = !!data.isPeak
         state.peakNextChangeAt = isFinite(Number(data.peakNextChangeAt)) ? Number(data.peakNextChangeAt) : null

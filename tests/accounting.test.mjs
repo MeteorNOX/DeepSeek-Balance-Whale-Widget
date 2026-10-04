@@ -18,6 +18,8 @@ test('midnight net decrease is retained with endpoints, never charged to either 
   sample(ledger, '2026-10-02T00:01:00', 90)
   assert.equal(balanceSummary(ledger, '2026-10-01').amount, 0)
   assert.equal(balanceSummary(ledger, '2026-10-02').amount, 0)
+  assert.equal(balanceSummary(ledger, '2026-10-02', 'keyA-CNY', at('2026-10-02T00:01:00')).partialDay, true)
+  assert.equal(balanceSummary(ledger, '2026-10-02').unassignedChange, true)
   assert.deepEqual(unassignedBalanceIntervals(ledger), [{
     scope: 'keyA-CNY', currency: 'CNY',
     fromAt: at('2026-10-01T23:59:00'), toAt: at('2026-10-02T00:01:00'),
@@ -193,4 +195,17 @@ test('production records payload is scoped, keeps estimates separate, and surfac
   assert.equal(missing.hasObservation, false)
   assert.throws(() => buildUsageRecords(ledger, { bookScope: 'not-a-book', now }), /记账本不存在/)
   assert.deepEqual(ledger, saved)
+})
+
+test('extreme stored dates cannot cause unbounded gap expansion or discard real observations', () => {
+  const ledger = {}
+  sample(ledger, '2000-01-01T12:00:00', 100)
+  sample(ledger, '9999-01-01T12:00:00', 90)
+  const report = buildUsageRecords(ledger, { now: at('9999-01-01T12:00:00') })
+  assert.equal(report.gapDatesTruncated, true)
+  assert.equal(report.all.days.length, 3662)
+  assert.ok(report.all.days.some(day => day.date === '2000-01-01' && day.hasObservation))
+  assert.ok(report.all.days.some(day => day.date === '9999-01-01' && day.hasObservation))
+  assert.equal(report.unassignedIntervals[0].fromAt, at('2000-01-01T12:00:00'))
+  assert.equal(report.unassignedIntervals[0].toAt, at('9999-01-01T12:00:00'))
 })

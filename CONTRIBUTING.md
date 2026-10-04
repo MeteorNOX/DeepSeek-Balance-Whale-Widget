@@ -44,6 +44,7 @@ dsh-whale-widget/
 │   └── usage-records.mjs                   只读报表：按观测来源/币种隔离与覆盖说明
 │
 ├── tests/accounting.test.mjs               合成账本回归测试，直接导入生产模块
+├── tests/accounting-view.test.mjs          真实气泡函数的覆盖标识与未知金额接线测试
 ├── docs/ledger-coverage.md                 观测覆盖、验证及数据兼容/回滚说明
 │
 ├── assets/
