@@ -117,7 +117,11 @@ function dshwvAudioIdleArm() {
 // 那些沙箱里不一定声明了 soundOn —— typeof 对未声明的标识符是安全的，裸引用会直接抛
 // ReferenceError 把整段沙箱打断。真机上 soundOn 一定存在，行为不受影响。
 function dshwvSoundOff() {
-  try { return typeof soundOn !== 'undefined' && soundOn === false } catch (err) { return false }
+  try {
+    // #158: 等配置读回后再预热/解锁，避免默认 soundOn=true 抢先请求已被用户关闭的音频。
+    if (typeof configLoaded !== 'undefined' && !configLoaded) return true
+    return typeof soundOn !== 'undefined' && soundOn === false
+  } catch (err) { return false }
 }
 function dshwvAudio() {
   try {
@@ -925,7 +929,10 @@ function dshwvFlushDeferredBody() {
 function dshwBodyAppend(el) {
   try {
     if (!el) return el
-    if (dshwvComposing && dshwvDeferredBody.indexOf(el) < 0) { dshwvDeferredBody.push(el); return el }
+    if (dshwvComposing) {
+      if (dshwvDeferredBody.indexOf(el) < 0) dshwvDeferredBody.push(el)
+      return el
+    }
     // 注意：这里必须是**原始**的 document.body.appendChild —— 不能走 dshwBodyAppend 自己
     // （v743 批量改写时曾误替换成自我递归，被 try/catch 吞掉后表现为"登记了但从未挂上"）
     document.body.appendChild(el)
@@ -7745,12 +7752,16 @@ function bubbleRowLabel(it) {
 function bubbleIsChoice(step) { return !!(step && step.kind === 'choice') }
 function bubbleChoiceOptions(step) { return (step && step.kind === 'choice' && Array.isArray(step.options)) ? step.options : [] }
 function bubbleChoiceWeight(o) { return Math.max(1, Math.round(Number(o && o.w) || 1)) }
-function bubbleSingleFromItem(itm) { return { kind: 'custom', modules: (itm && Array.isArray(itm.modules)) ? itm.modules : [] } }
+function bubbleWithName(source, item) {
+  if (source && typeof source.name === 'string') item.name = source.name
+  return item
+}
+function bubbleSingleFromItem(itm) { return bubbleWithName(itm, { kind: 'custom', modules: (itm && Array.isArray(itm.modules)) ? itm.modules : [] }) }
 // 任意单选步骤(或并列第一泡)规范成可独立渲染的完整泡 {kind:'custom', modules}
 function bubbleStepToBubble(step) {
   if (bubbleIsChoice(step)) { var o0 = bubbleChoiceOptions(step)[0]; step = o0 ? o0.item : null }
   var mods = (step && Array.isArray(step.modules)) ? step.modules : bubbleDefaultModules((step && step.kind === 'random') ? 'random' : 'normal')
-  return { kind: 'custom', modules: JSON.parse(JSON.stringify(mods)) }
+  return bubbleWithName(step, { kind: 'custom', modules: JSON.parse(JSON.stringify(mods)) })
 }
 function renderBubbleFirst() {
   var it = bubbleEditItems[0] || { kind: 'normal' }
@@ -8306,12 +8317,12 @@ function openBubbleEditorWithCache() {
           var oi2 = src.options[oi] || {}
           var srcItem = oi2.item || {}
           var srcMods = Array.isArray(srcItem.modules) ? JSON.parse(JSON.stringify(srcItem.modules)) : (srcItem.kind === 'random' ? bubbleDefaultSecondModules() : [])
-          opts.push({ w: bubbleChoiceWeight(oi2), item: { kind: 'custom', modules: srcMods } })
+          opts.push(bubbleWithName(oi2, { w: bubbleChoiceWeight(oi2), item: bubbleWithName(srcItem, { kind: 'custom', modules: srcMods }) }))
         }
         if (opts.length === 1) { bubbleEditItems.push(bubbleSingleFromItem(opts[0].item)); continue }
-        if (opts.length >= 2) { bubbleEditItems.push({ kind: 'choice', options: opts }); continue }
+        if (opts.length >= 2) { bubbleEditItems.push(bubbleWithName(src, { kind: 'choice', options: opts })); continue }
       }
-      bubbleEditItems.push({ kind: src.kind === 'random' ? 'random' : (src.kind === 'custom' ? 'custom' : 'normal'), modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined })
+      bubbleEditItems.push(bubbleWithName(src, { kind: src.kind === 'random' ? 'random' : (src.kind === 'custom' ? 'custom' : 'normal'), modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined }))
     }
     bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked]) // v727：含开关，改开关也算"有改动"
     renderBubbleEditor()
@@ -8354,13 +8365,13 @@ function bubbleStepToSaved(step) {
       var itm = (o && o.item) || {}
       var mods = Array.isArray(itm.modules) ? itm.modules : bubbleDefaultModules(itm.kind === 'random' ? 'random' : 'normal')
       bubbleRowsCanon(mods) // F2:保存前规范化行键
-      return { w: bubbleChoiceWeight(o), item: { kind: 'custom', modules: mods } }
+      return bubbleWithName(o, { w: bubbleChoiceWeight(o), item: bubbleWithName(itm, { kind: 'custom', modules: mods }) })
     })
-    return { kind: 'choice', options: opts }
+    return bubbleWithName(step, { kind: 'choice', options: opts })
   }
   var mods = Array.isArray(step.modules) ? step.modules : bubbleDefaultModules(step.kind)
   bubbleRowsCanon(mods) // F2:保存前规范化行键
-  return { kind: 'custom', modules: mods }
+  return bubbleWithName(step, { kind: 'custom', modules: mods })
 }
 // —— 单泡编辑(W2):模块面板 + 泡泡预览行 ——
 var bubbleItemMask = null
@@ -12260,18 +12271,19 @@ function bubbleTtlArmed(ttlMs) {
   try { if (ttlMs > 0) bubbleTtlDeadline = Date.now() + ttlMs; else bubbleTtlDeadline = 0 } catch (err) { bubbleTtlDeadline = 0 }
 }
 function bubbleTtlClear() { bubbleTtlDeadline = 0 }
-// 巡检：只在"本该已经到期"且计时器已经不在了（被节流/挂起）时补收一次
+// #188: 节流不会清空 timer 句柄；按绝对截止时刻补收，并取消迟到的回调。
 function bubbleTtlSweep() {
   try {
-    if (bubbleTtlTimer || !bubbleTtlDeadline) return
+    if (!bubbleTtlDeadline) return
     if (!bubbleScene || !(bubbleScene.ttlMs > 0)) { bubbleTtlDeadline = 0; return }
     if (Date.now() < bubbleTtlDeadline) return
     bubbleTtlDeadline = 0
+    if (bubbleTtlTimer) { clearTimeout(bubbleTtlTimer); bubbleTtlTimer = null }
     bubbleAutoClose()
   } catch (err) {}
 }
 // 三条触发路径：页面重新可见（切标签回来）、窗口重新拿到焦点（最小化还原）、以及每秒一次的兜底巡检。
-// 正常前台运行时计时器按时收敛，巡检永远提前返回（不会误收下一个泡泡）。
+// 未到期或已清场时巡检不动作，续时与场景切换同步更新截止时刻。
 try {
   document.addEventListener('visibilitychange', function () { try { if (!document.hidden) bubbleTtlSweep() } catch (err) {} })
   window.addEventListener('focus', function () { bubbleTtlSweep() })
@@ -12488,6 +12500,7 @@ function bubbleRowsCanon(mods) {
   } catch (err) {}
 }
 function bubbleClearAll() {
+  bubbleTtlClear()
   try { if (bubbleTtlTimer) { clearTimeout(bubbleTtlTimer); bubbleTtlTimer = null } } catch (err) {}
   try { if (bubbleTimer) { clearTimeout(bubbleTimer); bubbleTimer = null } } catch (err) {}
   try { if (bubbleSwapTimer) { clearTimeout(bubbleSwapTimer); bubbleSwapTimer = null } } catch (err) {}
@@ -14591,7 +14604,11 @@ function saveAnchorPos() {
       hAnchor: hAnchor,
       hDist: hDist,
       vAnchor: topDist <= bottomDist ? 'top' : 'bottom',
-      vDist: Math.max(0, Math.round(Math.min(topDist, bottomDist)))
+      vDist: Math.max(0, Math.round(Math.min(topDist, bottomDist))),
+      // #55: 兼容 v2 的附加字段，旧版仍能读位置；自由轴不能在恢复时变成吸附轴。
+      freeH: state.h === null,
+      freeV: state.v === null,
+      flip: !!state.flip
     }))
   } catch (err) {}
 }
@@ -14913,6 +14930,22 @@ function pressUp() {
 }
 var menuOpen = false
 var menuClosedAt = 0 // 最近一次关闭菜单的时刻(用于避免"关掉后同一次手势又把它长按打开")
+var menuDismissPointer = null // 只消费收菜单的这一条指针序列，下一次 pointerdown 即复位。
+function consumeMenuDismissPointer(e) {
+  if (!menuDismissPointer || !e || e.detail === 0) return false // 键盘激活照常通过
+  if (typeof e.pointerId === 'number' && e.pointerId !== menuDismissPointer.id) return false
+  try { e.preventDefault(); e.stopPropagation() } catch (err) {}
+  return true
+}
+function onMenuDismissPointerEnd(e) {
+  if (e.type === 'pointercancel') {
+    if (menuDismissPointer && e.pointerId === menuDismissPointer.id) menuDismissPointer = null
+    return
+  }
+  // pointerup 的 detail 通常是 0，键盘例外只用于后续 click。
+  if (!menuDismissPointer || e.pointerId !== menuDismissPointer.id) return
+  try { e.preventDefault(); e.stopPropagation() } catch (err) {}
+}
 function toggleMenu() {
   menuOpen = !menuOpen
   if (menuOpen) positionMenu()
@@ -14985,23 +15018,28 @@ function positionMenu() {
     var b = menuBtn.getBoundingClientRect()
     var vp = viewport()
     var onLeft = r.left + r.width / 2 < vp.w / 2
-    // 菜单出现在按钮上方，锚定在按钮一侧：
-    // 右侧 → 菜单右下角对齐按钮右上角；左侧 → 菜单左下角对齐按钮左上角
-    if (onLeft) {
-      menuBox.style.left = b.left + 'px'
-      menuBox.style.right = 'auto'
-      menuBox.style.transformOrigin = 'bottom left'
-    } else {
-      menuBox.style.right = (vp.w - b.right) + 'px'
-      menuBox.style.left = 'auto'
-      menuBox.style.transformOrigin = 'bottom right'
-    }
+    var margin = 8
+    var minTop = Math.max(margin, widgetTopMin() + margin)
+    // 用布局尺寸测量，避免把开合 transform 动画的中间态当成真实菜单尺寸。
+    menuBox.style.minWidth = Math.max(0, Math.min(196, vp.w - margin * 2)) + 'px'
+    menuBox.style.maxWidth = Math.max(0, Math.min(340, vp.w - margin * 2)) + 'px'
+    menuBox.style.maxHeight = Math.max(0, vp.h - minTop - margin) + 'px'
+    menuBox.style.overflowY = 'auto'
+    var w = menuBox.offsetWidth
+    var h = menuBox.offsetHeight
     // 菜单底边悬在鲸鱼素材顶部上方：素材占挂件底部 59.45% 高度，
     // 其顶部位于 root 底部往上 59.45% 处（= 距顶部 40.55%）。按钮顶边在
     // 素材顶部下方 4px，若菜单底边对齐按钮顶边会压住素材顶部，导致被菜单遮挡。
     var assetTop = r.bottom - r.height * 0.5945
-    menuBox.style.bottom = (vp.h - assetTop) + 6 + 'px'
-    menuBox.style.top = 'auto'
+    var above = assetTop - 6 - h
+    var below = b.bottom + 6
+    var opensBelow = above < minTop && (vp.h - below > assetTop - 6 - minTop)
+    var top = opensBelow ? below : above
+    menuBox.style.left = clamp(onLeft ? b.left : b.right - w, margin, Math.max(margin, vp.w - w - margin)) + 'px'
+    menuBox.style.right = 'auto'
+    menuBox.style.top = clamp(top, minTop, Math.max(minTop, vp.h - h - margin)) + 'px'
+    menuBox.style.bottom = 'auto'
+    menuBox.style.transformOrigin = (opensBelow ? 'top ' : 'bottom ') + (onLeft ? 'left' : 'right')
   } catch (err) {}
 }
 
@@ -16683,6 +16721,7 @@ function isWhaleHit(e) {
   }
 }
 function onDocPointerDown(e) {
+  menuDismissPointer = null
   if (e.target && e.target.closest) {
     if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu-btn')) return
     // 点击在面板/弹窗内部：交给面板自身逻辑处理
@@ -16706,7 +16745,9 @@ function onDocPointerDown(e) {
   // 否则 pointerdown 先关、contextmenu 再开 —— 右键就只能唤出、无法关闭。
   var rightMouse = (e.pointerType === 'mouse' && e.button !== 0)
   if (menuOpen && !rightMouse) {
+    menuDismissPointer = { id: e.pointerId }
     closeMenu()
+    try { e.preventDefault(); e.stopPropagation() } catch (err) {}
     return
   }
   if (e.button !== 0 && e.pointerType === 'mouse') return
@@ -16742,6 +16783,7 @@ function onDocPointerUp(e) {
 }
 function onDocPointerCancel(e) { endDrag(e, false, true) }
 function onDocClickStopper(e) {
+  if (consumeMenuDismissPointer(e)) { menuDismissPointer = null; return }
   // 只在鲸鱼命中区域拦截 click（保持透明区 pass-through）。
   // 持久注册（不随 endDrag 移除）——click 在 pointerup 之后派发，
   // 若在 endDrag 移除会导致 click 穿透到下方元素（如误打开文件）。
@@ -16783,6 +16825,8 @@ function onDocContextMenu(e) {
   } catch (err) {}
 }
 document.addEventListener('pointerdown', onDocPointerDown, true)
+document.addEventListener('pointerup', onMenuDismissPointerEnd, true)
+document.addEventListener('pointercancel', onMenuDismissPointerEnd, true)
 document.addEventListener('click', onDocClickStopper, true)
 document.addEventListener('contextmenu', onDocContextMenu, true)
 
@@ -17043,20 +17087,22 @@ function applyAnchorPos() {
     state.left = clamp(l, 0, maxOffH)
     // v785：锚点自愈/恢复也要排除"窗口控件带"（这条路径不一定紧跟 express，所以就地夹）
     state.top = clampWidgetTop(clamp(t, 0, maxOffV), maxOffV)
-    state.h = a.hAnchor
+    state.h = a.freeH === true ? null : a.hAnchor
     // 净距离直接还给 hOff/vOff：settle() 对锚定状态从偏移量重算，
     // 若置 0 会把刚恢复的距离覆盖成贴边（issue #43）
-    state.hOff = hDist
-    state.v = a.vAnchor
-    state.vOff = vDist
+    state.hOff = state.h === null ? state.left : hDist
+    state.v = a.freeV === true ? null : a.vAnchor
+    state.vOff = state.v === null ? state.top : vDist
+    if (typeof a.flip === 'boolean') state.flip = a.flip
     refreshFlip()
     if (healed) { try { saveAnchorPos() } catch (err) {} }
     return true
   } catch (err) { return false }
 }
 window.addEventListener('resize', function () {
-  if (state.h === null && state.v === null && applyAnchorPos()) return
-  settle()
+  var restored = !(drag && drag.active) && (state.h === null || state.v === null) && applyAnchorPos()
+  if (!restored) settle()
+  if (menuOpen) positionMenu()
 })
 
 var rect0 = root.getBoundingClientRect()
@@ -17174,6 +17220,7 @@ fetch(SIZE_URL, { cache: 'no-store' })
     refresh(false)
     // v734（issue #97）：首次 GET 应用完成 —— 从这一刻起才允许 saveConfig() 落盘
     configLoaded = true
+    applySoundSet() // 配置已读回；只有开启音效时才会预取当前音效组。
     if (configSavePending) { configSavePending = false; try { saveConfig() } catch (err) {} }
   })
   .catch(function () {
