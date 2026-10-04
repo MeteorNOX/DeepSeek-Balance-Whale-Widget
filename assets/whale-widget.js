@@ -4430,8 +4430,9 @@ function openApiModelMenu(modelId) {
       var accInfo = (acc && acc.firstObservedAt)
         ? '统计起点（北京）：' + accountingTime(acc.firstObservedAt) + '。起点前的消费未计入；该账户的观测包含同一个 key 在别处的消费。'
         : '尚无余额观测：先配置 DeepSeek API key 并成功刷新一次余额。'
-      readonlyRow('已观测消费', ((acc && acc.label) || m.usageLabel || '已观测消费') + ' ' +
-        (isFinite(Number(accAmt)) ? apiFmtMoney(accAmt, apiTodayCur(m)) : '--'), accInfo)
+      if (acc) accInfo += '\n' + usageCoverageText(acc)
+      readonlyRow('已观测消费', ((acc && acc.label) || m.usageLabel || '已观测消费') + (acc && acc.partialDay ? ' · 部分观测' : '') + ' ' +
+        (accAmt != null && isFinite(Number(accAmt)) ? apiFmtMoney(accAmt, apiTodayCur(m)) : '未观测'), accInfo)
       // 需要用户动手的提示仍然直接显示（不藏进「?」里）
       if (acc && acc.needsReview) {
         var accWarn = document.createElement('div')
@@ -4514,12 +4515,7 @@ function refreshUsageMain() {
       try { requestAnimationFrame(function () { usageScrollRestore(snap) }) } catch (err) {}
       // 用量面板刷新只更新泡泡状态数据;不在泡泡正显示时整泡重绘,
       // 数值由“泡泡消失→下一次显示”的渲染自然采用最新 state
-      if (d && d.ok && d.today && isFinite(Number(d.today.total))) {
-        var recTotal = Number(d.today.total)
-        state.todayUsage = recTotal
-        state.todayUsageCurrency = d.today.currency || 'CNY'
-        state.usageLabel = d.today.label || '本地估算'
-      }
+      if (d && d.ok && d.today) applyUsageSummary(d.today)
     })
     .catch(function () { if (usageMainEl && !usageMainEl.firstChild) usageMainEl.textContent = '记录加载失败' })
 }
@@ -4542,6 +4538,17 @@ function accountingTime(at) {
       day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
     })
   } catch (err) { return String(at || '') }
+}
+function usageCoverageText(summary) {
+  if (!summary || summary.hasObservation === false) return '当日未观测，不表示消费为零。'
+  if (summary.firstObservedAt == null) return summary.label || '旧记录无法确认观测覆盖范围。'
+  return (summary.partialDay ? '部分观测' : '余额快照观测') + '（非完整账单）· 北京时间 ' +
+    accountingTime(summary.firstObservedAt) + ' → ' + accountingTime(summary.lastObservedAt) +
+    (summary.internalGapMs > 600000 || summary.staleGapMs > 600000 ? '；存在观测中断' : '')
+}
+function usageObservedMoney(summary) {
+  return !summary || summary.hasObservation === false || summary.total == null
+    ? '未观测' : usageMoney(summary.total, summary.currency)
 }
 var accountingMask = null
 function openBalanceAdjustment(modelId) {
@@ -4676,6 +4683,7 @@ function openBalanceAdjustment(modelId) {
       '\n起点余额 ' + usageMoney(selected.openingBalance, selected.currency) +
       ' → 当前余额 ' + usageMoney(selected.currentBalance, selected.currency) +
       '\n当前：' + selected.label + ' ' + usageMoney(selected.amount, selected.currency)
+    interval.textContent += '\n' + usageCoverageText(selected) + '\n校正仅覆盖上述区间，不分摊跨日待归属变化。'
     creditsHint.textContent = '本统计区间累计到账金额（' + selected.currency + '，未到账请填 0）：包括充值、赠金等；多次到账请填合计，不要只填最后一笔。'
     debitsHint.textContent = '非调用造成的余额减少（' + selected.currency + '，没有请填 0）：到期赠金、余额退回等。仅填写统计起点之后的金额；保存会替换之前的校正值。'
     credits.value = selected.credits == null ? '' : String(selected.credits)
@@ -4816,7 +4824,7 @@ function fillUsagePanel(d) {
   sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
   sep7.style.margin = '6px 0'
   wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天使用记录', usageMoney(d.total7, d.total7Currency))
+  var t7 = uSectionTitle('近7天已记录金额', d.total7 == null ? '未观测' : usageMoney(d.total7, d.total7Currency))
   t7.style.borderBottom = 'none'
   wrap.appendChild(t7)
   var daysBox = document.createElement('div')
@@ -4825,11 +4833,11 @@ function fillUsagePanel(d) {
     var r = document.createElement('div')
     r.className = 'dshwv-usage-row'
     var n = document.createElement('span')
-    n.textContent = usageDayLabel(row.date)
-    n.title = row.label || ''
+    n.textContent = usageDayLabel(row.date) + (row.partialDay && row.hasObservation !== false ? ' · 部分' : '')
+    n.title = usageCoverageText(row)
     r.appendChild(n)
     var c = document.createElement('span')
-    c.textContent = usageMoney(row.total, row.currency)
+    c.textContent = usageObservedMoney(row)
     r.appendChild(c)
     daysBox.appendChild(r)
   })
@@ -4853,15 +4861,17 @@ usageMoreCard.className = 'dshwv-usage-card'
 usageMoreMask.appendChild(usageMoreCard)
 usageMoreMask.addEventListener('click', function (e) { if (e.target === usageMoreMask) closeUsageRecordsWindow() })
 dshwBodyAppend(usageMoreMask)
-function openUsageRecordsWindow() {
+var usageRecordsRequest = 0
+function openUsageRecordsWindow(bookScope) {
+  var request = ++usageRecordsRequest
   usageMoreCard.innerHTML = '<div style="padding:10px;color:#203170">加载中…</div>'
   usageMoreMask.style.display = 'flex'
-  fetch(USAGE_REC_URL, { cache: 'no-store' })
+  fetch(USAGE_REC_URL + (bookScope ? '?book=' + encodeURIComponent(bookScope) : ''), { cache: 'no-store' })
     .then(function (r) { return r.json() })
-    .then(function (d) { fillUsageRecordsWindow(d) })
-    .catch(function () { usageMoreCard.innerHTML = '<div style="padding:10px;color:#203170">加载失败</div>' })
+    .then(function (d) { if (request === usageRecordsRequest) fillUsageRecordsWindow(d) })
+    .catch(function () { if (request === usageRecordsRequest) usageMoreCard.innerHTML = '<div style="padding:10px;color:#203170">加载失败</div>' })
 }
-function closeUsageRecordsWindow() { usageMoreMask.style.display = 'none' }
+function closeUsageRecordsWindow() { usageRecordsRequest++; usageMoreMask.style.display = 'none' }
 // ===== v767：通用「入口行 + 可折叠体」组件（提示与音效设置面板 / 资源管理窗口共用）=====
 // 入口行常驻：可选 [✓] 开关 + 区名 + 当前值摘要 + ▸/▾；点整行才展开它下面的折叠体，可同时展开多个。
 // 折叠用 max-height 过渡（与「自定义提示」窗口里的 advBox 同一套路），展开动画结束后置 'none' —— 之后
@@ -5613,27 +5623,16 @@ function usagePopupCard(title, content, below, amount) {
 }
 var USAGE_PALETTE = ['#203170', '#e0433f', '#2fa24c', '#b060c8', '#e89a2e', '#3aa6c8', '#d06a8a', '#7a8b2f', '#6a6ad0', '#c84a8a']
 // 统计一组天数里的模型合计(输入 days:[{models:[{model,cost}]}])
-// v776（issue #163）：换/删 API key 后，宿主按密钥指纹分本记账（换 key = 换一本）。
-// 界面侧给一句说明：否则旧账本的日期看起来像"丢了"（数据其实一直在 .dshw-usage.json 里）。
-// 宿主在 daySummary() 上补了 bookCount / historyHint / source='balance-observed-other-account'，
-// 这里只负责把话讲清楚 —— **不做相加**（无法判断两次是不是同一个账户）。
+// Different observation scopes are browsable, never silently added together.
 function usageMultiBookNote(allDays, today) {
   try {
-    var maxCount = 0, maxHint = '', otherDays = 0, todayCount = 0
+    var maxCount = Number(today && today.bookCount) || 0
     for (var i = 0; i < (allDays || []).length; i++) {
       var dx = allDays[i] || {}
       var n = Number(dx.bookCount) || 0
-      if (n > maxCount) { maxCount = n; maxHint = String(dx.historyHint || '') }
-      if (dx.source === 'balance-observed-other-account') otherDays++
+      maxCount = Math.max(maxCount, n)
     }
-    todayCount = Number(today && today.bookCount) || 0
-    if (maxCount <= 1 && !otherDays) return ''
-    var parts = []
-    if (maxCount > 1 || todayCount > 1) {
-      parts.push('检测到 ' + Math.max(maxCount, todayCount) + ' 个记账本（换过 API key）：' + (maxHint || '同一天在多个本里都有观测'))
-    }
-    if (otherDays > 0) parts.push('另有 ' + otherDays + ' 天来自历史记账本，已按「已观测消费 · 历史账户」显示，未与当前账户相加')
-    return parts.join('；')
+    return maxCount > 1 ? '同一天有多个记账本的观测；使用上方选择框逐本查看，不做账户合并。' : ''
   } catch (err) { return '' }
 }
 function usageAggModels(daysArr) {
@@ -5931,6 +5930,28 @@ function fillUsageRecordsWindow(d) {
   body.className = 'dshwv-usage-windowbody'
   card.appendChild(body)
   if (!d || !d.ok) { body.textContent = '加载失败'; return }
+  if (d.books && d.books.length) {
+    var bookLabel = document.createElement('label')
+    bookLabel.textContent = '查看记账本：'
+    var bookSelect = document.createElement('select')
+    bookSelect.className = 'dshwv-colnat'
+    bookSelect.style.maxWidth = '100%'
+    ;(d.books || []).forEach(function (book) {
+      var option = document.createElement('option')
+      option.value = book.scope
+      option.textContent = book.source === 'legacy' ? '旧版记录 · 未确认账户 · CNY' :
+        (book.active ? '当前' : '历史') + ' · ' + String(book.scope).slice(0, 12) + ' · ' + book.currency
+      option.selected = !!d.selectedBook && d.selectedBook.scope === book.scope
+      bookSelect.appendChild(option)
+    })
+    bookSelect.addEventListener('change', function () { openUsageRecordsWindow(bookSelect.value) })
+    bookLabel.appendChild(bookSelect)
+    body.appendChild(bookLabel)
+    var scopeNote = document.createElement('div')
+    scopeNote.className = 'dshwv-usage-hint'
+    scopeNote.textContent = '这里只切换查看，不切换正在记账的来源。同币种也不合并：密钥变化无法证明属于同一账户。本机模型明细未归属到某个账本。'
+    body.appendChild(scopeNote)
+  }
   var allDays = ((d.all && d.all.days) || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : 1 })
   var evAll = ((d.all && d.all.events) || []).slice()
   // ① 概览头
@@ -5945,7 +5966,7 @@ function fillUsageRecordsWindow(d) {
   var ov = document.createElement('div')
   ov.className = 'dshwv-usage-oview'
   var ovL = document.createElement('div')
-  ovL.textContent = '全部记录合计'
+  ovL.textContent = '本账本已记录合计'
   ov.appendChild(ovL)
   var ovN = document.createElement('div')
   ovN.className = 'dshwv-usage-oview-num'
@@ -5957,7 +5978,7 @@ function fillUsageRecordsWindow(d) {
   ov.appendChild(ovS)
   var sourceNote = document.createElement('div')
   sourceNote.className = 'dshwv-usage-hint'
-  sourceNote.textContent = '按各日标注口径汇总；本机模型明细为估算，与账户消费覆盖范围不同。'
+  sourceNote.textContent = '仅汇总所选记账本；部分观测与未观测日期不代表完整账单。跨日待归属净变化未计入合计。'
   ov.appendChild(sourceNote)
   // v776（issue #163）：多记账本（换过 API key）时补一句说明，让旧账本的记录有入口可查
   var bookNote = usageMultiBookNote(allDays, d.today)
@@ -5969,10 +5990,28 @@ function fillUsageRecordsWindow(d) {
     ov.appendChild(bn)
   }
   body.appendChild(ov)
+  if (d.unassignedIntervals && d.unassignedIntervals.length) {
+    usageCollapseBlock(body, '跨日待归属净变化（' + d.unassignedIntervals.length + ' 段，不计入消费）', false, function (inner) {
+      var warning = document.createElement('div')
+      warning.className = 'dshwv-usage-hint'
+      warning.textContent = '这些区间跨越日期边界且没有完整流水，可能同时含充值与消费，不能自动分配到某一天；区间内完全未观测的日期也属未知。请对照官方流水核对。' +
+        (d.gapDatesTruncated ? ' 超长缺口仅展开部分未知日期，完整起止范围仍保留在下方。' : '')
+      inner.appendChild(warning)
+      d.unassignedIntervals.slice().reverse().forEach(function (gap) {
+        var item = document.createElement('div')
+        item.className = 'dshwv-usage-hint'
+        item.style.cssText = 'white-space:pre-wrap;line-height:1.65;margin:5px 0'
+        item.textContent = accountingTime(gap.fromAt) + ' → ' + accountingTime(gap.toAt) + '（北京）\n' +
+          '余额 ' + usageMoney(gap.fromBalance, gap.currency) + ' → ' + usageMoney(gap.toBalance, gap.currency) +
+          '；净变化 ' + (gap.netChange > 0 ? '+' : '') + Number(gap.netChange).toFixed(8) + ' ' + gap.currency + ' · 待归属，非消费额'
+        inner.appendChild(item)
+      })
+    })
+  }
   var detailBox = null
   // ② 统计图表(默认折叠,懒渲染)
   usageCollapseBlock(body, '统计图表(近30天 / 模型占比)', false, function (inner) {
-    usageDrawBarChart(inner, '近30天消费 · ' + chartCurrency + '（点柱查看当日）', allDays.filter(function (row) { return (row.currency || 'CNY') === chartCurrency }).slice(-30), {
+    usageDrawBarChart(inner, '近30天已记录金额 · ' + chartCurrency + '（点柱查看当日）', allDays.filter(function (row) { return row.total != null && (row.currency || 'CNY') === chartCurrency }).slice(-30), {
       today: usageTodayKeyStr(), currency: chartCurrency,
       onPick: function (date) {
         try {
@@ -6015,7 +6054,7 @@ function fillUsageRecordsWindow(d) {
     })
     var dayTot = {}
     var dayMeta = {}
-    allDays.forEach(function (dx) { dayTot[dx.date] = Number(dx.total) || 0; dayMeta[dx.date] = dx })
+    allDays.forEach(function (dx) { dayTot[dx.date] = dx.total; dayMeta[dx.date] = dx })
     var todayKeyStr2 = usageTodayKeyStr()
     function dayGroup(day, evs) {
       var row = document.createElement('div')
@@ -6033,12 +6072,12 @@ function fillUsageRecordsWindow(d) {
       var c = document.createElement('span')
       c.style.flex = '0 0 auto'
       var dayV = dayTot[day]
-      if ((dayV === undefined || dayV === 0) && day === todayKeyStr2 && d.today && isFinite(Number(d.today.total))) dayV = Number(d.today.total)
-      if (dayV === undefined || dayV === null) dayV = evs.reduce(function (a, x) { return a + (Number(x.cost) || 0) }, 0)
-      c.textContent = usageMoney(dayV, dayMeta[day] && dayMeta[day].currency)
+      if (dayV === undefined) dayV = evs.reduce(function (a, x) { return a + (Number(x.cost) || 0) }, 0)
+      c.textContent = dayV == null ? '未观测' : usageMoney(dayV, dayMeta[day] && dayMeta[day].currency)
       // v776（issue #163）：悬停提示带上"历史记账本"说明（旧 key 的记账不再看着像丢了）
       var dayM = dayMeta[day] || {}
-      name.title = (dayM.label || '本地估算') + (dayM.historyHint ? ' · ' + dayM.historyHint : '')
+      if (dayM.partialDay && dayM.hasObservation !== false) name.textContent += ' · 部分观测'
+      name.title = usageCoverageText(dayM) + (dayM.historyHint ? ' · ' + dayM.historyHint : '')
       row.appendChild(c)
       var chev = document.createElement('span')
       chev.className = 'dshwv-usage-chev'
@@ -6053,6 +6092,10 @@ function fillUsageRecordsWindow(d) {
         if (on) {
           if (!built) {
             built = true
+            var coverageNote = document.createElement('div')
+            coverageNote.className = 'dshwv-usage-hint'
+            coverageNote.textContent = usageCoverageText(dayM)
+            detail.appendChild(coverageNote)
             var lim = Math.min(evs.length, 100)
             for (var i = 0; i < lim; i++) {
               var ev = evs[i]
@@ -12014,6 +12057,7 @@ var state = {
   todayUsage: null,
   todayUsageCurrency: 'CNY',
   usageLabel: '本地估算',
+  usageCoverage: null,
   isPeak: false,
   peakNextChangeAt: null,
   peakHolidays: null,
@@ -12678,8 +12722,20 @@ function bubbleAmountText() {
   if (v === null) return '…'
   return fmt(v, state.currency)
 }
+function applyUsageSummary(summary) {
+  summary = summary || {}
+  state.todayUsage = summary.amount != null && isFinite(Number(summary.amount)) ? Number(summary.amount) : null
+  state.todayUsageCurrency = summary.currency || 'CNY'
+  state.usageLabel = summary.label || '本地估算'
+  state.usageCoverage = summary
+}
+function bubbleTodayValue() {
+  if (state.todayUsage == null) return '未观测'
+  return fmt(state.todayUsage, state.todayUsageCurrency || state.currency) +
+    (state.usageCoverage && state.usageCoverage.partialDay ? ' · 部分观测' : '')
+}
 function bubbleTodayText() {
-  return (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+  return (state.usageLabel || '今日已用') + ' ' + bubbleTodayValue()
 }
 // v782：赠金 / 充值余额两个数值模块的取数（与「总余额(充值金额+赠金)」同源：宿主余额返回体）。
 //   ⚠️ 两个数字**可能拿不到**（厂商没有该字段、或未登录账号）⇒ 显示 `—`，**不显示 0**
@@ -13070,7 +13126,7 @@ function bubbleContentTokenMap(m) {
     // v782：充值余额模块（{recharge_ds}）。
     map['recharge_ds'] = bubbleRechargeText()
   } else if (m.type === 'today') {
-    v = (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    v = bubbleTodayValue()
     map['expense_ds'] = v
   } else if (m.type === 'session') {
     // v768：对话名模块 —— {session} = 当前对话标题（按模块的「保留长度」截断）
@@ -13510,7 +13566,7 @@ function bubbleRowContentOf(mod) {
   if (mod.type === 'bonus') return { txt: bubbleContentText(mod, bubbleBonusText()), line: null }
   if (mod.type === 'recharge') return { txt: bubbleContentText(mod, bubbleRechargeText()), line: null }
   if (mod.type === 'today') {
-    var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : bubbleTodayValue()
     return { txt: bubbleContentText(mod, '今日已用 ' + tv2), line: null }
   }
   if (mod.type === 'session') {
@@ -14262,9 +14318,10 @@ function render() {
     hint = '加载中…'
   } else {
     amount = shown !== null ? fmt(shown, state.currency) : fmt(state.balance, state.currency)
-    hint = (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    hint = bubbleTodayText()
   }
   amountEl.textContent = amount
+  hintEl.title = usageCoverageText(state.usageCoverage)
   if (bubbleRandomActive && bubbleRandomLines) {
     applyBubbleLines(bubbleRandomLines)
   } else {
@@ -14436,12 +14493,13 @@ function refresh(manual) {
         state.currency = nc
         state.message = ''
         balanceRetryLeft = 2
-        state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null
-        state.todayUsageCurrency = data.todayUsageCurrency || data.currency || 'CNY'
+        applyUsageSummary(data.accounting || {
+          amount: data.todayUsage, currency: data.todayUsageCurrency || data.currency,
+          label: data.usageLabel, hasObservation: data.usageSource === 'balance-unobserved' ? false : undefined
+        })
         // v781：赠金 / 充值余额（宿主两条路都下发；缺失给 null ⇒ 模块显示 —）
         state.bonusBalance = isFinite(Number(data.bonusBalance)) ? Number(data.bonusBalance) : null
         state.rechargeBalance = isFinite(Number(data.rechargeBalance)) ? Number(data.rechargeBalance) : null
-        state.usageLabel = data.usageLabel || '本地估算'
         if (data.stale) state.usageLabel += ' · 余额未刷新'
         state.isPeak = !!data.isPeak
         state.peakNextChangeAt = isFinite(Number(data.peakNextChangeAt)) ? Number(data.peakNextChangeAt) : null
