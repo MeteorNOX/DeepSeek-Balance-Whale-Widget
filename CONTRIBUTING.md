@@ -14,6 +14,8 @@
 
 ## 仓库结构和说明
 
+会话事件投递的纯逻辑在 `lib/session-events.mjs`，回归测试在 `tests/session-events.test.mjs`。运行 `node --test tests/*.test.mjs` 不需要安装插件；行为边界、人工验收及回滚步骤见 `docs/session-events-validation.md`。
+
 如果你的pr更新了仓库结构，请顺便更改CONTRIBUTING中的本部分以保持最新
 
 ### 分支

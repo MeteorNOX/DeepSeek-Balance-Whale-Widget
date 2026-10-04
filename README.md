@@ -115,7 +115,8 @@ dsh-whale-widget/
 ├── cordis.patch.yml          # 插件挂载声明
 ├── lib/
 │   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务）
-│   └── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
+│   ├── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
+│   └── session-events.mjs    # 有界完成事件队列与按会话隔离的等待状态
 ├── assets/
 │   ├── whale-widget.js       # 前端挂件本体（由宿主按 mtime 热读取）
 │   ├── DSH2.png              # README 顶部展示图
