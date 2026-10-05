@@ -1,38 +1,65 @@
-# v0.4.0 GitHub 发布与构建记录
+# Codex-v0.4(fixed) 打包与发布流程
 
-**本次 v0.4.0 已获用户明确授权发布到 For-Codex 并创建 Release。** 发布者为协作者 Yang-huai406，仓库所有者仍为 MeteorNOX。发布授权不等于清单所有人工测试完成；保留真实账号、Mac、其他硬件和长期稳定性的未验证范围。
+本修复版已获得明确发布授权，目标为 For-Codex 分支及独立 Release。以下记录构建与发布流程；实际远端状态以 GitHub 为准。
 
-## 目标
+## 目标标识
 
-- 仓库：MeteorNOX/DeepSeek-Balance-Whale-Widget。
-- 产品分支：For-Codex，与 DSH 主线独立。
-- 发布标签：codex-v0.4.0；标题：Codex v0.4 — API 余额小鲸鱼。
-- 插件、package、lockfile 和运行时版本均为 0.4.0。
-- 保留 MeteorNOX、Yang-huai406、macOS PR #128 作者 1llysviel 的署名与原代码来源。
+| 项目 | 值 |
+| --- | --- |
+| 仓库 | `MeteorNOX/DeepSeek-Balance-Whale-Widget` |
+| 产品分支 | `For-Codex`，与 DSH 主线独立 |
+| 对外名称 / Release 标题 | `Codex-v0.4(fixed)` |
+| 发布标签 | 精确为 `codex-v0.4.0(fixed)`，括号属于标签本身 |
+| 内部版本 | `0.4.1`，插件/package/lockfile/runtime 应一致 |
+| 构建标识 | `auto-probe-fixed-20261005` |
+| Latest | 保留 DSH 主线，发布必须 `makeLatest: false` |
 
-## 本地重建
+仓库所有者和上游作者是 MeteorNOX；Yang-huai406 为 Codex 适配协作者；保留 1llysviel 的 macOS PR #128 及其它已有来源，不将协作者改写为所有者。
 
-需要 Python 3.10+，运行 `python scripts/build-release.py`。优化模式会被拒绝，防止隐私校验被关闭。
+## 本地构建与隐私检查
 
-输出安装包、源码包、各自 SHA-256 与 release-manifest.json。安装包排除测试与 GitHub 模板，源码包包含开发测试；两者都不包含个人配置、账本、原始会话、回滚回执、缓存或 Git 历史。Node.js 24+ 用于运行与自动测试；部分原生开发测试另需 Python/Pillow，普通安装不需要它们。
+需要 Python 3.10+；Node.js 24+ 用于运行和开发测试。不要以 Python 优化模式执行构建器，它会拒绝可能关闭检查的模式。
 
-已获授权的发布构建使用：
+在源码根目录运行：
 
-```sh
-python scripts/build-release.py --publication-ready --release-tag codex-v0.4.0
+```powershell
+python scripts/build-release.py --release-tag "codex-v0.4.0(fixed)" --publication-ready
 ```
 
-`--publication-ready` 必须同时提供 `--release-tag`，构建状态为 `release-ready-user-authorized`。构建器不执行上传，生成记录中的 `published: false` 只表示生成附件时尚未执行远端发布，不代表发布授权缺失。远端 Release 创建及附件核验后，另以真实发布记录说明 URL、tag 和提交；不要把历史构建或测试记录改写成当时已经发布。
+默认输出到 `dist`，也可用 `--output "<本地输出目录>"` 指定位置。本命令只把发布标签写入本地清单，不创建 Git 标签、不推送、不上传。`--publication-ready` 记录本次明确发布授权，清单为 `publicationReady: true`。构建时 `published: false` 只是构建快照；脚本自身从不上传，远端结果须另行核验。
 
-`candidate-20261005` 保留为同一已测试代码的构建标识，不是当前发行状态。本包不预装 Electron，首次安装需要联网。
+核对输出包括：
 
-## 发布操作清单
+- `Codex-v0.4(fixed).zip` 与 `Codex-v0.4(fixed)-source.zip`。
+- 两个包各自的 `.sha256` 和 `release-manifest.json`。
+- 本次交付检查生成的 `verification-report.json`，记录真实执行的检查，不伪造未运行的验收。
 
-1. 重新读取远端 For-Codex、标签、Release 和协作规则，核对新提交及标签占用情况。
-2. 在远端最新基础上整理普通提交；用源码包对照差异，不把 ZIP 覆盖整个仓库。保留归档、macOS 来源和其他协作者文件。
-3. 按仓库流程提交或创建 PR，不改写远端历史，不移动已有标签。
-4. 对实际提交重建附件，核对版本、SHA-256、文案和测试报告；运行代码变化后重新验证。
-5. 创建新标签和 Release，默认不改变 DSH 主线的 Latest 标记，上传安装包、源码包、SHA-256、manifest 和验证报告。
-6. 复查远端附件与提交，仅按实际范围说明 issue；部分修复和跨平台待验收不能批量声称解决。保留 DSH 主线 Latest（本次核对为 v0.3.18）。
+安装包与源码包均需检查；源码包额外保留开发测试，安装包不含测试集。公开包不得含用户配置、密钥、账本、聊天、原始日志、测试截图录屏、私有安装回执、缓存、Electron 下载、嵌套旧包或 `.git` 历史。链接/junction 和异常文件按构建器规则处理，不手工跳过隐私检查。
 
-发布正文见根目录 RELEASE_NOTES.md；修复范围见 [版本说明](RELEASE-0.4.md)，未验收项见 [已知限制](KNOWN-ISSUES-0.4.md)。
+解压到新的干净目录，核对 manifest/package/lockfile/runtime 版本、构建标识、入口脚本、README、文件清单和 SHA-256。不要把维护者的运行数据或私有回执放进包；接收者通过安装器生成自己的回执。
+
+当前运行构建已有 482 项自动测试、9 项隐私门禁及 Electron 6 组流程、7 个布局样本、8 张截图的通过记录。本轮若只整理文档与打包，不把它们写成重新执行了整套运行测试；成品检查按本次实际结果单列。合成测试不等于 Mac、所有第三方账号或长期验收。
+
+## 正文与标签准备
+
+发布正文使用根目录 [RELEASE_NOTES.md](../RELEASE_NOTES.md)，新用户操作使用完整 [README](../README.md)，不再把旧版说明作为本次正文。
+
+可先校验标签格式并查看本地同名标签是否存在：
+
+```powershell
+git check-ref-format "refs/tags/codex-v0.4.0(fixed)"
+git tag --list "codex-v0.4.0(fixed)"
+```
+
+括号标签在 shell 参数中保持引号。发布标签不等于已经创建；如已有同名标签，先确认指向的提交，不移动或覆盖它。按下列步骤推送已核验提交和新标签，并上传 Release。
+
+## 发布步骤
+
+1. 重新读取远端分支、标签、Release 和协作规则，确认 `codex-v0.4.0(fixed)` 尚未占用，不把当前本地状态当远端事实。
+2. 审查最终源码差异和署名，用普通提交或要求的 PR 流程整理，不改写远端历史，不用 ZIP 覆盖整个仓库。
+3. 把待发布提交与实际构建包绑定，重新核对成品清单及哈希。仅在明确授权后考虑 `--publication-ready`；构建器本身依然不会上传。
+4. 使用精确标签 `codex-v0.4.0(fixed)` 和 fixed 正文，显式设置 **`makeLatest: false`**；GitHub REST 对应 `make_latest: "false"`，不要替代 DSH 主线 Latest。
+5. 上传已核验安装包、源码包、SHA-256、清单/报告后，再核对远端附件哈希、标签目标及链接，保留旧 `codex-v0.4.0` 和主线发布。
+6. 只有实际完成后才记录发布时间、URL、提交与结果；部分 issue 和未验收平台不得批量宣称完成。
+
+发布后核对分支、标签、附件哈希和主线 Latest。协议边界见 [fixed 说明](AUTO-PROBE-FIXED.md)，部分修复见 [issue 状态表](ISSUE-STATUS-FIXED.md)。

@@ -17,5 +17,6 @@
     "probe:mac": "node scripts/probe-macos.mjs"
   },
   "codexBuild": "auto-probe-fixed-20261005",
-  "distributionName": "Codex-v0.4(fixed)"
+  "distributionName": "Codex-v0.4(fixed)",
+  "releaseTag": "codex-v0.4.0(fixed)"
 }

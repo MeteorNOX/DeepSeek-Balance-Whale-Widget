@@ -161,7 +161,9 @@ runtime = files['runtime/paths.mjs'].decode('utf-8-sig')
 assert package['version'] == lock['version'] == lock['packages']['']['version'] == version, 'Package version mismatch'
 assert re.search(r"export const VERSION = ['\"]" + re.escape(version) + r"['\"]", runtime), 'Runtime version mismatch'
 if args.release_tag:
-    assert args.release_tag == 'codex-v' + version, 'Codex release tag/version mismatch'
+    expected_tag = package.get('releaseTag', 'codex-v' + version)
+    assert re.fullmatch(r'codex-v\d+\.\d+\.\d+(?:\([a-z0-9.-]+\))?', expected_tag), 'Invalid Codex release tag'
+    assert args.release_tag == expected_tag, 'Codex release tag/version mismatch'
 assert manifest['author']['name'] == 'Yang-huai406'
 for name in ['vendor/smol-toml/dist/index.js', 'desktop/ui/dashboard.js', 'desktop/ui/shape.js', 'desktop/macos/window-probe.swift', 'scripts/install-package.ps1', 'scripts/install-macos.mjs']:
     assert name in files, 'Missing runtime dependency: ' + name

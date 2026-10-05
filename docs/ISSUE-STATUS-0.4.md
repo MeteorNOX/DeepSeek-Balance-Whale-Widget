@@ -1,5 +1,7 @@
 # v0.4 issue 与反馈状态表
 
+> 历史记录：本文保留 v0.4.0 当时实现与验证边界。当前 `Codex-v0.4(fixed)` 状态见 [fixed issue 表](ISSUE-STATUS-FIXED.md)；尤其 #190 已部分支持 POST/JSON body，不能继续沿用本文旧版“仅 GET”的结论。
+
 本表针对当前 **For-Codex** 源码和验证结果，不代表仓库维护者已经关闭这些 issue。编号链接保留原讨论；#118 是 PR。完整修复仅指所列的 Codex 缺陷范围，不把跨平台报告的其它子问题一并算作完成。
 
 ## 已覆盖当前 Codex 缺陷
