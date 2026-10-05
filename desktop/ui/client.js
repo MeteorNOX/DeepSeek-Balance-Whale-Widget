@@ -73,6 +73,10 @@
       return Object.assign(settings, connectionPatch);
   }
   window.WhaleSettingsDraft = collectSettings;
+  window.WhaleSettingsReload = () => location.reload();
+  for (const type of ['input', 'change']) form.addEventListener(type, event => {
+    if (event.target?.name) window.WhaleConnectionSettings?.invalidatePreview();
+  });
   form.addEventListener('submit', async event => {
     event.preventDefault();
     try {

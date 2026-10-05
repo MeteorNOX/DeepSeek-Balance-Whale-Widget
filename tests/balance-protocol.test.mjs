@@ -71,7 +71,8 @@ test('unknown auto billing is only a redacted preview even when someone sets con
   for (const balance of [undefined, { adapter: 'auto', mapping: { confirmed: true } }]) {
     const result = await provider(billing).balance(context(balance));
     assert.equal(result.balanceStatus, 'unconfirmed'); assert.equal(result.totalBalance, null); assert.equal(result.totalUsed, null); assert.equal(result.totalGranted, null);
-    assert.equal(result.canObserve, false); assert.equal(result.counter, null); assert.equal(result.preview.balance, 99999761.2);
+    assert.equal(result.canObserve, false); assert.equal(result.counter, null); assert.equal(result.preview.balance, null);
+    assert.equal(result.detection.needsConfirmation, false);
     assert.deepEqual(Object.keys(result.preview).sort(), ['adapter', 'balance', 'currency', 'scope', 'used']);
     assert.equal(JSON.stringify(result).includes('SYNTHETIC_API_KEY'), false);
   }
@@ -89,19 +90,19 @@ test('explicit contracts require confirmation while explicit legacy adapters ret
 
 test('auto fallback identifies the actual adapter without sharing confirmation or meter identity', async () => {
   const c = context({ adapter: 'auto', mapping: { confirmed: true } });
-  let route = 'billing'; const p = new BalanceProvider({ fetchImpl: async url => route === 'billing' ? reply(billing(url)) : url.includes('/api/usage/token') ? reply({ data: { total_available: 4, total_used: 1 } }) : new Response('<html/>', { headers: { 'content-type': 'text/html' } }) });
+  let route = 'billing'; const p = new BalanceProvider({ fetchImpl: async url => route === 'billing' ? reply(billing(url)) : url.includes('/api/usage/token/') ? reply({ data: { object: 'token_usage', total_available: 2000000, total_used: 500000, total_granted: 2500000, unlimited_quota: false } }) : url.endsWith('/api/status') ? reply({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } }) : new Response('<html/>', { headers: { 'content-type': 'text/html' } }) });
   const first = await p.balance(c); route = 'newapi'; const second = await p.balance(c), third = await p.balance(c);
-  assert.equal(second.adapter, 'newapi'); assert.equal(second.balanceStatus, 'unconfirmed'); assert.notEqual(first.meterId, second.meterId); assert.equal(second.meterId, third.meterId); assert.equal(second.preview.scope, 'api-key-quota');
+  assert.equal(second.adapter, 'newapi'); assert.equal(second.balanceStatus, 'finite'); assert.equal(second.totalBalance, 4); assert.notEqual(first.meterId, second.meterId); assert.equal(second.meterId, third.meterId); assert.equal(second.balanceScope, 'api-key-quota'); assert.equal(third.detection.cached, true);
 });
 
-test('official DeepSeek original units are verified automatically; a different endpoint is not', async () => {
-  const p = provider({ balance_infos: [{ currency: 'USD', total_balance: '12.34' }] });
+test('DeepSeek auto verifies the documented shape and ignores arbitrary custom scaling', async () => {
+  const p = provider(url => url.includes('/other') ? { data: { balance: 999 } } : { is_available: true, balance_infos: [{ currency: 'USD', total_balance: '12.34' }] });
   const result = await p.balance(context(undefined, { baseUrl: 'https://api.deepseek.com/v1' }));
   assert.equal(result.balanceStatus, 'finite'); assert.equal(result.totalBalance, 12.34); assert.equal(result.counter, 'balance');
   const modified = await p.balance(context({ adapter: 'auto', request: { url: '/other' } }, { baseUrl: 'https://api.deepseek.com/v1' }));
-  assert.equal(modified.balanceStatus, 'unconfirmed');
+  assert.equal(modified.balanceStatus, 'unsupported');
   const converted = await p.balance(context({ adapter: 'auto', mapping: { balanceScale: 2 } }, { baseUrl: 'https://api.deepseek.com/v1' }));
-  assert.equal(converted.balanceStatus, 'unconfirmed');
+  assert.equal(converted.balanceStatus, 'finite'); assert.equal(converted.totalBalance, 12.34);
 });
 
 test('none and official OpenAI auto return unsupported without a key or a network request', async () => {
@@ -145,7 +146,7 @@ test('meter identity includes field, currency, scope and both conversions but ex
 test('default adapter routes preserve proxy prefixes and only billing retains the terminal API version', async () => {
   for (const [adapter, expected, data] of [
     ['billing', ['/proxy/v1/dashboard/billing/subscription', '/proxy/v1/dashboard/billing/usage'], billing],
-    ['newapi', ['/proxy/api/usage/token'], { data: { total_available: 5, total_used: 0 } }],
+    ['newapi', ['/proxy/api/usage/token/'], { data: { total_available: 5, total_used: 0 } }],
     ['deepseek', ['/proxy/user/balance'], { balance_infos: [{ total_balance: 5, currency: 'USD' }] }],
   ]) {
     const calls = []; await provider(data, calls).balance(context({ adapter, mapping: { confirmed: true } }));
@@ -207,7 +208,9 @@ test('explicit adapters never seed or overwrite automatic detection for the same
   await p.balance(context(custom()));
   const result = await p.balance(context());
   assert.equal(result.adapter, 'billing'); assert.equal(result.balanceStatus, 'unconfirmed');
-  assert.deepEqual(calls.map(call => new URL(call.url).pathname), ['/wallet', '/proxy/v1/dashboard/billing/subscription', '/proxy/v1/dashboard/billing/usage']);
+  assert.equal(calls[0].url, 'https://api.example/wallet');
+  assert.ok(calls.slice(1).some(call => call.url.endsWith('/dashboard/billing/subscription')));
+  assert.ok(calls.slice(1).every(call => !call.url.endsWith('/wallet'))); assert.ok(calls.length <= 17);
 });
 
 test('auto detection is isolated when the same account previews a different mapping or request', async () => {
@@ -216,15 +219,17 @@ test('auto detection is isolated when the same account previews a different mapp
     { adapter: 'auto', request: { url: '/other-billing' } },
   ]) {
     const calls = [], p = provider(url => {
-      if (url.endsWith('/api/usage/token')) return { data: { total_available: 4, total_used: 1 } };
-      if (url.includes('/other-billing/')) return billing(url);
-      return url.endsWith('/subscription') ? { unlimited_plan: true } : { total_usage: 100 };
+      if (url.endsWith('/api/usage/token/')) return { data: { object: 'token_usage', total_available: 2000000, total_used: 500000, total_granted: 2500000, unlimited_quota: false } };
+      if (url.endsWith('/api/status')) return { success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } };
+      if (url.includes('/other-billing/')) return url.endsWith('/subscription') ? { hard_limit_usd: 50 } : { total_usage: 100 };
+      return {};
     }, calls);
     const initial = await p.balance(context({ adapter: 'auto' }));
     assert.equal(initial.adapter, 'newapi'); calls.length = 0;
     const changed = await p.balance(context(modified));
-    assert.equal(changed.adapter, 'billing'); assert.equal(changed.balanceStatus, 'unconfirmed');
-    assert.equal(calls.length, 2); assert.ok(calls.every(call => call.url.includes('/dashboard/billing/')));
+    assert.equal(changed.detection.cached, false);
+    if (modified.request) { assert.equal(changed.adapter, 'billing'); assert.equal(changed.balanceStatus, 'unconfirmed'); assert.ok(calls.some(call => call.url.includes('/other-billing/dashboard/billing/'))); }
+    else { assert.equal(changed.adapter, 'newapi'); assert.equal(changed.totalBalance, 4); assert.equal(calls.length, 2); }
     calls.length = 0;
     const originalAgain = await p.balance(context({ adapter: 'auto' }));
     assert.equal(originalAgain.adapter, 'newapi'); assert.equal(calls.length, 1);
@@ -280,4 +285,38 @@ test('legacy harmless URL query remains usable while new connections require str
   const result = await p.balance(context(undefined, { setting: { provider: 'custom-json', balancePath: '/balance?account=demo', balanceField: 'data.balance', balanceScale: 1, currency: 'USD' } }));
   assert.equal(result.totalBalance, 7); assert.equal(new URL(calls[0].url).search, '?account=demo');
   assert.throws(() => validateBalanceConnection(custom({}, { url: '/balance?account=demo' })), /query/);
+});
+
+test('explicit native token_usage converts raw quota before mapping scales and honors legacy divisor', async () => {
+  const payload = { data: { object: 'token_usage', total_available: 1000000, total_used: 500000, total_granted: 1500000, unlimited_quota: false } };
+  const p = provider(url => url.endsWith('/api/status') ? { success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } } : payload);
+  const auto = await p.balance(context()); assert.equal(auto.totalBalance, 2); assert.equal(auto.totalUsed, 1);
+  const explicit = await p.balance(context({ adapter: 'newapi', mapping: { confirmed: true } }));
+  assert.equal(explicit.totalBalance, auto.totalBalance); assert.equal(explicit.totalUsed, auto.totalUsed);
+  const scaled = await p.balance(context({ adapter: 'newapi', mapping: { confirmed: true, balanceScale: 2, usedScale: 3 } }));
+  assert.equal(scaled.totalBalance, 4); assert.equal(scaled.totalUsed, 3);
+  const legacy = await p.balance(context(undefined, { setting: { provider: 'newapi', quotaPerUnit: 1000000, currency: 'USD' } }));
+  assert.equal(legacy.totalBalance, 1); assert.equal(legacy.totalUsed, 0.5);
+  const raw = await p.newapi(context({ adapter: 'newapi', mapping: { confirmed: true } }));
+  assert.equal(raw.meter.object, 'token_usage'); assert.equal(raw.meter.balanceScale, 1 / 500000);
+});
+
+test('explicit native token_usage rejects invalid raw contracts rather than falling back to other fields', async () => {
+  const data = { object: 'token_usage', total_available: 1000000, total_used: 500000, total_granted: 1500000, unlimited_quota: false, remain_quota: 1000000, used_quota: 500000 };
+  for (const patch of [{ total_granted: 7 }, { total_available: 0.5, total_granted: 500000.5 }, { total_used: true },
+    { total_available: Number.MAX_SAFE_INTEGER + 1 }, { unlimited_quota: 'true' }, { total_available: [] }]) {
+    await assert.rejects(provider({ data: { ...data, ...patch } }).balance(context({ adapter: 'newapi', mapping: { confirmed: true } })), shape);
+  }
+});
+
+test('explicit credit_summary uses only converted balance and unlimited summaries never observe', async () => {
+  const data = { object: 'credit_summary', total_available: 1000000, total_granted: 1000000, total_used: 0 };
+  const p = provider(data), c = context({ adapter: 'newapi', mapping: { confirmed: true } });
+  const finite = await p.balance(c); assert.equal(finite.totalBalance, 2); assert.equal(finite.totalUsed, null); assert.equal(finite.counter, 'balance');
+  const raw = await p.newapi(c); assert.equal(raw.meter.object, 'credit_summary'); assert.equal(raw.meter.usedField, ''); assert.equal(raw.meter.usedScale, null);
+  const unlimited = await provider({ ...data, unlimited_quota: true }).balance(c);
+  assert.equal(unlimited.totalBalance, null); assert.equal(unlimited.totalUsed, null); assert.equal(unlimited.canObserve, false); assert.equal(unlimited.counter, null);
+  await assert.rejects(provider({ ...data, total_used: 1 }).balance(c), shape);
+  const legacy = await provider({ data: { total_available: 2, total_used: 1, total_granted: 3 } }).balance(c);
+  assert.equal(legacy.totalBalance, 2); assert.equal(legacy.totalUsed, 1); assert.notEqual(legacy.meterId, finite.meterId);
 });

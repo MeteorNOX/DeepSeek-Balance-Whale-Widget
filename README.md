@@ -1,21 +1,21 @@
-# API 余额小鲸鱼 v0.4.1
+# API 余额小鲸鱼 v0.4(fixed)
 
-> 当前为 **v0.4.1 本地测试版**（`provider-connections-20261005` / `Codex-v0.4.1`），尚未上传。新增独立余额连接、常见协议自动探测与自定义请求预览；字段和单位未确认时不记账，高级规则按需展开。使用、旧设置迁移和本地验收见 [余额连接与自定义协议](docs/PROVIDER-CONNECTIONS-0.4.1.md)。旧版验证记录作为历史基线，本次验证范围另见上述说明。
+> 当前为 **Codex-v0.4(fixed) 本地修复版**（`auto-probe-fixed-20261005` / 内部 `0.4.1`），尚未上传。新增独立余额连接、常见协议自动探测与自定义请求预览；字段和单位未确认时不记账，高级规则按需展开。自动检测与直接确认见 [fixed 说明](docs/AUTO-PROBE-FIXED.md)；高级配置见 [余额连接说明](docs/PROVIDER-CONNECTIONS-0.4.1.md)。旧版验证记录作为历史基线，本次验证范围另见上述说明。
 
-**For-Codex · v0.4.1 本地测试版 · 尚未上传**
+**For-Codex · Codex-v0.4(fixed) · 尚未上传**
 
 让小鲸鱼跟随 Codex，查看 API 余额、已观测消费、本机 token 和 Codex 订阅额度快照，也可以把它留在独立桌面模式。角色、动图、气泡、声音和按压手感均可调整。
 
 **不用配置模型单价，也能看到“账户新增消耗”。** v0.4 把同一账户新增扣费合并、去重并独立提示；本轮 token 和价格估算另行记录。同时修复连续点击角色时误点背后窗口的问题，透明区域仍正常穿透。详见 [并行消费与连击保护](docs/PARALLEL-CONSUMPTION-AND-CLICKS.md)。
 
-对外包名为 `Codex-v0.4.1.zip` / `Codex-v0.4.1-source.zip`，程序版本 `0.4.1`，内部插件标识继续使用 `api-balance-whale`。此前正式版 [`codex-v0.4.0`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases/tag/codex-v0.4.0) 保留，本修复版尚未发布。
+对外包名为 `Codex-v0.4(fixed).zip` / `Codex-v0.4(fixed)-source.zip`，程序版本 `0.4.1`，内部插件标识继续使用 `api-balance-whale`。此前正式版 [`codex-v0.4.0`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases/tag/codex-v0.4.0) 保留，本修复版尚未发布。
 
 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的独立 **For-Codex** 适配线。上游作者和仓库所有者为 [MeteorNOX](https://github.com/MeteorNOX)，Codex 适配由协作者 [Yang-huai406](https://github.com/Yang-huai406) 维护；v0.4 不表示 DSH 主线版本升级。Windows x64 已做本机验证，macOS 兼容代码保留，实机验收仍待完成。
 
 ## 先安装，再开始使用
 
 1. 准备支持插件的 Codex 桌面应用、可用的插件注册 CLI 及 **Node.js 24+（含 npm）**；安装器会检查所需命令。
-2. 完整解压 `Codex-v0.4.1.zip` 到固定目录；不要直接在 ZIP 内运行。
+2. 完整解压 `Codex-v0.4(fixed).zip` 到固定目录；不要直接在 ZIP 内运行。
 3. Windows 双击 `安装插件.cmd`。首次安装需要联网下载 Electron，此包不是包含运行时的离线 EXE。
 4. 按安装器结果确认成功，打开 Codex。需要在聊天中使用新版技能和工具时，新建聊天加载。
 5. 打开鲸鱼菜单，在顶部选择 **API 余额** 或 **Codex 订阅**。菜单分为“概览 / 用量 / 设置”。

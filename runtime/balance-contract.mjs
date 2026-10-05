@@ -102,7 +102,7 @@ export function validateBalanceConnection(input = {}) {
   const r = input.request ?? {}, m = input.mapping ?? {};
   keys(r, ['url', 'method', 'auth', 'headers', 'envHeaders', 'query', 'envQuery', 'body'], '余额请求');
   keys(m, ['balanceField', 'usedField', 'unlimitedField', 'unlimitedValue', 'scope', 'currency', 'balanceScale', 'usedScale', 'confirmed'], '余额映射');
-  if (Object.entries(r).some(([k, v]) => k !== 'body' && v === null) || Object.values(m).some(v => v === null)) fail('余额请求与映射属性不能为 null');
+  if (Object.entries(r).some(([k, v]) => k !== 'body' && v === null) || Object.entries(m).some(([k, v]) => k !== 'unlimitedValue' && v === null)) fail('余额请求与映射属性不能为 null');
   const a = r.auth ?? {}; keys(a, ['type', 'keyEnv', 'header'], '余额认证');
   if (Object.values(a).some(v => v === null)) fail('余额认证属性不能为 null');
   const auth = { type: a.type ?? 'inherit', keyEnv: a.keyEnv ?? '', header: a.header ?? '' };
@@ -125,12 +125,12 @@ export function validateBalanceConnection(input = {}) {
     if (names.length > BALANCE_LIMITS.entries || new Set(names).size !== names.length || (pair[0] === 'headers' && auth.header && names.includes(auth.header.toLowerCase()))) fail('余额请求包含重复参数或项目过多');
   }
   const mapping = { balanceField: field(m.balanceField ?? 'data.balance', '余额字段'), usedField: field(m.usedField ?? '', '消耗字段'),
-    unlimitedField: field(m.unlimitedField ?? '', '不限额字段'), unlimitedValue: m.unlimitedValue ?? true,
+    unlimitedField: field(m.unlimitedField ?? '', '不限额字段'), unlimitedValue: Object.hasOwn(m, 'unlimitedValue') ? m.unlimitedValue : true,
     scope: m.scope ?? 'account', currency: m.currency ?? 'USD', balanceScale: scale(m.balanceScale ?? 1, '余额系数'), usedScale: scale(m.usedScale ?? 1, '消耗系数'), confirmed: m.confirmed ?? false };
   if (!['account', 'api-key-quota', 'custom'].includes(mapping.scope)) fail('余额范围无效');
   if (typeof mapping.currency !== 'string' || !/^[A-Z]{3}$/.test(mapping.currency)) fail('币种须使用 USD、CNY 等三位代码');
   if (typeof mapping.confirmed !== 'boolean') fail('余额映射确认状态无效');
-  if (!['boolean', 'string', 'number'].includes(typeof mapping.unlimitedValue) || (typeof mapping.unlimitedValue === 'number' && !Number.isFinite(mapping.unlimitedValue))) fail('不限额匹配值须为有效标量');
+  if (mapping.unlimitedValue !== null && (!['boolean', 'string', 'number'].includes(typeof mapping.unlimitedValue) || (typeof mapping.unlimitedValue === 'number' && !Number.isFinite(mapping.unlimitedValue)))) fail('不限额匹配值须为有效标量');
   if (typeof mapping.unlimitedValue === 'string') text(mapping.unlimitedValue, '不限额匹配值', 256);
   if (adapter === 'custom-json' && !request.url) fail('自定义余额接口需要请求 URL');
   if (adapter === 'custom-json' && !mapping.balanceField && !mapping.usedField && !mapping.unlimitedField) fail('自定义余额接口需要金额或不限额字段');

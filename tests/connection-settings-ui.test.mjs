@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 const source = fs.readFileSync(new URL('../desktop/ui/connection-settings.js', import.meta.url), 'utf8');
 const exported = { module: { exports: {} } }; vm.runInNewContext(source, exported);
-const { makeRecord, newRecord, previewText } = exported.module.exports;
+const { makeRecord, newRecord, previewText, detectionText, candidateProof } = exported.module.exports;
 const plain = value => JSON.parse(JSON.stringify(value));
 
 class Element {
@@ -126,4 +126,82 @@ test('fixed connection saves do not mix legacy endpoint, key or conversion field
     window: { WhaleConnectionSettings: { patch: () => ({ connectionMode: 'fixed', selectedConnection: 'saved' }) } } };
   const result = vm.runInNewContext(collect + '\ncollectSettings()', context);
   assert.deepEqual(plain(result), { monitorSessions: true, connectionMode: 'fixed', selectedConnection: 'saved' });
+});
+
+const detectedCandidate = () => ({ ok: true, canObserve: false, balanceStatus: 'unconfirmed', previewId: 'opaque-preview-proof',
+  detection: { status: 'candidate', protocolId: 'billing', label: '兼容账单', reason: '币种 USD 与美分换算尚需核对', attempted: [{ url: 'https://private-do-not-show.example.test' }], needsConfirmation: true },
+  preview: { balance: 12, used: 3, currency: 'USD', scope: 'account', adapter: 'billing' } });
+
+test('redetection exposes an actionable candidate and uses only its one-time preview proof', async () => {
+  const { controls, window, requests, setResponse } = ui(); let reloads = 0;
+  window.WhaleSettingsReload = () => { reloads++; };
+  setResponse(async url => url === '/api/balance-preview' ? detectedCandidate() : { ok: true });
+  await controls.get('redetect').fire('click');
+  assert.equal(JSON.parse(requests[0].options.body).redetect, true);
+  assert.equal(controls.get('useCandidate').hidden, false);
+  assert.match(controls.get('currentResult').textContent, /发现候选接口/);
+  assert.match(controls.get('currentResult').textContent, /币种 USD 与美分换算尚需核对/);
+  assert.match(controls.get('currentResult').textContent, /本次查询 1 次/);
+  assert.doesNotMatch(controls.get('currentResult').textContent, /private-do-not-show|opaque-preview-proof/);
+  await controls.get('useCandidate').fire('click');
+  assert.equal(requests[1].url, '/api/balance-selection');
+  assert.deepEqual(JSON.parse(requests[1].options.body), { previewId: 'opaque-preview-proof' });
+  assert.equal(reloads, 1); assert.equal(controls.get('useCandidate').hidden, true);
+  await controls.get('useCandidate').fire('click'); assert.equal(requests.length, 2);
+});
+
+test('trusted detection requires no manual action and unknown fields do not offer confirmation', async () => {
+  const { controls, setResponse } = ui();
+  setResponse(async () => ({ ...detectedCandidate(), canObserve: true, balanceStatus: 'finite', previewId: undefined, detection: { status: 'trusted', label: '已验证接口', needsConfirmation: false, attempted: 1 } }));
+  await controls.get('redetect').fire('click');
+  assert.equal(controls.get('useCandidate').hidden, true); assert.match(controls.get('status').textContent, /无需手工配置/);
+  setResponse(async () => ({ ok: true, balanceStatus: 'unsupported', detection: { status: 'unknown', attempted: 3 }, preview: null }));
+  await controls.get('redetect').fire('click');
+  assert.equal(controls.get('useCandidate').hidden, true); assert.match(controls.get('currentResult').textContent, /字段或类型尚未识别/);
+  assert.match(detectionText({ detection: { status: 'auth', attempted: 1 } }), /密钥权限/);
+  assert.match(detectionText({ detection: { status: 'retry', attempted: 1 } }), /稍后重新检测/);
+  assert.doesNotMatch(detectionText({ detection: { status: 'candidate', needsConfirmation: false } }), /发现候选接口，请核对/);
+});
+
+test('source edits invalidate candidate proof and late detection cannot recreate it', async () => {
+  const { controls, window, requests, setResponse } = ui();
+  setResponse(async () => detectedCandidate()); await controls.get('redetect').fire('click');
+  window.WhaleConnectionSettings.invalidatePreview();
+  assert.equal(controls.get('useCandidate').hidden, true); await controls.get('useCandidate').fire('click'); assert.equal(requests.length, 1);
+  let finish; setResponse(() => new Promise(resolve => { finish = resolve; }));
+  const pending = controls.get('redetect').fire('click'); for (let i = 0; i < 8 && !finish; i++) await Promise.resolve();
+  window.WhaleConnectionSettings.invalidatePreview(); finish(detectedCandidate()); await pending;
+  assert.equal(controls.get('useCandidate').hidden, true); assert.equal(controls.get('currentResult').hidden, true);
+});
+
+test('unlimited quota is not shown or selectable as a giant account balance', () => {
+  const data = { ...detectedCandidate(), unlimited: true, preview: { balance: 999999999999, used: null, currency: 'USD', scope: 'account', adapter: 'newapi' } };
+  assert.match(previewText(data), /密钥不限额/); assert.doesNotMatch(previewText(data), /999999999999|账户余额/);
+  assert.equal(candidateProof(data), '');
+  assert.doesNotMatch(detectionText({ detection: { status: 'unknown', label: 'https://private.example.test/key', attempted: [] } }), /private\.example/);
+  const unknown = { ...data, unlimited: false, detection: { status: 'candidate', needsConfirmation: false } };
+  assert.match(previewText(unknown), /币种或单位未验证/); assert.doesNotMatch(previewText(unknown), /999999999999|USD/);
+});
+
+test('an expired selection proof cannot be replayed from the UI', async () => {
+  const { controls, requests, setResponse } = ui();
+  setResponse(async url => url === '/api/balance-preview' ? detectedCandidate() : { ok: false, error: '检测结果已过期' });
+  await controls.get('redetect').fire('click'); await controls.get('useCandidate').fire('click');
+  assert.equal(controls.get('useCandidate').hidden, true); assert.match(controls.get('status').textContent, /重新检测/);
+  await controls.get('useCandidate').fire('click'); assert.equal(requests.filter(item => item.url === '/api/balance-selection').length, 1);
+});
+
+test('explicit null unlimited markers survive editing rather than becoming true', async () => {
+  const { controls, window } = ui(); await controls.get('load').fire('click');
+  controls.get('advanced').value = JSON.stringify({ unlimitedField: 'data.limit', unlimitedValue: null }); await controls.get('advanced').fire('input');
+  const mapping = window.WhaleConnectionSettings.patch().connectionUpdate.value.balance.mapping;
+  assert.equal(mapping.unlimitedField, 'data.limit'); assert.equal(mapping.unlimitedValue, null);
+});
+
+test('automatic connection summary does not imply every protocol needs manual confirmation', () => {
+  const { controls, window, info } = ui();
+  info.connections[0].adapter = 'auto'; info.connections[0].confirmed = false;
+  window.WhaleConnectionSettings.open(info);
+  assert.match(controls.get('selection').children[1].textContent, /自动检测/);
+  assert.doesNotMatch(controls.get('selection').children[1].textContent, /未确认/);
 });

@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import { validateBalanceConnection } from './balance-contract.mjs';
 import { ConfigStore } from './config.mjs';
 import { BalanceProvider } from './providers.mjs';
 import { UsageLedger, usageDefaults, normalizeTurnCost } from './ledger.mjs';
@@ -17,7 +18,10 @@ export class WhaleService {
   constructor(options = {}) {
     this.config = options.config || new ConfigStore(options);
     this.provider = options.provider || new BalanceProvider(options);
-    this.previewProviderFactory = options.previewProviderFactory || (() => new BalanceProvider({ fetchImpl: this.provider.fetch, timeoutMs: this.provider.timeoutMs }));
+    this.previewProviderFactory = options.previewProviderFactory || (() => new BalanceProvider({ fetchImpl: this.provider.fetch, timeoutMs: this.provider.timeoutMs, probeBackoff: this.provider.auto?.backoff }));
+    this.previewProvider = null;
+    this.previewSelections = new Map(); this.previewGeneration = 0;
+    this.previewNow = options.previewNow || Date.now;
     this.ledger = new UsageLedger(this.config.dataDir);
     this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set(); this.settlingContexts = new Map();
     this.balanceSequence = 0; this.latestSamples = new Map(); this.latestQueries = new Map();
@@ -48,22 +52,82 @@ export class WhaleService {
       ? createHash('sha256').update(configurationKey + ':' + payload.meterId).digest('hex') : configurationKey,
       ...(hasMeter(payload) ? { meterVersion: 2 } : {}) };
   }
-  async previewBalance(patch) {
+  selectionSettingsHash() { return createHash('sha256').update(JSON.stringify(this.config.load())).digest('hex'); }
+  selectionPatch(context, selection) {
+    const balance = validateBalanceConnection({ ...selection, mapping: { ...selection.mapping, confirmed: true } });
+    let record, mode = context.setting.connectionMode || 'follow';
+    if (context.connectionId) {
+      record = context.setting.connections.find(item => item.id === context.connectionId);
+      if (!record) throw new Error('候选连接已不存在，请重新检测');
+      record = { ...structuredClone(record), balance };
+    } else {
+      const source = this.config.readSource(context.setting);
+      // Preserve inherited Codex authentication without copying resolved keys
+      // into a new record. The selected endpoint itself remains explicit.
+      const address = new URL(balance.request.url, context.baseUrl.replace(/\/$/, '') + '/');
+      balance.request.url = address.href;
+      const keyEnv = context.setting.keyEnv || '';
+      if (address.origin !== new URL(source.originalBase).origin && balance.request.auth.type === 'inherit') {
+        if (!keyEnv) throw new Error('该余额接口需要专用认证，请在高级连接中配置环境变量');
+        balance.request.auth = { type: 'bearer', keyEnv, header: '' };
+      }
+      record = { id: 'detected-' + randomBytes(12).toString('hex'), name: '已确认的余额接口',
+        match: { providerId: source.id, profile: source.profileName }, baseUrl: source.originalBase,
+        keyEnv, balance };
+      mode = 'follow';
+    }
+    const patch = { connectionMode: mode, selectedConnection: record.id,
+      connectionUpdate: { id: record.id, value: record } };
+    // Only source selection follows this action; unrelated unsaved model
+    // prices or display edits must not be committed by an interface button.
+    if (mode === 'follow') for (const key of ['profile', 'projectDir']) patch[key] = context.setting[key] || '';
+    this.config.resolveDraft(patch);
+    return patch;
+  }
+  acceptBalanceSelection(previewId) {
+    if (this.closed || typeof previewId !== 'string') throw new Error('候选已失效，请重新检测');
+    const proof = this.previewSelections.get(previewId);
+    this.previewSelections.delete(previewId);
+    if (!proof || proof.expiresAt <= this.previewNow()) throw new Error('候选已失效，请重新检测');
+    if (proof.settingsHash !== this.selectionSettingsHash() || proof.contextIdentity !== this.balanceIdentity(this.config.resolveDraft(proof.draft))) throw new Error('连接来源或配置已改变，请重新检测');
+    this.config.save(proof.patch);
+    this.previewSelections.clear(); this.previewGeneration++;
+    this.cache.clear();
+    return { ok: true, ...this.config.settingsInfo() };
+  }
+  async previewBalance(patch, { redetect = false } = {}) {
+    if (this.closed) throw new Error('挂件正在退出，请稍后重新检测');
+    const generation = ++this.previewGeneration;
+    this.previewSelections.clear();
+    const settingsHash = this.selectionSettingsHash();
     const context = this.config.resolveDraft(patch);
     const requestedId = patch?.connectionUpdate?.id || patch?.selectedConnection;
     if (requestedId && context.connectionId !== requestedId) throw new Error('所编辑连接未匹配当前来源；请核对跟随条件，或选择固定连接并填写地址');
     // A separate adapter instance keeps draft detection out of live caches.
     // This method deliberately never calls getBalance or any ledger method.
-    const result = await this.previewProviderFactory().balance(context);
+    const provider = this.previewProvider ||= this.previewProviderFactory();
+    if (redetect) this.provider.invalidateDetection?.(context);
+    const result = await provider.balance(context, { redetect });
+    if (generation !== this.previewGeneration || this.closed || settingsHash !== this.selectionSettingsHash() || this.balanceIdentity(context) !== this.balanceIdentity(this.config.resolveDraft(patch))) throw new Error('配置或预览已更新，请重新检测');
     const raw = result.preview || result;
     const numeric = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+    let previewId;
+    const selection = result.detection?.needsConfirmation === true ? provider.selectionFor?.(result) : null;
+    if (selection) {
+      const prepared = this.selectionPatch(context, selection);
+      previewId = 'balance-selection-' + randomBytes(24).toString('hex');
+      this.previewSelections.set(previewId, { settingsHash, draft: structuredClone(patch),
+        contextIdentity: this.balanceIdentity(context), patch: prepared, expiresAt: this.previewNow() + 300000 });
+    }
+    if (redetect) for (const [key, entry] of this.cache) if (entry.identity === this.balanceIdentity(context)) this.cache.delete(key);
     return { ok: result.ok !== false, balanceStatus: result.balanceStatus || 'finite',
       balanceLabel: result.balanceLabel || 'API 余额', currency: result.currency,
       canObserve: result.canObserve === true, connectionId: context.connectionId || '',
       connectionInfo: context.connectionInfo || null,
       preview: { balance: numeric(raw.balance ?? raw.totalBalance), used: numeric(raw.used ?? raw.totalUsed),
         currency: raw.currency || result.currency, scope: raw.scope || result.balanceScope, adapter: raw.adapter || result.adapter },
-      unlimited: result.unlimited === true };
+      unlimited: result.unlimited === true,
+      ...(result.detection ? { detection: result.detection } : {}), ...(previewId ? { previewId } : {}) };
   }
   accountActivityCount(c) {
     const identity = this.balanceIdentity(c);
@@ -163,8 +227,8 @@ export class WhaleService {
       } catch (error) {
         if (this.closed) return this.stoppedBalance();
         const fallback = this.balanceCache(c, cacheKey);
-        if (error.transient && fallback) return { ...this.decorate(c, fallback.payload), stale: true, error: error.message };
-        return { ok: false, code: error.code || 'ERROR', error: error.code ? error.message : '余额服务暂时不可用', providerName: c.providerName, dashboardUrl: c.dashboardUrl, baseUrl: c.baseUrl, todayUsage: this.ledger.records(this.scope(c, c.setting.currency)).today.total, currency: c.setting.currency, usageMode: 'ledger' };
+        if (error.transient && fallback) return { ...this.decorate(c, fallback.payload), stale: true, error: error.message, ...(error.detection ? { detection: error.detection } : {}) };
+        return { ok: false, code: error.code || 'ERROR', error: error.code ? error.message : '余额服务暂时不可用', providerName: c.providerName, dashboardUrl: c.dashboardUrl, baseUrl: c.baseUrl, todayUsage: this.ledger.records(this.scope(c, c.setting.currency)).today.total, currency: c.setting.currency, usageMode: 'ledger', ...(error.detection ? { detection: error.detection } : {}) };
       } finally { this.inFlight.delete(cacheKey); }
     })();
     this.inFlight.set(cacheKey, request);
@@ -455,6 +519,7 @@ export class WhaleService {
   }
   async close({ timeoutMs = 3000 } = {}) {
     this.closed = true; clearTimeout(this.costTimer); this.costTimer = null;
+    this.previewSelections.clear(); this.previewGeneration++;
     for (const item of this.noticeTimers.values()) clearTimeout(item.timer);
     this.noticeTimers.clear();
     if (!this.jobs.size) return;

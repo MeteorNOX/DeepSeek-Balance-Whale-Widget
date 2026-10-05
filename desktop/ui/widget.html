@@ -6,22 +6,24 @@
 </head><body>
   <dialog id="settings-dialog" aria-labelledby="settings-title">
     <form id="settings-form">
-      <header class="dialog-header"><div><h2 id="settings-title">API 余额设置</h2><p>选择服务连接，预览并确认余额的币种与单位。</p></div><button type="button" id="close-settings" class="icon-button" aria-label="关闭 API 设置">×</button></header>
+      <header class="dialog-header"><div><h2 id="settings-title">API 余额设置</h2><p>自动检测支持的余额接口，必要时确认金额口径。</p></div><button type="button" id="close-settings" class="icon-button" aria-label="关闭 API 设置">×</button></header>
       <div class="settings-content">
       <div id="settings-error" class="notice" role="alert" hidden></div>
       <p class="help privacy-help">已有配置已隐藏。留空保留原值；填写新值才会修改。</p>
       <section id="connection-settings" aria-label="服务连接">
-        <div class="field-grid"><label>连接方式<select data-connection="mode"><option value="follow">跟随 Codex 配置</option><option value="fixed">固定连接</option></select></label><label>命名连接<select data-connection="selection"><option value="">选择连接</option></select></label></div>
-        <p class="help" data-connection="modeHelp"></p><p class="help" data-connection="summary"></p>
-        <div class="connection-actions"><button type="button" class="quiet" data-connection="previewCurrent">预览当前接口</button><button type="button" class="quiet" data-connection="new">新建连接</button><button type="button" class="quiet" data-connection="load">载入规则</button><button type="button" class="quiet connection-delete" data-connection="delete">删除连接</button></div>
+        <div class="connection-actions"><button type="button" class="primary" data-connection="redetect">重新检测接口</button><button type="button" class="quiet" data-connection="previewCurrent">预览当前接口</button></div>
         <p class="notice" role="status" data-connection="status" hidden></p>
         <pre class="connection-preview" data-connection="currentResult" role="status" hidden></pre>
+        <button type="button" class="primary" data-connection="useCandidate" hidden>确认并使用</button>
+        <div class="field-grid"><label>连接方式<select data-connection="mode"><option value="follow">跟随 Codex 配置</option><option value="fixed">固定连接</option></select></label><label>命名连接<select data-connection="selection"><option value="">选择连接</option></select></label></div>
+        <p class="help" data-connection="modeHelp"></p><p class="help" data-connection="summary"></p>
+        <div class="connection-actions"><button type="button" class="quiet" data-connection="new">新建连接</button><button type="button" class="quiet" data-connection="load">载入规则</button><button type="button" class="quiet connection-delete" data-connection="delete">删除连接</button></div>
         <fieldset data-connection="editor" hidden>
           <legend>连接规则</legend>
           <label>连接名称<input data-connection="name" maxlength="80" placeholder="例如：工作 API" autocomplete="off"></label>
           <div class="field-grid"><label>Codex provider ID<input data-connection="providerId" placeholder="与 model_provider 一致" autocomplete="off"></label><label>Codex profile（可选）<input data-connection="profile" placeholder="默认 profile 留空" autocomplete="off"></label></div>
           <div class="field-grid"><label>API 地址<input data-connection="baseUrl" type="url" placeholder="https://api.example.com/v1" autocomplete="off"><small>固定模式必填；跟随模式可使用匹配的 Codex 地址。</small></label><label>服务密钥环境变量名<input data-connection="keyEnv" placeholder="例如 MY_API_KEY" autocomplete="off"><small>仅填变量名，不填写真实密钥。</small></label></div>
-          <label>余额接口<select data-connection="adapter"><option value="none">不查询余额</option><option value="auto">自动探测（金额待确认）</option><option value="billing">兼容账单接口</option><option value="newapi">兼容密钥额度接口</option><option value="deepseek">DeepSeek 余额接口</option><option value="custom-json">自定义 JSON 余额接口</option></select></label>
+          <label>余额接口<select data-connection="adapter"><option value="none">不查询余额</option><option value="auto">自动检测</option><option value="billing">兼容账单接口</option><option value="newapi">兼容密钥额度接口</option><option value="deepseek">DeepSeek 余额接口</option><option value="custom-json">自定义 JSON 余额接口</option></select></label>
           <p class="help" data-connection="adapterHelp"></p>
           <div data-connection="requestFields">
             <label>独立余额 URL<input data-connection="url" inputmode="url" placeholder="https://billing.example.com/account/balance" autocomplete="off"><small>完整 HTTPS 地址或 API 下的相对路径；不同域名须绑定专用密钥变量。账单接口填写基准目录。查询参数在高级规则中填写。</small></label>

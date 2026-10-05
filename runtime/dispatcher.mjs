@@ -91,7 +91,16 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
       if (url.pathname === '/api/balance-preview') {
         if (method !== 'POST') return jsonResult(405, { ok: false });
         if (bytes.length > 128 * 1024) return jsonResult(413, { ok: false, error: '连接规则过大' });
-        try { return jsonResult(200, await whale.previewBalance(parsed().patch || {})); }
+        try { const input = parsed(); return jsonResult(200, await whale.previewBalance(input.patch || {}, { redetect: input.redetect === true })); }
+        catch (error) {
+          const result = configurationFailure(error);
+          if (error.detection) result.body = Buffer.from(JSON.stringify({ ...JSON.parse(result.body), code: error.code || 'ERROR', detection: error.detection }));
+          return result;
+        }
+      }
+      if (url.pathname === '/api/balance-selection') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        try { return jsonResult(200, whale.acceptBalanceSelection(parsed().previewId)); }
         catch (error) { return configurationFailure(error); }
       }
       if (url.pathname === '/api/fx/usd-cny') {

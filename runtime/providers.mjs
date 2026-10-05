@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { decimalDifference } from './money-precision.mjs';
 import { VERSION } from './paths.mjs';
 import { BALANCE_LIMITS, validateBalanceConnection, validateBalanceRequestUrl } from './balance-contract.mjs';
+import { AutoBalanceProbe } from './balance-auto-probe.mjs';
 
 export class ProviderError extends Error {
   constructor(code, message, transient = false) { super(message); this.code = code; this.transient = transient; }
@@ -52,7 +53,6 @@ function convertedAmount(value, divisor, factor = 1) { const n = numeric(value);
 const configError = message => { throw new ProviderError('CONFIG', message); };
 const safeString = (value, label) => { if (typeof value !== 'string' || /[\u0000-\u001f\u007f-\u009f]/.test(value)) configError(label + '格式无效'); return value; };
 const blockedHeader = /^(?:host|cookie|set-cookie|connection|keep-alive|transfer-encoding|content-length|upgrade|trailer|te|proxy-.*|sec-.*)$/i;
-const MAX_DETECTED_PROTOCOLS = 128;
 
 function detectionIdentity(c, p, base) {
   // A settings preview may deliberately keep the wallet's accountId stable.
@@ -94,7 +94,7 @@ function endpoint(c, p, adapter, suffix = '') {
   if (u.username || u.password || u.hash || (u.protocol !== 'https:' && !(u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname)))) configError('余额 URL 无效或包含凭据');
   // Billing URL is a base directory; the other adapters accept exact endpoints.
   if (adapter === 'billing') u.pathname = u.pathname.replace(/\/$/, '') + '/dashboard/billing/' + suffix;
-  else if (!p.request.url) u.pathname = u.pathname.replace(/\/$/, '') + (adapter === 'newapi' ? '/api/usage/token' : '/user/balance');
+  else if (!p.request.url) u.pathname = u.pathname.replace(/\/$/, '') + (adapter === 'newapi' ? '/api/usage/token/' : '/user/balance');
   return u;
 }
 function secret(c, name) {
@@ -144,16 +144,37 @@ function unlimited(p, data, defaultField = '') { const key = p.mapping.unlimited
 function label(scope, isUnlimited) { return isUnlimited ? '当前密钥不限额（非账户余额）' : scope === 'api-key-quota' ? '当前 API 密钥剩余额度' : scope === 'account' ? 'API 账户余额' : '自定义 API 余额'; }
 
 export class BalanceProvider {
-  constructor({ fetchImpl = fetch, timeoutMs = 12000 } = {}) { this.fetch = fetchImpl; this.timeoutMs = timeoutMs; this.detected = new Map(); }
-  async json(url, keyOrOptions) {
+  constructor({ fetchImpl = fetch, timeoutMs = 12000, probeTimeoutMs = 3000, probeBudgetMs = 15000, maxProbeRequests = 16, probeBackoff, now = Date.now } = {}) {
+    this.fetch = fetchImpl; this.timeoutMs = timeoutMs; this.selections = new WeakMap();
+    this.auto = new AutoBalanceProbe({ perRequestTimeoutMs: probeTimeoutMs, budgetMs: probeBudgetMs, maxRequests: maxProbeRequests, backoff: probeBackoff, now,
+      request: (c, p, url, { publicRequest, timeoutMs: requestTimeoutMs, signal }) => {
+        const target = new URL(url);
+        const options = publicRequest ? { method: 'GET', headers: { Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/' + VERSION } } : requestOptions(c, p, target);
+        return this.json(target.href, options, { timeoutMs: requestTimeoutMs, signal });
+      } });
+    this.detected = this.auto.cache;
+  }
+  invalidateDetection(c) {
+    const identity = detectionIdentity(c, protocol(c), baseUrl(c));
+    const plan = this.auto.cache.delete(identity), negative = this.auto.negative.delete(identity);
+    return plan || negative;
+  }
+  selectionFor(result) { const selection = this.selections.get(result); return selection ? structuredClone(selection) : null; }
+  async json(url, keyOrOptions, { timeoutMs = this.timeoutMs, signal } = {}) {
     const options = typeof keyOrOptions === 'string' ? { headers: { Authorization: 'Bearer ' + safeString(keyOrOptions, 'API 密钥'), Accept: 'application/json', 'User-Agent': 'API-Balance-Whale/' + VERSION } } : keyOrOptions;
     let response;
-    try { response = await this.fetch(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) }); }
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    try { response = await this.fetch(url, { ...options, redirect: 'error', signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal }); }
     catch { throw new ProviderError('NETWORK', '余额接口暂时无法连接，请稍后刷新', true); }
     if (!response.ok) {
       try { await response.body?.cancel(); } catch {}
       if (response.status === 401 || response.status === 403) throw new ProviderError('AUTH', '当前密钥无权访问此余额接口（HTTP ' + response.status + '）');
-      throw new ProviderError('HTTP_' + response.status, '余额接口返回 HTTP ' + response.status, response.status >= 500 || response.status === 429);
+      const error = new ProviderError('HTTP_' + response.status, '余额接口返回 HTTP ' + response.status, response.status >= 500 || response.status === 429);
+      if (response.status === 429) {
+        const retry = response.headers.get('retry-after'), seconds = Number(retry);
+        error.retryAfterMs = retry && Number.isFinite(seconds) ? seconds * 1000 : Math.max(0, Date.parse(retry || '') - Date.now()) || 30000;
+      }
+      throw error;
     }
     if (!(response.headers.get('content-type') || '').includes('json')) {
       try { await response.body?.cancel(); } catch {}
@@ -170,29 +191,53 @@ export class BalanceProvider {
     const [subscription, usage] = await Promise.all([this.request(c, p, 'billing', 'subscription'), this.request(c, p, 'billing', 'usage')]);
     const balanceScale = p.legacy ? 1 : p.mapping.balanceScale;
     const usedScale = p.legacy ? 1 / (c.setting.billingUsageDivisor ?? 100) : p.mapping.usedScale / 100;
-    const total = amount(subscription.hard_limit_usd, balanceScale), used = convertedAmount(usage.total_usage, p.legacy ? c.setting.billingUsageDivisor ?? 100 : 100, p.legacy ? 1 : p.mapping.usedScale), isUnlimited = unlimited(p, subscription);
+    const total = amount(subscription.hard_limit_usd, balanceScale), used = convertedAmount(usage.total_usage, p.legacy ? c.setting.billingUsageDivisor ?? 100 : 100, p.legacy ? 1 : p.mapping.usedScale);
+    const declaredSentinel = subscription.object === 'billing_subscription' && numeric(subscription.hard_limit_usd) === 100000000 &&
+      numeric(subscription.soft_limit_usd) === 100000000 && numeric(subscription.system_hard_limit_usd) === 100000000;
+    const isUnlimited = unlimited(p, subscription) || declaredSentinel;
     if ((!isUnlimited && total === null) || used === null || used < 0) throw new ProviderError('SHAPE', '兼容账单接口缺少有效的额度或消耗字段');
     const balance = isUnlimited ? null : decimalDifference(total, used);
     if (balance !== null && !Number.isFinite(balance)) throw new ProviderError('SHAPE', '余额换算结果超出有效范围');
-    return { totalBalance: balance, totalGranted: isUnlimited ? null : total, totalUsed: used, currency: p.legacy ? 'USD' : p.mapping.currency, adapter: 'billing', balanceScope: 'account', unlimited: isUnlimited,
-      unitNote: 'hard_limit_usd 为美元额度；total_usage 默认按美分换算，再应用所选系数', meter: { balanceField: 'hard_limit_usd-total_usage', usedField: 'total_usage', balanceScale, usedScale, unlimitedField: p.mapping.unlimitedField, unlimitedValue: p.mapping.unlimitedValue } };
+    return { totalBalance: balance, totalGranted: isUnlimited ? null : total, totalUsed: used, currency: p.legacy ? 'USD' : p.mapping.currency, adapter: 'billing', balanceScope: declaredSentinel ? 'api-key-quota' : p.legacy ? 'account' : p.mapping.scope, unlimited: isUnlimited,
+      unitNote: 'total_usage 默认按百分之一换算，再应用已确认的金额单位系数', meter: { balanceField: 'hard_limit_usd-total_usage', usedField: 'total_usage', balanceScale, usedScale, unlimitedField: declaredSentinel ? 'hard_limit_usd' : p.mapping.unlimitedField, unlimitedValue: declaredSentinel ? 100000000 : p.mapping.unlimitedValue } };
   }
   async newapi(c, p = protocol(c)) {
     const payload = await this.request(c, p, 'newapi'), d = payload?.data && typeof payload.data === 'object' ? payload.data : payload;
-    const isUnlimited = unlimited(p, p.mapping.unlimitedField ? payload : d, 'unlimited_quota');
     const balanceScale = p.legacy ? 1 : p.mapping.balanceScale, usedScale = p.legacy ? 1 : p.mapping.usedScale;
-    const remaining = amount(d.total_available, balanceScale), used = amount(d.total_used, usedScale), total = amount(d.total_granted, balanceScale);
+    const nativeQuota = ['token_usage', 'credit_summary'].includes(d.object);
+    const nativeUnlimited = nativeQuota && d.unlimited_quota === true;
+    const isUnlimited = unlimited(p, p.mapping.unlimitedField ? payload : d, 'unlimited_quota') || nativeUnlimited;
+    const directDivisor = nativeQuota ? p.legacy ? c.setting.quotaPerUnit ?? 500000 : 500000 : 1;
     let result;
-    if ((remaining !== null || isUnlimited) && used !== null) result = { totalBalance: remaining, totalGranted: total, totalUsed: used, meter: { balanceField: 'total_available', usedField: 'total_used', balanceScale, usedScale } };
-    else {
-      const divisor = p.legacy ? c.setting.quotaPerUnit ?? 500000 : 500000;
-      const rawRemaining = convertedAmount(d.remain_quota, divisor, balanceScale), rawUsed = convertedAmount(d.used_quota, divisor, usedScale);
-      if (rawRemaining === null && !isUnlimited) throw new ProviderError('SHAPE', '密钥额度接口缺少有效金额；不能将空值当作余额为零');
-      result = { totalBalance: rawRemaining, totalUsed: rawUsed, meter: { balanceField: 'remain_quota', usedField: 'used_quota', balanceScale: balanceScale / divisor, usedScale: usedScale / divisor } };
+    if (nativeQuota) {
+      const available = numeric(d.total_available), used = numeric(d.total_used), granted = numeric(d.total_granted);
+      const summary = d.object === 'credit_summary';
+      const valid = [available, used, granted].every(Number.isSafeInteger) && used >= 0 &&
+        (summary ? used === 0 && granted === available : typeof d.unlimited_quota === 'boolean' && Number.isSafeInteger(available + used) && granted === available + used);
+      if (!valid) throw new ProviderError('SHAPE', '原生密钥额度字段须为安全整数，且总额与已用、剩余配额一致');
+      const remainingAmount = convertedAmount(available, directDivisor, balanceScale);
+      const usedAmount = summary ? null : convertedAmount(used, directDivisor, usedScale);
+      const grantedAmount = convertedAmount(granted, directDivisor, balanceScale);
+      if (remainingAmount === null || grantedAmount === null || !summary && usedAmount === null) throw new ProviderError('SHAPE', '原始密钥配额换算超出有效范围');
+      result = { totalBalance: remainingAmount, totalGranted: isUnlimited ? null : grantedAmount, totalUsed: usedAmount,
+        meter: { object: d.object, balanceField: 'total_available', usedField: summary ? '' : 'total_used',
+          balanceScale: balanceScale / directDivisor, usedScale: summary ? null : usedScale / directDivisor, counterWindow: summary ? 'balance' : 'lifetime' } };
+    } else {
+      // Preserve the explicitly selected legacy, unmarked compatibility shape.
+      // Its total_* values historically represented already converted amounts.
+      const remaining = amount(d.total_available, balanceScale), used = amount(d.total_used, usedScale), total = amount(d.total_granted, balanceScale);
+      if ((remaining !== null || isUnlimited) && used !== null) result = { totalBalance: remaining, totalGranted: total, totalUsed: used,
+        meter: { object: 'legacy-unmarked', balanceField: 'total_available', usedField: 'total_used', balanceScale, usedScale } };
+      else {
+        const divisor = p.legacy ? c.setting.quotaPerUnit ?? 500000 : 500000;
+        const rawRemaining = convertedAmount(d.remain_quota, divisor, balanceScale), rawUsed = convertedAmount(d.used_quota, divisor, usedScale);
+        if (rawRemaining === null && !isUnlimited) throw new ProviderError('SHAPE', '密钥额度接口缺少有效金额；不能将空值当作余额为零');
+        result = { totalBalance: rawRemaining, totalUsed: rawUsed, meter: { object: 'legacy-raw-quota', balanceField: 'remain_quota', usedField: 'used_quota', balanceScale: balanceScale / divisor, usedScale: usedScale / divisor } };
+      }
     }
     if (result.totalUsed !== null && result.totalUsed < 0) throw new ProviderError('SHAPE', '累计消耗不能为负数');
     return { ...result, totalBalance: isUnlimited ? null : result.totalBalance, currency: p.mapping.currency, adapter: 'newapi', balanceScope: 'api-key-quota', unlimited: isUnlimited,
-      meter: { ...result.meter, container: d === payload ? '' : 'data', unlimitedField: p.mapping.unlimitedField || 'unlimited_quota', unlimitedValue: p.mapping.unlimitedField ? p.mapping.unlimitedValue : true } };
+      meter: { ...result.meter, container: d === payload ? '' : 'data', unlimitedField: nativeUnlimited ? 'unlimited_quota' : p.mapping.unlimitedField || 'unlimited_quota', unlimitedValue: nativeUnlimited ? true : p.mapping.unlimitedField ? p.mapping.unlimitedValue : true } };
   }
   async custom(c, p = protocol(c)) {
     if (!p.request.url) configError('请先配置当前服务的余额路径和金额字段');
@@ -210,32 +255,39 @@ export class BalanceProvider {
     return { totalBalance: n, totalUsed: null, currency: chosen.currency, adapter: 'deepseek', balanceScope: 'account', unlimited: false,
       meter: { balanceField: 'balance_infos[currency=' + chosen.currency + '].total_balance', usedField: '', balanceScale, usedScale: 1 } };
   }
-  async balance(c) {
-    const p = protocol(c), base = baseUrl(c), host = base.hostname;
+  normalize(c, p, result, { verified = false, detection, selection } = {}) {
+    const base = baseUrl(c);
     const common = { ok: true, accountId: c.accountId, providerName: c.providerName, baseUrl: base.href.replace(/\/$/, ''), dashboardUrl: c.dashboardUrl, updatedAt: new Date().toISOString() };
-    if (p.adapter === 'none' || (p.adapter === 'auto' && host === 'api.openai.com')) return { ...common, totalBalance: null, totalUsed: null, currency: p.mapping.currency, adapter: 'none', balanceScope: p.mapping.scope, balanceLabel: '当前连接不支持余额查询', balanceStatus: 'unsupported', canObserve: false, counter: null, meterId: null, unlimited: false };
-    if (!['auto', 'billing', 'newapi', 'deepseek', 'custom-json'].includes(p.adapter)) configError('未知余额接口类型');
-    const detectionKey = p.adapter === 'auto' ? detectionIdentity(c, p, base) : null;
-    let method = p.adapter;
-    if (method === 'auto') method = this.detected.get(detectionKey) || (host === 'api.deepseek.com' ? 'deepseek' : 'billing');
-    let result;
-    try { result = await this[method === 'custom-json' ? 'custom' : method](c, p); }
-    catch (error) {
-      if (!(p.adapter === 'auto' && method === 'billing' && ['HTTP_404', 'HTTP_405', 'NOT_JSON', 'SHAPE'].includes(error.code))) throw error;
-      result = await this.newapi(c, p);
-    }
-    if (detectionKey) {
-      this.detected.delete(detectionKey);
-      this.detected.set(detectionKey, result.adapter);
-      if (this.detected.size > MAX_DETECTED_PROTOCOLS) this.detected.delete(this.detected.keys().next().value);
-    }
-    const official = result.adapter === 'deepseek' && endpoint(c, p, 'deepseek').origin === 'https://api.deepseek.com' && endpoint(c, p, 'deepseek').pathname === '/user/balance';
-    const confirmed = (p.adapter !== 'auto' && p.mapping.confirmed) || (official && p.adapter === 'auto' && p.mapping.balanceScale === 1);
+    if (!result) return { ...common, totalBalance: null, totalUsed: null, currency: p.mapping.currency, adapter: 'none', balanceScope: p.mapping.scope, balanceLabel: '当前连接不支持余额查询', balanceStatus: 'unsupported', canObserve: false, counter: null, meterId: null, unlimited: false, ...(detection ? { detection } : {}) };
+    const confirmed = verified || (p.adapter !== 'auto' && p.mapping.confirmed);
     const counter = result.totalUsed !== null ? 'used' : result.totalBalance !== null ? 'balance' : null;
     const meterId = crypto.createHash('sha256').update(JSON.stringify({ version: 1, adapter: result.adapter, scope: result.balanceScope, currency: result.currency, counter, ...result.meter })).digest('hex');
-    const { meter, ...publicResult } = result;
-    if (!confirmed) return { ...common, ...publicResult, totalBalance: null, totalUsed: null, totalGranted: null, balanceLabel: '余额字段与单位尚未确认', balanceStatus: 'unconfirmed', canObserve: false, counter: null, meterId,
-      preview: { balance: result.totalBalance, used: result.totalUsed, currency: result.currency, scope: result.balanceScope, adapter: result.adapter } };
-    return { ...common, ...publicResult, balanceLabel: label(result.balanceScope, result.unlimited), balanceStatus: result.unlimited ? 'unlimited' : 'finite', canObserve: counter !== null, counter, meterId };
+    const { meter, trust, reason, needsConfirmation, ...publicResult } = result;
+    const normalized = confirmed ? { ...common, ...publicResult, balanceLabel: label(result.balanceScope, result.unlimited), balanceStatus: result.unlimited ? 'unlimited' : 'finite', canObserve: counter !== null, counter, meterId } :
+      { ...common, ...publicResult, currency: result.currency || p.mapping.currency, totalBalance: null, totalUsed: null, totalGranted: null, balanceLabel: reason || '余额字段与单位尚未确认', balanceStatus: 'unconfirmed', canObserve: false, counter: null, meterId,
+        preview: { balance: result.totalBalance, used: result.totalUsed, currency: result.currency, scope: result.balanceScope, adapter: result.adapter } };
+    if (detection) normalized.detection = detection;
+    if (selection) {
+      try { this.selections.set(normalized, validateBalanceConnection(selection)); }
+      catch { if (normalized.detection) normalized.detection.needsConfirmation = false; }
+    }
+    return normalized;
+  }
+  async balance(c, { redetect = false } = {}) {
+    const p = protocol(c), base = baseUrl(c);
+    if (p.adapter === 'none') return this.normalize(c, p, null);
+    if (!['auto', 'billing', 'newapi', 'deepseek', 'custom-json'].includes(p.adapter)) configError('未知余额接口类型');
+    if (p.adapter === 'auto') {
+      try {
+        const found = await this.auto.run(c, p, detectionIdentity(c, p, base), { redetect });
+        return this.normalize(c, p, found.value, { verified: found.value?.trust === 'verified', detection: found.detection, selection: found.selection });
+      } catch (error) {
+        const safe = error instanceof ProviderError ? error : new ProviderError(error.code || 'NETWORK', error.code ? error.message : '余额自动识别暂时不可用，请稍后重试', error.transient !== false);
+        if (error.detection) safe.detection = error.detection;
+        throw safe;
+      }
+    }
+    const result = await this[p.adapter === 'custom-json' ? 'custom' : p.adapter](c, p);
+    return this.normalize(c, p, result);
   }
 }

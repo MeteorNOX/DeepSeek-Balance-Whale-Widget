@@ -9,7 +9,7 @@ const fixture=()=>({plugin:record(),packageMetadata:record(),lock:{...record(),p
 test('public release metadata, runtime and skill identify the same 0.4.1 candidate',()=>{
   assert.equal(VERSION,'0.4.1');assert.equal(verifyReleaseMetadata(),VERSION);
   const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));
-  assert.equal(pkg.name,'api-balance-whale');assert.equal(pkg.codexBuild,'provider-connections-20261005');
+  assert.equal(pkg.name,'api-balance-whale');assert.equal(pkg.codexBuild,'auto-probe-fixed-20261005');
   const skill=fs.readFileSync(new URL('../skills/api-balance-whale/SKILL.md',import.meta.url),'utf8');
   assert.ok(skill.includes('# API 余额小鲸鱼 v'+VERSION));
 });

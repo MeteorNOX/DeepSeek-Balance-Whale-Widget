@@ -16,6 +16,6 @@
     "uninstall:mac": "node scripts/uninstall-macos.mjs",
     "probe:mac": "node scripts/probe-macos.mjs"
   },
-  "codexBuild": "provider-connections-20261005",
-  "distributionName": "Codex-v0.4.1"
+  "codexBuild": "auto-probe-fixed-20261005",
+  "distributionName": "Codex-v0.4(fixed)"
 }

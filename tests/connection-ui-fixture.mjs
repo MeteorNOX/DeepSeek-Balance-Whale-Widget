@@ -14,15 +14,17 @@ export async function makeFixture(dataDir) {
   fs.writeFileSync(path.join(codexHome, 'config.toml'), 'model_provider="fixture"\n[model_providers.fixture]\nbase_url="https://source.example.test/proxy/v1"\nenv_key="SOURCE_KEY"\n');
   fs.writeFileSync(path.join(dataDir, '.dshw-size.json'), JSON.stringify({ scale: 1, sound: false, vol: 0, bubbleOn: true, turnCostOn: false }));
   const config = new ConfigStore({ dataDir, codexHome, env: { ...fixtureKeys } });
-  const control = { requests: [], pending: false, release: null };
+  const control = { requests: [], pending: false, release: null, autoMode: 'trusted' };
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url), headers = new Headers(options.headers);
     assert.ok(parsed.hostname.endsWith('.example.test'), 'no external request destination');
     control.requests.push({ url: parsed.origin + parsed.pathname, method: options.method || 'GET', headerNames: [...headers.keys()] });
     if (parsed.pathname === '/late-preview') { control.pending = true; await new Promise(resolve => { control.release = resolve; }); control.pending = false; }
     let payload;
-    if (parsed.pathname.endsWith('/subscription')) payload = { hard_limit_usd: 100 };
-    else if (parsed.pathname.endsWith('/usage')) payload = { total_usage: 2500 };
+    if (control.autoMode === 'trusted' && parsed.pathname.endsWith('/api/usage/token/')) payload = { code: true, data: { object: 'token_usage', total_available: 1000000, total_used: 500000, total_granted: 1500000, unlimited_quota: false } };
+    else if (control.autoMode === 'trusted' && parsed.pathname.endsWith('/api/status')) payload = { success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD', display_in_currency: true } };
+    else if (control.autoMode === 'candidate' && parsed.pathname.endsWith('/dashboard/billing/subscription')) payload = { object: 'billing_subscription', hard_limit_usd: 100, soft_limit_usd: 100, system_hard_limit_usd: 100 };
+    else if (control.autoMode === 'candidate' && parsed.pathname.endsWith('/dashboard/billing/usage')) payload = { object: 'list', total_usage: 200 };
     else if (parsed.pathname === '/balance-a' || parsed.pathname === '/late-preview') {
       assert.equal(headers.get('authorization'), 'Bearer ' + fixtureKeys.BILLING_A, 'independent billing credential must be used');
       assert.equal(options.method, 'POST'); assert.equal(JSON.parse(options.body).account, 'fixture');
@@ -34,7 +36,7 @@ export async function makeFixture(dataDir) {
       payload = { data: { total_available: 35.5, total_used: 2, total_granted: 37.5 } };
     } else if (parsed.pathname === '/unlimited') {
       payload = { data: { unlimited_quota: true, used_quota: 1000000 } };
-    } else throw Error('Unexpected synthetic endpoint');
+    } else return new Response(JSON.stringify({ error: 'synthetic route not found' }), { status: 404, headers: { 'content-type': 'application/json' } });
     return new Response(JSON.stringify(payload), { headers: { 'content-type': 'application/json' } });
   };
   const service = new WhaleService({ config, provider: new BalanceProvider({ fetchImpl, timeoutMs: 15000 }) });
@@ -98,7 +100,21 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
     await click(c('previewCurrent')); await wait(`!document.querySelector(${JSON.stringify(c('currentResult'))}).hidden`, 'automatic preview');
     assert.deepEqual(persisted(), beforePreview, 'automatic preview does not save settings or ledger');
     assert.equal(await ev(`document.querySelector(${JSON.stringify(c('editor'))}).hidden`), true);
-    checks.push('default automatic interface previews through the real UI without settings or ledger writes');
+    assert.equal(await ev(`document.querySelector(${JSON.stringify(c('useCandidate'))}).hidden`), true, 'trusted protocol needs no manual confirmation');
+    assert.match(await ev(`document.querySelector(${JSON.stringify(c('status'))}).textContent`), /无需手工配置/);
+    assert.equal((await service.getBalance({ force: true })).totalBalance, 2, 'trusted native raw quota converts from public unit metadata');
+    checks.push('default automatic native protocol validates public USD unit metadata and previews without settings or ledger writes or manual JSON');
+    control.autoMode = 'candidate'; const beforeDetection = persisted();
+    await click(c('redetect')); await wait(`!document.querySelector(${JSON.stringify(c('redetect'))}).disabled && !document.querySelector(${JSON.stringify(c('useCandidate'))}).hidden`, 'candidate has a direct confirmation action');
+    assert.deepEqual(persisted(), beforeDetection, 'redetection only previews until the user chooses its candidate');
+    assert.match(await ev(`document.querySelector(${JSON.stringify(c('currentResult'))}).textContent`), /说明：.*USD.*假设/, 'candidate explains its unverified unit assumption');
+    assert.equal(await ev(`document.querySelector(${JSON.stringify(c('useCandidate'))}).textContent`), '确认并使用');
+    await ev(`document.querySelector(${JSON.stringify(c('currentResult'))}).scrollIntoView({block:'start'})`); await capture('automatic-candidate-confirmation');
+    const selected = once(window.webContents, 'did-finish-load'); await click(c('useCandidate'));
+    await Promise.race([selected, delay(8000).then(() => { throw Error('Candidate selection did not reload'); })]); await ready();
+    assert.equal((await service.getBalance({ force: true })).totalBalance, 98, 'proof-bound candidate selection survives renderer reload');
+    checks.push('ordinary redetection shows a usable candidate action; using its one-time proof selects and saves the detected protocol without advanced configuration');
+    await openSettings();
     const idA = await buildConnection('合成账单 A', 'a'); const beforeNamedPreview = persisted(); await preview();
     assert.deepEqual(persisted(), beforeNamedPreview, 'named preview is read-only');
     assert.equal(await ev('document.body.textContent.includes("SYNTHETIC-RESPONSE-MUST-NOT-RENDER")'), false);

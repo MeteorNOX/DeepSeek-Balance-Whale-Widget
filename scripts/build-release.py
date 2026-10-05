@@ -155,7 +155,7 @@ version = manifest['version']
 assert manifest['name'] == 'api-balance-whale' and re.fullmatch(r'\d+\.\d+\.\d+', version), 'Release version must be stable semver'
 package = json.loads(files['package.json'])
 distribution = package.get('distributionName', 'api-balance-whale-v' + version)
-assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,79}', distribution), 'Invalid distribution name'
+assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9.-]{0,60}(?:\([A-Za-z0-9.-]{1,16}\))?', distribution), 'Invalid distribution name'
 lock = json.loads(files['package-lock.json'])
 runtime = files['runtime/paths.mjs'].decode('utf-8-sig')
 assert package['version'] == lock['version'] == lock['packages']['']['version'] == version, 'Package version mismatch'
@@ -197,7 +197,7 @@ def archive(name, selected):
 
 artifacts = [archive(distribution + '.zip', {p: d for p, d in files.items() if not p.startswith(('.github/', 'tests/'))}),
              archive(distribution + '-source.zip', files)]
-report = {'displayVersion': 'v' + version, 'internalVersion': version, 'candidateRevision': package.get('codexBuild', ''), 'status': 'release-ready-user-authorized' if args.publication_ready else 'local-test-candidate-awaiting-user-acceptance', 'publicationReady': args.publication_ready, 'published': False,
+report = {'displayVersion': distribution.removeprefix('Codex-') if distribution.startswith('Codex-') else 'v' + version, 'internalVersion': version, 'candidateRevision': package.get('codexBuild', ''), 'status': 'release-ready-user-authorized' if args.publication_ready else 'local-test-candidate-awaiting-user-acceptance', 'publicationReady': args.publication_ready, 'published': False,
           'publishedFieldScope': 'Local build time only; this script never publishes. Consult the GitHub Release for current publication status.',
           'distributionName': distribution,
           'lineEndings': 'LF for source and Mac launchers; CRLF for Windows .cmd/.ps1; UTF-8 BOM for Windows PowerShell',

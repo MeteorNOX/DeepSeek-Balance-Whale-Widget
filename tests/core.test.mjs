@@ -75,10 +75,10 @@ test('missing billing values are rejected rather than rendered as zero', async t
 
 test('unsupported HTML billing routes fall back to a distinct key quota', async t => {
   const c = config(t).resolve();
-  const p = new BalanceProvider({ fetchImpl: async url => url.includes('/api/usage/token') ? reply({ data: { total_available: 3, total_used: 2, total_granted: 5 } }) : reply('<html>login</html>', 200, 'text/html') });
+  const p = new BalanceProvider({ fetchImpl: async url => url.includes('/api/usage/token/') ? reply({ data: { object: 'token_usage', total_available: 1500000, total_used: 1000000, total_granted: 2500000, unlimited_quota: false } }) : url.endsWith('/api/status') ? reply({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } }) : reply('<html>login</html>', 200, 'text/html') });
   const r = await p.balance(c);
-  assert.equal(r.totalBalance, null); assert.equal(r.preview.balance, 3); assert.equal(r.balanceStatus, 'unconfirmed');
-  assert.equal(r.canObserve, false); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
+  assert.equal(r.totalBalance, 3); assert.equal(r.totalUsed, 2); assert.equal(r.balanceStatus, 'finite');
+  assert.equal(r.canObserve, true); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
 });
 
 test('unlimited API key quota does not imply unlimited account funds', async t => {
@@ -95,11 +95,11 @@ test('custom JSON adapter validates fields and amount scaling', async t => {
   assert.equal(r.totalBalance, 12); assert.equal(r.totalUsed, 0.99); assert.equal(r.currency, 'EUR');
 });
 
-test('authentication failures do not expose provider bodies or fall back', async t => {
+test('authentication failures are bounded and never expose provider bodies', async t => {
   const c = config(t).resolve(); let count = 0;
   const p = new BalanceProvider({ fetchImpl: async () => { count++; return reply({ error: 'echo ' + c.key }, 401); } });
-  await assert.rejects(p.balance(c), error => error.code === 'AUTH' && !error.message.includes(c.key));
-  assert.equal(count, 2);
+  await assert.rejects(p.balance(c), error => error.code === 'AUTH' && error.detection.status === 'auth' && error.detection.attempted === count && !error.message.includes(c.key));
+  assert.ok(count > 1 && count <= 16);
 });
 
 test('official OpenAI auto mode never calls an unverified balance endpoint', async t => {

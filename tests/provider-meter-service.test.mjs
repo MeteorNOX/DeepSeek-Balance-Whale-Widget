@@ -29,7 +29,7 @@ test('auto detection of a synthetic huge quota never writes a monetary ledger', 
   const { config, make } = fixture(t, { fetchImpl: async url => reply(url.includes('/subscription') ? { hard_limit_usd: 100000000 } : { total_usage: 23880 }) });
   const service = make(), result = await service.getBalance({ force: true });
   assert.equal(result.balanceStatus, 'unconfirmed'); assert.equal(result.totalBalance, null);
-  assert.equal(result.preview.balance, 99999761.2); assert.equal(result.todayUsage, 0);
+  assert.equal(result.preview.balance, null); assert.equal(result.todayUsage, 0);
   assert.deepEqual(service.accountNotices().notices, []);
   assert.equal(fs.existsSync(path.join(config.dataDir, 'ledgers')), false);
 });

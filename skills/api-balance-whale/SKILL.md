@@ -42,3 +42,7 @@ ChatGPT 订阅额度不是 API 余额。没有余额接口时报告不可查询�
 订阅额度来自本机官方窗口快照；本机滚动 token 统计不等于官方剩余 token。非订阅登录不显示旧订阅窗口。DeepSeek 峰谷只对已识别的官方端点展示，不能把中转服务当作官方计价。
 
 macOS兼容必须保留原PR及平台分支：https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/pull/128 。当前Windows环境的测试不能声称Mac实机通过。Windows回滚用scripts/rollback-package.ps1的本次私有回执，Mac用scripts/rollback-macos.mjs。
+
+## Codex-v0.4(fixed) 自动检测
+
+对外名称 Codex-v0.4(fixed)，内部版本仍为 0.4.1。先使用设置中的“重新检测接口”；字段、单位及范围证据完整的命中自动生效，候选可在核对假设后点击“确认并使用”。仅未知单位或自定义协议需要高级配置，不要求所有第三方都手动配置。临时候选不可跨来源或过期复用，预览不记账。限流、网络、权限与无协议分别报告，管理接口不使用普通推理凭据试探。详见 [自动检测说明](../../docs/AUTO-PROBE-FIXED.md)。
