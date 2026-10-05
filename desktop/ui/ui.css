@@ -119,3 +119,14 @@ html.desktop .whale-quota-box:nth-child(2) progress::-webkit-progress-value{back
 .desktop .dshwv-frame{inset:auto;left:50%;top:50%;width:calc(100% / var(--whale-fit-scale,1));height:auto;min-height:0;transform:translate(-50%,-50%) scale(var(--whale-fit-scale,1));transform-origin:center;overflow:visible}
 .desktop .dshwv-frame>.dshwv-trow,.desktop .dshwv-frame>.dshwv-label,.desktop .dshwv-frame>.dshwv-amount,.desktop .dshwv-frame>.dshwv-hint{max-width:100%!important;white-space:pre-wrap!important;overflow-wrap:anywhere;word-break:break-word}
 .desktop .dshwv-frame>.dshwv-mimg,.desktop .dshwv-frame>.dshwv-gif{max-width:100%;object-fit:contain}
+
+#connection-settings fieldset{min-width:0;margin:16px 0 0;padding:12px;border:1px solid #e0e6f0;border-radius:10px}
+#connection-settings legend{font-size:12px;color:#536488;padding:0 6px}
+.connection-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.connection-actions button{font-size:12px;padding:8px 10px}
+.connection-actions .connection-delete{color:#8b5862;margin-left:auto}
+#connection-settings textarea{font:12px/1.6 Consolas,monospace;width:100%;min-height:140px;resize:vertical;background:#f8f9fc;border:1px solid #dfe4ee;border-radius:8px;color:#34425c;padding:10px;margin-top:6px;user-select:text}
+.connection-preview{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 'Segoe UI','Microsoft YaHei',sans-serif;background:#f2f5fc;border:1px solid #e0e6f4;border-radius:8px;padding:12px;color:#3f5275}
+#connection-settings button:disabled{opacity:.5;cursor:wait}
+#connection-settings .check:has(input:disabled){color:#8a93a4}
+.whale-connection-source{font-size:11px;color:#78859b;line-height:1.5;margin:0 0 8px;overflow-wrap:anywhere}

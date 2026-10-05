@@ -248,7 +248,7 @@ else {
     const { createDispatcher, UI_ORIGIN } = await import(pathToFileURL(path.join(root, 'runtime', 'dispatcher.mjs')));
     const { startBridge } = await import(pathToFileURL(path.join(root, 'runtime', 'bridge.mjs')));
     let testOptions = {};
-    if (fixture) { const { makeFixture } = await import(pathToFileURL(path.join(root, 'tests', 'desktop-fixture.mjs'))); testOptions = await makeFixture(dataDir); }
+    if (fixture) { const { makeFixture } = await import(pathToFileURL(path.join(root, 'tests', process.env.WHALE_CONNECTIONS_UI_TEST === '1' ? 'connection-ui-fixture.mjs' : 'desktop-fixture.mjs'))); testOptions = await makeFixture(dataDir); }
     dispatcher = createDispatcher({ dataDir, fetchImpl: (url, options) => net.fetch(url, options), onStop: pauseAndQuit, onShow: show, statusInfo: () => ({ followCodex: desktopMode !== 'standalone', desktopMode, rendererReady, recoveryAttempts, manuallyHidden, platform: process.platform, followMode: lastHost?.followMode || null, hostPid: lastHost?.hostPid || null, visible: !!window?.isVisible(), modePending, windowShape, windowShapeError, windowBounds: window?.getBounds(), visibility: visibilityController.snapshot(), nativeFollowing: !!lastHost?.nativeFollowing, mouseRouting: { forwardedMouseMoves: !usesWindowShape, cursorPollMs: usesWindowShape ? 16 : 50 }, diagnostics: { shortcutRegistered: diagnosticShortcutRegistered, lastReport: lastDiagnosticReport, native: lastHost?.visualDiagnostics || null }, startup, rendering: gpuStatus }), ...testOptions });
     markStartup('dispatcherReady');
     await importLegacyStorage();
@@ -347,7 +347,7 @@ else {
     markStartup('pageLoaded');
     if (lastHost) await setHost(lastHost);
     if (fixture) {
-      const fixtureModule = process.env.WHALE_ACCOUNT_NOTICES === '1' ? 'account-notice-fixture.mjs' : process.env.WHALE_RAPID_CLICK === '1' ? 'rapid-click-fixture.mjs' : process.env.WHALE_ISSUE_LAYOUT === '1' ? 'issue-layout-fixture.mjs' : process.env.WHALE_ROOT_FIXES === '1' ? 'root-fixes-fixture.mjs' : process.env.WHALE_POSITION_MEMORY === '1' ? 'position-memory-fixture.mjs' : process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
+      const fixtureModule = process.env.WHALE_CONNECTIONS_UI_TEST === '1' ? 'connection-ui-fixture.mjs' : process.env.WHALE_ACCOUNT_NOTICES === '1' ? 'account-notice-fixture.mjs' : process.env.WHALE_RAPID_CLICK === '1' ? 'rapid-click-fixture.mjs' : process.env.WHALE_ISSUE_LAYOUT === '1' ? 'issue-layout-fixture.mjs' : process.env.WHALE_ROOT_FIXES === '1' ? 'root-fixes-fixture.mjs' : process.env.WHALE_POSITION_MEMORY === '1' ? 'position-memory-fixture.mjs' : process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
       const { verifyDesktop } = await import(pathToFileURL(path.join(root, 'tests', fixtureModule)));
       await verifyDesktop({ app, window, screen, setHost, setTestCursor, dispatcher, dataDir, errors: rendererErrors, openedLinks: fixtureOpenedLinks, renderInfo: () => ({ gpuStatus, presents, inputEnabled, keyboardFocus, windowShape, windowShapeError, visibility: visibilityController.snapshot() }) });
     }

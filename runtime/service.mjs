@@ -8,10 +8,16 @@ import { decimalDifference, decimalAdd, decimalMultiply } from './money-precisio
 import { accountNoticeScope } from './account-notices.mjs';
 import { TurnJournal, safeSample, safeTurn, safeUsage } from './turn-journal.mjs';
 
+const hasMeter = sample => /^[a-f0-9]{64}$/.test(sample?.meterId || '');
+const observable = sample => sample?.canObserve !== false && !['unconfirmed', 'unsupported'].includes(sample?.balanceStatus);
+const sameMeter = (a, b) => observable(a) && observable(b) &&
+  (hasMeter(a) || hasMeter(b) ? hasMeter(a) && hasMeter(b) && a.meterId === b.meterId && a.counter === b.counter : true);
+
 export class WhaleService {
   constructor(options = {}) {
     this.config = options.config || new ConfigStore(options);
     this.provider = options.provider || new BalanceProvider(options);
+    this.previewProviderFactory = options.previewProviderFactory || (() => new BalanceProvider({ fetchImpl: this.provider.fetch, timeoutMs: this.provider.timeoutMs }));
     this.ledger = new UsageLedger(this.config.dataDir);
     this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set(); this.settlingContexts = new Map();
     this.balanceSequence = 0; this.latestSamples = new Map(); this.latestQueries = new Map();
@@ -30,8 +36,34 @@ export class WhaleService {
     const s = c.setting || {};
     // Prices and UI preferences do not change the API meter. Its adapter and
     // conversion settings do; never compare readings expressed on two scales.
-    return JSON.stringify([c.accountId, s.provider, s.currency, s.balancePath, s.balanceField,
-      s.usedField, s.balanceScale, s.billingUsageDivisor, s.quotaPerUnit]);
+    const parts = [c.accountId, s.provider, s.currency, s.balancePath, s.balanceField,
+      s.usedField, s.balanceScale, s.billingUsageDivisor, s.quotaPerUnit];
+    if (c.balanceConnection || c.connectionId || c.authHeaders) parts.push(c.connectionId || '', c.balanceConnection || null,
+      createHash('sha256').update(JSON.stringify(c.authHeaders || {})).digest('hex'));
+    return JSON.stringify(parts);
+  }
+  observationIdentity(c, payload) {
+    const configurationKey = createHash('sha256').update(this.balanceIdentity(c)).digest('hex');
+    return { configurationKey, meterKey: hasMeter(payload)
+      ? createHash('sha256').update(configurationKey + ':' + payload.meterId).digest('hex') : configurationKey,
+      ...(hasMeter(payload) ? { meterVersion: 2 } : {}) };
+  }
+  async previewBalance(patch) {
+    const context = this.config.resolveDraft(patch);
+    const requestedId = patch?.connectionUpdate?.id || patch?.selectedConnection;
+    if (requestedId && context.connectionId !== requestedId) throw new Error('所编辑连接未匹配当前来源；请核对跟随条件，或选择固定连接并填写地址');
+    // A separate adapter instance keeps draft detection out of live caches.
+    // This method deliberately never calls getBalance or any ledger method.
+    const result = await this.previewProviderFactory().balance(context);
+    const raw = result.preview || result;
+    const numeric = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+    return { ok: result.ok !== false, balanceStatus: result.balanceStatus || 'finite',
+      balanceLabel: result.balanceLabel || 'API 余额', currency: result.currency,
+      canObserve: result.canObserve === true, connectionId: context.connectionId || '',
+      connectionInfo: context.connectionInfo || null,
+      preview: { balance: numeric(raw.balance ?? raw.totalBalance), used: numeric(raw.used ?? raw.totalUsed),
+        currency: raw.currency || result.currency, scope: raw.scope || result.balanceScope, adapter: raw.adapter || result.adapter },
+      unlimited: result.unlimited === true };
   }
   accountActivityCount(c) {
     const identity = this.balanceIdentity(c);
@@ -39,28 +71,32 @@ export class WhaleService {
   }
   accountNoticeContext() {
     const context = this.config.resolve(), identity = this.balanceIdentity(context);
-    const meterKey = createHash('sha256').update(identity).digest('hex');
-    let currency = this.latestQueries.get(identity)?.payload.currency;
-    if (!currency) {
+    const query = this.latestQueries.get(identity), configurationKey = createHash('sha256').update(identity).digest('hex');
+    let meterKey = this.observationIdentity(context, query?.payload).meterKey;
+    let currency = query?.payload.currency || context.setting.currency;
+    const eligible = !query || observable(query.payload);
+    if (!query) {
       // The adapter may return USD even when a display preference is CNY.
       // Restore the last actual meter currency without requiring a network call.
       const matches = this.ledger.scopes().filter(scope => scope.startsWith(context.accountId + '-'))
         .map(scope => ({ scope, ledger: this.ledger.load(scope) }))
-        .filter(entry => entry.ledger.accountNotices?.meterKey === meterKey)
+        .filter(entry => entry.ledger.lastObservation?.configurationKey === configurationKey || entry.ledger.accountNotices?.meterKey === configurationKey)
         .sort((a, b) => (b.ledger.lastObservation?.at || 0) - (a.ledger.lastObservation?.at || 0));
       currency = matches[0]?.scope.slice(-3) || context.setting.currency;
+      meterKey = matches[0]?.ledger.accountNotices?.meterKey || meterKey;
     }
     const scope = this.scope(context, currency);
-    return { scope, meterKey, publicScope: accountNoticeScope(scope, meterKey) };
+    return { scope, meterKey, eligible, publicScope: accountNoticeScope(scope, meterKey) };
   }
   accountNotices() {
-    const { scope, meterKey, publicScope } = this.accountNoticeContext();
-    const notice = this.closed ? null : this.ledger.accountNotice(scope, meterKey);
+    const { scope, meterKey, eligible, publicScope } = this.accountNoticeContext();
+    const notice = this.closed || !eligible ? null : this.ledger.accountNotice(scope, meterKey);
     return { ok: true, scope: publicScope, notices: notice ? [notice] : [] };
   }
   ackAccountNotices(ids) {
     if (this.closed) throw new Error('挂件正在退出，请稍后重试账户消费通知确认');
-    const { scope, meterKey, publicScope } = this.accountNoticeContext();
+    const { scope, meterKey, eligible, publicScope } = this.accountNoticeContext();
+    if (!eligible && ids?.length) throw new Error('当前连接的金额口径尚未确认');
     return { ok: true, scope: publicScope, acknowledged: this.ledger.acknowledgeNotices(scope, meterKey, ids) };
   }
   isCurrentBalanceContext(c) {
@@ -85,8 +121,7 @@ export class WhaleService {
     let c;
     try { c = context || this.config.resolve(); }
     catch (error) { return { ok: false, code: 'CONFIG', error: error.message }; }
-    const cacheKey = c.accountId + ':' + JSON.stringify(c.setting);
-    const identity = this.balanceIdentity(c), cached = this.balanceCache(c, cacheKey);
+    const identity = this.balanceIdentity(c), cacheKey = identity + ':' + JSON.stringify(c.setting), cached = this.balanceCache(c, cacheKey);
     // Each caller checks its own context, even when it joins a round's request.
     // A UI request made before an account/currency switch returns current data.
     const deliver = value => {
@@ -117,8 +152,8 @@ export class WhaleService {
           return { ...this.decorate(c, payload, { activate: false }), superseded: true,
             ...(latest.identity !== identity ? { stale: true } : {}) };
         }
-        const meterKey = createHash('sha256').update(identity).digest('hex');
-        if (!payload.stale && payload.ok !== false) this.ledger.observe(scope, { ...payload, meterKey,
+        const meter = this.observationIdentity(c, payload);
+        if (!payload.stale && payload.ok !== false && observable(payload)) this.ledger.observe(scope, { ...payload, ...meter,
           concurrentCount: Math.max(activityAtStart, this.accountActivityCount(c)) });
         const sample = { at: Date.now(), sequence, identity, payload };
         this.latestSamples.set(scope, sample);
@@ -139,7 +174,7 @@ export class WhaleService {
     const scope = this.scope(c, payload.currency);
     const records = this.ledger.records(scope);
     if (activate && this.isCurrentBalanceContext(c)) this.activeScope = scope;
-    return { ...payload, todayUsage: records.today.total, observedSince: records.today.since, usageMode: 'ledger', usageNote: records.note };
+    return { ...payload, connectionInfo: c.connectionInfo || null, todayUsage: records.today.total, observedSince: records.today.since, usageMode: 'ledger', usageNote: records.note };
   }
   usageScopes() {
     const c = this.config.resolve();
@@ -293,7 +328,7 @@ export class WhaleService {
     // Account observations have no request attribution, even when no local
     // parallel turn is visible (another device may use the same API key).
     let accountIntervalAmount = null;
-    if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency) {
+    if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency && sameMeter(start, end)) {
       if (Number.isFinite(start.totalUsed) && Number.isFinite(end.totalUsed) && end.totalUsed >= start.totalUsed) accountIntervalAmount = decimalDifference(end.totalUsed, start.totalUsed);
       else if (start.totalUsed == null && end.totalUsed == null && Number.isFinite(start.totalBalance) && Number.isFinite(end.totalBalance) && end.totalBalance <= start.totalBalance) accountIntervalAmount = decimalDifference(start.totalBalance, end.totalBalance);
     }

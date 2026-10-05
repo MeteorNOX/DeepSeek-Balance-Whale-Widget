@@ -2101,10 +2101,11 @@
     function checkUsageAlerts(balance, todayUsage) {
       try {
         if (!usageSet) return;
+        var monetary = WhaleBalanceView.describe({ ok: state.status !== 'error', balanceStatus: state.balanceStatus, totalBalance: balance, todayUsage: todayUsage, canObserve: state.canObserve, counter: state.counter });
         var a = usageSet.alert;
-        if (a && a.on) {
+        if (a && a.on && monetary.canAlertBalance) {
           var below = Number(a.below);
-          if (isFinite(below) && typeof balance === 'number' && balance > 0 && balance <= below) {
+          if (isFinite(below) && typeof balance === 'number' && isFinite(balance) && balance <= below) {
             if (!usageAlertBelowFired) {
               usageAlertBelowFired = true;
               showUsagePopup('余额预警', usageRemindLinesOf(a, true), below, null, 2, a);
@@ -2114,7 +2115,7 @@
           }
         }
         var b = usageSet.budget;
-        if (b && b.on) {
+        if (b && b.on && monetary.canAlertBudget) {
           var amt = Number(b.amount);
           if (isFinite(amt) && amt > 0 && typeof todayUsage === 'number' && todayUsage >= amt) {
             var key = usageTodayKeyStr() + ':' + String(amt);
@@ -7760,6 +7761,11 @@
       left: 0,
       top: 0,
       balance: null,
+      balanceStatus: '',
+      balanceLabel: 'API 余额',
+      canObserve: false,
+      meterId: null,
+      counter: null,
       currency: null,
       todayUsage: null,
       status: 'loading',
@@ -7987,8 +7993,9 @@
       gifEl.style.display = 'none';
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
-      labelEl.textContent = '当前 API 余额';
+      labelEl.textContent = state.balanceLabel || 'API 余额';
       amountEl.style.display = '';
+      amountEl.style.fontSize = ['unconfirmed', 'unsupported', 'unlimited'].includes(state.balanceStatus) ? 'calc(var(--dshw-u) * 64)' : '';
       hintEl.style.display = '';
       render();
     }
@@ -8389,7 +8396,7 @@
       return Math.round(40 + (n - 1) * 200 / 49);
     }
     function bubbleAmountText() {
-      return state.balance === null ? '…' : fmt(state.balance, state.currency);
+      return balanceText(state);
     }
     function bubbleTodayText() {
       return '今日已观测 ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.currency) : '--');
@@ -8400,7 +8407,7 @@
       var v = '';
       var map = {};
       if (m.type === 'balance') {
-        v = values.balance === null ? '…' : fmt(values.balance, values.currency);
+        v = balanceText(values);
         map['balance_ds'] = v;
         map['balance_api'] = v;
       } else if (m.type === 'today') {
@@ -8507,9 +8514,9 @@
     function bubbleRowContentOf(mod) {
       mod = mod || ({});
       if (mod.type === 'balance' || mod.type === 'today') {
-        var captured = { balance: state.balance, todayUsage: state.todayUsage, currency: state.currency || 'USD' };
+        var captured = { balance: state.balance, balanceStatus: state.balanceStatus, todayUsage: state.todayUsage, currency: state.currency || 'USD' };
         var moneyText = function () {
-          var value = mod.type === 'balance' ? captured.balance === null ? '…' : fmt(captured.balance, captured.currency) :
+          var value = mod.type === 'balance' ? balanceText(captured) :
             '今日已观测 ' + (captured.todayUsage != null ? fmt(captured.todayUsage, captured.currency) : '--');
           return bubbleContentText(mod, value, captured);
         };
@@ -9019,14 +9026,19 @@
     function fmt(balance, currency) {
       return WhaleMoney.formatMoney(balance, currency || state && state.currency || 'USD', true);
     }
+    function balanceText(value) {
+      var payload = { balanceStatus: value.balanceStatus, totalBalance: value.balance, unlimited: value.balance === Infinity, currency: value.currency };
+      if (!value.balanceStatus && value.balance === null) return value.status === 'error' ? '--' : '…';
+      return WhaleBalanceView.amount(payload, fmt);
+    }
     
     function render() {
       // Stopgap guard plus root fix: refresh() no longer calls this function.
       if (bubbleFrames.switching && !bubbleBuilding) return;
       if (!bubbleBuilding) return;
-      var captured = { balance: state.balance, todayUsage: state.todayUsage, currency: state.currency || 'USD', status: state.status, message: state.message };
-      WhaleMoney.bind(amountEl, function () { return captured.balance === null ? (captured.status === 'error' ? '--' : '…') : fmt(captured.balance, captured.currency); });
-      WhaleMoney.bind(hintEl, function () { return captured.status === 'error' ? (captured.message || '获取失败 · 点击重试').slice(0, 20) : captured.balance === null ? '加载中…' : '今日已观测 ' + (captured.todayUsage != null ? fmt(captured.todayUsage, captured.currency) : '--'); });
+      var captured = { balance: state.balance, balanceStatus: state.balanceStatus, canObserve: state.canObserve, todayUsage: state.todayUsage, currency: state.currency || 'USD', status: state.status, message: state.message };
+      WhaleMoney.bind(amountEl, function () { return balanceText(captured); });
+      WhaleMoney.bind(hintEl, function () { return captured.status === 'error' ? (captured.message || '获取失败 · 点击重试').slice(0, 20) : ['unconfirmed', 'unsupported'].includes(captured.balanceStatus) ? '设置中配置余额接口' : !captured.balanceStatus && captured.balance === null ? '加载中…' : '今日已观测 ' + (captured.canObserve && captured.todayUsage != null ? fmt(captured.todayUsage, captured.currency) : '--'); });
     }
     function express() {
       positioner.style.transform = 'translate3d(' + state.left + 'px,' + state.top + 'px,0)';
@@ -9157,24 +9169,35 @@
         return r.json();
       }).then(function (data) {
         if (data && data.ok) {
-          var nb = data.unlimited ? Infinity : Number(data.totalBalance);
+          var monetary = WhaleBalanceView.describe(data);
+          var nb = monetary.status === 'unlimited' ? Infinity : monetary.balance;
           var nc = String(data.currency || 'USD');
           state.balance = nb;
           state.currency = nc;
           WhaleMoney.setNativeCurrency(nc);
           state.message = '';
-          state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null;
-          state.unlimited = !!data.unlimited;
+          state.todayUsage = monetary.todayUsage;
+          state.balanceStatus = monetary.status;
+          state.balanceLabel = monetary.label;
+          state.canObserve = monetary.canObserve;
+          var nextMeterId = data.meterId || data.accountId || null;
+          if (state.meterId !== nextMeterId) { usageAlertBelowFired = false; usageBudgetFiredKey = ''; }
+          state.meterId = nextMeterId;
+          state.counter = data.counter || null;
+          state.unlimited = monetary.status === 'unlimited';
           state.providerName = data.providerName || '';
           state.balanceScope = data.balanceScope || '';
           state.stale = !!data.stale;
-          root.title = (data.providerName || '') + ' · ' + (data.balanceLabel || 'API 可用余额') + (data.stale ? '（上次成功数据）' : '');
+          root.title = (data.connectionInfo?.name || data.providerName || '') + ' · ' + (data.balanceLabel || monetary.label) + (data.stale ? '（上次成功数据）' : '');
           window.dispatchEvent(new CustomEvent('whale-balance', {
             detail: data
           }));
-          checkUsageAlerts(nb, state.todayUsage);
           state.status = 'ok';
+          checkUsageAlerts(nb, state.todayUsage);
         } else {
+          var failedView = WhaleBalanceView.describe(data || {});
+          state.balance = null; state.todayUsage = null; state.canObserve = false;
+          state.balanceStatus = failedView.status; state.balanceLabel = failedView.label;
           state.status = 'error';
           state.message = data && data.error ? String(data.error) : '获取失败';
           window.dispatchEvent(new CustomEvent('whale-balance', {

@@ -16,6 +16,11 @@ export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 const jsonResult = (status, payload) => ({ status, headers: { 'content-type': 'application/json; charset=utf-8' }, body: Buffer.from(JSON.stringify(payload)) });
+const configurationFailure = error => {
+  const message = error?.message;
+  const safe = typeof message === 'string' && message.length <= 256 && /[\u4e00-\u9fff]/.test(message) && !/[\r\n]|https?:\/\/|[A-Z]:[\\/]/i.test(message);
+  return jsonResult(400, { ok: false, error: safe ? message : '连接配置或余额预览失败，请检查请求规则' });
+};
 
 // Dispatch original resource handlers entirely in process; no HTTP listener exists.
 export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
@@ -73,8 +78,21 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
       if (url.pathname === '/api/status' && method === 'GET') return jsonResult(200, { ok: true, version: VERSION, buildVersion, buildRevision, transport: 'local-ipc', webpage: false, provider: whale.config.publicInfo(), monitor: watcher?.status() || { watching: 0, activeTurns: 0 }, dataDir, ...statusInfo() });
       if (url.pathname === '/api/config') {
         if (method === 'GET') return jsonResult(200, { ok: true, ...whale.config.settingsInfo() });
-        if (method === 'PUT') { whale.config.save(parsed()); return jsonResult(200, { ok: true, ...whale.config.settingsInfo() }); }
+        if (method === 'PUT') {
+          try { whale.config.save(parsed()); return jsonResult(200, { ok: true, ...whale.config.settingsInfo() }); }
+          catch (error) { return configurationFailure(error); }
+        }
         return jsonResult(405, { ok: false });
+      }
+      if (url.pathname.startsWith('/api/connections/')) {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        return jsonResult(200, { ok: true, connection: whale.config.readConnection(decodeURIComponent(url.pathname.slice('/api/connections/'.length))) });
+      }
+      if (url.pathname === '/api/balance-preview') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        if (bytes.length > 128 * 1024) return jsonResult(413, { ok: false, error: '连接规则过大' });
+        try { return jsonResult(200, await whale.previewBalance(parsed().patch || {})); }
+        catch (error) { return configurationFailure(error); }
       }
       if (url.pathname === '/api/fx/usd-cny') {
         if (method !== 'GET') return jsonResult(405, { ok: false });
@@ -108,6 +126,8 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
       uiFiles['/account-view.js']='account-view.js';
       uiFiles['/shape.js']='shape.js';
       uiFiles['/dashboard.js']='dashboard.js';
+      uiFiles['/connection-settings.js']='connection-settings.js';
+      uiFiles['/balance-view.js']='balance-view.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);
       else if (url.pathname.startsWith('/assets/')) {

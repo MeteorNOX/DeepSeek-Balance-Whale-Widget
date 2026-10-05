@@ -1,19 +1,21 @@
-# API 余额小鲸鱼 v0.4
+# API 余额小鲸鱼 v0.4.1
 
-**For-Codex · v0.4.0 · 发布标签 `codex-v0.4.0`**
+> 当前为 **v0.4.1 本地测试版**（`provider-connections-20261005` / `Codex-v0.4.1`），尚未上传。新增独立余额连接、常见协议自动探测与自定义请求预览；字段和单位未确认时不记账，高级规则按需展开。使用、旧设置迁移和本地验收见 [余额连接与自定义协议](docs/PROVIDER-CONNECTIONS-0.4.1.md)。旧版验证记录作为历史基线，本次验证范围另见上述说明。
+
+**For-Codex · v0.4.1 本地测试版 · 尚未上传**
 
 让小鲸鱼跟随 Codex，查看 API 余额、已观测消费、本机 token 和 Codex 订阅额度快照，也可以把它留在独立桌面模式。角色、动图、气泡、声音和按压手感均可调整。
 
 **不用配置模型单价，也能看到“账户新增消耗”。** v0.4 把同一账户新增扣费合并、去重并独立提示；本轮 token 和价格估算另行记录。同时修复连续点击角色时误点背后窗口的问题，透明区域仍正常穿透。详见 [并行消费与连击保护](docs/PARALLEL-CONSUMPTION-AND-CLICKS.md)。
 
-对外包名为 `Codex-v0.4.zip` / `Codex-v0.4-source.zip`，程序版本 `0.4.0`，内部插件标识继续使用 `api-balance-whale`。发布标签为 [`codex-v0.4.0`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases/tag/codex-v0.4.0)。
+对外包名为 `Codex-v0.4.1.zip` / `Codex-v0.4.1-source.zip`，程序版本 `0.4.1`，内部插件标识继续使用 `api-balance-whale`。此前正式版 [`codex-v0.4.0`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases/tag/codex-v0.4.0) 保留，本修复版尚未发布。
 
 这是 [MeteorNOX/DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) 的独立 **For-Codex** 适配线。上游作者和仓库所有者为 [MeteorNOX](https://github.com/MeteorNOX)，Codex 适配由协作者 [Yang-huai406](https://github.com/Yang-huai406) 维护；v0.4 不表示 DSH 主线版本升级。Windows x64 已做本机验证，macOS 兼容代码保留，实机验收仍待完成。
 
 ## 先安装，再开始使用
 
 1. 准备支持插件的 Codex 桌面应用、可用的插件注册 CLI 及 **Node.js 24+（含 npm）**；安装器会检查所需命令。
-2. 完整解压 `Codex-v0.4.zip` 到固定目录；不要直接在 ZIP 内运行。
+2. 完整解压 `Codex-v0.4.1.zip` 到固定目录；不要直接在 ZIP 内运行。
 3. Windows 双击 `安装插件.cmd`。首次安装需要联网下载 Electron，此包不是包含运行时的离线 EXE。
 4. 按安装器结果确认成功，打开 Codex。需要在聊天中使用新版技能和工具时，新建聊天加载。
 5. 打开鲸鱼菜单，在顶部选择 **API 余额** 或 **Codex 订阅**。菜单分为“概览 / 用量 / 设置”。
@@ -87,7 +89,7 @@ macOS 使用新的独立目录，保留旧版本，运行 `安装 Mac 自动跟�
 
 ## 如何验证生效
 
-安装后先检查状态中的版本为 `0.4.0`，再完成 [用户验收清单](docs/TEST-CHECKLIST-0.4.md)。重点检查无需单价的账户新增金额、重复刷新不重报、关闭再启用后的累计提示，以及角色边缘连击和透明区穿透；再检查拖动/缩放后重启、最小化恢复、两种额度窗口、长气泡及保存失败提示。
+安装后先检查状态中的版本为 `0.4.1`，再完成 [用户验收清单](docs/TEST-CHECKLIST-0.4.md)。重点检查无需单价的账户新增金额、重复刷新不重报、关闭再启用后的累计提示，以及角色边缘连击和透明区穿透；再检查拖动/缩放后重启、最小化恢复、两种额度窗口、长气泡及保存失败提示。
 
 挂件暂时不可见时，可从托盘选择“恢复显示小鲸鱼”，或使用 Windows `Ctrl+Alt+W` / Mac `Cmd+Option+W`。Windows `Ctrl+Alt+Shift+F10` 可保存诊断现场。退出挂件只停止观察，不会取消 Codex 模型调用。诊断结果可能含本机运行信息，公开反馈前需脱敏。
 
@@ -114,4 +116,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\rollback-packa
 
 [开发过程](docs/DEVELOPMENT-0.4.md) · [变更记录](CHANGELOG.md) · [Release 说明](RELEASE_NOTES.md) · [验收清单](docs/TEST-CHECKLIST-0.4.md)
 
-本版由协作者 Yang-huai406 发布至 For-Codex，保留历史发布及 DSH 主线 Latest。
+本修复版目前供本地测试；保留此前 For-Codex 发布、原作者署名及 DSH 主线 Latest。

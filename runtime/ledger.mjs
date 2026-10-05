@@ -29,7 +29,7 @@ export class UsageLedger {
     return led;
   }
   observe(scope, sample, now = Date.now()) {
-    if (sample.stale || sample.ok === false) return this.load(scope);
+    if (sample.stale || sample.ok === false || sample.canObserve === false || ['unconfirmed', 'unsupported'].includes(sample.balanceStatus)) return this.load(scope);
     const led = this.rollover(this.load(scope), now);
     const balance = Number.isFinite(sample.totalBalance) ? sample.totalBalance : null;
     const used = Number.isFinite(sample.totalUsed) ? sample.totalUsed : null;
@@ -39,7 +39,10 @@ export class UsageLedger {
     const meterKey = typeof sample.meterKey === 'string' && /^[a-f0-9]{64}$/.test(sample.meterKey) ? sample.meterKey : null;
     // A newer reading can legitimately reset to zero. Ordering is handled by
     // the service, while a changed adapter/scale starts a new meter baseline.
-    if (last && (!meterKey || !last.meterKey || last.meterKey === meterKey)) {
+    const compatible = sample.meterVersion === 2
+      ? last?.meterVersion === 2 && !!meterKey && last.meterKey === meterKey
+      : !meterKey || !last?.meterKey || last.meterKey === meterKey;
+    if (last && compatible) {
       if (used !== null && last.used !== null && used >= last.used) delta = decimalAdd(used, last.used, true);
       else if (used === null && last.used === null && balance !== null && last.balance !== null) delta = last.balance >= balance ? decimalAdd(last.balance, balance, true) : '0';
     }
@@ -48,7 +51,9 @@ export class UsageLedger {
     led.observedExact = decimalAdd(Number(led.observedExact) === led.observed ? led.observedExact : led.observed, delta);
     led.observed = Number(led.observedExact);
     led.firstObservation ||= now;
-    led.lastObservation = { balance, used, at: now, ...(meterKey ? { meterKey } : {}) };
+    led.lastObservation = { balance, used, at: now, ...(meterKey ? { meterKey } : {}),
+      ...(sample.meterVersion === 2 ? { meterVersion: 2 } : {}),
+      ...(/^[a-f0-9]{64}$/.test(sample.configurationKey || '') ? { configurationKey: sample.configurationKey } : {}) };
     this.save(scope, led); return led;
   }
   accountNotice(scope, meterKey) {

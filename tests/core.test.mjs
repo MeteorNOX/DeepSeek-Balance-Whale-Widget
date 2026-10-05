@@ -55,7 +55,8 @@ test('configuration rejects credentials, cross-origin paths and invalid prices',
 });
 
 test('compatible billing correctly converts cents and preserves decimals', async t => {
-  const c = config(t).resolve(); const calls = [];
+  const store = config(t); store.save({ provider: 'billing' });
+  const c = store.resolve(); const calls = [];
   const p = new BalanceProvider({ fetchImpl: async (url, options) => { calls.push({ url, options }); return url.endsWith('/subscription') ? reply({ hard_limit_usd: 50 }) : reply({ total_usage: 112.3554 }); } });
   const r = await p.balance(c);
   assert.equal(r.totalBalance, 48.876446); assert.equal(r.totalUsed, 1.123554); assert.equal(r.currency, 'USD');
@@ -76,7 +77,8 @@ test('unsupported HTML billing routes fall back to a distinct key quota', async 
   const c = config(t).resolve();
   const p = new BalanceProvider({ fetchImpl: async url => url.includes('/api/usage/token') ? reply({ data: { total_available: 3, total_used: 2, total_granted: 5 } }) : reply('<html>login</html>', 200, 'text/html') });
   const r = await p.balance(c);
-  assert.equal(r.totalBalance, 3); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
+  assert.equal(r.totalBalance, null); assert.equal(r.preview.balance, 3); assert.equal(r.balanceStatus, 'unconfirmed');
+  assert.equal(r.canObserve, false); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
 });
 
 test('unlimited API key quota does not imply unlimited account funds', async t => {
@@ -103,7 +105,8 @@ test('authentication failures do not expose provider bodies or fall back', async
 test('official OpenAI auto mode never calls an unverified balance endpoint', async t => {
   const c = config(t, 'model_provider="openai"\n[model_providers.openai]\nbase_url="https://api.openai.com/v1"\nexperimental_bearer_token="fake-key"\n');
   const p = new BalanceProvider({ fetchImpl: () => { throw new Error('must not request'); } });
-  await assert.rejects(p.balance(c.resolve()), error => error.code === 'UNSUPPORTED');
+  const result = await p.balance(c.resolve());
+  assert.equal(result.ok, true); assert.equal(result.balanceStatus, 'unsupported'); assert.equal(result.canObserve, false);
 });
 
 test('daily ledger preserves spent amounts across recharges and separates currencies', t => {
