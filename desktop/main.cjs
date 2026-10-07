@@ -75,6 +75,7 @@ const uiStore = new UiStateStore(stateFile);
 const values = () => uiStore.get();
 const storeValues = input => uiStore.set(input);
 let gpuStatus = null, inputEnabled = false, keyboardFocus = false, testCursor = null, lastCursor = '', presents = 0;
+let macPresentTimer = null, macPresentUntil = 0;
 const pendingCommands = [];
 let trustedGestureAt = 0;
 app.on('gpu-info-update', () => {
@@ -82,6 +83,17 @@ app.on('gpu-info-update', () => {
   fs.promises.writeFile(path.join(dataDir, 'render-status.json'), JSON.stringify(gpuStatus, null, 2)).catch(() => {});
 });
 function invalidate() { if (window && !window.isDestroyed()) { presents++; window.webContents.invalidate(); } }
+function presentMacFor(ms) {
+  if (!isMac || quitting || !window || window.isDestroyed()) return;
+  macPresentUntil = Math.max(macPresentUntil, Date.now() + Math.min(1000, Math.max(0, Number(ms) || 0)));
+  if (macPresentTimer) return;
+  const tick = () => {
+    macPresentTimer = null;
+    invalidate();
+    if (Date.now() < macPresentUntil) macPresentTimer = setTimeout(tick, 16);
+  };
+  tick();
+}
 function applyWindowShape(rects) {
   if (!usesWindowShape || quitting || !window || window.isDestroyed() || window.webContents.isDestroyed()) return false;
   const shape = validateWindowShape(rects, window.getContentBounds());
@@ -332,6 +344,9 @@ else {
     ipcMain.on('whale-keyboard-focus', (event, editing) => {
       if (acceptsWindowMessage(window,event,quitting) && typeof editing === 'boolean') setKeyboardFocus(editing);
     });
+    ipcMain.on('whale-present-for', (event, ms) => {
+      if (acceptsWindowMessage(window, event, quitting)) presentMacFor(ms);
+    });
     // Windows uses the native cursor sampler instead of forwarding ignored mouse
     // messages into Chromium, which must not arbitrate the host cursor.
     const cursorPoll = setInterval(sendCursor, usesWindowShape ? 16 : 50);
@@ -364,7 +379,7 @@ else {
   }).catch(error => { try { save(path.join(dataDir, 'desktop-error.json'), { message: String(error.message).slice(0, 350), at: new Date().toISOString() }); } catch {} app.exit(1); });
   app.on('window-all-closed', () => { if (!quitting && rendererReady) app.quit(); });
   app.on('before-quit', event => {
-    clearTimeout(readyTimer); clearTimeout(recoveryTimer);
+    clearTimeout(readyTimer); clearTimeout(recoveryTimer); clearTimeout(macPresentTimer); macPresentTimer = null;
     event.preventDefault();
     if (quitting) return;
     quitting = true;

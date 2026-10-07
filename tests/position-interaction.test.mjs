@@ -36,7 +36,7 @@ function harness() {
     SIZE_URL: '/size', fetch: async (url, options) => { requests.push({ url, options }); return { json: async () => ({ok:true}) }; },
     requireSaved(data) { assert.equal(data.ok, true); return data; }, assetFailure(error) { throw error; },
     soundOn: true, soundVol: 0.8, soundSet: 'duck', usageMode: 'today', bubbleOn: true,
-    turnCostOn: true, turnCostCloseMs: 5000, menuBtnHide: false,
+    turnCostOn: true, turnCostCloseMs: 5000, menuBtnHide: false, outsideDismissOn: false,
     volInput: {}, volPct: {}, pressAudio: null, releaseAudio: null,
   });
   const names = ['express', 'settle', 'snapBounds', 'refreshFlip', 'artCenterAt', 'commitPosition', 'persistPositionIntent', 'applyAnchorPos', 'onDocPointerDown', 'onDocPointerMove', 'configSnapshot', 'createSettingsWriter', 'saveConfig', 'setVol'];

@@ -17,6 +17,7 @@ function fixture({ mode = 'api', kind = 'success', enabled = true, sound = true,
     CustomEvent: class {}, WhaleTurnNotice: { snapshot: () => value }, d: {}, state: {}, turnCostOn: true,
     usageSet: { taskEnd: { on: enabled, sel: 'grp:duck' } }, soundOn: sound, soundVol: .3,
     audioGroupSlotEmpty: (_, slot) => slots.includes(slot), showCostBubble: () => calls.push(['bubble']),
+    showSubscriptionCostBubble: () => calls.push(['subscription']),
     taskEndSel: {}, encodeURIComponent
   };
   vm.runInNewContext(widget.slice(begin, finish) + '\n(function(){\n' + widget.slice(startNotice, endNotice) + '\n})();', context);

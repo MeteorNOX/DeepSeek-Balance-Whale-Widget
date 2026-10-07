@@ -2,6 +2,8 @@
 
 跟随 Codex 显示 API 余额、密钥额度、已观测消费和本机 token；也可查看 Codex 订阅额度快照，或作为独立桌面挂件使用。支持角色、动图、气泡、音效、拖动缩放和本地素材工坊。
 
+> **维护范围：仅 macOS。** Windows 相关源码与安装脚本暂时保留，便于对照上游和减少合并冲突，但本分支不再构建、测试或维护 Windows 版本，也不保证其可用性。
+
 **For-Codex 修复发行版。** 运行构建已完成下文列出的测试；本次压缩包的隐私、解压和完整性结果以随包清单为准。
 
 | 标识 | 当前值 |
@@ -12,6 +14,8 @@
 | 构建标识 | `auto-probe-fixed-20261005` |
 | 插件 ID | `api-balance-whale` |
 | 发布标签 | `codex-v0.4.0(fixed)` |
+
+用于 Codex 的 macOS 挂件：查看当前 API 余额、本机 token 和订阅额度快照；可跟随 Codex，也可独立留在桌面。
 
 标签、对外名称与内部版本用途不同，不需要把内部版本改成带括号的字符串。此前 `codex-v0.4.0` 发布保留；本修复版属于独立 **For-Codex** 适配线，不替代 DSH 主线 Latest。
 
@@ -41,6 +45,10 @@ Node 主版本应至少为 24。刚安装 Node 后请重新打开终端。不要
 4. 保存最后显示的 **Private rollback receipt** 路径。它指向此次安装的 `installation.json`，只保留在本机。
 5. 打开 Codex；安装器应报告成功或监督器正在等待 Codex 窗口。需要聊天中加载新版技能/MCP 工具时，新建一个 Codex 聊天。
 6. 打开鲸鱼菜单，进入 **设置 → API 设置**，按第 3 节检测接口，无需先填写高级 JSON。
+
+需要包含 npm 的 Node.js 24+ 与支持插件功能的 Codex 桌面应用，桌面组件使用 Electron 44.3.0；不要从 ZIP 内直接运行安装脚本。
+
+**Windows（遗留、不维护）**：下列脚本仅作为上游遗留代码保留，本分支不再验证、发布或提供 Windows 支持：
 
 代码默认安装到当前用户的 `~/plugins/api-balance-whale`；个人插件市场只更新本插件条目。代码与用户数据分开存放。
 
@@ -285,6 +293,9 @@ Mac 需 Codex、Node.js 24+、Xcode Command Line Tools。解压到新的固定�
 | 部分修复/未完成 | #79 是共用拖动取消，不代表 Android 完成；#108 未实现共享台词池；#135 不代表 Mac 睡眠实测；#177 全局空白点击关闭未采用。 |
 
 当前运行构建已通过 **482 项自动测试、9 项独立隐私门禁、真实 Electron 6 组流程、7 个布局样本和 8 张截图验证**，渲染错误为零。测试使用隔离合成服务，不代表全部站点、真实账号、Mac 或所有硬件实测，也不等于本轮最终 ZIP 已验收。成品范围、SHA-256、解压检查以随包 `release-manifest.json`、`verification-report.json` 为准。
+
+- Windows 代码仅为减少上游合并冲突而保留，已经退出本分支的维护和验证范围。
+- Mac 脚本目前安装桌面组件和 LaunchAgent，不自动完成 Codex 插件市场的技能/MCP 注册；相关平台流程仍待实机补充验证。
 
 [开发历程](docs/DEVELOPMENT-FIXED.md) · [fixed 修复说明](docs/AUTO-PROBE-FIXED.md) · [功能与 issue 状态表](docs/ISSUE-STATUS-FIXED.md) · [已知限制](docs/KNOWN-ISSUES-FIXED.md) · [验收清单](docs/TEST-CHECKLIST-0.4.md) · [并行消费与连击](docs/PARALLEL-CONSUMPTION-AND-CLICKS.md)
 

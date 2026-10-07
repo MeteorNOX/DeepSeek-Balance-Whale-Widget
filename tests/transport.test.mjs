@@ -100,10 +100,10 @@ test('all original built-in images, animation, sound and script routes work', as
 
 test('original widget settings and bubble sequences survive save and reload', async t => {
   const { request } = await setup(t);
-  const settings = { scale: 1.2, vol: 0.3, sound: true, soundSet: 'fx1', usageMode: 'ledger', bubbleOn: true, turnCostOn: true, turnCostCloseMs: 0, scrollGapOn: true, scrollGapPx: 25, menuBtnHide: false };
+  const settings = { scale: 1.2, vol: 0.3, sound: true, soundSet: 'fx1', usageMode: 'ledger', bubbleOn: true, turnCostOn: true, turnCostCloseMs: 0, scrollGapOn: true, scrollGapPx: 25, menuBtnHide: false, outsideDismissOn: true };
   const saved = await (await request('/dsh-whale/size.json', 'PUT', settings)).json(); assert.equal(saved.ok, true);
   const loaded = await (await request('/dsh-whale/size.json')).json();
-  assert.equal(loaded.scale, 1.2); assert.equal(loaded.turnCostCloseMs, 0); assert.equal(loaded.vol, 0.3);
+  assert.equal(loaded.scale, 1.2); assert.equal(loaded.turnCostCloseMs, 0); assert.equal(loaded.vol, 0.3); assert.equal(loaded.outsideDismissOn, true);
   const bubble = { v: 1, items: [{ kind: 'custom', modules: [{ type: 'text', text: '测试气泡' }, { type: 'balance', tpl: '{balance_api}' }] }], lib: [] };
   assert.equal((await (await request('/dsh-whale/bubble.json', 'PUT', bubble)).json()).ok, true);
   assert.deepEqual((await (await request('/dsh-whale/bubble.json')).json()).config, bubble);

@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import vm from 'node:vm';
 const source = await fs.readFile(new URL('../desktop/ui/account-view.js', import.meta.url), 'utf8');
 const exported = { module: { exports: {} } }; vm.runInNewContext(source, exported);
-const { windowText, tokenText, noticeText, quotaLabel } = exported.module.exports;
+const { windowText, tokenText, noticeText, quotaLabel, quotaBubble } = exported.module.exports;
 
 test('quota periods remain distinct regardless of incoming label',()=>{
   assert.equal(quotaLabel({windowDurationMins:300,label:'primary'}),'5 小时额度');
@@ -25,22 +25,36 @@ test('subscription failure consumption displays tokens without API money or fun 
   assert.equal(noticeText({ completionKind: 'failed', failureKind: 'high-demand' }), '挤不进去...');
   assert.equal(noticeText({ completionKind: 'completed', tokens: 10, amount: 5 }), '本轮本机已观测：10 token');
 });
+test('subscription bubble keeps the 5-hour and weekly quota distinct', () => {
+  const plain = value => JSON.parse(JSON.stringify(value));
+  assert.deepEqual(plain(quotaBubble({ subscription: { available: true, windows: [
+    { windowDurationMins: 10080, usedPercent: 68 },
+    { windowDurationMins: 300, usedPercent: 37 },
+  ] } })), {
+    label: 'Codex 剩余额度',
+    amount: '5h 额度 63.0%',
+    hint: '周额度 32.0%',
+  });
+  assert.deepEqual(plain(quotaBubble({ subscription: { available: false, reason: '暂无快照' } })), {
+    label: 'Codex 剩余额度', amount: '暂无快照', hint: '点击气泡查看小鲸鱼留言',
+  });
+});
 function runtime(fetch) {
   const storage = new Map(); const events = [];
   const context = { document: { documentElement: {dataset:{}}, readyState: 'loading', addEventListener() {}, querySelectorAll(){return []} }, window: { dispatchEvent(e) { events.push(e); } }, localStorage: { getItem(k) { return storage.get(k); }, setItem(k,v) { storage.set(k,v); } }, fetch, CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } } };
   vm.runInNewContext(source, context);
   return { api: context.window.WhaleAccountView, storage, events, window:context.window };
 }
-test('subscription completion and cancellation report tokens without an open card or API money',async()=>{
+test('subscription completion and cancellation return bubble text without API money',async()=>{
   const r=runtime(async()=>({ok:true,json:async()=>({mode:'subscription'})}));
-  const messages=[];r.window.whaleToast=message=>messages.push(message);
-  r.api.notice({completionKind:'success',tokens:12,amount:100});assert.equal(messages.length,0);
+  assert.equal(r.api.notice({completionKind:'success',tokens:12,amount:100}), null);
   await r.api.setMode('subscription');
-  r.api.notice({completionKind:'success',tokens:12480,amount:100,currency:'USD'});
-  r.api.notice({completionKind:'cancelled',tokens:12,amount:10});
-  r.api.notice({completionKind:'success',tokens:12,notify:false});
-  assert.equal(messages.length,2);assert.match(messages[0],/12,480 token/);assert.match(messages[1],/12 token/);
-  assert.ok(messages.every(m=>!/[\$¥]|USD|API/.test(m)));
+  const completed=r.api.notice({completionKind:'success',tokens:12480,amount:100,currency:'USD'});
+  const cancelled=r.api.notice({completionKind:'cancelled',tokens:12,amount:10});
+  assert.deepEqual(JSON.parse(JSON.stringify(completed)),{label:'本轮本机已观测',amount:'12,480 token',hint:'Codex 订阅用量'});
+  assert.deepEqual(JSON.parse(JSON.stringify(cancelled)),{label:'本轮本机已观测',amount:'12 token',hint:'Codex 订阅用量'});
+  assert.equal(r.api.notice({completionKind:'success',tokens:12,notify:false}),null);
+  assert.ok([completed,cancelled].every(item=>!/[\$¥]|USD|API/.test(Object.values(item).join(''))));
 });
 test('a rejected save preserves mode and does not emit false switch events', async () => {
   for (const fetch of [async () => ({ ok: false }), async () => ({ ok: true, json: async () => ({ mode: 'api' }) }), async () => { throw Error('offline'); }]) {

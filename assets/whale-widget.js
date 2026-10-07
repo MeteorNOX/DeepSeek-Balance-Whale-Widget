@@ -831,6 +831,18 @@
     rowHide.appendChild(menuLabel('隐藏菜单按钮'));
     rowHide.appendChild(menuHideToggle);
     menuBox.appendChild(rowHide);
+    var outsideDismissToggle = document.createElement('input');
+    outsideDismissToggle.type = 'checkbox';
+    outsideDismissToggle.className = 'dshwv-check';
+    outsideDismissToggle.checked = false;
+    outsideDismissToggle.title = '开启后，点击挂件外的空白区域会关闭已打开的菜单、二级面板、账户卡片或人物气泡';
+    outsideDismissToggle.addEventListener('change', function () {
+      setOutsideDismissOn(outsideDismissToggle.checked);
+    });
+    var rowOutsideDismiss = menuRow();
+    rowOutsideDismiss.appendChild(menuLabel('点击空白关闭'));
+    rowOutsideDismiss.appendChild(outsideDismissToggle);
+    menuBox.appendChild(rowOutsideDismiss);
     var rowRes = menuRow();
     var resOpenBtn = document.createElement('button');
     resOpenBtn.type = 'button';
@@ -7965,7 +7977,11 @@
       }
       return RANDOM_GROUPS[RANDOM_GROUPS.length - 1].lines();
     }
+    function resetBubbleLineStyles() {
+      [labelEl, amountEl, hintEl].forEach(function (el) { el.removeAttribute('style'); });
+    }
     function applyBubbleLines(lines) {
+      resetBubbleLineStyles();
       if (lines && lines.gif) {
         gifEl.style.display = 'block';
         labelEl.style.display = 'none';
@@ -7990,6 +8006,7 @@
     
     
     function restoreBubbleLines() {
+      resetBubbleLineStyles();
       gifEl.style.display = 'none';
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
@@ -8213,7 +8230,7 @@
       bubbleScene = scene;
       whaleSysItem = scene.systemItem;
       bubbleShown = true;
-      costBubbleActive = kind === 'cost';
+      costBubbleActive = kind === 'cost' || kind === 'subscription-cost';
       bubbleRandomActive = kind === 'random';
       function settled(committed) {
         if (entry !== bubbleSceneEpoch || bubbleScene !== scene) return;
@@ -8226,7 +8243,7 @@
           bubbleScene = restore;
           bubbleShown = !!restore;
           whaleSysItem = restore && restore.systemItem || null;
-          costBubbleActive = !!restore && restore.kind === 'cost';
+          costBubbleActive = !!restore && (restore.kind === 'cost' || restore.kind === 'subscription-cost');
           bubbleRandomActive = !!restore && restore.kind === 'random';
           if (!restore) bubbleCloseVisual();
         } else {
@@ -8277,7 +8294,7 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden) armBubbleDeadline(); });
     function bubbleAutoClose() {
       bubbleTtlTimer = null;
-      if (bubbleScene && bubbleScene.kind === 'cost') {
+      if (costBubbleActive) {
         if (whaleSysSwapNext()) return;
         hideCostBubble();
         return;
@@ -8305,8 +8322,27 @@
     function bubbleRenderRandom(lines) {
       applyBubbleLines(lines);
     }
+    function bubbleRenderSubscription(summary) {
+      summary = summary || ({ label: 'Codex 剩余额度', amount: '正在读取…', hint: '点击气泡查看小鲸鱼留言' });
+      applyBubbleLines([
+        { t: summary.label || 'Codex 剩余额度', s: 'A' },
+        { t: summary.amount || '暂无可用额度快照', s: 'B', w: true },
+        { t: summary.hint || '', s: 'C' }
+      ]);
+      var isQuota = summary.amount && summary.amount.indexOf('5h 额度') === 0;
+      labelEl.style.fontSize = 'calc(var(--dshw-u) * 58)';
+      labelEl.style.lineHeight = '1.1';
+      amountEl.style.fontSize = isQuota ? 'calc(var(--dshw-u) * 88)' : 'calc(var(--dshw-u) * 72)';
+      amountEl.style.lineHeight = '1.1';
+      amountEl.style.whiteSpace = isQuota ? 'nowrap' : 'normal';
+      hintEl.style.fontSize = 'calc(var(--dshw-u) * 62)';
+      hintEl.style.lineHeight = '1.1';
+      hintEl.style.whiteSpace = 'nowrap';
+      hintEl.style.minHeight = '0';
+    }
     function bubbleRenderCost(amount, notice) {
       notice = notice || WhaleTurnNotice.snapshot({ amount: amount }, state.currency);
+      resetBubbleLineStyles();
       labelEl.style.display = '';
       labelEl.className = 'dshwv-label';
       var completionLabel = notice.completionKind === 'failed' ? '失败' : notice.completionKind === 'cancelled' ? '取消' : '完成';
@@ -8389,6 +8425,39 @@
       } else {
         sceneOpen('normal', bubbleRenderDefault, BUBBLE_MS);
       }
+    }
+    function bubbleItemUsesApi(item) {
+      if (!item || item.kind === 'normal') return true;
+      if (item.kind !== 'custom' || !Array.isArray(item.modules)) return false;
+      return item.modules.some(function (mod) {
+        if (!mod) return false;
+        if (mod.type === 'balance' || mod.type === 'today') return true;
+        var text = String(mod.text || '') + ' ' + String(mod.tpl || '');
+        return /当前\s*API\s*余额|\{(?:balance|expense)_api\}/i.test(text);
+      });
+    }
+    function bubblePickSubscriptionStep(step) {
+      if (!bubbleIsChoice(step)) return step;
+      var options = bubbleChoiceOptions(step).filter(function (option) {
+        return option && !bubbleItemUsesApi(option.item);
+      });
+      return options.length ? bubblePickChoiceStep({ kind: 'choice', options: options }) : null;
+    }
+    function bubbleShowSubscriptionNext() {
+      while (bubbleSeqIdx < bubbleSeq.length) {
+        var step = bubbleSeq[bubbleSeqIdx++];
+        var item = bubblePickSubscriptionStep(step);
+        if (!item || bubbleItemUsesApi(item)) continue;
+        if (item.kind === 'random') {
+          var lines = pickRandomLines();
+          bubbleRandomLines = lines;
+          sceneOpen('random', function () { bubbleRenderRandom(lines); }, BUBBLE_MS);
+        } else if (item.kind === 'custom') {
+          sceneOpen('custom', function () { bubbleRenderModules(item.modules || []); }, BUBBLE_MS);
+        }
+        return;
+      }
+      hideBubble();
     }
     function bubbleModuleFontU(level) {
       var n = Number(level) || 6;
@@ -8828,8 +8897,14 @@
     function whaleClick() {
       try {
         if (!bubbleOn) return;
-        if (window.WhaleAccountView?.mode === 'subscription') { window.WhaleAccountView.toggleBubble(root); return; }
-        if (bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert')) return;
+        if (window.WhaleAccountView?.mode === 'subscription') {
+          if (costBubbleActive || bubbleScene && bubbleScene.kind === 'alert') return;
+          if (!bubbleShown) showSubscriptionBubble();
+          else if (bubbleRoundOn && bubbleSeqIdx > 1) { bubbleSeqIdx = 0; bubbleShowSubscriptionNext(); }
+          else bubbleResetTtl();
+          return;
+        }
+        if (costBubbleActive || bubbleScene && bubbleScene.kind === 'alert') return;
         if (!bubbleShown) {
           bubbleRoundOn = true;
           bubbleSeqIdx = 0;
@@ -8848,7 +8923,7 @@
     function bubbleNext() {
       try {
         if (!bubbleShown) return;
-        if (bubbleScene && bubbleScene.kind === 'cost') {
+        if (costBubbleActive) {
           hideCostBubble();
           return;
         }
@@ -8857,19 +8932,31 @@
           return;
         }
         if (bubbleRoundOn && bubbleSeqIdx < bubbleSeq.length) {
-          bubbleShowSeqNext();
+          if (window.WhaleAccountView?.mode === 'subscription') bubbleShowSubscriptionNext();
+          else bubbleShowSeqNext();
           return;
         }
         hideBubble();
       } catch (err) {}
     }
     function showBubble() {
-      if (window.WhaleAccountView?.mode === 'subscription') return;
+      if (window.WhaleAccountView?.mode === 'subscription') { showSubscriptionBubble(); return; }
       if (!bubbleOn) return;
       if (costBubbleActive) return;
       bubbleRoundOn = true;
       bubbleSeqIdx = 0;
       bubbleShowSeqNext();
+    }
+    function showSubscriptionBubble() {
+      if (!bubbleOn || !window.WhaleAccountView) return;
+      bubbleRoundOn = true;
+      bubbleSeqIdx = 0;
+      sceneOpen('subscription', function () { bubbleRenderSubscription(); }, BUBBLE_MS);
+      var requestEpoch = bubbleSceneEpoch;
+      Promise.resolve(window.WhaleAccountView.refresh()).then(function (summary) {
+        if (!summary || requestEpoch !== bubbleSceneEpoch || !bubbleScene || bubbleScene.kind !== 'subscription') return;
+        sceneOpen('subscription', function () { bubbleRenderSubscription(summary); }, BUBBLE_MS);
+      }).catch(function () {});
     }
     function hideBubble() {
       for (var pendingItem of [whaleSysItem].concat(whaleSysQueue || [])) { if (pendingItem && typeof pendingItem.onDiscard === 'function') pendingItem.onDiscard(); }
@@ -8897,6 +8984,12 @@
         notice: notice,
         rank: 3
       });
+    }
+    function showSubscriptionCostBubble(notice) {
+      if (!bubbleOn || !turnCostOn || !window.WhaleAccountView) return;
+      var summary = window.WhaleAccountView.notice(notice);
+      if (!summary) return;
+      whaleSysPush({ kind: 'subscription-cost', summary: summary, rank: 3 });
     }
     function hideCostBubble() {
       if (whaleSysItem && typeof whaleSysItem.onDiscard === 'function') whaleSysItem.onDiscard();
@@ -8953,7 +9046,7 @@
         // the queue after a failed, replaced or closed asynchronous render.
         whaleSysItem = bubbleScene && bubbleScene.systemItem || null;
         if (bubbleScene && (bubbleScene.pending || bubbleShown &&
-            (bubbleScene.kind === 'cost' || bubbleScene.kind === 'alert'))) return;
+            (bubbleScene.kind === 'cost' || bubbleScene.kind === 'subscription-cost' || bubbleScene.kind === 'alert'))) return;
         while (whaleSysQueue.length) {
           var item = whaleSysQueue.shift();
           if (item && whaleSysOpenItem(item)) return;
@@ -8968,6 +9061,10 @@
       if (item.kind === 'cost') {
         sceneOpen('cost', function () {
           bubbleRenderCost(item.amount, item.notice);
+        }, turnCostCloseMs > 0 ? turnCostCloseMs : 0, item);
+      } else if (item.kind === 'subscription-cost') {
+        sceneOpen('subscription-cost', function () {
+          bubbleRenderSubscription(item.summary);
         }, turnCostCloseMs > 0 ? turnCostCloseMs : 0, item);
       } else {
         sceneOpen('alert', function () {
@@ -9225,6 +9322,7 @@
     var scrollGapOn = false;
     var scrollGapPx = 17;
     var menuBtnHide = false;
+    var outsideDismissOn = false;
     function configSnapshot() {
       return {
             scale: state.scale,
@@ -9237,7 +9335,8 @@
             turnCostCloseMs: turnCostCloseMs,
             scrollGapOn: scrollGapOn,
             scrollGapPx: scrollGapPx,
-            menuBtnHide: menuBtnHide
+            menuBtnHide: menuBtnHide,
+            outsideDismissOn: outsideDismissOn
       };
     }
     // Partial writes prevent defaults and delayed startup reads from erasing unrelated preferences.
@@ -9359,6 +9458,16 @@
       saveConfig();
       applyMenuBtnHideUI();
     }
+    function applyOutsideDismissUI() {
+      if (outsideDismissToggle) outsideDismissToggle.checked = outsideDismissOn;
+      document.body.dataset.whaleOutsideDismiss = outsideDismissOn ? 'true' : 'false';
+    }
+    function setOutsideDismissOn(v) {
+      outsideDismissOn = !!v;
+      applyOutsideDismissUI();
+      saveConfig();
+    }
+    applyOutsideDismissUI();
     function scaleToDisplay(s) {
       return Math.round((s - MIN_SCALE) / ((MAX_SCALE - MIN_SCALE) / 19)) + 1;
     }
@@ -9417,7 +9526,7 @@
       try {
         if (pressAudio) { pressAudio.pause(); pressAudio.removeAttribute('src'); pressAudio.load(); }
         if (releaseAudio) { releaseAudio.pause(); releaseAudio.removeAttribute('src'); releaseAudio.load(); }
-        if (window.WhaleAudio) { window.WhaleAudio.stop('gesture'); ['press', 'release'].forEach(function (slot) { if (!audioGroupSlotEmpty(soundSet, slot)) window.WhaleAudio.warm('/dsh-whale/sound/' + slot + '.mp3?set=' + encodeURIComponent(soundSet)).catch(function () {}); }); pressAudio = null; releaseAudio = null; return; }
+        if (window.WhaleAudio) { if (window.WhaleFeedback?.cancelGesture) window.WhaleFeedback.cancelGesture(); else window.WhaleAudio.stop('gesture'); ['press', 'release'].forEach(function (slot) { if (!audioGroupSlotEmpty(soundSet, slot)) window.WhaleAudio.warm('/dsh-whale/sound/' + slot + '.mp3?set=' + encodeURIComponent(soundSet)).catch(function () {}); }); pressAudio = null; releaseAudio = null; return; }
         var pEmpty = audioGroupSlotEmpty(soundSet, 'press');
         var rEmpty = audioGroupSlotEmpty(soundSet, 'release');
         if (pEmpty) {
@@ -11224,7 +11333,7 @@
         if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu-btn')) return;
         if (e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
         if (e.target.closest('.dshwv-rolebtn') || e.target.closest('.dshwv-audiobtn') || e.target.closest('.dshwv-roleimport') || e.target.closest('.dshwv-audioimport')) return;
-        if (e.target.closest('.dshwv-menu,.whale-account-card')) {
+        if (e.target.closest('.dshwv-menu')) {
           closeRolePanel();
           closeAudioGroupPanel();
           return;
@@ -11235,7 +11344,15 @@
         return;
       }
       if (e.button !== 0 && e.pointerType === 'mouse') return;
-      if (!isWhaleHit(e)) return;
+      if (!isWhaleHit(e)) {
+        if (!outsideDismissOn) return;
+        if (bubbleShown) {
+          if (costBubbleActive) hideCostBubble();
+          else if (bubbleScene && bubbleScene.kind === 'alert') hideUsageAlertBubble();
+          else hideBubble();
+        }
+        return;
+      }
       try {
         e.preventDefault();
         e.stopPropagation();
@@ -11292,7 +11409,7 @@
     function onDocClickStopper(e) {
       if (e.target && e.target.closest) {
         if (e.target.closest('.dshwv-fx-info')) return;
-        if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu,.whale-account-card') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
+        if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
       }
       if (!isWhaleHit(e)) return;
       try {
@@ -11304,7 +11421,7 @@
       try {
         if (!menuBtnHide) return;
         if (e.target && e.target.closest) {
-          if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu,.whale-account-card') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
+          if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') || e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return;
         }
         if (!isWhaleHit(e)) return;
         e.preventDefault();
@@ -11405,7 +11522,10 @@
       // Restore the saved intent instead of interpreting zero/missing points.
       if (preserveIntent || !clickAllowed || !validEnd || !drag.moved) {
         applyAnchorPos(); settle();
-        if (clickAllowed && validEnd && !drag.moved) { whaleClick(); refresh(true); }
+        if (clickAllowed && validEnd && !drag.moved) {
+          whaleClick();
+          if (window.WhaleAccountView?.mode !== 'subscription') refresh(true);
+        }
         return;
       }
       var dx = e.clientX - drag.startX;
@@ -11517,7 +11637,7 @@
         refresh: refresh, usage: refreshUsageMain, next: bubbleNext, close: hideBubble,
         poll: pollLastTurn, importRole: onRoleFileChosen, importBubble: bubbleUploadImg,
         openHistory: openUsageRecordsWindow,
-        showCost: showCostBubble,
+        showCost: showCostBubble, showSubscriptionCost: showSubscriptionCostBubble,
         open: whaleClick,
         queue: function (items) { hideBubble(); bubbleSeq = items; },
         place: function (x, y, flip) { state.left = x; state.top = y; state.flip = !!flip; express(); },
@@ -11587,6 +11707,10 @@
         if (menuHideToggle) menuHideToggle.checked = menuBtnHide;
         applyMenuBtnHideUI();
       }
+      if (d && typeof d.outsideDismissOn === 'boolean') {
+        outsideDismissOn = d.outsideDismissOn;
+      }
+      applyOutsideDismissUI();
       applyAnchorPos(); settle();
       void positioner.getBoundingClientRect();
       requestAnimationFrame(function () { positioner.style.transition = ''; });
@@ -11654,7 +11778,7 @@
           window.dispatchEvent(new CustomEvent('whale-turn-notice', {detail:notice}));
           if (notice.completionKind === 'success') playTaskEndSound();
           else if ((notice.completionKind === 'cancelled' || notice.failureKind === 'high-demand') && usageSet && usageSet.taskEnd && usageSet.taskEnd.on && soundOn && typeof window !== 'undefined' && window.WhaleFeedback) window.WhaleFeedback.play(notice.completionKind, '', soundVol);
-          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { if(turnCostOn)window.WhaleAccountView.notice(notice); return; }
+          if (typeof window !== 'undefined' && window.WhaleAccountView?.mode === 'subscription') { showSubscriptionCostBubble(notice); return; }
           showCostBubble(notice.amount, notice);
         }).catch(function () {}).finally(function () { lastCostPending = false; });
       } catch (err) { lastCostPending = false; }

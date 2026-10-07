@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('whaleDesktop', {
   ready: () => ipcRenderer.send('whale-ready'),
   keyboardFocus: value => ipcRenderer.send('whale-keyboard-focus', !!value),
   interactive: value => ipcRenderer.send('whale-interactive', !!value),
+  presentFor: ms => ipcRenderer.send('whale-present-for', Number.isFinite(ms) ? ms : 0),
   shape: rects => ipcRenderer.send('whale-shape', rects),
   onCursor: callback => ipcRenderer.on('whale-cursor', (_event, point) => callback(point)),
   save: values => ipcRenderer.send('whale-save-storage', values),

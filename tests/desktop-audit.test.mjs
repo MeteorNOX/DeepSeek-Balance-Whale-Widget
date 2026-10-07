@@ -142,6 +142,58 @@ test('an earlier accepted press retains native input after the squish makes its 
   assert.equal(box.heldPointer, null); assert.deepEqual(enabled, [true, false], 'an unaccepted transparent-area press still passes through');
 });
 
+test('macOS only keeps the transparent window interactive for opted-in outside dismissal', async () => {
+  const source = await fs.readFile(new URL('../desktop/ui/input.js', import.meta.url), 'utf8');
+  const start = source.indexOf('  const dismissSurfaces =');
+  const end = source.indexOf('  function updateKeyboardFocus()', start);
+  const run = (platform, openSelector, enabled) => {
+    const calls = [];
+    const flyout = { isConnected: true, hidden: false, checkVisibility: () => true };
+    const box = {
+      heldPointer: null, externalDrag: false, point: { x: 40, y: 40 }, interactive: false,
+      surfaces: '.ordinary-surface', pet: { checkVisibility: () => false }, root: {},
+      rendering: { hitCache: { hit: () => false }, mirrorScale: () => 1 },
+      document: {
+        body: { dataset: { whaleOutsideDismiss: enabled ? 'true' : 'false' } },
+        querySelectorAll: selector => selector.includes(openSelector) ? [flyout] : [],
+        elementFromPoint: () => null,
+      },
+      bridge: { platform, interactive: value => calls.push(value) },
+    };
+    vm.createContext(box); vm.runInContext(source.slice(start, end), box); vm.runInContext('update()', box);
+    return calls;
+  };
+  for (const selector of ['.dshwv-menu-open', '.dshwv-pop-open']) {
+    assert.deepEqual(run('darwin', selector, true), [true], selector + ' must receive a blank click when enabled on macOS');
+    assert.deepEqual(run('darwin', selector, false), [], selector + ' must stay click-through when disabled on macOS');
+    assert.deepEqual(run('win32', selector, true), [], 'Windows keeps native region-based click-through behavior');
+  }
+});
+
+test('an opted-in blank pointer press closes the popup opened from the character body', async () => {
+  const source = await fs.readFile(new URL('../assets/whale-widget.js', import.meta.url), 'utf8');
+  const start = source.indexOf('    function onDocPointerDown(e)');
+  const end = source.indexOf('    function onDocPointerMove(e)', start);
+  const run = ({ scene = null, enabled = true } = {}) => {
+    const calls = [];
+    const box = {
+      menuOpen: false, bubbleShown: true, bubbleScene: scene, costBubbleActive: scene?.kind === 'cost' || scene?.kind === 'subscription-cost', outsideDismissOn: enabled,
+      document: { querySelector: () => null }, window: {},
+      closeMenu: () => calls.push('menu'), isWhaleHit: () => false,
+      hideBubble: () => calls.push('bubble'), hideCostBubble: () => calls.push('cost'),
+      hideUsageAlertBubble: () => calls.push('alert'),
+    };
+    vm.createContext(box); vm.runInContext(source.slice(start, end), box);
+    vm.runInContext("onDocPointerDown({target:{closest:()=>null},button:0,pointerType:'mouse'})", box);
+    return calls;
+  };
+  assert.deepEqual(run(), ['bubble']);
+  assert.deepEqual(run({ scene: { kind: 'cost' } }), ['cost']);
+  assert.deepEqual(run({ scene: { kind: 'subscription-cost' } }), ['cost']);
+  assert.deepEqual(run({ scene: { kind: 'alert' } }), ['alert']);
+  assert.deepEqual(run({ enabled: false }), []);
+});
+
 test('failed task registration leaves a running installation untouched and cannot print success', { skip: process.platform !== 'win32' }, async t => {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-中文 空格-'));
   t.after(async () => {

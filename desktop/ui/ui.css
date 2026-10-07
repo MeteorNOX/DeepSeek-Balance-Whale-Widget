@@ -18,7 +18,7 @@
 
 .whale-v3-dialog>label{white-space:nowrap;align-items:center}.whale-v3-dialog>label>select{width:auto;min-width:0;flex:1}.whale-v3-dialog button:disabled{opacity:.45;cursor:not-allowed}
 /* Only editable fields accept text selection; dragging the companion never selects labels. */
-.dshwv-menu,.dshwv-menu *,.whale-account-card,.whale-account-card *{user-select:none;-webkit-user-select:none}
+.dshwv-menu,.dshwv-menu *{user-select:none;-webkit-user-select:none}
 .dshwv-menu input:not([type=range]):not([type=checkbox]),.dshwv-menu textarea,.whale-v3-dialog input:not([type=range]),.whale-v3-dialog textarea{user-select:text;-webkit-user-select:text}
 html[data-whale-cursor=grab]{cursor:grab}html[data-whale-cursor=grabbing],html[data-whale-cursor=grabbing] *{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
 .whale-v3-dialog .dialog-actions{position:sticky;bottom:-20px;background:white;padding:12px 0;margin-top:12px;z-index:2}

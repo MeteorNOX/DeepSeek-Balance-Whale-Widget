@@ -39,7 +39,12 @@ fs.writeFileSync(path.join(dataDir, 'whale-roles', 'role_audit_apng.png'), Buffe
   chunk('IDAT', zlib.deflateSync(Buffer.from([0, 40, 80, 220, 255, 0, 0, 0, 0]))), chunk('fcTL', frame(1)),
   chunk('fdAT', Buffer.concat([second, zlib.deflateSync(Buffer.from([0, 0, 0, 0, 0, 40, 80, 220, 255]))])), chunk('IEND', Buffer.alloc(0)),
 ]));
-const executable = path.join(DATA_HOME, 'desktop-runtime/node_modules/electron/dist/electron.exe');
+const electronDist = path.join(DATA_HOME, 'desktop-runtime/node_modules/electron/dist');
+const executable = process.platform === 'darwin'
+  ? path.join(electronDist, 'Electron.app/Contents/MacOS/Electron')
+  : process.platform === 'linux'
+    ? path.join(electronDist, 'electron')
+    : path.join(electronDist, 'electron.exe');
 const env = { ...process.env, WHALE_DESKTOP_TEST: '1', WHALE_DESKTOP_AUDIT: '1', WHALE_DESKTOP_VERIFY_DIR: output };
 delete env.ELECTRON_RUN_AS_NODE;
 const child = spawn(executable, [path.join(ROOT, 'desktop/main.cjs'), '--whale-data=' + dataDir], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: process.env.WHALE_SURFACE_AUDIT !== '1' });
