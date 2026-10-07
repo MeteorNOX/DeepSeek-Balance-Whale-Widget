@@ -9,8 +9,8 @@ const notices = box.module.exports;
 const record = extra => ({ ok: true, seq: 8, id: 'root-1:turn-2', turn: 'turn-2', ts: 1000, notificationAt: 4000,
   outcome: 'completed', amount: 0.123456, currency: 'USD', tokens: 1200, costState: 'observed', ...extra });
 
-test('only high demand is a fresh failure notice; old generic outcomes remain silent', () => {
-  assert.equal(notices.shouldNotify(record({ outcome:'failed' }), { firstPoll: true, startedAt: 3000 }), false);
+test('fresh ordinary failures and cancellations show consumption while old outcomes remain silent', () => {
+  assert.equal(notices.shouldNotify(record({ outcome:'failed' }), { firstPoll: true, startedAt: 3000 }), true);
   assert.equal(notices.shouldNotify(record({ outcome:'aborted' }), { firstPoll: true, startedAt: 3000 }), true);
   assert.equal(notices.shouldNotify(record({ outcome: 'failed', failureKind: 'high-demand' }), { firstPoll: true, startedAt: 3000 }), true);
   assert.equal(notices.shouldNotify(record({ notificationAt: 2000 }), { firstPoll: true, startedAt: 3000 }), false);
@@ -43,15 +43,23 @@ test('unknown charges never become a zero-price success and known zero estimates
   assert.equal(notices.snapshot(record({ amount: null, costState: 'unknown' })).costState, 'unknown');
 });
 
-test('legacy switches cannot reenable generic outcomes or suppress the high-demand exception', () => {
+test('ordinary failure consumption follows the main switch while high-demand keeps its exception', () => {
   const failed = notices.snapshot(record({ outcome: 'failed' }));
   const cancelled = notices.snapshot(record({ outcome: 'aborted' }));
   const success = notices.snapshot(record({}));
   assert.equal(notices.enabled(failed, { failed: true }, false), false);
   assert.equal(notices.enabled(cancelled, { failed: false, cancelled: true }, false), false);
   assert.equal(notices.enabled(cancelled, {}, true), true);
-  assert.equal(cancelled.label,'本轮已观测消耗:');assert.equal(cancelled.failureKind,null);
+  assert.equal(cancelled.label,'本轮消耗:');assert.equal(cancelled.failureKind,null);
   assert.equal(notices.enabled(notices.snapshot(record({ outcome: 'failed', failureKind: 'high-demand' })), { failed: false }, false), true);
-  assert.equal(notices.enabled(failed, { failed: false }, true), false);
+  assert.equal(notices.enabled(failed, { failed: false }, true), true);
+  assert.equal(failed.label,'本轮消耗:');assert.equal(failed.failureKind,null);
   assert.equal(notices.enabled(success, { failed: true, cancelled: true }, false), false);
+});
+
+
+test('legacy interval notices cannot present another turn spending as this turn', () => {
+  const value = notices.snapshot(record({ source: 'shared-key-interval', outcome: 'failed', amount: 0.25, costState: 'observed' }));
+  assert.equal(value.amount, null); assert.equal(value.costState, 'unknown');
+  assert.equal(value.label, '本轮用量已记录'); assert.equal(value.accountIntervalAmount, 0.25);
 });

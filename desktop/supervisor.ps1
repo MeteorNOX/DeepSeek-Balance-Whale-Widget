@@ -1,4 +1,4 @@
-param([string]$DataDir, [switch]$Probe, [switch]$Stop, [switch]$Hit, [int]$X, [int]$Y)
+﻿param([string]$DataDir, [switch]$Probe, [switch]$Stop, [switch]$Hit, [int]$X, [int]$Y)
 $ErrorActionPreference = 'Stop'
 if (!$DataDir) { $whaleCodex = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }; $DataDir = if ($env:WHALE_HOME) { $env:WHALE_HOME } else { Join-Path $whaleCodex 'whale-widget' } }
 $DataDir = [IO.Path]::GetFullPath($DataDir)
@@ -10,6 +10,8 @@ if ($Stop) { try { $whaleSignal = [Threading.EventWaitHandle]::OpenExisting($wha
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'WindowApi.cs') -Raw)
 if ($Probe) { [WhaleWindows]::Probe() | ConvertTo-Json -Depth 5 -Compress; return }
 if ($Hit) { [WhaleWindows]::Hit($X, $Y) | ConvertTo-Json -Compress; return }
+Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'WindowDiagnostics.cs') -Raw)
+Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'WindowStacking.cs') -Raw)
 [WhaleWindows]::DetachConsole()
 $whaleFresh = $false
 $whaleMutex = [Threading.Mutex]::new($true, ('Local\CodexWhaleWatch-' + $whaleHash), [ref]$whaleFresh)
@@ -43,6 +45,7 @@ function Send-WhaleHost($State) {
     finally { if ($whaleWriter) { $whaleWriter.Dispose() }; if ($whaleReader) { $whaleReader.Dispose() }; if ($whalePipeClient) { $whalePipeClient.Dispose() } }
 }
 $whaleFatal = $false
+$whaleStackAttempts = 0; $whaleStackRepairs = 0; $whaleLastStackAttempt = [DateTime]::MinValue
 try {
     while (!$whaleStop.WaitOne(100)) {
         $whaleNow = [DateTime]::UtcNow
@@ -92,6 +95,16 @@ try {
             $whaleMessage = if ($whaleState.nativeFollowing) { @($whaleState.mode,$whaleState.mouseButtons,$whaleState.hostAlive,$whaleState.hostPid,$whaleState.window,$whaleState.visible,$whaleState.modal,$whaleState.widgetVisible,$whaleState.visibilityRevision,$whaleState.attached,$whaleState.dpi,$whaleState.bounds.width,$whaleState.bounds.height,'native') -join '|' } else { $whaleState | ConvertTo-Json -Depth 5 -Compress }
             if ($whaleMessage -ne $whaleLastMessage -or ($whaleNow - $whaleHeartbeat).TotalSeconds -ge 1) {
                 try {
+                    $whaleState['visualDiagnostics'] = [WhaleWindowDiagnostics]::Snapshot([long]$whaleOverlay, [long]$whaleState.window)
+                    # Capture evidence first. Correct only a verified owned
+                    # window below its foreground host, with bounded retries.
+                    if ($whaleState.visualDiagnostics.aboveHost) { $whaleStackAttempts = 0 }
+                    if (!$whaleStandalone -and $whaleState.visualDiagnostics.orderKnown -and !$whaleState.visualDiagnostics.aboveHost -and $whaleStackAttempts -lt 3 -and ($whaleNow - $whaleLastStackAttempt).TotalSeconds -ge 2) {
+                        if ([WhaleWindowStacking]::Repair([long]$whaleOverlay,$whaleChild.Id,[long]$whaleState.window,[int]$whaleState.hostPid)) {
+                            $whaleStackAttempts++; $whaleStackRepairs++; $whaleLastStackAttempt=$whaleNow
+                        }
+                    }
+                    $whaleState['stackRepairRequests'] = $whaleStackRepairs
                     $whaleSequence++; $whaleState['serial'] = $whaleSequence
                     if (Send-WhaleHost $whaleState) {
                         @{ childPid=$whaleChild.Id; state=$whaleState; native=[WhaleWindows]::FollowMetrics(); at=$whaleNow.ToString('o') } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $DataDir 'follow-state.json') -Encoding utf8

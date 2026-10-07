@@ -26,7 +26,7 @@ test('retry diagnostics, cancellations, other turns, success and history cannot 
   p.accept(event('task_started', 'three'));
   p.accept(event('error', 'three', { message: busy, will_retry: true }));
   p.accept(event('task_complete', 'three', { error: 'network failed' }));
-  assert.equal(ends[2].statusNotify, false);
+  assert.equal(ends[2].statusNotify, true); assert.equal(ends[2].failureKind, null);
   p.prime([event('task_started', 'history'), event('task_complete', 'history', { error: busy })]);
   assert.equal(ends.length, 3);
 });

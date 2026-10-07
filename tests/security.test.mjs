@@ -34,6 +34,25 @@ function host(t, injectedFs = fs, root = fixture(t)) {
     return { status, headers, payload, bytes: Buffer.isBuffer(result) ? result : Buffer.from(result || '') };
   } };
 }
+
+test('settings missing, unreadable and malformed are distinct and failed reads never overwrite data', async t => {
+  const root = fixture(t), file = path.join(root, '.dshw-size.json');
+  const h = host(t, fs, root);
+  const missing = await h.request('/dsh-whale/size.json');
+  assert.equal(missing.status, 200); assert.equal(missing.payload.configured, false);
+  fs.writeFileSync(file, '{broken');
+  const corrupt = await h.request('/dsh-whale/size.json');
+  assert.equal(corrupt.status, 500); assert.equal(corrupt.payload.ok, false); assert.match(corrupt.payload.error, /损坏/);
+  const failedSave = await h.request('/dsh-whale/size.json', 'PUT', {vol:0.3});
+  assert.equal(failedSave.payload.ok, false); assert.equal(fs.readFileSync(file,'utf8'), '{broken');
+  fs.writeFileSync(file, '\uFEFF' + JSON.stringify({scale:1.8,vol:0.7,sound:false}));
+  const deniedFs = Object.create(fs); deniedFs.readFileSync = (p,...args) => {if(p===file)throw fail('synthetic permissions','EACCES');return fs.readFileSync(p,...args);};
+  const denied = await host(t, deniedFs, root).request('/dsh-whale/size.json');
+  assert.equal(denied.status, 500); assert.match(denied.payload.error, /不可读/);
+  assert.equal(denied.payload.error.includes('synthetic permissions'),false,'do not expose raw paths or error details');
+  const recovered = await h.request('/dsh-whale/size.json');
+  assert.equal(recovered.payload.configured,true);assert.equal(recovered.payload.scale,1.8);assert.equal(recovered.payload.sound,false);
+});
 function crc(bytes) { let c = 0xffffffff; for (const n of bytes) { c ^= n; for (let i = 0; i < 8; i++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; } return (c ^ 0xffffffff) >>> 0; }
 function chunk(kind, content) { const b = Buffer.alloc(content.length + 12); b.writeUInt32BE(content.length); b.write(kind, 4); content.copy(b, 8); b.writeUInt32BE(crc(b.subarray(4, b.length - 4)), b.length - 4); return b; }
 function png(width = 1, height = 1, frames = 0) {

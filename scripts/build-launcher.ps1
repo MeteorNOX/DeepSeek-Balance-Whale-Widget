@@ -1,4 +1,4 @@
-param([string]$DataDir)
+﻿param([string]$DataDir)
 $ErrorActionPreference = 'Stop'
 function Get-WhaleDigest([string]$Path) {
     $whaleStream = [IO.File]::OpenRead($Path)

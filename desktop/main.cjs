@@ -9,6 +9,7 @@ const { createHeartbeatMonitor } = require('./heartbeat.cjs');
 const { acceptsWindowMessage } = require('./ipc-window.cjs');
 const { validateWindowShape, EMPTY_SHAPE } = require('./window-shape.cjs');
 const { createVisibilityController } = require('./visibility.cjs');
+const { createVisibilityRecorder } = require('./visibility-recorder.cjs');
 const { pathToFileURL } = require('node:url');
 const root = path.resolve(__dirname, '..');
 const dataDir = process.argv.find(a => a.startsWith('--whale-data='))?.slice(13);
@@ -26,6 +27,15 @@ const toDipRect = rect => isMac ? rect : screen.screenToDipRect(null, rect);
 // visible while their GPU surface stops presenting. Use the software path for
 // this small companion only; no settings or switches are applied to Codex.
 const softwareRendering = process.platform === 'win32' && process.env.WHALE_RENDER_MODE !== 'hardware';
+// The owned, region-clipped surface can be considered occluded by Chromium
+// independently of IsWindowVisible and the software/GPU rendering choice.
+// Disable that optimization only in this Windows companion, before app ready.
+const nativeOcclusionDisabled = process.platform === 'win32';
+if (nativeOcclusionDisabled) {
+  const disabled = app.commandLine.getSwitchValue('disable-features').split(',').filter(Boolean);
+  app.commandLine.appendSwitch('disable-features', [...new Set([...disabled, 'CalculateNativeWinOcclusion'])].join(','));
+  app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+}
 if (softwareRendering) app.disableHardwareAcceleration();
 else if (process.platform !== 'win32') app.commandLine.appendSwitch('enable-gpu-rasterization');
 if (!dataDir || !path.isAbsolute(dataDir) || (!fixture && !process.argv.includes('--supervised'))) app.exit(1);
@@ -45,6 +55,22 @@ let desktopMode = read(path.join(dataDir, 'follow-config.json')).mode === 'stand
 let desktopBoundsApplied = false, modePending = false;
 let recoveryAttempts = 0, recoveryTimer = null, readyTimer = null;
 const visibilityHistory = [];
+let diagnosticShortcutRegistered = false, lastDiagnosticReport = null;
+const visibilityRecorder = createVisibilityRecorder({
+  read: () => {
+    if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return null;
+    return { ready: rendererReady, visible: window.isVisible(), manuallyHidden, desktopMode,
+      hostAlive: !!lastHost?.hostAlive, hostVisible: !!lastHost?.visible, modal: !!lastHost?.modal,
+      native: lastHost?.visualDiagnostics || null, bounds: window.getBounds(),
+      shape: windowShape, shapeError: !!windowShapeError, inputEnabled,
+      visibility: visibilityController.snapshot(), recoveryAttempts, presents, nativeOcclusionDisabled };
+  },
+  write: (name, value) => save(path.join(dataDir, name), value),
+});
+function reportVisibility() {
+  try { lastDiagnosticReport = visibilityRecorder.report(); return lastDiagnosticReport; }
+  catch { return { saved: false }; }
+}
 const uiStore = new UiStateStore(stateFile);
 const values = () => uiStore.get();
 const storeValues = input => uiStore.set(input);
@@ -53,7 +79,7 @@ let macPresentTimer = null, macPresentUntil = 0;
 const pendingCommands = [];
 let trustedGestureAt = 0;
 app.on('gpu-info-update', () => {
-  gpuStatus = { requestedMode: softwareRendering ? 'software' : 'hardware-auto', hardwareAcceleration: app.isHardwareAccelerationEnabled(), features: app.getGPUFeatureStatus(), electron: process.versions.electron, chromium: process.versions.chrome };
+  gpuStatus = { requestedMode: softwareRendering ? 'software' : 'hardware-auto', nativeOcclusionDisabled, hardwareAcceleration: app.isHardwareAccelerationEnabled(), features: app.getGPUFeatureStatus(), electron: process.versions.electron, chromium: process.versions.chrome };
   fs.promises.writeFile(path.join(dataDir, 'render-status.json'), JSON.stringify(gpuStatus, null, 2)).catch(() => {});
 });
 function invalidate() { if (window && !window.isDestroyed()) { presents++; window.webContents.invalidate(); } }
@@ -177,6 +203,8 @@ async function setHost(host) {
   if (!host || typeof host.hostAlive !== 'boolean') return;
   if (Number.isSafeInteger(host.serial)) { if (host.serial <= hostSequence) return; hostSequence = host.serial; }
   hostHeartbeat = Date.now(); lastHost = host;
+  // Record the observed state before any lifecycle recovery can change it.
+  if (usesWindowShape) { try { visibilityRecorder.sample(); } catch {} }
   if (host.monitorExit) { app.quit(); return; }
   sendCursor();
   if (modePending) {
@@ -232,8 +260,8 @@ else {
     const { createDispatcher, UI_ORIGIN } = await import(pathToFileURL(path.join(root, 'runtime', 'dispatcher.mjs')));
     const { startBridge } = await import(pathToFileURL(path.join(root, 'runtime', 'bridge.mjs')));
     let testOptions = {};
-    if (fixture) { const { makeFixture } = await import(pathToFileURL(path.join(root, 'tests', 'desktop-fixture.mjs'))); testOptions = await makeFixture(dataDir); }
-    dispatcher = createDispatcher({ dataDir, fetchImpl: (url, options) => net.fetch(url, options), onStop: pauseAndQuit, onShow: show, statusInfo: () => ({ followCodex: desktopMode !== 'standalone', desktopMode, rendererReady, recoveryAttempts, manuallyHidden, platform: process.platform, followMode: lastHost?.followMode || null, hostPid: lastHost?.hostPid || null, visible: !!window?.isVisible(), modePending, windowShape, windowShapeError, windowBounds: window?.getBounds(), visibility: visibilityController.snapshot(), nativeFollowing: !!lastHost?.nativeFollowing, mouseRouting: { forwardedMouseMoves: !usesWindowShape, cursorPollMs: usesWindowShape ? 16 : 50 }, startup, rendering: gpuStatus }), ...testOptions });
+    if (fixture) { const { makeFixture } = await import(pathToFileURL(path.join(root, 'tests', process.env.WHALE_CONNECTIONS_UI_TEST === '1' ? 'connection-ui-fixture.mjs' : 'desktop-fixture.mjs'))); testOptions = await makeFixture(dataDir); }
+    dispatcher = createDispatcher({ dataDir, fetchImpl: (url, options) => net.fetch(url, options), onStop: pauseAndQuit, onShow: show, statusInfo: () => ({ followCodex: desktopMode !== 'standalone', desktopMode, rendererReady, recoveryAttempts, manuallyHidden, platform: process.platform, followMode: lastHost?.followMode || null, hostPid: lastHost?.hostPid || null, visible: !!window?.isVisible(), modePending, windowShape, windowShapeError, windowBounds: window?.getBounds(), visibility: visibilityController.snapshot(), nativeFollowing: !!lastHost?.nativeFollowing, mouseRouting: { forwardedMouseMoves: !usesWindowShape, cursorPollMs: usesWindowShape ? 16 : 50 }, diagnostics: { shortcutRegistered: diagnosticShortcutRegistered, lastReport: lastDiagnosticReport, native: lastHost?.visualDiagnostics || null }, startup, rendering: gpuStatus }), ...testOptions });
     markStartup('dispatcherReady');
     await importLegacyStorage();
     session.defaultSession.protocol.handle('whale', async request => {
@@ -327,13 +355,14 @@ else {
     tray = new Tray(icon); tray.setToolTip('API 余额小鲸鱼 · 跟随 Codex');
     updateTray();
     tray.on('double-click', toggle); globalShortcut.register(isMac ? 'Command+Option+W' : 'Control+Alt+W', toggle);
+    if (usesWindowShape && !fixture) diagnosticShortcutRegistered = globalShortcut.register('Control+Alt+Shift+F10', reportVisibility);
     bridge = await startBridge(dispatcher, { dataDir, onHost: setHost, onMode: setMode, onResetPosition: resetPosition });
     markStartup('bridgeReady');
     await window.loadURL(UI_ORIGIN + '/widget.html').catch(() => recoverRenderer('initial-load-failed'));
     markStartup('pageLoaded');
     if (lastHost) await setHost(lastHost);
     if (fixture) {
-      const fixtureModule = process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
+      const fixtureModule = process.env.WHALE_CONNECTIONS_UI_TEST === '1' ? 'connection-ui-fixture.mjs' : process.env.WHALE_ACCOUNT_NOTICES === '1' ? 'account-notice-fixture.mjs' : process.env.WHALE_RAPID_CLICK === '1' ? 'rapid-click-fixture.mjs' : process.env.WHALE_ISSUE_LAYOUT === '1' ? 'issue-layout-fixture.mjs' : process.env.WHALE_ROOT_FIXES === '1' ? 'root-fixes-fixture.mjs' : process.env.WHALE_POSITION_MEMORY === '1' ? 'position-memory-fixture.mjs' : process.env.WHALE_VISIBILITY_STRESS === '1' ? 'visibility-stress-fixture.mjs' : process.env.WHALE_DESKTOP_AUDIT === '1' ? 'desktop-audit-fixture.mjs' : 'desktop-fixture.mjs';
       const { verifyDesktop } = await import(pathToFileURL(path.join(root, 'tests', fixtureModule)));
       await verifyDesktop({ app, window, screen, setHost, setTestCursor, dispatcher, dataDir, errors: rendererErrors, openedLinks: fixtureOpenedLinks, renderInfo: () => ({ gpuStatus, presents, inputEnabled, keyboardFocus, windowShape, windowShapeError, visibility: visibilityController.snapshot() }) });
     }

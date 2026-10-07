@@ -2,27 +2,69 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { parentPort, workerData } from 'node:worker_threads';
+import { isDeepStrictEqual } from 'node:util';
 
 const count = v => Number.isSafeInteger(v) && v >= 0 ? v : 0;
+const ALIAS_CONFLICT = Symbol('conflicting aliases');
+function alias(value, names) {
+  const present=names.filter(name=>Object.hasOwn(value,name) && value[name] !== undefined);
+  if (!present.length) return undefined;
+  const selected=value[present[0]];
+  return present.every(name=>isDeepStrictEqual(value[name],selected)) ? selected : ALIAS_CONFLICT;
+}
 export function quotaWindows(value, at, now) {
-  if (!value || typeof value !== 'object') return [];
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Number.isFinite(at)) return [];
+  // Codex emits independent buckets in the same stream. Missing IDs are a
+  // compatibility fallback only; an explicit, different ID is never account quota.
+  const id=alias(value,['limit_id','limitId']),name=alias(value,['limit_name','limitName']);
+  if (id === ALIAS_CONFLICT || name === ALIAS_CONFLICT || name != null && typeof name !== 'string') return [];
+  const explicit = id === 'codex';
+  if (!explicit && (id != null || name != null && name !== 'Codex' && name !== 'codex')) return [];
   const result = [];
   for (const key of ['primary','secondary']) {
     const w = value[key];
-    if (!w || !Number.isFinite(w.used_percent) || w.used_percent < 0 || w.used_percent > 100) continue;
-    const mins = w.window_minutes ?? w.window_duration_mins;
+    if (!w || typeof w !== 'object' || Array.isArray(w)) continue;
+    const used=alias(w,['used_percent','usedPercent']);
+    const mins=alias(w,['window_minutes','window_duration_mins','windowDurationMins','windowMinutes']);
+    const resets=alias(w,['resets_at','resetsAt']);
+    if (!Number.isFinite(used) || used < 0 || used > 100 || resets === ALIAS_CONFLICT) continue;
     if (mins !== 300 && mins !== 10080) continue;
-    const reset = Number.isFinite(w.resets_at) ? w.resets_at * 1000 : null;
+    // Both protocol spellings carry epoch seconds; the renderer uses milliseconds.
+    const resetMs = Number.isFinite(resets) ? resets * 1000 : null;
+    const reset = Number.isFinite(resetMs) ? resetMs : null;
     result.push({ label:mins === 300 ? '5 小时' : '周', windowDurationMins:mins,
-      usedPercent:w.used_percent, remainingPercent:100-w.used_percent, resetsAt:reset,
-      stale:now-at > 15*60000 || reset === null || reset <= now, observedAt:at });
+      usedPercent:used, remainingPercent:100-used, resetsAt:reset,
+      stale:now-at > 15*60000 || reset === null || reset <= now, observedAt:at,
+      source:explicit ? 'codex' : 'legacy-unscoped' });
   }
   return result;
 }
 
+// Merge by duration, never by primary/secondary position or whole event. The
+// official account bucket outranks an ambiguous old-client snapshot. Equal-time
+// fragments fill missing reset data; conflicting values use a conservative,
+// order-independent choice (higher usage and earlier reset).
+export function mergeQuotaWindows(previous, incoming, now) {
+  const windows = new Map();
+  for (const item of [...previous, ...incoming]) {
+    const old = windows.get(item.windowDurationMins);
+    const rank = w => w.source === 'codex' ? 1 : 0;
+    if (!old || rank(item) > rank(old) || rank(item) === rank(old) && item.observedAt > old.observedAt) {
+      windows.set(item.windowDurationMins, {...item});
+    } else if (rank(item) === rank(old) && item.observedAt === old.observedAt) {
+      const usedPercent = Math.max(old.usedPercent, item.usedPercent);
+      const resets = [old.resetsAt, item.resetsAt].filter(Number.isFinite);
+      windows.set(item.windowDurationMins, {...old, usedPercent, remainingPercent:100-usedPercent,
+        resetsAt:resets.length ? Math.min(...resets) : null});
+    }
+  }
+  return [...windows.values()].sort((a,b) => a.windowDurationMins-b.windowDurationMins).map(w => ({...w,
+    stale:now-w.observedAt > 15*60000 || w.resetsAt === null || w.resetsAt <= now}));
+}
+
 // Only counters and quota snapshots survive this parser; no messages or titles do.
 export class InsightAccumulator {
-  constructor(now) { this.now=now; this.id=null; this.last=null; this.skip=0; this.created=0; this.forked=false; this.events=[]; this.quota=null; this.partial=false; }
+  constructor(now, {quotaAfterMs=0}={}) { this.now=now; this.quotaAfterMs=quotaAfterMs; this.id=null; this.last=null; this.skip=0; this.created=0; this.forked=false; this.events=[]; this.quota=null; this.partial=false; }
   accept(d) {
     if (this.skip > 0) { this.skip--; return; }
     const p=d?.payload;
@@ -35,8 +77,11 @@ export class InsightAccumulator {
     if (d.type !== 'event_msg' || p.type !== 'token_count') return;
     const at=Date.parse(d.timestamp);
     if (!Number.isFinite(at) || at > this.now+60000 || this.forked && at < this.created) return;
-    const windows=quotaWindows(p.rate_limits,at,this.now);
-    if (windows.length && (!this.quota || at > this.quota.at)) this.quota={at,windows};
+    const windows=at >= this.quotaAfterMs ? quotaWindows(alias(p,['rate_limits','rateLimits']),at,this.now) : [];
+    if (windows.length) {
+      const merged=mergeQuotaWindows(this.quota?.windows||[],windows,this.now);
+      this.quota={at:Math.max(...merged.map(w=>w.observedAt)),windows:merged};
+    }
     const raw=p.info?.total_token_usage;
     if (!raw) return;
     const keys=['input_tokens','output_tokens','cached_input_tokens','reasoning_output_tokens'];
@@ -49,7 +94,7 @@ export class InsightAccumulator {
   }
 }
 
-export function collectInsights({codexHome,now=Date.now(),maxFiles=256,maxBytes=128*1024*1024}) {
+export function collectInsights({codexHome,now=Date.now(),maxFiles=256,maxBytes=128*1024*1024,quotaAfterMs=0}) {
   const files=[]; let visited=0, complete=true, scannedBytes=0;
   const walk=(dir,depth=0)=>{
     if(depth>5 || visited>12000){complete=false;return;}
@@ -66,7 +111,7 @@ export function collectInsights({codexHome,now=Date.now(),maxFiles=256,maxBytes=
   let quota=null, scannedFiles=0; const seen=new Set();
   for(const {f} of files.slice(0,maxFiles)) {
     if(scannedBytes>=maxBytes){complete=false;break;}
-    const parser=new InsightAccumulator(now), decoder=new StringDecoder('utf8');
+    const parser=new InsightAccumulator(now,{quotaAfterMs}), decoder=new StringDecoder('utf8');
     let fd;try{fd=fs.openSync(f,'r');}catch{complete=false;continue;}
     let pending='',discard=false;const buffer=Buffer.alloc(65536);
     try{while(scannedBytes<maxBytes){const n=fs.readSync(fd,buffer,0,Math.min(buffer.length,maxBytes-scannedBytes),null);if(!n)break;scannedBytes+=n;pending+=decoder.write(buffer.subarray(0,n));
@@ -78,11 +123,16 @@ export function collectInsights({codexHome,now=Date.now(),maxFiles=256,maxBytes=
     }}catch{complete=false;}finally{fs.closeSync(fd);}
     if(scannedBytes>=maxBytes)complete=false;
     scannedFiles++;
+    // Copies in sessions/archived_sessions can contain complementary windows.
+    // Merge quota before the token-session deduplication below.
+    if(parser.quota) {
+      const windows=mergeQuotaWindows(quota?.windows||[],parser.quota.windows,now);
+      quota={at:Math.max(...windows.map(w=>w.observedAt)),windows};
+    }
     if (parser.id && seen.has(parser.id)) continue;
     if (parser.id) seen.add(parser.id);
     if (parser.partial) complete=false;
     for(const e of parser.events){const total=e.input_tokens+e.output_tokens;totals.input+=e.input_tokens;totals.output+=e.output_tokens;totals.cachedInput+=e.cached_input_tokens;totals.reasoningOutput+=e.reasoning_output_tokens;totals.total+=total;if(e.at>=now-5*3600000)totals.last5Hours+=total;}
-    if(parser.quota && (!quota || parser.quota.at>quota.at))quota=parser.quota;
   }
   totals.last7Days=totals.total;
   return {tokens:{...totals,period:'rolling-7-days',complete,scannedFiles,note:'本机近 7 天已观测 token；缓存输入已含在输入内，推理输出已含在输出内。近 5 小时是滚动统计，不是官方额度窗口。'},windows:quota?.windows||[],observedAt:quota?.at||null};

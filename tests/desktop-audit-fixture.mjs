@@ -7,6 +7,10 @@ import {fileURLToPath} from 'node:url';
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function verifyDesktop({ app, window, screen, setHost, setTestCursor, dataDir, openedLinks, errors, renderInfo }) {
+  if (process.env.WHALE_SURFACE_AUDIT === '1') {
+    const { verifySurfaceLifecycle } = await import('./surface-lifecycle-regression.mjs');
+    return verifySurfaceLifecycle({ app, window, screen, setHost, setTestCursor, dataDir, renderInfo });
+  }
   const output = path.resolve(process.env.WHALE_DESKTOP_VERIFY_DIR);
   fs.mkdirSync(output, { recursive: true });
   const checks = [], ev = code => window.webContents.executeJavaScript(code);

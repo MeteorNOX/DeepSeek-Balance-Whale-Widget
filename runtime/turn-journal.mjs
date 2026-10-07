@@ -18,6 +18,10 @@ export function safeSample(value) {
   if (!value || !value.ok) return null;
   return { ok: true, accountId: text(value.accountId), currency: text(value.currency),
     totalBalance: finite(value.totalBalance), totalUsed: finite(value.totalUsed),
+    ...(typeof value.canObserve === 'boolean' ? { canObserve: value.canObserve } : {}),
+    ...(/^[a-f0-9]{64}$/.test(value.meterId || '') ? { meterId: value.meterId } : {}),
+    ...(['used', 'balance'].includes(value.counter) ? { counter: value.counter } : {}),
+    ...(['finite', 'unlimited', 'unconfirmed', 'unsupported'].includes(value.balanceStatus) ? { balanceStatus: value.balanceStatus } : {}),
     stale: value.stale === true, updatedAt: text(value.updatedAt) };
 }
 

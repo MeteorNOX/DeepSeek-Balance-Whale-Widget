@@ -7,7 +7,7 @@
 ## 安装
 
 1. 安装 Codex 桌面应用、Node.js 24+、Xcode Command Line Tools。安装器优先查找 Homebrew Node。
-2. 将 v0.3 解压到新的固定目录，保留原插件目录，不覆盖旧目录。
+2. 将 v0.4 解压到新的固定目录，保留原插件目录，不覆盖旧目录。
 3. 双击 `安装 Mac 自动跟随.command`。若解压工具丢失执行位，可在该目录终端运行 `node scripts/install-macos.mjs`。
 4. 安装器编译 Swift 窗口探针，设置独立 Electron bundle ID，注册当前用户 LaunchAgent。以安装标识、进程和新鲜心跳验证安装成功。
 5. 打开 Codex。Cmd+Option+W 切换显示；菜单可切换跟随/独立桌面。`进入独立桌面.command` 可独立启动。

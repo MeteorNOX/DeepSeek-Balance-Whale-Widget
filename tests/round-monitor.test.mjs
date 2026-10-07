@@ -75,7 +75,7 @@ test('subagent completions keep usage but never publish overlapping interval fee
   assert.equal(provider.calls, 1); assert.equal(service.lastTurn().seq, 0);
   provider.used = 3.5;
   await service.finishTurn({ ...main, byModel: { model: usage(100) }, outcome: 'completed', notify: true });
-  const notice = service.lastTurn(); assert.equal(notice.seq, 1); assert.equal(notice.amount, 3.5); assert.equal(notice.tokens, 150);
+  const notice = service.lastTurn(); assert.equal(notice.seq, 1); assert.equal(notice.amount, null); assert.equal(notice.costState, 'unknown'); assert.equal(notice.accountIntervalAmount, 3.5); assert.equal(notice.tokens, 150);
   assert.equal(notice.childTurns, 2); assert.equal(notice.concurrent, false);
   const records = service.ledger.records(service.scope(config.resolve(), 'USD'));
   assert.equal(records.today.total, 3.5); assert.equal(records.all.events.filter(e => e.isSubagent).length, 2);
@@ -152,6 +152,7 @@ test('actual frontend polling suppresses startup replay, duplicates, children an
   assert.ok(begin > 0 && end > begin);
   const stored = new Map(); let fetches = 0, sounds = 0, bubbles = 0, release;
   const pending = [], sandbox = { state: {}, Date, Number, isFinite,
+    usageSet: {taskEnd:{on:false}}, soundOn: false, soundVol: 0,
     window: { dispatchEvent() {} }, CustomEvent: class { constructor(type, options) { this.type=type;this.detail=options.detail; } },
     localStorage: { getItem: key => stored.get(key), setItem: (k, v) => stored.set(k, v) },
     fetch: () => { fetches++; return new Promise(resolve => pending.push(resolve)); },
@@ -172,7 +173,7 @@ test('actual frontend polling suppresses startup replay, duplicates, children an
     notice(12, 'cancelled-notice', { outcome: 'aborted', completionKind: 'cancelled', amount: 2, costState: 'observed' })]) {
     sandbox.pollLastTurn(); await respond(data);
   }
-  assert.equal(sounds, 2); assert.equal(bubbles, 3);
-  sandbox.pollLastTurn(); await respond(notice(13, 'busy', { outcome: 'failed', completionKind: 'failed', failureKind: 'high-demand' }));
   assert.equal(sounds, 2); assert.equal(bubbles, 4);
+  sandbox.pollLastTurn(); await respond(notice(13, 'busy', { outcome: 'failed', completionKind: 'failed', failureKind: 'high-demand' }));
+  assert.equal(sounds, 2); assert.equal(bubbles, 5);
 });

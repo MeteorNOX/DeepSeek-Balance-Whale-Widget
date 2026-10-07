@@ -16,6 +16,11 @@ export const UI_ORIGIN = 'whale://widget';
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.gif': 'image/gif', '.mp3': 'audio/mpeg' };
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'";
 const jsonResult = (status, payload) => ({ status, headers: { 'content-type': 'application/json; charset=utf-8' }, body: Buffer.from(JSON.stringify(payload)) });
+const configurationFailure = error => {
+  const message = error?.message;
+  const safe = typeof message === 'string' && message.length <= 256 && /[\u4e00-\u9fff]/.test(message) && !/[\r\n]|https?:\/\/|[A-Z]:[\\/]/i.test(message);
+  return jsonResult(400, { ok: false, error: safe ? message : '连接配置或余额预览失败，请检查请求规则' });
+};
 
 // Dispatch original resource handlers entirely in process; no HTTP listener exists.
 export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor = true, autoRefresh = true, fetchImpl, fxFetchImpl = fetchImpl, onStop = () => {}, onShow = () => {}, statusInfo = () => ({}) } = {}) {
@@ -38,6 +43,7 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
   }
   const stateFile = path.join(dataDir, 'ui-state.json');
   const buildVersion = readJson(path.join(ROOT, '.codex-plugin', 'plugin.json'), {}).version || VERSION;
+  const buildRevision = readJson(path.join(ROOT, 'package.json'), {}).codexBuild || '';
   let closing = false, closeJob = null;
 
   async function dispatch(route, { method = 'GET', body = null, headers = {} } = {}) {
@@ -63,14 +69,39 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
         return jsonResult(200,{ok:true,mode:input.mode});
       }
       if (url.pathname === '/api/insights' && method === 'GET') return jsonResult(200, await insights.get());
+      if (url.pathname === '/api/usage-scopes' && method === 'GET') return jsonResult(200, whale.usageScopes());
+      if (url.pathname === '/api/account-notices') return method === 'GET' ? jsonResult(200, whale.accountNotices()) : jsonResult(405, {ok:false});
+      if (url.pathname === '/api/account-notices/ack') return method === 'POST' ? jsonResult(200, whale.ackAccountNotices(parsed().ids)) : jsonResult(405, {ok:false});
       if (url.pathname === '/api/pricing' && method === 'GET') return jsonResult(200, {ok:true,...pricingSchedule(whale.config.resolve())});
       if (url.pathname === '/api/workshop/export' && method === 'GET') return jsonResult(200, exportWorkshop(dataDir));
       if (url.pathname === '/api/workshop/import' && method === 'POST') return jsonResult(200, importWorkshop(dataDir, parsed()));
-      if (url.pathname === '/api/status' && method === 'GET') return jsonResult(200, { ok: true, version: VERSION, buildVersion, transport: 'local-ipc', webpage: false, provider: whale.config.publicInfo(), monitor: watcher?.status() || { watching: 0, activeTurns: 0 }, dataDir, ...statusInfo() });
+      if (url.pathname === '/api/status' && method === 'GET') return jsonResult(200, { ok: true, version: VERSION, buildVersion, buildRevision, transport: 'local-ipc', webpage: false, provider: whale.config.publicInfo(), monitor: watcher?.status() || { watching: 0, activeTurns: 0 }, dataDir, ...statusInfo() });
       if (url.pathname === '/api/config') {
         if (method === 'GET') return jsonResult(200, { ok: true, ...whale.config.settingsInfo() });
-        if (method === 'PUT') { whale.config.save(parsed()); return jsonResult(200, { ok: true, ...whale.config.settingsInfo() }); }
+        if (method === 'PUT') {
+          try { whale.config.save(parsed()); return jsonResult(200, { ok: true, ...whale.config.settingsInfo() }); }
+          catch (error) { return configurationFailure(error); }
+        }
         return jsonResult(405, { ok: false });
+      }
+      if (url.pathname.startsWith('/api/connections/')) {
+        if (method !== 'GET') return jsonResult(405, { ok: false });
+        return jsonResult(200, { ok: true, connection: whale.config.readConnection(decodeURIComponent(url.pathname.slice('/api/connections/'.length))) });
+      }
+      if (url.pathname === '/api/balance-preview') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        if (bytes.length > 128 * 1024) return jsonResult(413, { ok: false, error: '连接规则过大' });
+        try { const input = parsed(); return jsonResult(200, await whale.previewBalance(input.patch || {}, { redetect: input.redetect === true })); }
+        catch (error) {
+          const result = configurationFailure(error);
+          if (error.detection) result.body = Buffer.from(JSON.stringify({ ...JSON.parse(result.body), code: error.code || 'ERROR', detection: error.detection }));
+          return result;
+        }
+      }
+      if (url.pathname === '/api/balance-selection') {
+        if (method !== 'POST') return jsonResult(405, { ok: false });
+        try { return jsonResult(200, whale.acceptBalanceSelection(parsed().previewId)); }
+        catch (error) { return configurationFailure(error); }
       }
       if (url.pathname === '/api/fx/usd-cny') {
         if (method !== 'GET') return jsonResult(405, { ok: false });
@@ -100,10 +131,12 @@ export function createDispatcher({ dataDir = DATA_HOME, service = null, monitor 
       }
       if (url.pathname === '/api/show' && method === 'POST') { onShow(); return jsonResult(200, { ok: true, desktop: 'shown' }); }
       if (url.pathname === '/api/stop' && method === 'POST') { setTimeout(onStop, 100); return jsonResult(200, { ok: true }); }
-      const uiFiles = { '/': 'widget.html', '/widget.html': 'widget.html', '/client.js': 'client.js', '/ui.css': 'ui.css', '/render.js': 'render.js', '/input.js': 'input.js', '/alpha-worker.js': 'alpha-worker.js', '/money.js': 'money.js', '/media-guard.js': 'media-guard.js', '/turn-notice.js': 'turn-notice.js', '/gesture.js':'gesture.js', '/audio-engine.js':'audio-engine.js', '/preferences-v3.js':'preferences-v3.js', '/insights.js':'insights.js', '/workshop.js':'workshop.js' };
+      const uiFiles = { '/': 'widget.html', '/widget.html': 'widget.html', '/client.js': 'client.js', '/ui.css': 'ui.css', '/render.js': 'render.js', '/input.js': 'input.js', '/alpha-worker.js': 'alpha-worker.js', '/money.js': 'money.js', '/media-guard.js': 'media-guard.js', '/turn-notice.js': 'turn-notice.js', '/gesture.js':'gesture.js', '/audio-engine.js':'audio-engine.js', '/preferences-v3.js':'preferences-v3.js', '/insights.js':'insights.js', '/workshop.js':'workshop.js', '/usage-history.js':'usage-history.js', '/account-notices.js':'account-notices.js' };
       uiFiles['/account-view.js']='account-view.js';
       uiFiles['/shape.js']='shape.js';
       uiFiles['/dashboard.js']='dashboard.js';
+      uiFiles['/connection-settings.js']='connection-settings.js';
+      uiFiles['/balance-view.js']='balance-view.js';
       let file;
       if (Object.hasOwn(uiFiles, url.pathname)) file = path.join(ROOT, 'desktop', 'ui', uiFiles[url.pathname]);
       else if (url.pathname.startsWith('/assets/')) {

@@ -1,4 +1,4 @@
-param([string]$Receipt, [string]$DataDir, [switch]$CheckOnly)
+﻿param([string]$Receipt, [string]$DataDir, [switch]$CheckOnly)
 $ErrorActionPreference='Stop'
 if ($PSVersionTable.PSEdition -ne 'Desktop') { throw 'Use Windows PowerShell (powershell.exe).' }
 . (Join-Path $PSScriptRoot 'package-common.ps1')
@@ -26,11 +26,18 @@ if(Test-Path -LiteralPath $marketReceipt){Invoke-WhaleCommand $node @((Join-Path
 if($CheckOnly){@{ok=$true;restoreVersion=$saved.previousVersion;preserveCurrentData=$true;stage=$saved.stage}|ConvertTo-Json;return}
 $checkpoint=Join-Path $backup ('before-rollback-'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[Guid]::NewGuid().ToString('N').Substring(0,8))
 $null=New-Item -ItemType Directory -Path $checkpoint
+# The invoking script may live in the plugin cache removed by `plugin remove`.
+# Keep the self-contained helper outside both the cache and installation tree.
+$stableMarketHelper=Join-Path $checkpoint 'marketplace-helper.mjs'
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'marketplace-helper.mjs') -Destination $stableMarketHelper
 if(Test-Path -LiteralPath $expectedTarget){Copy-WhaleTree $expectedTarget (Join-Path $checkpoint 'plugin') @('node_modules','.git')}
 if(Test-Path -LiteralPath $saved.dataDir){Copy-WhaleTree $saved.dataDir (Join-Path $checkpoint 'data') @('desktop-runtime','desktop-profile','native','npm-cache')}
 $task=Get-ScheduledTask -TaskName 'Codex API Balance Whale' -ErrorAction SilentlyContinue
 Assert-WhaleTaskOwner $task $saved.dataDir
-if($task -and (Test-Path -LiteralPath (Join-Path $expectedTarget 'scripts\uninstall-follow.ps1'))){& (Join-Path $expectedTarget 'scripts\uninstall-follow.ps1') -DataDir $saved.dataDir}
+if($task -and (Test-Path -LiteralPath (Join-Path $expectedTarget 'scripts\uninstall-follow.ps1'))){
+    if($saved.keepExistingTask){Stop-WhaleExistingTask $task $saved.dataDir $expectedTarget}
+    else{& (Join-Path $expectedTarget 'scripts\uninstall-follow.ps1') -DataDir $saved.dataDir}
+}
 if($saved.stage -in @('plugin-registered','complete')) { Invoke-WhaleCommand $cli @('plugin','remove',('api-balance-whale@'+$saved.marketplace),'--json') }
 if(Test-Path -LiteralPath $expectedTarget){
     $retired=Join-Path $checkpoint 'retired-source'
@@ -40,16 +47,31 @@ if(Test-Path -LiteralPath $expectedTarget){
     catch [System.UnauthorizedAccessException] { if(!$saved.previousVersion){throw}; Sync-WhaleCode $priorSource $expectedTarget (Join-Path $checkpoint 'retired-files') }
 }
 if($saved.previousVersion){Copy-WhaleTree $priorSource $expectedTarget}
-if(Test-Path -LiteralPath $marketReceipt){Invoke-WhaleCommand $node @((Join-Path $PSScriptRoot 'marketplace-helper.mjs'),'restore',$marketReceipt)}
+if(Test-Path -LiteralPath $marketReceipt){Invoke-WhaleCommand $node @($stableMarketHelper,'restore',$marketReceipt)}
 if($saved.previousVersion){Invoke-WhaleCommand $cli @('plugin','add',('api-balance-whale@'+$saved.marketplace),'--json')}
 if($saved.previousTask){
     foreach($operational in @('follow-config.json','follow-install.json')){
         $operationalBackup=Join-Path (Join-Path $backup 'data') $operational
         if(Test-Path -LiteralPath $operationalBackup -PathType Leaf){Copy-Item -LiteralPath $operationalBackup -Destination (Join-Path $saved.dataDir $operational) -Force}
     }
-    $taskXml=Get-Content -LiteralPath (Join-Path $backup 'scheduled-task.xml') -Raw -Encoding UTF8
-    $null=Register-ScheduledTask -TaskName 'Codex API Balance Whale' -Xml $taskXml -Force
+    if(!$saved.keepExistingTask){
+        $taskXml=Get-Content -LiteralPath (Join-Path $backup 'scheduled-task.xml') -Raw -Encoding UTF8
+        $null=Register-ScheduledTask -TaskName 'Codex API Balance Whale' -Xml $taskXml -Force
+    }
     # The old action is restored as captured; data and newer usage remain untouched.
     Start-ScheduledTask -TaskName 'Codex API Balance Whale'
+}
+# Restore only installation metadata; newer settings, resources and usage remain.
+$installationPointer=Get-WhaleFullPath (Join-Path $saved.dataDir 'package-installation.json')
+$priorPointer=Join-Path (Join-Path $backup 'data') 'package-installation.json'
+Assert-WhalePlainPath $installationPointer
+Assert-WhalePlainPath $priorPointer
+if(Test-Path -LiteralPath $priorPointer -PathType Leaf){
+    Copy-Item -LiteralPath $priorPointer -Destination $installationPointer -Force
+}elseif(Test-Path -LiteralPath $installationPointer -PathType Leaf){
+    $currentPointer=Get-Content -LiteralPath $installationPointer -Raw -Encoding UTF8|ConvertFrom-Json
+    if($currentPointer.receipt -and (Get-WhaleFullPath $currentPointer.receipt) -ieq $Receipt){
+        Remove-Item -LiteralPath $installationPointer -Force
+    }
 }
 Write-Output ('Rollback complete. Current settings, resources and ledger retained. Private checkpoint: '+$checkpoint)

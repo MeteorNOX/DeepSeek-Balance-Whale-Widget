@@ -11,7 +11,7 @@ const output = path.resolve(process.argv[2] || path.join(ROOT, 'qa-desktop-audit
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'whale-desktop-audit-live-'));
 fs.mkdirSync(path.join(dataDir, 'whale-roles'), { recursive: true });
 fs.writeFileSync(path.join(dataDir, 'ui-state.json'), JSON.stringify({
-  'dshw-role': 'broken_saved_role',
+  'dshw-role': process.env.WHALE_SURFACE_AUDIT === '1' ? 'default' : 'broken_saved_role',
   // Seed a genuine saved interior anchor, so later startup settle() does not
   // restore the default edge anchor over the test's deliberate placement.
   'dshw-pos': JSON.stringify({ v: 2, hAnchor: 'left', hDist: 140, vAnchor: 'top', vDist: 140 }),
@@ -47,17 +47,17 @@ const executable = process.platform === 'darwin'
     : path.join(electronDist, 'electron.exe');
 const env = { ...process.env, WHALE_DESKTOP_TEST: '1', WHALE_DESKTOP_AUDIT: '1', WHALE_DESKTOP_VERIFY_DIR: output };
 delete env.ELECTRON_RUN_AS_NODE;
-const child = spawn(executable, [path.join(ROOT, 'desktop/main.cjs'), '--whale-data=' + dataDir], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+const child = spawn(executable, [path.join(ROOT, 'desktop/main.cjs'), '--whale-data=' + dataDir], { env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: process.env.WHALE_SURFACE_AUDIT !== '1' });
 let diagnostics = ''; child.stdout.resume(); child.stderr.on('data', bytes => { diagnostics = (diagnostics + bytes).slice(-3000); });
-const timeout = setTimeout(() => child.kill(), 30000);
+const timeout = setTimeout(() => child.kill(), process.env.WHALE_SURFACE_AUDIT === '1' ? 60000 : 30000);
 const [code] = await once(child, 'close'); clearTimeout(timeout);
 const reportFile = path.join(output, 'desktop-audit.json');
 const report = fs.existsSync(reportFile) ? JSON.parse(fs.readFileSync(reportFile, 'utf8')) : { ok: false, error: diagnostics, dataDir };
 assert.equal(code, 0, JSON.stringify(report)); assert.equal(report.ok, true, JSON.stringify(report));
 const shutdown = JSON.parse(fs.readFileSync(path.join(dataDir, 'desktop-shutdown.json'), 'utf8'));
-assert.equal(shutdown.stages.find(stage => stage.name === 'renderer-state').status, 'timeout');
+assert.equal(shutdown.stages.find(stage => stage.name === 'renderer-state').status, process.env.WHALE_SURFACE_AUDIT === '1' ? 'complete' : 'timeout');
 assert.equal(shutdown.stages.find(stage => stage.name === 'service-close').status, 'complete');
-report.checks.push('an actually stalled Electron renderer still closes the isolated companion after flushing state and closing services');
+report.checks.push(process.env.WHALE_SURFACE_AUDIT === '1' ? 'isolated surface fixture closes after flushing state and closing services' : 'an actually stalled Electron renderer still closes the isolated companion after flushing state and closing services');
 report.shutdown = shutdown;
 fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
 process.stdout.write(JSON.stringify(report) + '\n');

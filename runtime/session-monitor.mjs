@@ -55,12 +55,13 @@ export class SessionParser {
     if (d.type !== 'event_msg') return;
     const turnId = p.turn_id || p.turnId;
     if (['error', 'stream_error'].includes(p.type)) {
-      // Retry diagnostics are not completion events. An explicit terminal error
-      // can close a turn; otherwise wait for its matching terminal record.
+      // stream_error can be a reconnect diagnostic. A turn-level error is
+      // terminal unless it explicitly says it will retry; it often has no
+      // following task_complete record after an API/transport failure.
       if (!this.active || turnId && turnId !== this.active.turnId) return;
       this.active.failureKind = failureKind(p);
       if (!this.priming) this.onUpdate({ ...this.active });
-      if (p.will_retry === false || p.fatal === true) this.end(timestamp(d.timestamp) || Date.now(), 'failed');
+      if (p.will_retry === false || p.fatal === true || p.type === 'error' && p.will_retry !== true) this.end(timestamp(d.timestamp) || Date.now(), 'failed');
       return;
     }
     if (['task_started', 'turn_started'].includes(p.type)) {
@@ -103,7 +104,8 @@ export class SessionParser {
         return;
       }
       if (!this.active || !turnId || turnId !== this.active.turnId) return;
-      const outcome = /aborted$/.test(p.type) ? 'aborted' : p.error || p.status === 'failed' ? 'failed' : 'completed';
+      const outcome = /aborted$/.test(p.type) || ['aborted','cancelled','canceled'].includes(p.status) ? 'aborted' :
+        ['interrupted','incomplete'].includes(p.status) ? 'interrupted' : p.error || ['failed','error'].includes(p.status) ? 'failed' : 'completed';
       this.active.failureKind = outcome === 'failed' ? (p.error ? failureKind(p.error) : failureKind(p) || this.active.failureKind) : null;
       this.end(timestamp(d.timestamp) || Date.now(), outcome);
     }
@@ -113,7 +115,7 @@ export class SessionParser {
     const completed = { ...this.active, ts, outcome, historical: this.priming,
       notify: !this.priming && outcome === 'completed' && !this.active.isSubagent,
       failureKind: outcome === 'failed' && this.active.failureKind === 'high-demand' ? 'high-demand' : null,
-      statusNotify: !this.priming && (outcome === 'aborted' || outcome === 'failed' && this.active.failureKind === 'high-demand') && !this.active.isSubagent };
+      statusNotify: !this.priming && ['aborted','failed','interrupted','superseded'].includes(outcome) && !this.active.isSubagent };
     this.active = null; this.completed.add(completed.turnId);
     this.recentEnds.set(completed.turnId, completed);
     if (this.recentEnds.size > 128) this.recentEnds.delete(this.recentEnds.keys().next().value);

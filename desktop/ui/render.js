@@ -77,9 +77,9 @@
         this.entries.delete(key);
       }
     }
-    hit(img, x, y, flipped = false) {
+    hit(img, x, y, flipped = false, rect = null) {
       if (!img?.complete || !img.naturalWidth) return false;
-      const r = img.getBoundingClientRect();
+      const r = rect || img.getBoundingClientRect();
       if (r.width < 0.5 || r.height < 0.5 || x < r.left || y < r.top || x >= r.right || y >= r.bottom) return false;
       const entry = this.entries.get(this.key(img.currentSrc || img.src));
       if (!entry) { this.prepare(img.currentSrc || img.src); return false; }
@@ -92,6 +92,71 @@
       const py = Math.min(height - 1, Math.floor((y - r.top) / r.height * height));
       this.stats.hits++;
       return alpha[py * width + px] > 10;
+    }
+  }
+
+  // Input must not shrink with the decorative press/rebound transform. Walk
+  // layout offsets (not painted body bounds), then apply the root's placement,
+  // scale and mirror. This follows dragging/resizing without retaining old
+  // screen coordinates or turning the transparent window into a backdrop.
+  function petLayoutRect(img, root) {
+    const r = root.getBoundingClientRect();
+    let x = 0, y = 0, node = img;
+    for (let depth = 0; node && node !== root && depth < 8; depth++) {
+      x += node.offsetLeft; y += node.offsetTop; node = node.offsetParent;
+    }
+    if (node !== root || !(root.offsetWidth > 0) || !(root.offsetHeight > 0)) return null;
+    const sx = r.width / root.offsetWidth, sy = r.height / root.offsetHeight;
+    const width = img.offsetWidth * sx, height = img.offsetHeight * sy;
+    const left = mirrorScale(root) < 0 ? r.left + r.width - (x + img.offsetWidth) * sx : r.left + x * sx;
+    const top = r.top + y * sy;
+    if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return null;
+    return { left, top, right: left + width, bottom: top + height, width, height };
+  }
+  class PetInteraction {
+    constructor(cache, { now = Date.now, timer = (fn, ms) => setTimeout(fn, ms), clear = id => clearTimeout(id), changed = () => {} } = {}) {
+      this.cache = cache; this.now = now; this.timer = timer; this.clear = clear; this.changed = changed;
+      this.state = null; this.generation = 0; this.timeout = null;
+    }
+    begin(img, root, pointerId) {
+      if (!petLayoutRect(img, root)) return false;
+      this.clear(this.timeout); this.timeout = null; ++this.generation;
+      this.state = { img, root, pointerId, source: img.src, currentSource: img.currentSrc || img.src, phase: 'held', deadline: 0 };
+      this.changed(0); return true;
+    }
+    end(pointerId, releaseMs) {
+      if (!this.state || this.state.pointerId !== pointerId) return;
+      const duration = Math.max(0, Math.min(500, Number(releaseMs) || 0)) + 32;
+      this.clear(this.timeout); const generation = ++this.generation;
+      this.state.phase = 'releasing'; this.state.deadline = this.now() + duration;
+      this.timeout = this.timer(() => { if (generation === this.generation) this.cancel(); }, duration);
+      this.changed(duration);
+    }
+    cancel() {
+      if (!this.state) return;
+      ++this.generation; this.clear(this.timeout); this.timeout = null; this.state = null; this.changed(0);
+    }
+    protectedBounds(img = this.state?.img, root = this.state?.root) {
+      const state = this.state;
+      if (!state) return null;
+      if (state.img !== img || state.root !== root || img?.isConnected === false || root?.isConnected === false ||
+          img.src !== state.source || (img.currentSrc || img.src) !== state.currentSource ||
+          state.phase === 'releasing' && this.now() >= state.deadline) { this.cancel(); return null; }
+      return petLayoutRect(img, root);
+    }
+    hit(img, root, x, y) {
+      const protectedRect = this.protectedBounds(img, root), flipped = mirrorScale(root) < 0;
+      return this.cache.hit(img, x, y, flipped) || !!protectedRect && this.cache.hit(img, x, y, flipped, protectedRect);
+    }
+    releasing(pointerId) {
+      return !!this.protectedBounds() && this.state?.pointerId === pointerId && this.state.phase === 'releasing';
+    }
+    holding() {
+      return !!this.protectedBounds() && this.state?.phase === 'held';
+    }
+    move(point) {
+      const state = this.state;
+      if (state?.phase === 'releasing' && !this.hit(state.img, state.root, point.x, point.y)) this.cancel();
     }
   }
 
@@ -123,6 +188,43 @@
         return parts;
       });
       [this.front, this.back] = this.layers;
+      // Scale/viewport changes and money-text updates use the same layout path
+      // as the initial hidden-buffer commit. Fitting changes no content nodes.
+      this.resizeObserver = new ResizeObserver(() => this.fitAll());
+      this.resizeObserver.observe(container);
+      this.contentObserver = new MutationObserver(() => {
+        if (this.hasFrame && !this.switching) this.fit(this.front);
+      });
+      this.contentObserver.observe(container, { childList: true, characterData: true, subtree: true });
+    }
+    fit(parts) {
+      const root = parts.root;
+      root.style.setProperty('--whale-fit-scale', '1');
+      const width = this.container.clientWidth, height = this.container.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      // Reflow at each candidate scale so text keeps using the full safe width;
+      // shrinking an already-wrapped stack would create a tiny unreadable column.
+      // Every candidate preserves the original content and relative font sizes.
+      const fits = scale => {
+        root.style.setProperty('--whale-fit-scale', String(scale));
+        return Math.max(root.scrollWidth, root.offsetWidth) * scale <= width + 0.5 &&
+          Math.max(root.scrollHeight, root.offsetHeight) * scale <= height;
+      };
+      let scale = 1;
+      if (!fits(1)) {
+        let low = 0, high = 1;
+        for (let i = 0; i < 13; i++) {
+          const candidate = (low + high) / 2;
+          if (fits(candidate)) low = candidate; else high = candidate;
+        }
+        scale = Math.max(low, 0.0001);
+      }
+      root.style.setProperty('--whale-fit-scale', String(scale));
+      root.dataset.fitScale = String(scale);
+    }
+    fitAll() {
+      for (const parts of this.layers) this.fit(parts);
+      presentFor();
     }
     cancel() {
       ++this.epoch;
@@ -148,6 +250,7 @@
         el.textContent = ''; el.removeAttribute('title');
       }
       parts.gif.style.display = 'none';
+      parts.root.style.setProperty('--whale-fit-scale', '1');
     }
     async ready(parts) {
       const images = [...parts.root.querySelectorAll('img')].filter(img => img.style.display !== 'none');
@@ -157,7 +260,9 @@
         await Promise.race([ready, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Bubble assets not ready')), 4000); })]);
       } finally { clearTimeout(timer); }
       // Layout and paint opportunity for the complete back buffer, before fade.
-      await nextFrame(); await nextFrame();
+      await nextFrame();
+      this.fit(parts);
+      await nextFrame();
     }
     async open(build, onReady) {
       this.cancel();
@@ -212,5 +317,9 @@
     const transform = getComputedStyle(root).transform;
     return transform === 'none' ? 1 : new DOMMatrixReadOnly(transform).a;
   }
-  window.WhaleRendering = Object.freeze({ BubbleRenderer, hitCache, mirrorScale, presentFor, onFrame: listener => { frameListeners.add(listener); return () => frameListeners.delete(listener); } });
+  const petInteraction = new PetInteraction(hitCache, { changed: ms => {
+    presentFor(ms);
+    window.dispatchEvent(new Event('whale-interaction-geometry'));
+  } });
+  window.WhaleRendering = Object.freeze({ BubbleRenderer, hitCache, petInteraction, mirrorScale, presentFor, onFrame: listener => { frameListeners.add(listener); return () => frameListeners.delete(listener); } });
 })();

@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import assert from 'node:assert/strict';
+import { ROOT, DATA_HOME } from '../runtime/paths.mjs';
+const output = path.resolve(process.argv[2]); fs.mkdirSync(output, { recursive: true });
+const data = fs.mkdtempSync(path.join(output, 'fixture-'));
+const env = { ...process.env, WHALE_DESKTOP_TEST: '1', WHALE_ISSUE_LAYOUT: '1', WHALE_DESKTOP_VERIFY_DIR: output };
+delete env.ELECTRON_RUN_AS_NODE;
+const child = spawn(path.join(DATA_HOME, 'desktop-runtime/node_modules/electron/dist/electron.exe'), [path.join(ROOT, 'desktop/main.cjs'), '--whale-data=' + data], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+let errors = ''; child.stdout.resume(); child.stderr.on('data', data => errors += data);
+const timer = setTimeout(() => child.kill(), 55000);
+const [code] = await once(child, 'close'); clearTimeout(timer);
+const file = path.join(output, 'issue-layout.json');
+const result = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file)) : { ok: false, error: errors };
+assert.equal(result.ok, true, result.error || errors); assert.equal(code, 0);
+console.log(JSON.stringify({ ok: result.ok, samples: result.samples.length, violations: result.violations, report: file }));

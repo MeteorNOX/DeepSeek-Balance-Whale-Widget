@@ -3,7 +3,9 @@ import path from 'node:path';
 import { VERSION, ROOT, DATA_HOME, readJson } from '../runtime/paths.mjs';
 const expectedBuild = readJson(path.join(ROOT, '.codex-plugin/plugin.json'), {}).version;
 let verified=false;
-for(let attempt=0;attempt<16;attempt++) {
+// Cold native compilation and Electron startup can exceed eight seconds on
+// a busy Windows host; keep a bounded readiness wait.
+for(let attempt=0;attempt<60;attempt++) {
   try { const s=await bridgeRequest('/api/status',{timeoutMs:1500}); if(s.ok && s.version===VERSION && s.buildVersion===expectedBuild && s.rendererReady){verified=true;break;} } catch {}
   await new Promise(resolve=>setTimeout(resolve,500));
 }

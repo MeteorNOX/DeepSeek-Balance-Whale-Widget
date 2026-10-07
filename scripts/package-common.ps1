@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 function Get-WhaleFullPath([string]$Path) { return [IO.Path]::GetFullPath($Path).TrimEnd('\') }
 function Assert-WhalePlainPath([string]$Path) {
     $cursor = Get-WhaleFullPath $Path
@@ -78,4 +78,23 @@ function Assert-WhaleTaskOwner($Task, [string]$DataDir) {
     if (!$Task) { return }
     $actions = @($Task.Actions)
     if ($actions.Count -ne 1 -or !$actions[0].Arguments.Contains($DataDir) -or !$actions[0].Arguments.Contains('supervisor.ps1')) { throw 'The existing scheduled task belongs to another installation.' }
+}
+function Assert-WhaleReusableTask($Task, [string]$DataDir, [string]$Target) {
+    Assert-WhaleTaskOwner $Task $DataDir
+    if (!$Task -or $Task.State -eq 'Disabled') { throw 'A reusable enabled whale task is required.' }
+    $config = Get-Content -LiteralPath (Join-Path $DataDir 'follow-config.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (!$config.enabled -or (Get-WhaleFullPath $config.pluginRoot) -ine (Get-WhaleFullPath $Target) -or $config.taskName -cne 'Codex API Balance Whale') { throw 'Existing follow configuration does not match this plugin.' }
+    $action = @($Task.Actions)[0]
+    if ((Get-WhaleFullPath $action.Execute) -ine (Get-WhaleFullPath $config.launcherPath) -or !$action.Arguments.Contains((Join-Path $Target 'desktop\supervisor.ps1')) -or !(Test-Path -LiteralPath $config.electronPath -PathType Leaf)) { throw 'Existing launcher/runtime cannot be reused.' }
+}
+function Stop-WhaleExistingTask($Task, [string]$DataDir, [string]$Target) {
+    Assert-WhaleReusableTask $Task $DataDir $Target
+    # Signal this installation's existing supervisor; do not rewrite, disable,
+    # unregister or terminate the scheduled task or any unrelated process.
+    & (Join-Path $Target 'desktop\supervisor.ps1') -DataDir $DataDir -Stop
+    for ($attempt=0; $attempt -lt 80; $attempt++) {
+        if ((Get-ScheduledTask -TaskName 'Codex API Balance Whale').State -ne 'Running') { return }
+        Start-Sleep -Milliseconds 100
+    }
+    throw 'The existing supervisor did not stop; plugin files were not replaced.'
 }

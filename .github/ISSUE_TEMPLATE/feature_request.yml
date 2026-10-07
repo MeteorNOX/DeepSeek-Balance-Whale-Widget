@@ -6,8 +6,11 @@ body:
   - type: markdown
     attributes:
       value: |
-        建议前请先看一眼 `docs/CHANGELOG-0.2.0.md` 与 `PROVENANCE.md`：本分支刻意移除了部分上游功能（例如失败/取消的趣味提示），
-        也刻意不做某些事（不代服务商作承诺、不读聊天内容）。涉及这些方向的建议请说明你的使用场景。
+        建议前请查看 [README](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/README.md)、
+        [v0.4 已知问题](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/KNOWN-ISSUES-0.4.md) 与
+        [变更记录](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/CHANGELOG.md)。
+        这些文档说明 For-Codex v0.4.0 的已实现范围与限制；离线也可查看安装包内的同名文件。
+        本分支提供 Codex 桌面挂件，余额观测、单轮估算和订阅额度分别展示。请说明你的使用场景及期望行为。
   - type: dropdown
     id: area
     attributes:

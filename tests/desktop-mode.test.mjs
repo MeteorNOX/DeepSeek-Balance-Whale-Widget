@@ -30,7 +30,7 @@ function mainModeFixture() {
  const source = fs.readFileSync(new URL('../desktop/main.cjs', import.meta.url), 'utf8');
  const calls = [], area = { x: 0, y: 0, width: 1920, height: 1080 };
  const state = { quitting:false, desktopMode: 'follow-codex', desktopBoundsApplied: false, modePending: false, appliedBounds: '', appliedNativeSize: '', dataDir: '/test', path, isMac: false, fixture: false, manuallyHidden: false, hostSequence: -1, hostHeartbeat: 0, lastHost: null, owner: '',
-  Number, Date, save: () => calls.push('save'), read: () => ({}), sendCursor: () => {}, updateTray: () => {}, markStartup: () => {}, diagnose: () => {}, toDipRect: x => x,
+  Number, Date, usesWindowShape: true, visibilityRecorder: { sample() {} }, save: () => calls.push('save'), read: () => ({}), sendCursor: () => {}, updateTray: () => {}, markStartup: () => {}, diagnose: () => {}, toDipRect: x => x,
   screen: { getPrimaryDisplay: () => ({ workArea: area }) },
   window: { isDestroyed:()=>false, setBounds: () => calls.push('bounds'), setPosition: () => calls.push('position'), getBounds: () => area, setAlwaysOnTop: () => calls.push('top'), webContents: { send: event => calls.push(event) } },
   app: { quit: () => calls.push('quit') }, syncNativeViewport: () => '',

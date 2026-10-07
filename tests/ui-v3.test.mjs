@@ -13,8 +13,8 @@ function audioFixture() {
     createGain() { return { gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
     createBufferSource() {
       const source = {
-        connect() {},
-        start() { this.started = true; },
+        connect(gain) { this.gain = gain; },
+        start(at) { this.started = true; this.at = at; },
         stop() { this.stopped = true; queueMicrotask(() => this.onended?.()); },
         finish() { this.endedNaturally = true; this.onended?.(); },
       };
@@ -92,4 +92,34 @@ test('a new press cancels the previous gesture release queued for playback', asy
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(f.sources.length, 2, 'the cancelled first release must never start');
   f.dispose();
+});
+
+test('a task audio group schedules both complete slots in order at the selected volume', async () => {
+  const f = audioFixture();
+  const playing = f.api.play({ channel: 'notice', urls: ['/press', '/release'], volume: .24 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.sources.length, 2);
+  assert.deepEqual(f.sources.map(source => source.at), [0, 20]);
+  assert.ok(f.sources.every(source => source.gain.gain.value === .24));
+  f.api.stop('notice'); await playing;
+  assert.ok(f.sources.every(source => source.stopped));
+  f.dispose();
+});
+
+test('empty group slots are skipped and muted groups never start audio hardware', async () => {
+  const f = audioFixture();
+  await f.api.play({ urls: ['/press', '/release'], volume: 0 }); assert.equal(f.contexts(), 0);
+  const playing = f.api.play({ urls: ['', '/release'], volume: .5 });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.sources.length, 1); assert.equal(f.sources[0].at, 0);
+  f.sources[0].finish(); await playing; f.dispose();
+});
+
+test('feedback keeps full group sources, multiplies event/master volumes, and honors silent presets', () => {
+  const calls = [], window = { WhaleAudio: { play: value => calls.push(value) } };
+  vm.runInNewContext(read('preferences-v3.js'), { window, localStorage: { getItem: () => null } });
+  window.WhaleFeedback.play('success', ['/press', '/release'], .3);
+  assert.deepEqual(calls[0].urls, ['/press', '/release']); assert.equal(calls[0].volume, .24);
+  window.WhaleFeedback.play('success', ['/press', '/release'], 0); assert.equal(calls[1].volume, 0);
+  window.WhaleFeedback.play('cancelled', '', 1); assert.equal(calls[2].volume, 0);
 });

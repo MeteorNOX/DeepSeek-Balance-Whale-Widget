@@ -21,7 +21,6 @@
   function noticeText(value) {
     if (!value || value.notify === false) return '';
     if (value.failureKind === 'high-demand') return '挤不进去...';
-    if (value.completionKind === 'failed') return '';
     return number(value.tokens) === null ? '本轮 token 暂无记录' : '本轮本机已观测：' + tokenText(value.tokens);
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { validMode, windowText, tokenText, noticeText, quotaLabel, quotaBubble };

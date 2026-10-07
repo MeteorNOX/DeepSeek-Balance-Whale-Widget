@@ -61,7 +61,7 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
   // process startup info suppresses the host and makes native visibility false.
   const host = childControl(process.execPath, [path.join(ROOT, 'tests', 'visibility-stress-host.cjs'), '--fixture-dir=' + dataDir], env, false);
   let native, polling, samplingPaused = false, busy = false, serial = 0, lastState, pollError;
-  const results = { ok: false, minimize: [], saveCancel: [], explicitShow: [], foreground: [], checks: [], startedAt: new Date().toISOString() };
+  const results = { ok: false, minimize: [], saveCancel: [], explicitShow: [], foreground: [], firstMismatches: [], checks: [], startedAt: new Date().toISOString() };
   const ev = code => window.webContents.executeJavaScript(code);
   const waitFor = async (predicate, label, timeout = 10000) => {
     const started = Date.now();
@@ -72,15 +72,18 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
     const fixture = await host.ready;
     native = childControl(process.env.WHALE_TEST_POWERSHELL || 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe', ['-NoProfile', '-NonInteractive', '-File', path.join(ROOT, 'tests', 'visibility-stress-native.ps1'), '-Overlay', window.getNativeWindowHandle().readBigUInt64LE().toString(), '-OverlayPid', String(process.pid), '-FixtureHost', fixture.handle, '-FixturePid', String(fixture.pid)], env);
     await native.ready;
-    // Keep both fixture windows above unrelated applications while sampling
-    // their screen pixels. This does not change production window policy.
-    window.setAlwaysOnTop(true, 'normal'); window.moveTop();
+    // Keep production's non-topmost owned window policy. Raising either HWND
+    // before sampling can restore a lost surface and conceal the failure.
     const pollHost = async () => {
-      const { state, visibilityRevision } = await native.request('probe'); state.visibilityRevision = visibilityRevision; lastState = state;
+      const { state, visibilityRevision, visualDiagnostics } = await native.request('probe'); state.visibilityRevision = visibilityRevision; state.visualDiagnostics = visualDiagnostics; lastState = state;
       await setHost({ hostAlive: true, hostPid: fixture.pid, window: fixture.handle, attached: true, nativeFollowing: true, ...state, serial: ++serial });
       return state;
     };
     await pollHost();
+    assert.equal(lastState.owned, true, 'fixture overlay is owned by its host');
+    assert.equal(lastState.hostTopmost, false, 'fixture host follows production non-topmost policy');
+    assert.equal(lastState.overlayTopmost, false, 'fixture overlay follows production non-topmost policy');
+    results.windowPolicy = { owned: lastState.owned, hostTopmost: lastState.hostTopmost, overlayTopmost: lastState.overlayTopmost };
     polling = setInterval(async () => {
       if (samplingPaused || busy) return; busy = true;
       try { await pollHost(); } catch (error) { pollError = error; } finally { busy = false; }
@@ -94,17 +97,16 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
     const reference = await window.webContents.capturePage();
     fs.writeFileSync(path.join(output, 'visibility-reference.png'), reference.toPNG());
     let points;
+    const firstMismatches = new Set();
     const compositionOnly=process.env.WHALE_COMPOSITION_IDLE_TEST==='1';
     async function pixels(label, save = false, deadline = Date.now() + 1200, obstructionDeadline = Date.now() + 60000, occludedMs = 0) {
-      // The user can keep working in another app. Raise only the dedicated
-      // fixture pair without activation so an unrelated window cannot be
-      // mistaken for a lost whale surface in the screen-copy assertion.
-      if(!compositionOnly){await native.request('raise');await delay(40);}
-      // Screen copy comes first. capturePage alone can report healthy pixels
-      // even when the desktop compositor has lost the transparent surface.
-      const { png, unobscured } = await native.request('capture');
+      // Passive screen copy comes first. Never raise, focus, show, invalidate
+      // or capturePage during sampling: each can heal the observed failure.
+      const { png, unobscured, state: sampledState } = await native.request('capture');
       const image = nativeImage.createFromBuffer(Buffer.from(png, 'base64'));
       const size = image.getSize(), actual = image.toBitmap();
+      assert.equal(sampledState.owned, true, 'overlay remains owned during sampling');
+      assert.equal(sampledState.hostTopmost || sampledState.overlayTopmost, false, 'sampling never makes either fixture topmost');
       if (unobscured === false) {
         if(!occludedMs)process.stdout.write(JSON.stringify({screenObscured:true})+'\n');
         if(Date.now()>=obstructionDeadline) throw new Error('Another application or system switcher obscured the fixture for 60 seconds; no surface verdict');
@@ -136,6 +138,15 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
         if (found) matched++;
       }
       const ratio = matched / points.length;
+      if (ratio < 0.85 && !firstMismatches.has(label)) {
+        firstMismatches.add(label);
+        const evidence = { label, ratio, at: new Date().toISOString(), native: sampledState, host: lastState, rendering: renderInfo() };
+        results.firstMismatches.push(evidence);
+        // Persist the untouched desktop sample before retrying or obtaining a
+        // renderer screenshot, including failures that later recover by themselves.
+        fs.writeFileSync(path.join(output, label + '-first-mismatch.png'), image.toPNG());
+        fs.writeFileSync(path.join(output, label + '-first-mismatch.json'), JSON.stringify(evidence, null, 2));
+      }
       if (ratio < 0.85 && Date.now() < deadline) { await delay(75); return pixels(label, save, deadline, obstructionDeadline, occludedMs); }
       if (save || ratio < 0.85) fs.writeFileSync(path.join(output, label + '.png'), image.toPNG());
       if (ratio < 0.85) {
@@ -143,7 +154,23 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
         fs.writeFileSync(path.join(output, label + '-renderer.png'), (await window.webContents.capturePage()).toPNG());
       }
       assert.ok(ratio >= 0.85, label + ': actual desktop whale pixel match ' + ratio);
-      return { ratio, samples: points.length, occludedMs };
+      return { ratio, samples: points.length, occludedMs, initiallyMismatched: firstMismatches.has(label), foreground: sampledState.foreground };
+    }
+    async function foregroundCycles(count) {
+      for (let n = 0; n < count; n++) {
+        await pixels('before-foreground-' + (n + 1));
+        const epoch = lastState.visibilityRevision, remaps = renderInfo().visibility.remaps;
+        await host.request('focus-away');
+        await waitFor(() => lastState.foreground !== fixture.handle, 'fixture peer receives foreground');
+        await delay(180);
+        await host.request('focus-host');
+        await waitFor(() => lastState.foreground === fixture.handle && window.isVisible() && !renderInfo().visibility.pending, 'fixture host receives foreground without remapping');
+        await delay(250);
+        const pixel = await pixels('foreground-' + (n + 1));
+        assert.equal(lastState.visibilityRevision, epoch, 'focus-only transitions do not become lifecycle recovery epochs');
+        assert.equal(renderInfo().visibility.remaps, remaps, 'foreground return never hides and remaps the overlay');
+        results.foreground.push({ cycle: n + 1, ...pixel });
+      }
     }
     await pixels('visibility-initial', true);
     if(compositionOnly){
@@ -153,9 +180,13 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
         await delay(600);results.composition.push(await pixels('composition-'+n));
         assert.equal(renderInfo().visibility.remaps,remaps,'screen sampling never remaps');
       }
-      assert.equal(renderInfo().gpuStatus.hardwareAcceleration,false);
+      await foregroundCycles(3);
+      assert.equal(renderInfo().visibility.remaps, remaps, 'passive composition and foreground cycles never remap');
+      if (process.env.WHALE_RENDER_MODE !== 'hardware') assert.equal(renderInfo().gpuStatus.hardwareAcceleration,false);
       const idle=renderInfo().presents;await delay(1000);assert.equal(renderInfo().presents,idle,'no idle repaint loop');
-      results.checks.push('12 actual screen samples without raising or capturePage between samples','completion bubble closes remain visible without remaps','software rendering confirmed with no idle repaint loop');
+      results.composition.push(await pixels('composition-final-idle', true));
+      assert.equal(errors.length, 0, JSON.stringify(errors));
+      results.checks.push('Non-topmost owned HWNDs match production window policy','13 passive desktop samples without raising or capturePage between samples','Completion bubble closes and idle remain visible without remaps','3 foreground cycles preserve pixels without lifecycle epochs or remaps','No idle repaint loop; first mismatching screen samples are preserved before retry');
       results.rendering=renderInfo();results.ok=true;return;
     }
     for(let n=0;n<3;n++){
@@ -197,13 +228,7 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
       results.saveCancel.push({ cycle: n + 1, recoveredMs: Date.now() - at, epoch: lastState.visibilityRevision, ...pixel });
       if ((n + 1) % 10 === 0) process.stdout.write(JSON.stringify({ stressProgress: 'save-cancel', completed: n + 1 }) + '\n');
     }
-    for(let n=0;n<5;n++){
-      await host.request('focus-away');await delay(180);
-      const epoch=lastState.visibilityRevision,remaps=renderInfo().visibility.remaps;
-      await host.request('focus-host');
-      await waitFor(()=>lastState.visibilityRevision>epoch&&renderInfo().visibility.remaps>remaps&&window.isVisible()&&!renderInfo().visibility.pending,'return-to-host foreground recovery');
-      results.foreground.push({cycle:n+1,...await pixels('foreground-'+(n+1))});
-    }
+    await foregroundCycles(5);
     await delay(400);
     const before = renderInfo(); await delay(2000); const after = renderInfo();
     assert.equal(after.visibility.remaps, before.visibility.remaps, 'idle heartbeats never remap');
@@ -211,7 +236,7 @@ export async function verifyDesktop({ app, window, screen, setHost, dispatcher, 
     assert.equal(fs.existsSync(path.join(dataDir, 'CANCEL-ONLY-no-file-created.txt')), false);
     assert.equal(errors.length, 0, JSON.stringify(errors));
     results.checks.push('100 real owned-window minimize/restore cycles including 25 missed IPC samples', '50 native Save As dialogs cancelled without creating a file', 'Actual screen pixels matched the whale after all 150 cycles', 'No repeated remap or forced repaint during idle heartbeats');
-    results.checks.push('3 explicit show requests remap without a visibility transition','5 real return-to-host foreground events restore the surface without minimizing');
+    results.checks.push('3 explicit show requests remap without a visibility transition','5 real foreground cycles preserve pixels without remapping','No topmost promotion or raising during passive screen sampling');
     results.rendering = renderInfo(); results.ok = true;
   } catch (error) {
     results.error = error.stack;

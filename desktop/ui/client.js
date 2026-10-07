@@ -38,14 +38,13 @@
       element('monitorSessions').checked = settings.monitorSessions;
       for (const key of ['priceModel', 'priceInput', 'priceCached', 'priceOutput', 'priceWrite']) element(key).value = '';
       element('removePrice').checked = false;
+      window.WhaleConnectionSettings?.open(info);
       $('settings-error').hidden = true; $('settings-dialog').showModal();
     } catch (error) { toast(error.message); }
   }
   window.addEventListener('whale-open-settings', openSettings);
   for (const id of ['close-settings', 'cancel-settings']) $(id).addEventListener('click', () => $('settings-dialog').close());
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    try {
+  function collectSettings() {
       const settings = {};
       for (const key of ['provider', 'currency']) settings[key] = element(key).value.trim();
       for (const key of privateFields) {
@@ -67,7 +66,21 @@
         if (element('priceWrite').value !== '') prices.cacheWrite = Number(element('priceWrite').value);
         settings.pricingUpdate = { model, prices };
       } else if (model) throw new Error('请填写完整价格，或选择删除该模型价格');
-      await api('/api/config', 'PUT', settings); location.reload();
+      const connectionPatch = window.WhaleConnectionSettings?.patch() || {};
+      if (connectionPatch.connectionMode === 'fixed' || connectionPatch.connectionUpdate) {
+        for (const key of ['provider', 'currency', 'baseUrl', 'keyEnv', 'dashboardUrl', 'balancePath', 'balanceField', 'usedField', 'balanceScale', 'billingUsageDivisor', 'quotaPerUnit']) delete settings[key];
+      }
+      return Object.assign(settings, connectionPatch);
+  }
+  window.WhaleSettingsDraft = collectSettings;
+  window.WhaleSettingsReload = () => location.reload();
+  for (const type of ['input', 'change']) form.addEventListener(type, event => {
+    if (event.target?.name) window.WhaleConnectionSettings?.invalidatePreview();
+  });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    try {
+      await api('/api/config', 'PUT', collectSettings()); location.reload();
     } catch (error) { $('settings-error').hidden = false; $('settings-error').textContent = error.message; }
   });
 })();

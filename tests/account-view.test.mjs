@@ -20,8 +20,8 @@ test('missing snapshot values never become zero quota or tokens', () => {
   assert.match(windowText({ usedPercent: 25.5, stale: true }), /已用 25.5% · 剩余 74.5%（快照已过期）/);
   assert.equal(tokenText(0), '0 token');
 });
-test('subscription notices do not display API money or generic failure text', () => {
-  assert.equal(noticeText({ completionKind: 'failed', tokens: 10, amount: 5 }), '');
+test('subscription failure consumption displays tokens without API money or fun failure text', () => {
+  assert.equal(noticeText({ completionKind: 'failed', tokens: 10, amount: 5 }), '本轮本机已观测：10 token');
   assert.equal(noticeText({ completionKind: 'failed', failureKind: 'high-demand' }), '挤不进去...');
   assert.equal(noticeText({ completionKind: 'completed', tokens: 10, amount: 5 }), '本轮本机已观测：10 token');
 });

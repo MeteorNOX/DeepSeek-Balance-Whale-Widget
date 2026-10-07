@@ -36,7 +36,7 @@
     const token=value=>finite(value)?value.toLocaleString()+' token':'暂无记录';
     const date=value=>value&&Number.isFinite(new Date(value).getTime())?new Date(value).toLocaleString():'重置时间未知';
     const money=(value,currency=balance?.currency||'USD')=>{
-      if(!finite(value))return '暂不可用';
+      if(typeof value!=='number'||!Number.isFinite(value))return '暂不可用';
       const converted=window.WhaleMoney.convert(value,currency);
       if(converted===null)return '换算暂不可用';
       return converted>0&&converted<.01?'＜'+window.WhaleMoney.symbol()+'0.01':window.WhaleMoney.formatMoney(value,currency);
@@ -63,11 +63,13 @@
         if(totals.complete===false)el(tokenUsage,'p','扫描尚不完整，仅显示部分记录。','whale-dashboard-note');
         const details=el(tokenUsage,'button','查看订阅额度详情');details.onclick=()=>window.dispatchEvent(new Event('whale-open-insights'));
       }else{
-        el(overviewData,'span','当前 API 可用余额','whale-dashboard-label');
-        el(overviewData,'strong',balance?.unlimited?'不限额':money(balance?.totalBalance),'whale-balance-number');
+        const view=window.WhaleBalanceView.describe(balance||{}),connection=balance?.connectionInfo;
+        if(connection?.name)el(overviewData,'p',connection.name+' · '+(connection.mode==='fixed'?'固定连接':'跟随 Codex'),'whale-connection-source');
+        el(overviewData,'span',view.label,'whale-dashboard-label').title=balance?.balanceLabel||view.label;
+        el(overviewData,'strong',view.message||money(view.balance),'whale-balance-number');
         if(balance?.stale)el(overviewData,'p','上次成功数据，等待更新','whale-dashboard-note');
-        if(balance?.ok===false)el(overviewData,'p','暂时无法查询余额，请在设置中检查接口。','whale-dashboard-note');
-        metric(overviewData,'今日已观测消耗',money(balance?.todayUsage));
+        if(balance?.ok===false&&!view.message)el(overviewData,'p','暂时无法查询余额，请在设置中检查接口。','whale-dashboard-note');
+        metric(overviewData,'今日已观测消耗',view.canObserve?money(view.todayUsage):'金额未知');
         metric(overviewData,'本轮已观测消耗',lastNotice?lastNotice.costState==='pending'?'待记账':lastNotice.costState==='unknown'?'金额未知':money(lastNotice.amount,lastNotice.currency):'暂无记录');
         el(overviewData,'p','消费记录、余额预警与每日预算在“用量”页。','whale-dashboard-note');
       }

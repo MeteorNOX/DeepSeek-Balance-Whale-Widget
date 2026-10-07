@@ -1,17 +1,29 @@
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import { validateBalanceConnection } from './balance-contract.mjs';
 import { ConfigStore } from './config.mjs';
 import { BalanceProvider } from './providers.mjs';
-import { UsageLedger, usageDefaults } from './ledger.mjs';
-import { readJson, writeJson, rounded } from './paths.mjs';
+import { UsageLedger, usageDefaults, normalizeTurnCost } from './ledger.mjs';
+import { readJson, writeJson } from './paths.mjs';
+import { decimalDifference, decimalAdd, decimalMultiply } from './money-precision.mjs';
+import { accountNoticeScope } from './account-notices.mjs';
 import { TurnJournal, safeSample, safeTurn, safeUsage } from './turn-journal.mjs';
+
+const hasMeter = sample => /^[a-f0-9]{64}$/.test(sample?.meterId || '');
+const observable = sample => sample?.canObserve !== false && !['unconfirmed', 'unsupported'].includes(sample?.balanceStatus);
+const sameMeter = (a, b) => observable(a) && observable(b) &&
+  (hasMeter(a) || hasMeter(b) ? hasMeter(a) && hasMeter(b) && a.meterId === b.meterId && a.counter === b.counter : true);
 
 export class WhaleService {
   constructor(options = {}) {
     this.config = options.config || new ConfigStore(options);
     this.provider = options.provider || new BalanceProvider(options);
+    this.previewProviderFactory = options.previewProviderFactory || (() => new BalanceProvider({ fetchImpl: this.provider.fetch, timeoutMs: this.provider.timeoutMs, probeBackoff: this.provider.auto?.backoff }));
+    this.previewProvider = null;
+    this.previewSelections = new Map(); this.previewGeneration = 0;
+    this.previewNow = options.previewNow || Date.now;
     this.ledger = new UsageLedger(this.config.dataDir);
-    this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set();
+    this.cache = new Map(); this.inFlight = new Map(); this.turns = new Map(); this.settling = new Set(); this.settlingContexts = new Map();
     this.balanceSequence = 0; this.latestSamples = new Map(); this.latestQueries = new Map();
     this.lastFile = path.join(this.config.dataDir, 'last-turn.json');
     this.usageSettingsFile = path.join(this.config.dataDir, 'usage-settings.json');
@@ -28,8 +40,128 @@ export class WhaleService {
     const s = c.setting || {};
     // Prices and UI preferences do not change the API meter. Its adapter and
     // conversion settings do; never compare readings expressed on two scales.
-    return JSON.stringify([c.accountId, s.provider, s.currency, s.balancePath, s.balanceField,
-      s.usedField, s.balanceScale, s.billingUsageDivisor, s.quotaPerUnit]);
+    const parts = [c.accountId, s.provider, s.currency, s.balancePath, s.balanceField,
+      s.usedField, s.balanceScale, s.billingUsageDivisor, s.quotaPerUnit];
+    if (c.balanceConnection || c.connectionId || c.authHeaders) parts.push(c.connectionId || '', c.balanceConnection || null,
+      createHash('sha256').update(JSON.stringify(c.authHeaders || {})).digest('hex'));
+    return JSON.stringify(parts);
+  }
+  observationIdentity(c, payload) {
+    const configurationKey = createHash('sha256').update(this.balanceIdentity(c)).digest('hex');
+    return { configurationKey, meterKey: hasMeter(payload)
+      ? createHash('sha256').update(configurationKey + ':' + payload.meterId).digest('hex') : configurationKey,
+      ...(hasMeter(payload) ? { meterVersion: 2 } : {}) };
+  }
+  selectionSettingsHash() { return createHash('sha256').update(JSON.stringify(this.config.load())).digest('hex'); }
+  selectionPatch(context, selection) {
+    const balance = validateBalanceConnection({ ...selection, mapping: { ...selection.mapping, confirmed: true } });
+    let record, mode = context.setting.connectionMode || 'follow';
+    if (context.connectionId) {
+      record = context.setting.connections.find(item => item.id === context.connectionId);
+      if (!record) throw new Error('候选连接已不存在，请重新检测');
+      record = { ...structuredClone(record), balance };
+    } else {
+      const source = this.config.readSource(context.setting);
+      // Preserve inherited Codex authentication without copying resolved keys
+      // into a new record. The selected endpoint itself remains explicit.
+      const address = new URL(balance.request.url, context.baseUrl.replace(/\/$/, '') + '/');
+      balance.request.url = address.href;
+      const keyEnv = context.setting.keyEnv || '';
+      if (address.origin !== new URL(source.originalBase).origin && balance.request.auth.type === 'inherit') {
+        if (!keyEnv) throw new Error('该余额接口需要专用认证，请在高级连接中配置环境变量');
+        balance.request.auth = { type: 'bearer', keyEnv, header: '' };
+      }
+      record = { id: 'detected-' + randomBytes(12).toString('hex'), name: '已确认的余额接口',
+        match: { providerId: source.id, profile: source.profileName }, baseUrl: source.originalBase,
+        keyEnv, balance };
+      mode = 'follow';
+    }
+    const patch = { connectionMode: mode, selectedConnection: record.id,
+      connectionUpdate: { id: record.id, value: record } };
+    // Only source selection follows this action; unrelated unsaved model
+    // prices or display edits must not be committed by an interface button.
+    if (mode === 'follow') for (const key of ['profile', 'projectDir']) patch[key] = context.setting[key] || '';
+    this.config.resolveDraft(patch);
+    return patch;
+  }
+  acceptBalanceSelection(previewId) {
+    if (this.closed || typeof previewId !== 'string') throw new Error('候选已失效，请重新检测');
+    const proof = this.previewSelections.get(previewId);
+    this.previewSelections.delete(previewId);
+    if (!proof || proof.expiresAt <= this.previewNow()) throw new Error('候选已失效，请重新检测');
+    if (proof.settingsHash !== this.selectionSettingsHash() || proof.contextIdentity !== this.balanceIdentity(this.config.resolveDraft(proof.draft))) throw new Error('连接来源或配置已改变，请重新检测');
+    this.config.save(proof.patch);
+    this.previewSelections.clear(); this.previewGeneration++;
+    this.cache.clear();
+    return { ok: true, ...this.config.settingsInfo() };
+  }
+  async previewBalance(patch, { redetect = false } = {}) {
+    if (this.closed) throw new Error('挂件正在退出，请稍后重新检测');
+    const generation = ++this.previewGeneration;
+    this.previewSelections.clear();
+    const settingsHash = this.selectionSettingsHash();
+    const context = this.config.resolveDraft(patch);
+    const requestedId = patch?.connectionUpdate?.id || patch?.selectedConnection;
+    if (requestedId && context.connectionId !== requestedId) throw new Error('所编辑连接未匹配当前来源；请核对跟随条件，或选择固定连接并填写地址');
+    // A separate adapter instance keeps draft detection out of live caches.
+    // This method deliberately never calls getBalance or any ledger method.
+    const provider = this.previewProvider ||= this.previewProviderFactory();
+    if (redetect) this.provider.invalidateDetection?.(context);
+    const result = await provider.balance(context, { redetect });
+    if (generation !== this.previewGeneration || this.closed || settingsHash !== this.selectionSettingsHash() || this.balanceIdentity(context) !== this.balanceIdentity(this.config.resolveDraft(patch))) throw new Error('配置或预览已更新，请重新检测');
+    const raw = result.preview || result;
+    const numeric = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+    let previewId;
+    const selection = result.detection?.needsConfirmation === true ? provider.selectionFor?.(result) : null;
+    if (selection) {
+      const prepared = this.selectionPatch(context, selection);
+      previewId = 'balance-selection-' + randomBytes(24).toString('hex');
+      this.previewSelections.set(previewId, { settingsHash, draft: structuredClone(patch),
+        contextIdentity: this.balanceIdentity(context), patch: prepared, expiresAt: this.previewNow() + 300000 });
+    }
+    if (redetect) for (const [key, entry] of this.cache) if (entry.identity === this.balanceIdentity(context)) this.cache.delete(key);
+    return { ok: result.ok !== false, balanceStatus: result.balanceStatus || 'finite',
+      balanceLabel: result.balanceLabel || 'API 余额', currency: result.currency,
+      canObserve: result.canObserve === true, connectionId: context.connectionId || '',
+      connectionInfo: context.connectionInfo || null,
+      preview: { balance: numeric(raw.balance ?? raw.totalBalance), used: numeric(raw.used ?? raw.totalUsed),
+        currency: raw.currency || result.currency, scope: raw.scope || result.balanceScope, adapter: raw.adapter || result.adapter },
+      unlimited: result.unlimited === true,
+      ...(result.detection ? { detection: result.detection } : {}), ...(previewId ? { previewId } : {}) };
+  }
+  accountActivityCount(c) {
+    const identity = this.balanceIdentity(c);
+    return [...this.turns.values(), ...this.settlingContexts.values()].filter(turn => !turn.isSubagent && this.balanceIdentity(turn.context) === identity).length;
+  }
+  accountNoticeContext() {
+    const context = this.config.resolve(), identity = this.balanceIdentity(context);
+    const query = this.latestQueries.get(identity), configurationKey = createHash('sha256').update(identity).digest('hex');
+    let meterKey = this.observationIdentity(context, query?.payload).meterKey;
+    let currency = query?.payload.currency || context.setting.currency;
+    const eligible = !query || observable(query.payload);
+    if (!query) {
+      // The adapter may return USD even when a display preference is CNY.
+      // Restore the last actual meter currency without requiring a network call.
+      const matches = this.ledger.scopes().filter(scope => scope.startsWith(context.accountId + '-'))
+        .map(scope => ({ scope, ledger: this.ledger.load(scope) }))
+        .filter(entry => entry.ledger.lastObservation?.configurationKey === configurationKey || entry.ledger.accountNotices?.meterKey === configurationKey)
+        .sort((a, b) => (b.ledger.lastObservation?.at || 0) - (a.ledger.lastObservation?.at || 0));
+      currency = matches[0]?.scope.slice(-3) || context.setting.currency;
+      meterKey = matches[0]?.ledger.accountNotices?.meterKey || meterKey;
+    }
+    const scope = this.scope(context, currency);
+    return { scope, meterKey, eligible, publicScope: accountNoticeScope(scope, meterKey) };
+  }
+  accountNotices() {
+    const { scope, meterKey, eligible, publicScope } = this.accountNoticeContext();
+    const notice = this.closed || !eligible ? null : this.ledger.accountNotice(scope, meterKey);
+    return { ok: true, scope: publicScope, notices: notice ? [notice] : [] };
+  }
+  ackAccountNotices(ids) {
+    if (this.closed) throw new Error('挂件正在退出，请稍后重试账户消费通知确认');
+    const { scope, meterKey, eligible, publicScope } = this.accountNoticeContext();
+    if (!eligible && ids?.length) throw new Error('当前连接的金额口径尚未确认');
+    return { ok: true, scope: publicScope, acknowledged: this.ledger.acknowledgeNotices(scope, meterKey, ids) };
   }
   isCurrentBalanceContext(c) {
     try { return this.balanceIdentity(c) === this.balanceIdentity(this.config.resolve()); }
@@ -53,8 +185,7 @@ export class WhaleService {
     let c;
     try { c = context || this.config.resolve(); }
     catch (error) { return { ok: false, code: 'CONFIG', error: error.message }; }
-    const cacheKey = c.accountId + ':' + JSON.stringify(c.setting);
-    const identity = this.balanceIdentity(c), cached = this.balanceCache(c, cacheKey);
+    const identity = this.balanceIdentity(c), cacheKey = identity + ':' + JSON.stringify(c.setting), cached = this.balanceCache(c, cacheKey);
     // Each caller checks its own context, even when it joins a round's request.
     // A UI request made before an account/currency switch returns current data.
     const deliver = value => {
@@ -71,6 +202,7 @@ export class WhaleService {
     if (!force && cached && Date.now() - cached.at < Math.min(c.setting.refreshSeconds, 25) * 1000) return deliver(this.decorate(c, cached.payload));
     if (this.inFlight.has(cacheKey)) return deliver(await this.inFlight.get(cacheKey));
     const sequence = ++this.balanceSequence;
+    const activityAtStart = this.accountActivityCount(c);
     const request = (async () => {
       try {
         const payload = await this.provider.balance(c);
@@ -84,8 +216,9 @@ export class WhaleService {
           return { ...this.decorate(c, payload, { activate: false }), superseded: true,
             ...(latest.identity !== identity ? { stale: true } : {}) };
         }
-        const meterKey = createHash('sha256').update(identity).digest('hex');
-        this.ledger.observe(scope, { ...payload, meterKey });
+        const meter = this.observationIdentity(c, payload);
+        if (!payload.stale && payload.ok !== false && observable(payload)) this.ledger.observe(scope, { ...payload, ...meter,
+          concurrentCount: Math.max(activityAtStart, this.accountActivityCount(c)) });
         const sample = { at: Date.now(), sequence, identity, payload };
         this.latestSamples.set(scope, sample);
         this.latestQueries.set(identity, sample);
@@ -94,8 +227,8 @@ export class WhaleService {
       } catch (error) {
         if (this.closed) return this.stoppedBalance();
         const fallback = this.balanceCache(c, cacheKey);
-        if (error.transient && fallback) return { ...this.decorate(c, fallback.payload), stale: true, error: error.message };
-        return { ok: false, code: error.code || 'ERROR', error: error.code ? error.message : '余额服务暂时不可用', providerName: c.providerName, dashboardUrl: c.dashboardUrl, baseUrl: c.baseUrl, todayUsage: this.ledger.records(this.scope(c, c.setting.currency)).today.total, currency: c.setting.currency, usageMode: 'ledger' };
+        if (error.transient && fallback) return { ...this.decorate(c, fallback.payload), stale: true, error: error.message, ...(error.detection ? { detection: error.detection } : {}) };
+        return { ok: false, code: error.code || 'ERROR', error: error.code ? error.message : '余额服务暂时不可用', providerName: c.providerName, dashboardUrl: c.dashboardUrl, baseUrl: c.baseUrl, todayUsage: this.ledger.records(this.scope(c, c.setting.currency)).today.total, currency: c.setting.currency, usageMode: 'ledger', ...(error.detection ? { detection: error.detection } : {}) };
       } finally { this.inFlight.delete(cacheKey); }
     })();
     this.inFlight.set(cacheKey, request);
@@ -105,11 +238,16 @@ export class WhaleService {
     const scope = this.scope(c, payload.currency);
     const records = this.ledger.records(scope);
     if (activate && this.isCurrentBalanceContext(c)) this.activeScope = scope;
-    return { ...payload, todayUsage: records.today.total, observedSince: records.today.since, usageMode: 'ledger', usageNote: records.note };
+    return { ...payload, connectionInfo: c.connectionInfo || null, todayUsage: records.today.total, observedSince: records.today.since, usageMode: 'ledger', usageNote: records.note };
   }
-  usageRecords() {
+  usageScopes() {
     const c = this.config.resolve();
-    const scope = this.activeScope?.startsWith(c.accountId + '-') ? this.activeScope : this.scope(c, c.setting.currency);
+    return { ok: true, scopes: this.ledger.scopes().map(scope => ({ scope, currency: scope.slice(-3), current: scope.startsWith(c.accountId + '-'), label: '匿名账户 ' + scope.slice(0, 8) + ' · ' + scope.slice(-3) })) };
+  }
+  usageRecords({ scope: requestedScope = null } = {}) {
+    const c = this.config.resolve();
+    const scope = requestedScope || (this.activeScope?.startsWith(c.accountId + '-') ? this.activeScope : this.scope(c, c.setting.currency));
+    if (requestedScope && !this.ledger.scopes().includes(requestedScope)) throw new Error('历史账本不存在');
     return { ...this.ledger.records(scope), currency: scope.slice(-3), settings: this.readUsageSettings() };
   }
   readUsageSettings() {
@@ -132,8 +270,7 @@ export class WhaleService {
     const last = readJson(this.lastFile, { ok: true, seq: 0, turn: null, amount: null, tokens: null, ts: null });
     const c = this.config.resolve();
     if (last.accountId && last.accountId !== c.accountId) return { ok: true, seq: last.seq, turn: null, amount: null, tokens: null, ts: null };
-    if (last.completionKind === 'failed' && last.failureKind !== 'high-demand') return { ...last, notify: false };
-    return last;
+    return normalizeTurnCost(last);
   }
   beginTurn(meta) {
     if (this.closed || this.settling.has(meta.id)) return;
@@ -214,9 +351,9 @@ export class WhaleService {
     const turn = this.turns.get(meta.id);
     if (!turn) return Promise.resolve();
     this.turns.delete(meta.id);
-    this.settling.add(meta.id);
+    this.settling.add(meta.id); this.settlingContexts.set(meta.id, turn);
     this.persistTurn(turn, 'settling', meta);
-    const job = this.settleTurn(meta, turn).finally(() => { this.settling.delete(meta.id); this.jobs.delete(job); });
+    const job = this.settleTurn(meta, turn).finally(() => { this.settling.delete(meta.id); this.settlingContexts.delete(meta.id); this.jobs.delete(job); });
     this.jobs.add(job); return job;
   }
   async settleTurn(meta, turn) {
@@ -251,24 +388,24 @@ export class WhaleService {
     if (estimate !== null && !turn.partial && !children.some(e => e.partial)) {
       amount = estimate; currency = context.setting.currency; source = 'configured-pricing-estimate'; costState = 'estimated';
       note = '根据 Codex 记录的 token 数量与手动配置价格估算，包含本主轮已记录的子任务用量；服务商折扣、缓存策略和账单延迟可能造成差异。';
-    } else if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency) {
-      if (typeof start.totalUsed === 'number' && typeof end.totalUsed === 'number' && end.totalUsed >= start.totalUsed) amount = rounded(end.totalUsed - start.totalUsed);
-      else if (start.totalUsed == null && end.totalUsed == null && typeof start.totalBalance === 'number' && typeof end.totalBalance === 'number' && end.totalBalance <= start.totalBalance) amount = rounded(start.totalBalance - end.totalBalance);
-      if (amount !== null) {
-        source = 'shared-key-interval'; costState = amount > 0 ? 'observed' : 'pending';
-        if (costState === 'pending') amount = null;
-        note = costState === 'pending' ? '结束采样尚未出现可归属扣费，可能尚未入账或本次未计费；稍后的同密钥扣费不会直接归入本轮。' :
-          '这是本轮运行期间同一 API 密钥的已观测合计扣费，可能含其他任务或设备的调用；并非逐请求最终账单。';
-        note += (turn.partial ? ' 挂件在本轮开始后启动，仅覆盖启动后的时段。' : '') + (turn.concurrent ? ' 检测到同时运行的任务。' : '');
-      }
     }
+    // Account observations have no request attribution, even when no local
+    // parallel turn is visible (another device may use the same API key).
+    let accountIntervalAmount = null;
+    if (!meta.historical && outcome !== 'interrupted' && start.ok && end.ok && !start.stale && !end.stale && start.accountId === end.accountId && start.currency === end.currency && sameMeter(start, end)) {
+      if (Number.isFinite(start.totalUsed) && Number.isFinite(end.totalUsed) && end.totalUsed >= start.totalUsed) accountIntervalAmount = decimalDifference(end.totalUsed, start.totalUsed);
+      else if (start.totalUsed == null && end.totalUsed == null && Number.isFinite(start.totalBalance) && Number.isFinite(end.totalBalance) && end.totalBalance <= start.totalBalance) accountIntervalAmount = decimalDifference(start.totalBalance, end.totalBalance);
+    }
+    if (amount === null) note = '没有可验证的本轮账单或完整 token 价格估算，本轮费用未知；账户期间扣费可能来自其他对话、设备或延迟入账，不能归给本轮。';
     if (meta.historical && amount === null) note = '已恢复任务状态及可用 token 记录；任务结束时没有可靠余额采样，不能把停机期间其他扣费归入本轮。';
-    const label = source === 'configured-pricing-estimate' ? '上一轮消耗（估算）:' : source === 'shared-key-interval' ? (turn.partial ? '本轮已观测期间扣费:' : '上一轮期间 API 扣费:') : '上一轮 token 用量:';
+    const label = source === 'configured-pricing-estimate' ? '本轮消耗（估算）:' : '本轮费用未知:';
     const tokens = tokenTotal(combined);
     if(this.cancelledOutcomes.has(meta.id)){outcome='aborted';base.outcome='aborted';base.failureKind=null;}
-    const completionKind = outcome === 'completed' ? 'success' : outcome === 'failed' ? 'failed' : outcome === 'aborted' ? 'cancelled' : null;
+    const completionKind = outcome === 'completed' ? 'success' : ['failed','interrupted','superseded'].includes(outcome) ? 'failed' : outcome === 'aborted' ? 'cancelled' : null;
     const event = { ...base, ok: true, turn: meta.turnId || meta.id, amount, cost: amount, costState, tokens, currency, source, label, note,
-      completionKind, notify: !meta.historical && !!completionKind && (outcome === 'completed' ? meta.notify !== false : outcome === 'aborted' && (meta.statusNotify === true || this.cancelledOutcomes.has(meta.id)) || outcome === 'failed' && base.failureKind === 'high-demand' && meta.statusNotify === true),
+      accountIntervalAmount, accountIntervalCurrency: end.currency || start.currency || context.setting.currency,
+      conversationRef: createHash('sha256').update(String(base.sessionId || base.id)).digest('hex').slice(0, 8),
+      completionKind, notify: !meta.historical && !!completionKind && (outcome === 'completed' ? meta.notify !== false : meta.statusNotify === true || outcome === 'aborted' && this.cancelledOutcomes.has(meta.id)),
       concurrent: !!turn.concurrent, childTurns: children.length, ownByModel: ownUsage, byModel: combined,
       pricing: context.setting.models };
     const scope = this.scope(context, currency);
@@ -356,7 +493,7 @@ export class WhaleService {
   }
   queueNotice(scope, event) {
     if (!event.notify || this.closed) return;
-    if (['success','cancelled'].includes(event.completionKind)) { this.publishNotice(scope, event.id); return; }
+    if (['success','cancelled'].includes(event.completionKind) || event.completionKind === 'failed' && event.failureKind !== 'high-demand') { this.publishNotice(scope, event.id); return; }
     const session = event.sessionId || event.id;
     if (this.latestStarts.get(session) && this.latestStarts.get(session) !== event.id) return;
     const old = this.noticeTimers.get(session); if (old) clearTimeout(old.timer);
@@ -375,13 +512,14 @@ export class WhaleService {
     let config;
     try { config = this.config.resolve(); } catch { return; }
     if (config.accountId !== event.accountId) return;
-    if (!['success','cancelled'].includes(event.completionKind) && !(event.completionKind === 'failed' && event.failureKind === 'high-demand')) return;
+    if (!['success','cancelled','failed'].includes(event.completionKind)) return;
     const seq = Number(readJson(this.lastFile, { seq: 0 }).seq || 0) + 1;
     this.ledger.revise(scope, id, { noticePublished: true });
     writeJson(this.lastFile, { ...event, seq, amount: event.cost, notificationAt: Date.now() });
   }
   async close({ timeoutMs = 3000 } = {}) {
     this.closed = true; clearTimeout(this.costTimer); this.costTimer = null;
+    this.previewSelections.clear(); this.previewGeneration++;
     for (const item of this.noticeTimers.values()) clearTimeout(item.timer);
     this.noticeTimers.clear();
     if (!this.jobs.size) return;
@@ -403,8 +541,8 @@ function mergeUsage(parts) {
 }
 
 export function estimateUsage(byModel, settings, ts) {
-  if (!Object.keys(byModel).length) return null;
-  let total = 0;
+  if (!Object.keys(byModel).length || tokenTotal(byModel) <= 0) return null;
+  let total = '0';
   for (const [model, u] of Object.entries(byModel)) {
     const p = Object.hasOwn(settings.models || {}, model) ? settings.models[model] : null;
     if (!p) return null;
@@ -412,7 +550,10 @@ export function estimateUsage(byModel, settings, ts) {
     const write = Math.min(Math.max(0, u.input_tokens - cached), u.cache_write_input_tokens || 0);
     const miss = Math.max(0, u.input_tokens - cached - write);
     // Reasoning tokens are already a subset of output_tokens in Codex events.
-    total += (miss * p.input + write * (p.cacheWrite ?? p.input) + cached * p.cachedInput + u.output_tokens * p.output) / 1e6;
+    for (const [count, price] of [[miss, p.input], [write, p.cacheWrite ?? p.input], [cached, p.cachedInput], [u.output_tokens, p.output]]) {
+      if (!Number.isFinite(count) || !Number.isFinite(price) || count < 0 || price < 0) return null;
+      total = decimalAdd(total, decimalMultiply(decimalMultiply(count, price), '0.000001'));
+    }
   }
-  return rounded(total);
+  return Number.isFinite(Number(total)) ? Number(total) : null;
 }

@@ -55,7 +55,8 @@ test('configuration rejects credentials, cross-origin paths and invalid prices',
 });
 
 test('compatible billing correctly converts cents and preserves decimals', async t => {
-  const c = config(t).resolve(); const calls = [];
+  const store = config(t); store.save({ provider: 'billing' });
+  const c = store.resolve(); const calls = [];
   const p = new BalanceProvider({ fetchImpl: async (url, options) => { calls.push({ url, options }); return url.endsWith('/subscription') ? reply({ hard_limit_usd: 50 }) : reply({ total_usage: 112.3554 }); } });
   const r = await p.balance(c);
   assert.equal(r.totalBalance, 48.876446); assert.equal(r.totalUsed, 1.123554); assert.equal(r.currency, 'USD');
@@ -74,9 +75,10 @@ test('missing billing values are rejected rather than rendered as zero', async t
 
 test('unsupported HTML billing routes fall back to a distinct key quota', async t => {
   const c = config(t).resolve();
-  const p = new BalanceProvider({ fetchImpl: async url => url.includes('/api/usage/token') ? reply({ data: { total_available: 3, total_used: 2, total_granted: 5 } }) : reply('<html>login</html>', 200, 'text/html') });
+  const p = new BalanceProvider({ fetchImpl: async url => url.includes('/api/usage/token/') ? reply({ data: { object: 'token_usage', total_available: 1500000, total_used: 1000000, total_granted: 2500000, unlimited_quota: false } }) : url.endsWith('/api/status') ? reply({ success: true, data: { quota_per_unit: 500000, quota_display_type: 'USD' } }) : reply('<html>login</html>', 200, 'text/html') });
   const r = await p.balance(c);
-  assert.equal(r.totalBalance, 3); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
+  assert.equal(r.totalBalance, 3); assert.equal(r.totalUsed, 2); assert.equal(r.balanceStatus, 'finite');
+  assert.equal(r.canObserve, true); assert.equal(r.balanceScope, 'api-key-quota'); assert.equal(r.adapter, 'newapi');
 });
 
 test('unlimited API key quota does not imply unlimited account funds', async t => {
@@ -93,17 +95,18 @@ test('custom JSON adapter validates fields and amount scaling', async t => {
   assert.equal(r.totalBalance, 12); assert.equal(r.totalUsed, 0.99); assert.equal(r.currency, 'EUR');
 });
 
-test('authentication failures do not expose provider bodies or fall back', async t => {
+test('authentication failures are bounded and never expose provider bodies', async t => {
   const c = config(t).resolve(); let count = 0;
   const p = new BalanceProvider({ fetchImpl: async () => { count++; return reply({ error: 'echo ' + c.key }, 401); } });
-  await assert.rejects(p.balance(c), error => error.code === 'AUTH' && !error.message.includes(c.key));
-  assert.equal(count, 2);
+  await assert.rejects(p.balance(c), error => error.code === 'AUTH' && error.detection.status === 'auth' && error.detection.attempted === count && !error.message.includes(c.key));
+  assert.ok(count > 1 && count <= 16);
 });
 
 test('official OpenAI auto mode never calls an unverified balance endpoint', async t => {
   const c = config(t, 'model_provider="openai"\n[model_providers.openai]\nbase_url="https://api.openai.com/v1"\nexperimental_bearer_token="fake-key"\n');
   const p = new BalanceProvider({ fetchImpl: () => { throw new Error('must not request'); } });
-  await assert.rejects(p.balance(c.resolve()), error => error.code === 'UNSUPPORTED');
+  const result = await p.balance(c.resolve());
+  assert.equal(result.ok, true); assert.equal(result.balanceStatus, 'unsupported'); assert.equal(result.canObserve, false);
 });
 
 test('daily ledger preserves spent amounts across recharges and separates currencies', t => {
@@ -173,7 +176,7 @@ test('turn settlement records interval scope and keeps its sequence after restar
   const service = new WhaleService({ config: c, provider: fake });
   service.beginTurn({ id: 'one', turnId: '1', partial: false });
   await service.finishTurn({ id: 'one', turnId: '1', byModel: { model: usage(10, 0, 5) } });
-  assert.equal(service.lastTurn().amount, 1); assert.equal(service.lastTurn().source, 'shared-key-interval'); assert.equal(service.lastTurn().tokens, 15);
+  assert.equal(service.lastTurn().amount, null); assert.equal(service.lastTurn().accountIntervalAmount, 1); assert.equal(service.lastTurn().source, 'token-only'); assert.equal(service.lastTurn().tokens, 15);
   const restarted = new WhaleService({ config: c, provider: fake });
   assert.equal(restarted.lastTurn().seq, 1);
 });
@@ -187,4 +190,24 @@ test('transient failures keep the last successful balance but auth failures do n
   await service.getBalance(); mode = 'NETWORK';
   assert.equal((await service.getBalance({ force: true })).stale, true);
   mode = 'AUTH'; assert.equal((await service.getBalance({ force: true })).ok, false);
+});
+
+
+test('billing preserves a positive debit below eight decimal places', async t => {
+  const c = config(t); c.save({ provider: 'billing' });
+  const p = new BalanceProvider({ fetchImpl: async url => url.endsWith('/subscription') ? reply({ hard_limit_usd: 1 }) : reply({ total_usage: 0.00000001 }) });
+  const result = await p.balance(c.resolve());
+  assert.equal(result.totalUsed, 1e-10);
+  assert.equal(result.totalBalance, 0.9999999999);
+});
+
+test('custom scaling retains provider precision instead of truncating tiny balances and debits', async t => {
+  const c = config(t); c.save({ provider: 'custom-json', balancePath: '/my/balance', balanceField: 'wallet.remaining', usedField: 'wallet.spent', balanceScale: 0.01, currency: 'USD' });
+  const source = { remaining: 0.000000123456789, spent: 0.00000000123456789 };
+  const p = new BalanceProvider({ fetchImpl: async () => reply({ wallet: source }) });
+  const result = await p.balance(c.resolve());
+  assert.equal(result.totalBalance, source.remaining * 0.01);
+  assert.equal(result.totalUsed, source.spent * 0.01);
+  assert.ok(result.totalBalance > 0 && result.totalBalance < 1e-8);
+  assert.ok(result.totalUsed > 0 && result.totalUsed < 1e-10);
 });

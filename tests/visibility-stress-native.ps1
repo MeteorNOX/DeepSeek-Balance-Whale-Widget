@@ -1,10 +1,11 @@
-param([long]$Overlay, [int]$OverlayPid, [long]$FixtureHost, [int]$FixturePid)
+﻿param([long]$Overlay, [int]$OverlayPid, [long]$FixtureHost, [int]$FixturePid)
 $ErrorActionPreference='Stop'
 $whaleRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $whaleHostProcess=Get-CimInstance Win32_Process -Filter ('ProcessId='+$FixturePid)
 $whaleOverlayProcess=Get-CimInstance Win32_Process -Filter ('ProcessId='+$OverlayPid)
 if (!$whaleHostProcess.CommandLine.Contains('visibility-stress-host.cjs') -or !$whaleOverlayProcess.CommandLine.Contains('main.cjs')) { throw 'Only isolated visibility fixtures are allowed.' }
 Add-Type -Path (Join-Path $whaleRoot 'desktop\WindowApi.cs')
+Add-Type -Path (Join-Path $whaleRoot 'desktop\WindowDiagnostics.cs')
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
 using System;
 using System.Drawing;
@@ -14,7 +15,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 public static class WhaleVisibilityFixture {
     public sealed class Bounds { public int x,y,width,height; }
-    public sealed class State { public bool visible,modal; public uint dpi; public Bounds bounds; }
+    public sealed class State { public bool visible,modal,widgetVisible,hostTopmost,overlayTopmost,owned; public uint dpi; public string foreground; public Bounds bounds; }
     [StructLayout(LayoutKind.Sequential)] struct Rect { public int Left,Top,Right,Bottom; }
     [StructLayout(LayoutKind.Sequential)] struct Point { public int X,Y; }
     delegate bool EnumProc(IntPtr h,IntPtr p);
@@ -25,9 +26,9 @@ public static class WhaleVisibilityFixture {
     [DllImport("user32.dll")] static extern bool IsWindowEnabled(IntPtr h);
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
     [DllImport("user32.dll")] static extern bool ShowWindowAsync(IntPtr h,int command);
-    [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int height,uint flags);
+    [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll",EntryPoint="GetWindowLongPtrW")] static extern IntPtr GetWindowLongPtr(IntPtr h,int index);
     public static bool Show(long h,int command) { return ShowWindowAsync(new IntPtr(h),command); }
-    public static void Raise(long host,long overlay) { SetWindowPos(new IntPtr(host),new IntPtr(-1),0,0,0,0,0x13);SetWindowPos(new IntPtr(overlay),new IntPtr(-1),0,0,0,0,0x13); }
     [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h,out Rect r);
     [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point p);
     [DllImport("user32.dll")] static extern bool ClientToScreen(IntPtr h,ref Point p);
@@ -38,10 +39,10 @@ public static class WhaleVisibilityFixture {
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern int GetClassName(IntPtr h,StringBuilder text,int len);
     [DllImport("user32.dll")] static extern IntPtr SetThreadDpiAwarenessContext(IntPtr p);
     public static void Attach(long overlay,long host) { SetWindowLongPtr(new IntPtr(overlay),-8,new IntPtr(host)); if(GetWindow(new IntPtr(overlay),4)!=new IntPtr(host))throw new Exception("Owner attach failed"); }
-    public static object Probe(long id) {
+    public static object Probe(long id,long overlayId) {
         var previous=SetThreadDpiAwarenessContext(new IntPtr(-4));
-        try { var h=new IntPtr(id); Rect r; var p=new Point();GetClientRect(h,out r);ClientToScreen(h,ref p);
-            return new State { visible=IsWindowVisible(h)&&!IsIconic(h),modal=!IsWindowEnabled(h),dpi=GetDpiForWindow(h),bounds=new Bounds {x=p.X,y=p.Y,width=r.Right,height=r.Bottom} };
+        try { var h=new IntPtr(id);var overlay=new IntPtr(overlayId); Rect r; var p=new Point();GetClientRect(h,out r);ClientToScreen(h,ref p);
+            return new State { visible=IsWindowVisible(h)&&!IsIconic(h),modal=!IsWindowEnabled(h),widgetVisible=IsWindowVisible(overlay)&&!IsIconic(overlay),hostTopmost=(GetWindowLongPtr(h,-20).ToInt64()&8)!=0,overlayTopmost=(GetWindowLongPtr(overlay,-20).ToInt64()&8)!=0,owned=GetWindow(overlay,4)==h,foreground=GetForegroundWindow().ToInt64().ToString(),dpi=GetDpiForWindow(h),bounds=new Bounds {x=p.X,y=p.Y,width=r.Right,height=r.Bottom} };
         } finally {SetThreadDpiAwarenessContext(previous);}
     }
     public static int Cancel(long hostId,int hostPid) {
@@ -84,11 +85,10 @@ try {
         if ($whaleRequest.command -eq 'quit') { break }
         try {
             $whaleResult=@{id=$whaleRequest.id}
-            if ($whaleRequest.command -eq 'probe') { $whaleResult.state=[WhaleVisibilityFixture]::Probe($FixtureHost); $whaleResult.visibilityRevision=[WhaleWindows]::VisibilityRevision() }
+            if ($whaleRequest.command -eq 'probe') { $whaleResult.state=[WhaleVisibilityFixture]::Probe($FixtureHost,$Overlay); $whaleResult.visibilityRevision=[WhaleWindows]::VisibilityRevision(); $whaleResult.visualDiagnostics=[WhaleWindowDiagnostics]::Snapshot($Overlay,$FixtureHost) }
             elseif ($whaleRequest.command -eq 'minimize') { $whaleResult.ok=[WhaleVisibilityFixture]::Show($FixtureHost,6) }
             elseif ($whaleRequest.command -eq 'restore') { $whaleResult.ok=[WhaleVisibilityFixture]::Show($FixtureHost,9) }
-            elseif ($whaleRequest.command -eq 'raise') { [WhaleVisibilityFixture]::Raise($FixtureHost,$Overlay);$whaleResult.ok=$true }
-            elseif ($whaleRequest.command -eq 'capture') { $whaleResult.unobscured=[WhaleVisibilityFixture]::Unobscured($FixtureHost,$Overlay);$whaleResult.png=[WhaleVisibilityFixture]::Capture($FixtureHost) }
+            elseif ($whaleRequest.command -eq 'capture') { $whaleResult.png=[WhaleVisibilityFixture]::Capture($FixtureHost);$whaleResult.unobscured=[WhaleVisibilityFixture]::Unobscured($FixtureHost,$Overlay);$whaleResult.state=[WhaleVisibilityFixture]::Probe($FixtureHost,$Overlay) }
             elseif ($whaleRequest.command -eq 'cancel') { $whaleResult.closed=[WhaleVisibilityFixture]::Cancel($FixtureHost,$FixturePid) }
             $whaleResult | ConvertTo-Json -Depth 5 -Compress
         } catch { @{id=$whaleRequest.id;error=$_.Exception.Message} | ConvertTo-Json -Compress }

@@ -7,6 +7,9 @@ import vm from 'node:vm';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+// Windows PowerShell 5 treats BOM-less UTF-8 as the active ANSI code page.
+// Generated harnesses interpolate local paths, which can contain any Unicode.
+const writePowerShell = (file,source) => fs.writeFile(file,'\uFEFF'+source.replace(/^\uFEFF/,''),'utf8');
 const require = createRequire(import.meta.url);
 const { shutdownCompanion } = require('../desktop/lifecycle.cjs');
 const { externalWebUrl } = require('../desktop/external-links.cjs');
@@ -145,7 +148,7 @@ test('macOS only keeps the transparent window interactive for opted-in outside d
   const end = source.indexOf('  function updateKeyboardFocus()', start);
   const run = (platform, openSelector, enabled) => {
     const calls = [];
-    const flyout = { checkVisibility: () => true };
+    const flyout = { isConnected: true, hidden: false, checkVisibility: () => true };
     const box = {
       heldPointer: null, externalDrag: false, point: { x: 40, y: 40 }, interactive: false,
       surfaces: '.ordinary-surface', pet: { checkVisibility: () => false }, root: {},
@@ -192,7 +195,7 @@ test('an opted-in blank pointer press closes the popup opened from the character
 });
 
 test('failed task registration leaves a running installation untouched and cannot print success', { skip: process.platform !== 'win32' }, async t => {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-'));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-中文 空格-'));
   t.after(async () => {
     const resolved = path.resolve(temporary);
     assert.ok(resolved.startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(resolved).startsWith('whale-desktop-audit-'));
@@ -207,11 +210,11 @@ test('failed task registration leaves a running installation untouched and canno
     fs.writeFile(path.join(data, 'follow-config.json'), '{"sentinel":"keep-current-monitor"}'),
     fs.writeFile(path.join(data, 'follow-install.json'), '{"sentinel":"previous-success"}'),
     fs.copyFile(new URL('../scripts/install-follow.ps1', import.meta.url), path.join(scripts, 'install-follow.ps1')),
-    fs.writeFile(path.join(scripts, 'build-launcher.ps1'), 'param([string]$DataDir)\nWrite-Output ' + quote(launcher)),
-    fs.writeFile(path.join(desktop, 'supervisor.ps1'), 'param([string]$DataDir,[switch]$Stop)\nSet-Content -LiteralPath (Join-Path $DataDir stop-was-called) -Value yes'),
+    writePowerShell(path.join(scripts, 'build-launcher.ps1'), 'param([string]$DataDir)\nWrite-Output ' + quote(launcher)),
+    writePowerShell(path.join(desktop, 'supervisor.ps1'), 'param([string]$DataDir,[switch]$Stop)\nSet-Content -LiteralPath (Join-Path $DataDir stop-was-called) -Value yes'),
   ]);
   const harness = path.join(temporary, 'simulate-install.ps1');
-  await fs.writeFile(harness, `$ErrorActionPreference='Stop'
+  await writePowerShell(harness, `$ErrorActionPreference='Stop'
 function Get-ScheduledTask { param($TaskName,$ErrorAction) return $null }
 function New-ScheduledTaskAction { param($Execute,$Argument,$WorkingDirectory) [pscustomobject]@{Execute=$Execute;Arguments=$Argument} }
 function New-ScheduledTaskPrincipal { param($UserId,$LogonType,$RunLevel) [pscustomobject]@{} }
@@ -231,7 +234,7 @@ function Register-ScheduledTask { [CmdletBinding()]param($TaskName,$InputObject,
 });
 
 test('task identity accepts a verified old cache but rejects outside installations and different data directories', { skip: process.platform !== 'win32' }, async t => {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-identity-'));
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'whale-desktop-audit-identity-中文 空格-'));
   t.after(async () => {
     const resolved = path.resolve(temporary);
     assert.ok(resolved.startsWith(path.resolve(os.tmpdir()) + path.sep) && path.basename(resolved).startsWith('whale-desktop-audit-identity-'));
@@ -241,7 +244,7 @@ test('task identity accepts a verified old cache but rejects outside installatio
   const cached = path.join(codex, 'plugins/cache/personal/api-balance-whale/0.4.0+codex.test');
   await Promise.all([fs.mkdir(path.join(cached, '.codex-plugin'), { recursive: true }), fs.mkdir(path.join(cached, 'desktop'), { recursive: true })]);
   await fs.writeFile(path.join(cached, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'api-balance-whale', version: '0.4.0+codex.test' }));
-  await fs.writeFile(path.join(cached, 'desktop/supervisor.ps1'), '# Fixture identity only; never executed.');
+  await writePowerShell(path.join(cached, 'desktop/supervisor.ps1'), '# Fixture identity only; never executed.');
   const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
   const installer = path.join(root, 'scripts/install-follow.ps1'), ownScript = path.join(root, 'desktop/supervisor.ps1');
   const launcher = path.join(data, 'native/WhaleLauncher-0123456789abcdefabcd.exe');
@@ -254,7 +257,7 @@ test('task identity accepts a verified old cache but rejects outside installatio
   const quote = value => "'" + value.replaceAll("'", "''") + "'";
   const harness = path.join(temporary, 'inspect-identities.ps1');
   const encoded = Buffer.from(JSON.stringify(cases), 'utf8').toString('base64');
-  await fs.writeFile(harness, `$ErrorActionPreference='Stop'
+  await writePowerShell(harness, `$ErrorActionPreference='Stop'
 $whaleRoot=${quote(root)}; $DataDir=${quote(data)}; $whaleScript=${quote(ownScript)}
 $whaleQuotedData='"'+$DataDir+'"'; $whalePowerShell=Join-Path $env:WINDIR 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'; $whaleTaskName='Codex API Balance Whale'
 $source=Get-Content -LiteralPath ${quote(installer)} -Raw -Encoding UTF8

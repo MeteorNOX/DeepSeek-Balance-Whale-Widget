@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { backupMacInstall } from './macos-backup.mjs';
-import { DATA_HOME, ROOT } from '../runtime/paths.mjs';
+import { DATA_HOME, ROOT, VERSION } from '../runtime/paths.mjs';
 
 if (process.platform !== 'darwin') {
   process.stderr.write('This installer is only for macOS.\n');
@@ -141,6 +141,8 @@ async function reloadLaunchAgent() {
   launchctl(['kickstart', service]);
 }
 
+// Validate the release before creating backups or changing the existing service.
+run(nodePath, [path.join(ROOT, 'scripts', 'check-package.mjs')]);
 const rollbackReceipt = backupMacInstall({ dataDir: DATA_HOME, pluginRoot: ROOT, plistPath, installId });
 process.stdout.write('Rollback receipt: ' + path.join(rollbackReceipt.backupDir, 'receipt.json') + '\n');
 // Stop the managed old service before replacing its probe or operational files.
@@ -159,7 +161,8 @@ const config = {
   platform: 'darwin',
   enabled: true,
   mode: rollbackReceipt.previous?.mode === 'standalone' ? 'standalone' : 'follow-codex',
-  revision: 'macos-v0.3',
+  revision: 'macos-v' + VERSION,
+  version: VERSION,
   installId,
   label,
   pluginRoot: ROOT,
@@ -197,5 +200,5 @@ if (!verified) {
   throw new Error('LaunchAgent was installed, but the supervisor did not report ready. See macos-launchagent-error.log.');
 }
 
-process.stdout.write('macOS desktop component and automatic following are installed.\n');
+process.stdout.write('macOS desktop component v' + VERSION + ' and automatic following are installed.\n');
 process.stdout.write('Open the Codex desktop app; the whale will appear when a Codex window is available.\n');
