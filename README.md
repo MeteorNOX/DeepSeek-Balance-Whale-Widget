@@ -133,6 +133,9 @@ dsh-whale-widget/
 │   ├── task-end-a.wav        # 任务结束音内置预设（A）
 │   ├── bubble-petpet.gif     # 内置泡泡图：petpet
 │   └── bubble-money1.gif     # 内置泡泡图：money1（余额预警默认内容的配图）
+├── docs/bubble-layout-validation.md # 泡泡布局验证与回滚
+├── tests/bubble-layout.test.mjs     # 无依赖的几何与行为回归
+├── tools/bubble-layout-browser.mjs # 可选的独立浏览器截图验证
 └── whale-widget-prompt.md    # 完整规格/维护提示词（面向二次开发）
 ```
 
@@ -452,6 +455,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 开发与维护
 
+- 多行泡泡的几何边界、长文阅读和浏览器复验见 [泡泡布局验证](docs/bubble-layout-validation.md)。
 - 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。

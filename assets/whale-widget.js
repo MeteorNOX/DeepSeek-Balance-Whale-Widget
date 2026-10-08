@@ -413,6 +413,12 @@ var css = [
   '.dshwv-text{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);width:66%;height:64%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .16s ease,transform .3s ease}',
   '.dshwv-pop.dshwv-pop-open .dshwv-text{opacity:1;transition:opacity .16s ease .36s,transform .3s ease}',
   '.dshwv-root.dshwv-left .dshwv-text{transform:translate(-50%,-50%) scaleX(-1)}',
+  // #159: 溢出内容使用椭圆内接的阅读区，字号保持原值，完整文字可以滚动查看。
+  '.dshwv-text.dshwv-text-scroll{left:44.2495%;top:35.2857%;width:calc(var(--dshw-u) * 510);height:calc(var(--dshw-u) * 290);justify-content:flex-start;align-items:stretch;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;pointer-events:auto;scrollbar-width:thin;scrollbar-gutter:stable;scrollbar-color:#9fb0d9 transparent}',
+  '.dshwv-text-scroll > *{box-sizing:border-box;max-width:100% !important;white-space:pre-wrap !important;overflow-wrap:anywhere;word-break:break-word}',
+  '.dshwv-text-scroll:focus-visible{outline:1px solid #536ba9;outline-offset:-1px}',
+  '.dshwv-readhint::after{content:"↕";position:absolute;left:44.2495%;top:60%;transform:translate(-50%,-50%);font-size:max(9px,calc(var(--dshw-u) * 42));line-height:1;color:#536ba9;pointer-events:none;opacity:0}',
+  '.dshwv-pop-open.dshwv-readhint::after,.dshwv-minipop .dshwv-readhint::after{opacity:1}',
   // 大号字体垂直居中修正：flex 容器以 --dshw-vx/--dshw-vy 为整体中心，
   // 内容(任意行数/字号)由 justify-content:center 整体居中，不随字体度量漂移。
   '.dshwv-text .dshwv-trow{flex:0 0 auto;margin:calc(var(--dshw-u) * 2) 0}',
@@ -11850,6 +11856,8 @@ gifEl.onerror = function () { gifFailed = true }
 bubbleBox.appendChild(textBox)
 bubbleBox.addEventListener('click', function (e) {
   e.stopPropagation()
+  // 滚动阅读区内点按/选中内容不推进队列；点泡泡外缘仍按原规则继续/关闭。
+  if (e.target && e.target.closest && e.target.closest('.dshwv-text-scroll')) return
   if (!bubbleShown) return
   if (costBubbleActive) {
     // 消耗金额泡泡：点击关闭（确认）
@@ -11858,6 +11866,9 @@ bubbleBox.addEventListener('click', function (e) {
   }
   // 点击泡泡 = 跳到下一项；已是最后一项则关闭（点鲸鱼才是从队列开头开始）
   bubbleNext()
+})
+textBox.addEventListener('scroll', function () {
+  if (textBox.classList.contains('dshwv-text-scroll')) bubbleResetTtl()
 })
 
 // ===== v785：桌面客户端「窗口控件带」不进入挂件的可移动范围 =====
@@ -11971,6 +11982,71 @@ function measureBubbleCenter() {
     } catch (err) {}
   } catch (err) {}
 }
+// 与上方 SVG 主椭圆保持一致（中心 454,247，半轴 373,232）；减去描边和阅读余量。
+function bubbleTextRectFits(rect) {
+  var xs = [rect.left, rect.right]
+  var ys = [rect.top, rect.bottom]
+  for (var x = 0; x < 2; x++) for (var y = 0; y < 2; y++) {
+    var dx = (xs[x] - 454) / 358
+    var dy = (ys[y] - 247) / 217
+    if (!isFinite(dx + dy) || dx * dx + dy * dy > 1) return false
+  }
+  return true
+}
+function bubbleFitText(el, resetScroll) {
+  try {
+    if (!el || !el.parentNode) return
+    var svg = el.parentNode.querySelector('svg')
+    if (!svg || !svg.getScreenCTM || !svg.createSVGPoint) return
+    var matrix = svg.getScreenCTM()
+    if (!matrix) return
+    var inverse = matrix.inverse()
+    var oldScroll = resetScroll ? 0 : el.scrollTop
+    // 测量原始排版，避免将上次的缩放/裁切结果再次当作输入；同一任务内完成，不插入动画帧。
+    el.classList.remove('dshwv-text-scroll')
+    var overflow = false
+    for (var i = 0; i < el.children.length; i++) {
+      var child = el.children[i]
+      var r = child.getBoundingClientRect()
+      if (!(r.width > 0 && r.height > 0)) continue
+      var p = svg.createSVGPoint()
+      p.x = r.left; p.y = r.top
+      var a = p.matrixTransform(inverse)
+      p.x = r.right; p.y = r.bottom
+      var b = p.matrixTransform(inverse)
+      if (!bubbleTextRectFits({ left: Math.min(a.x, b.x), right: Math.max(a.x, b.x), top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y) }) || child.scrollWidth > child.clientWidth + 1) {
+        overflow = true
+        break
+      }
+    }
+    el.classList.toggle('dshwv-text-scroll', overflow)
+    if (el.parentNode.classList) el.parentNode.classList.toggle('dshwv-readhint', overflow)
+    if (overflow) {
+      el.setAttribute('tabindex', '0')
+      el.setAttribute('role', 'region')
+      el.setAttribute('aria-label', '泡泡内容，可上下滚动查看')
+      el.title = '上下滚动查看完整内容；点击泡泡边缘继续'
+      el.scrollTop = oldScroll
+    } else {
+      el.removeAttribute('tabindex')
+      el.removeAttribute('role')
+      el.removeAttribute('aria-label')
+      el.removeAttribute('title')
+      el.scrollTop = 0
+    }
+  } catch (err) {}
+}
+// 只观察内容和泡泡尺寸，避开自身 class 变化；倒计时、图片与字体加载后也校验几何边界。
+try {
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(function () { bubbleFitText(textBox, false) }).observe(textBox, { childList: true, characterData: true, subtree: true })
+  }
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(function () { bubbleFitText(textBox, false) }).observe(bubbleBox)
+  }
+  textBox.addEventListener('load', function () { bubbleFitText(textBox, false) }, true)
+  if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function () { bubbleFitText(textBox, false) })
+} catch (err) {}
 // 立即尝试(此时 bubbleBox 已在 DOM);布局未就绪则等下一次再测
 measureBubbleCenter()
 try {
@@ -12536,6 +12612,7 @@ function sceneOpen(kind, renderFn, ttlMs) {
   lastHintText = null // 内容整体重置,提示行走“首次直写”,避免半途淡出残留
   function finish() {
     try { renderFn() } catch (err) {}
+    bubbleFitText(textBox, true)
     try { bubbleBox.classList.add('dshwv-pop-open') } catch (err) {}
     // 内容替换(泡泡已开着)时淡入新文字;首次打开不加内联透明度,
     // 文字显隐交给 CSS(.dshwv-pop-open 才显示,带 .36s 延时跟随泡泡成形)
@@ -13871,6 +13948,7 @@ function bubblePreviewInto(container, mods, widthPx) {
     pop.appendChild(stage)
     container.appendChild(pop)
     bubbleRowsTo(tb, mods || [])
+    bubbleFitText(tb, true)
   } catch (err) {}
 }
 // 点击鲸鱼:
