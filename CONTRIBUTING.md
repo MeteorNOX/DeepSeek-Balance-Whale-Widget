@@ -40,6 +40,7 @@ dsh-whale-widget/
 │
 ├── lib/
 │   ├── index.js                  3,953 行   宿主侧本体：23 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── api-config.mjs                      API 配置、JSON 请求体与模型匹配的纯函数
 │   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
@@ -48,6 +49,9 @@ dsh-whale-widget/
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
 │   └── minecraft-exp-orb.wav / task-end-a.wav
+│
+├── tests/
+│   └── api-config.test.mjs                 API 配置回归测试（node --test；无网络/用户数据访问）
 │
 ├── tools/
 │   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
