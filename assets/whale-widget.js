@@ -9003,7 +9003,7 @@ function renderBubblePal() {
     { key: 'nextpeak', label: '时段倒计时', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }) } },
     // v768：对话名模块（内容 = 当前对话标题；「保留长度」可在模块编辑器里改）
     { key: 'session', label: '对话名', pin: true, cb: function () { bubbleModuleAdd({ type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }) } },
-    { key: 'random', label: '随机语句', cb: function () { bubbleModuleAdd(bubbleCloneModule(bubbleDefaultSecondModules()[0])) } },
+    { key: 'random', label: '随机语句', cb: function () { bubbleModuleAdd(bubbleNewRandomModule()) } },
     { key: 'link', label: '超链接', cb: function () { bubbleModuleAdd(bubblePaletteModule('link')) } },
     { key: 'image', label: '图片/动图', cb: function () { bubblePickImageToAdd() } },
     { key: 'randimg', label: '随机图片', cb: function () { bubbleModuleNew({ type: 'randimg', imgs: [], imgScale: 1 }) } },
@@ -9348,7 +9348,7 @@ function bubblePaletteModule(key) {
     if (!am2) return null
     return { type: 'plan', modelId: am2.id, size: 8, tpl: '{plan} · {plan_reset}', planWin: 'all' }
   }
-  if (key === 'random') return bubbleCloneModule(bubbleDefaultSecondModules()[0])
+  if (key === 'random') return bubbleNewRandomModule()
   if (typeof key === 'string' && key.indexOf('lib:') === 0) {
     var lb = bubbleLibById(key.slice(4))
     return lb ? bubbleCloneModule(lb.module) : null
@@ -9739,6 +9739,12 @@ var bubbleTitle = document.createElement('div')
 bubbleTitle.className = 'dshwv-bubtitle'
 bubbleTitle.textContent = '自定义泡泡'
 bubbleCard.appendChild(bubbleTitle)
+var roleLinesEntry = document.createElement('button')
+roleLinesEntry.type = 'button'
+roleLinesEntry.className = 'dshwv-addline'
+roleLinesEntry.textContent = '当前角色台词'
+roleLinesEntry.addEventListener('click', function () { openRoleLinesEditor() })
+bubbleCard.appendChild(roleLinesEntry)
 // 首次点击(固定一项)
 var bubbleSecFirst = document.createElement('div')
 bubbleSecFirst.className = 'dshwv-bubsec dshwv-bubsec-first'
@@ -10061,6 +10067,7 @@ function visibleTopZ() {
   var getters = [
     function () { return bubbleMask }, function () { return bubbleItemMask },
     function () { return moduleMask }, function () { return moduleNamePromptMask },
+    function () { return roleLinesMask },
     function () { return cropMask }, function () { return gifMask },
     function () { return audioCropMask }, function () { return audioEditMask },
     function () { return resMaskEl }, function () { return confirmMask },
@@ -10502,6 +10509,7 @@ function renderModuleEditor() {
     tsel.addEventListener('change', function () {
       m.type = tsel.value
       if (m.type === 'random' && !Array.isArray(m.lines)) m.lines = []
+      if (m.type === 'random' && m.randomSource === undefined) m.randomSource = 'role'
       if (m.type === 'random' && m.bold === undefined) m.bold = true // 随机语句默认加粗
       if (m.type === 'text' && m.bold === undefined) m.bold = true // 文本模块默认加粗
       if (m.type === 'image' && !m.imgId) m.imgId = ''
@@ -10569,6 +10577,35 @@ function renderModuleEditor() {
     ti.addEventListener('input', function () { m.text = ti.value || ' ' })
     moduleBodyEl.appendChild(ti)
   } else if (m.type === 'random') {
+    var sourceRow = document.createElement('div')
+    sourceRow.className = 'dshwv-audiorow'
+    var sourceLabel = document.createElement('span')
+    sourceLabel.textContent = '语句来源'
+    sourceRow.appendChild(sourceLabel)
+    var sourceSelect = document.createElement('select')
+    sourceSelect.className = 'dshwv-sound'
+    sourceSelect.setAttribute('aria-label', '语句来源')
+    ;[['global', '全局语句'], ['role', '当前角色']].forEach(function (it) {
+      var option = document.createElement('option')
+      option.value = it[0]
+      option.textContent = it[1]
+      sourceSelect.appendChild(option)
+    })
+    sourceSelect.value = m.randomSource === 'role' ? 'role' : 'global'
+    sourceSelect.addEventListener('change', function () { m.randomSource = sourceSelect.value })
+    sourceRow.appendChild(sourceSelect)
+    dshwCustSel(sourceSelect)
+    var editRoleLines = document.createElement('button')
+    editRoleLines.type = 'button'
+    editRoleLines.className = 'dshwv-bubmini'
+    editRoleLines.textContent = '角色台词'
+    editRoleLines.addEventListener('click', function () { openRoleLinesEditor() })
+    sourceRow.appendChild(editRoleLines)
+    moduleBodyEl.appendChild(sourceRow)
+    var sourceHint = document.createElement('div')
+    sourceHint.className = 'dshwv-bubsec'
+    sourceHint.textContent = '角色台词有效时，与以下语句合并去重，每句权重都为 1。以下权重仅在全局来源或没有有效角色台词时生效。'
+    moduleBodyEl.appendChild(sourceHint)
     // 表头:权重 | 内容 | 操作
     var hint = document.createElement('div')
     hint.className = 'dshwv-linehead'
@@ -12527,6 +12564,7 @@ function sceneOpen(kind, renderFn, ttlMs) {
   var wasOpen = bubbleShown
   bubbleClearAll()
   bubbleClearModuleRows()
+  bubbleLiveMods = null
   try { gifEl.style.display = 'none'; gifEl.style.opacity = '' } catch (err) {}
   try { textBox.style.transition = ''; textBox.style.opacity = '' } catch (err) {}
   bubbleScene = { kind: kind, ttlMs: ttlMs || 0 }
@@ -13285,15 +13323,7 @@ function bubblePickLine(lines, avoidIdx) {
 }
 function bubbleModuleText(m, avoidIdx) {
   var t = m.text || ''
-  if (m.type === 'random' && Array.isArray(m.lines)) {
-    var idx = bubblePickLine(m.lines, avoidIdx)
-    var ln = m.lines[idx]
-    if (ln) {
-      m._lastPick = idx
-      return ln.t
-    }
-    return ''
-  }
+  if (m.type === 'random') return bubbleRandomContent(m, avoidIdx).txt
   return t
 }
 // —— 下个时段倒计时模块:按“工作日9-12/14-18为高峰,周末全天谷价”推算下一时段切换 ——
@@ -13518,14 +13548,7 @@ function bubbleRowContentOf(mod) {
     var pw = bubblePeakText(mod)
     return { txt: bubbleContentText(mod, pw), line: null }
   }
-  if (mod.type === 'random' && Array.isArray(mod.lines)) {
-    var pi = bubblePickLine(mod.lines, mod._lastPick)
-    if (pi !== null && pi !== undefined && mod.lines[pi]) {
-      mod._lastPick = pi
-      return { txt: mod.lines[pi].t, line: mod.lines[pi] }
-    }
-    return { txt: '', line: null }
-  }
+  if (mod.type === 'random') return bubbleRandomContent(mod, mod._lastPick)
   return { txt: mod.text || '', line: null }
 }
 // 渲染一组模块为泡泡内容(F2 渲染层:按行分组 → 行内 flex 并排(≤6 模块/行)→ 超宽自动折行;
@@ -13709,7 +13732,7 @@ function bubbleRowsTo(parentEl, mods) {
           if (it0.imgId) pool.push({ imgId: it0.imgId, w: it0.w })
         }
         if (!pool.length) continue
-        var pickIdx = bubblePickLine(pool, md._lastPickImg)
+        var pickIdx = roleLinesPreserveGlobal && pool[md._lastPickImg] ? md._lastPickImg : bubblePickLine(pool, md._lastPickImg)
         if (pickIdx === null || pickIdx === undefined || !pool[pickIdx]) continue
         md._lastPickImg = pickIdx
         pickId = pool[pickIdx].imgId
@@ -15005,6 +15028,239 @@ function positionMenu() {
   } catch (err) {}
 }
 
+// —— 角色独立台词：独立配置、抽取与编辑；不改旧模块的全局来源 ——
+var ROLE_LINES_URL = '/dsh-whale/role-lines.json'
+var ROLE_LINES_REV_KEY = 'dshw-role-lines-revision'
+var roleLinesCfg = { version: 1, enabled: false, updatedAt: 0, roles: {} }
+var roleLinesModuleLast = new WeakMap()
+var roleLinesPreserveGlobal = false
+var roleLinesMask = null
+var roleLinesTextEl = null
+var roleLinesEnabledEl = null
+var roleLinesStatusEl = null
+var roleLinesSaveBtn = null
+var roleLinesCancelBtn = null
+var roleLinesEditorId = 'default'
+var roleLinesEditorVersion = 0
+function roleLinesCurrentId() {
+  try { return localStorage.getItem('dshw-role') || 'default' } catch (err) {}
+  return currentRole && currentRole.id || 'default'
+}
+function roleLinesPool() {
+  if (!roleLinesCfg || roleLinesCfg.enabled !== true) return null
+  var id = roleLinesCurrentId()
+  var roles = roleLinesCfg.roles || {}
+  var entry = Object.prototype.hasOwnProperty.call(roles, id) ? roles[id] : null
+  if (!entry || !Array.isArray(entry.lines)) return null
+  var pool = []
+  for (var i = 0; i < entry.lines.length; i++) {
+    var ln = entry.lines[i]
+    if (!ln || typeof ln.text !== 'string') continue
+    var text = ln.text.trim()
+    if (text && Array.from(text).length <= 200 && pool.indexOf(text) < 0) pool.push(text)
+  }
+  if (!pool.length) return null
+  return pool
+}
+function roleLinesMemory(mod) {
+  var memory = roleLinesModuleLast.get(mod)
+  if (!memory) { memory = Object.create(null); roleLinesModuleLast.set(mod, memory) }
+  return memory
+}
+function roleLinesMixedContent(mod) {
+  var rolePool = roleLinesPool()
+  if (!rolePool) return null
+  var globalPool = []
+  var positions = Object.create(null)
+  var lines = Array.isArray(mod.lines) ? mod.lines : []
+  lines.forEach(function (line, index) {
+    if (!line || typeof line.t !== 'string' || !line.t.trim()) return
+    var key = line.t.trim()
+    if (Object.prototype.hasOwnProperty.call(positions, key)) return
+    positions[key] = globalPool.length
+    globalPool.push({ key: key, txt: line.t, line: line, index: index, w: 1 })
+  })
+  var roleItems = rolePool.map(function (text) {
+    // 相同文本合为一句，保留原全局逐句样式。
+    var global = Object.prototype.hasOwnProperty.call(positions, text) ? globalPool[positions[text]] : null
+    return { key: text, txt: global ? global.txt : text, line: global ? global.line : null, index: global ? global.index : undefined, w: 1 }
+  })
+  // 合并为一个等权池；角色与全局占比由不同语句的条数决定。
+  var pool = roleItems.concat(globalPool.filter(function (item) { return rolePool.indexOf(item.key) < 0 }))
+  var id = roleLinesCurrentId()
+  var memory = roleLinesMemory(mod)
+  var available = pool.length > 1 ? pool.filter(function (item) { return item.key !== memory[id] }) : pool
+  var picked = available[bubblePickLine(available)]
+  memory[id] = picked.key
+  if (picked.line) mod._lastPick = picked.index
+  return { txt: picked.txt, line: picked.line }
+}
+function bubbleRandomContent(mod, avoidIdx) {
+  // 角色来源混入原全局语句；关闭/空池时仍使用原有全局抽取逻辑。
+  var mixed = mod.randomSource === 'role' ? roleLinesMixedContent(mod) : null
+  if (mixed !== null) return mixed
+  var lines = Array.isArray(mod.lines) ? mod.lines : []
+  if (roleLinesPreserveGlobal && mod.randomSource !== 'role' && lines[mod._lastPick]) {
+    return { txt: lines[mod._lastPick].t, line: lines[mod._lastPick] }
+  }
+  var idx = bubblePickLine(lines, avoidIdx)
+  var line = lines[idx]
+  if (!line) return { txt: Array.isArray(mod.lines) ? '' : (mod.text || ''), line: null }
+  mod._lastPick = idx
+  return { txt: line.t, line: line }
+}
+function bubbleNewRandomModule() {
+  var mod = bubbleCloneModule(bubbleDefaultSecondModules()[0])
+  mod.randomSource = 'role'
+  return mod
+}
+function roleLinesRefreshVisible(force) {
+  // 用户主动切角色时更新正在看的角色语句；保持当前场景、队列位置和关闭计时。
+  if (!force && (!roleLinesCfg || roleLinesCfg.enabled !== true)) return
+  if (!bubbleShown || !bubbleScene || !Array.isArray(bubbleLiveMods)) return
+  if (!bubbleLiveMods.some(function (m) { return m && m.type === 'random' && m.randomSource === 'role' })) return
+  roleLinesPreserveGlobal = true
+  try { bubbleRenderModules(bubbleLiveMods) } finally { roleLinesPreserveGlobal = false }
+}
+function loadRoleLines(done) {
+  fetch(ROLE_LINES_URL, { cache: 'no-store' })
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      if (!d || d.ok !== true || !d.roles || typeof d.roles !== 'object') throw new Error(d && d.error || '读取角色台词失败')
+      roleLinesCfg = { version: d.version, enabled: d.enabled === true, updatedAt: d.updatedAt, roles: d.roles }
+      roleLinesRefreshVisible(true)
+      if (done) done(null, roleLinesCfg)
+    })
+    .catch(function (err) { if (done) done(err) })
+}
+function roleLinesEditorStatus(text, error) {
+  roleLinesStatusEl.textContent = text || ''
+  roleLinesStatusEl.style.color = error ? '#b42318' : ''
+}
+function roleLinesEditorBusy(busy) {
+  roleLinesSaveBtn.disabled = busy
+  roleLinesCancelBtn.disabled = busy
+  roleLinesTextEl.disabled = busy
+  roleLinesEnabledEl.disabled = busy
+}
+function roleLinesEditedEntry(entry, texts) {
+  var out = JSON.parse(JSON.stringify(entry || { lines: [] }))
+  var old = Array.isArray(out.lines) ? out.lines : []
+  out.lines = texts.map(function (text, index) {
+    var match = old.find(function (line) { return line && line.text === text }) || old[index]
+    var line = match ? JSON.parse(JSON.stringify(match)) : {}
+    line.text = text
+    return line
+  })
+  return out
+}
+function roleLinesSaveEditor() {
+  var texts = roleLinesTextEl.value.split(/\r?\n/).map(function (t) { return t.trim() }).filter(Boolean)
+  if (texts.length > 500 || texts.some(function (t) { return Array.from(t).length > 200 })) {
+    roleLinesEditorStatus('每个角色最多 500 条台词，每条最多 200 字。', true)
+    return
+  }
+  var id = roleLinesEditorId
+  var enabled = roleLinesEnabledEl.checked
+  roleLinesEditorBusy(true)
+  roleLinesEditorStatus('正在保存…')
+  // 保存前重读，避免把其他窗口刚修改的角色池覆盖回旧副本。
+  loadRoleLines(function (err, latest) {
+    if (err) { roleLinesEditorBusy(false); roleLinesEditorStatus(err.message, true); return }
+    var cfg = JSON.parse(JSON.stringify(latest))
+    cfg.enabled = enabled
+    var old = Object.prototype.hasOwnProperty.call(cfg.roles, id) ? cfg.roles[id] : null
+    cfg.roles[id] = roleLinesEditedEntry(old, texts)
+    fetch(ROLE_LINES_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (!d || d.ok !== true) throw new Error(d && d.error || '保存角色台词失败')
+        roleLinesCfg = { version: d.version, enabled: d.enabled === true, updatedAt: d.updatedAt, roles: d.roles }
+        roleLinesRefreshVisible(true)
+        try { localStorage.setItem(ROLE_LINES_REV_KEY, String(d.updatedAt) + '-' + Math.random()) } catch (err) {}
+        roleLinesMask.style.display = 'none'
+      })
+      .catch(function (err) { roleLinesEditorStatus(err.message, true) })
+      .then(function () { roleLinesEditorBusy(false) })
+  })
+}
+function openRoleLinesEditor() {
+  if (!roleLinesMask) {
+    roleLinesMask = document.createElement('div')
+    roleLinesMask.className = 'dshwv-bubmask'
+    var card = document.createElement('div')
+    card.className = 'dshwv-bubcard'
+    var title = document.createElement('div')
+    title.className = 'dshwv-bubtitle'
+    title.id = 'dshw-role-lines-title'
+    card.appendChild(title)
+    var enableLabel = document.createElement('label')
+    enableLabel.className = 'dshwv-audiorow'
+    roleLinesEnabledEl = document.createElement('input')
+    roleLinesEnabledEl.type = 'checkbox'
+    roleLinesEnabledEl.setAttribute('aria-label', '启用角色台词')
+    enableLabel.appendChild(roleLinesEnabledEl)
+    enableLabel.appendChild(document.createTextNode('启用角色台词'))
+    card.appendChild(enableLabel)
+    var help = document.createElement('div')
+    help.className = 'dshwv-bubsec'
+    help.textContent = '每行一条。与模块原有语句合并去重后，每句话权重都为 1，按总条数等概率抽取。多句时避免连续重复，只有一句时可重复。关闭或没有角色台词时使用原全局语句及权重。'
+    card.appendChild(help)
+    roleLinesTextEl = document.createElement('textarea')
+    roleLinesTextEl.rows = 10
+    roleLinesTextEl.id = 'dshw-role-lines-text'
+    roleLinesTextEl.setAttribute('aria-label', '当前角色台词')
+    roleLinesTextEl.placeholder = '每行填写一条台词（每条最多 200 字）'
+    roleLinesTextEl.style.cssText = 'width:100%;box-sizing:border-box;resize:vertical;min-height:140px;padding:8px;border:1px solid #a9b9de;border-radius:8px;font:inherit;background:#fff;color:#203170'
+    card.appendChild(roleLinesTextEl)
+    roleLinesStatusEl = document.createElement('div')
+    roleLinesStatusEl.setAttribute('role', 'status')
+    roleLinesStatusEl.style.marginTop = '8px'
+    card.appendChild(roleLinesStatusEl)
+    var buttons = document.createElement('div')
+    buttons.className = 'dshwv-bubbtns'
+    roleLinesCancelBtn = bubbleBtn('取消', 'dshwv-bubbtn-no', function () { roleLinesMask.style.display = 'none'; roleLinesEditorVersion++ })
+    roleLinesSaveBtn = bubbleBtn('保存角色台词', 'dshwv-bubbtn-ok', roleLinesSaveEditor)
+    buttons.appendChild(roleLinesCancelBtn)
+    buttons.appendChild(roleLinesSaveBtn)
+    card.appendChild(buttons)
+    roleLinesMask.appendChild(card)
+    dshwBodyAppend(roleLinesMask)
+  }
+  var id = roleLinesCurrentId()
+  roleLinesEditorId = id
+  var version = ++roleLinesEditorVersion
+  var role = roleList.find(function (r) { return r.id === id })
+  roleLinesMask.querySelector('#dshw-role-lines-title').textContent = '角色台词 · ' + (role ? role.name : (id === 'default' ? '小鲸鱼' : id))
+  roleLinesTextEl.value = ''
+  roleLinesEnabledEl.checked = false
+  roleLinesEditorBusy(true)
+  roleLinesEditorStatus('正在读取…')
+  dshwLayerUp(roleLinesMask, 20500)
+  roleLinesMask.style.display = 'flex'
+  loadRoleLines(function (err, cfg) {
+    if (version !== roleLinesEditorVersion) return
+    if (err) {
+      roleLinesEditorStatus(err.message, true)
+      roleLinesCancelBtn.disabled = false
+      return
+    }
+    var entry = Object.prototype.hasOwnProperty.call(cfg.roles, id) ? cfg.roles[id] : null
+    roleLinesTextEl.value = entry && Array.isArray(entry.lines) ? entry.lines.map(function (l) { return l.text }).join('\n') : ''
+    roleLinesEnabledEl.checked = cfg.enabled === true
+    roleLinesEditorBusy(false)
+    roleLinesEditorStatus('仅编辑此角色，保存后立即生效。')
+  })
+}
+window.addEventListener('storage', function (e) {
+  if (e.key === ROLE_LINES_REV_KEY) { loadRoleLines(); return }
+  if (e.key !== 'dshw-role' && e.key !== null) return
+  var id = roleLinesCurrentId()
+  var role = roleList.find(function (r) { return r.id === id })
+  if (role && currentRole.id !== id) applyRole(role.id, role.name, role.url)
+  else roleLinesRefreshVisible()
+})
+
 // —— 自定义角色：列表 / 选择 / 置顶 / 删除 / 导入裁剪 ——
 var ROLE_URL = '/dsh-whale/roles.json'
 var currentRole = { id: 'default', name: '小鲸鱼', url: IMG_URL }
@@ -15125,10 +15381,12 @@ function makeNameCell(className, text) {
   return outer
 }
 function applyRole(id, name, url) {
+  var changed = currentRole.id !== id
   currentRole = { id: id, name: name, url: url }
   img.src = url
   setRoleBtnText(name)
   try { localStorage.setItem('dshw-role', id) } catch (err) {}
+  if (changed) roleLinesRefreshVisible()
   hitReady = false
   hitFailed = false
   setupHitTest(url)
@@ -17067,6 +17325,7 @@ render()
 applySoundSet()
 setupHitTest(initRoleUrl)
 loadRoles()
+loadRoleLines()
 loadAudio()
 // 用量设置(任务结束音/预警/预算)加载,并据此初始化主菜单“任务结束”行
 loadUsageSettings(function () {

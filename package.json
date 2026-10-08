@@ -16,6 +16,7 @@
     "assets",
     "cordis.patch.yml",
     "README.md",
+    "ROLE-LINES.md",
     "PROVENANCE.md"
   ],
   "repository": {

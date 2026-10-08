@@ -98,6 +98,11 @@ jobs:
           fi
           echo "语法与路径检查通过"
 
+      - name: Role-lines regression tests
+        run: |
+          node tools/role-lines-backend-test.mjs
+          node tools/role-lines-frontend-test.mjs
+
       # 核心不变量自检（tools/ci-audit.mjs）—— 发布前跑**完整版**（比日常 ci.yml 多一项）：
       #   ① 检查所有后台接口必须走统一安全入口    每条路由都要过 requestRejection 包装
       #   ② 检查后端提供了所有前端调用的接口      前端调用的路径都要能在后端注册表命中

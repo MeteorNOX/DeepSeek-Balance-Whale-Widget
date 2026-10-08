@@ -32,29 +32,33 @@
 
 ```
 dsh-whale-widget/
-├── package.json                     35 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
+├── package.json                     36 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml                 15 行   插件挂载声明
-├── README.md                       471 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
+├── ROLE-LINES.md                         角色台词的配置、接口与兼容行为
+├── README.md                       492 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
 ├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
 ├── whale-widget-prompt.md          202 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
 │
 ├── lib/
-│   ├── index.js                  3,953 行   宿主侧本体：23 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── index.js                            宿主侧本体：24 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── role-lines.mjs                      角色台词校验、请求限额与原子文件存储
 │   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
-│   ├── whale-widget.js          16,853 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
+│   ├── whale-widget.js          17,553 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
 │   ├── DSH2.png / DSniang1.png / DSniang02.png   角色图与 README 展示图
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
 │   └── minecraft-exp-orb.wav / task-end-a.wav
 │
 ├── tools/
+│   ├── role-lines-backend-test.mjs        角色台词接口、限额、原子写入与删除回滚回归
+│   ├── role-lines-frontend-test.mjs       角色切换、兼容回退与随机抽取回归
 │   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
 │
 └── .github/workflows/
-    ├── ci.yml                       68 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
-    └── publish.yml                 186 行   **手动触发**：发布 npm + 建 GitHub Release
+    ├── ci.yml                       109 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
+    └── publish.yml                 204 行   **手动触发**：发布 npm + 建 GitHub Release
 ```
 
 > 上面的行数会随代码变化，不是硬约束。想核对或更新，用 `git ls-tree -r --long main` 看文件清单，用 `git show main:<路径>` 自行统计行数即可；改完请顺手更新本节和 README 里对应的数字。
@@ -81,6 +85,7 @@ dsh-whale-widget/
 | `.dshw-usage.json`         | 记账账本 + 按日余额观测 + 用量设置             |
 | `.dshw-turn.json`          | 每轮消耗的 seq（避免热重载后把新轮次当旧轮次） |
 | `.dshw-bubble.json`        | 自定义泡泡配置（点击序列 + 模块库）            |
+| `.dshw-role-lines.json`    | 角色台词池与启用开关（默认关闭、空表）         |
 | `.dshw-api.json`           | 自定义 API 模型注册表（**不含密钥**）          |
 | `.dshw-usage-archive.json` | 账本归档（明细 90 天 / 2 万条，逐日 365 天）   |
 | `.dshw-codex.json`         | Codex 本地会话统计缓存（**不含任何凭据**）     |
@@ -90,4 +95,4 @@ dsh-whale-widget/
 
 ### 关于那两个超大文件
 
-`assets/whale-widget.js`（16,853 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+`assets/whale-widget.js`（17,553 行）和 `lib/index.js`（4,245 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
