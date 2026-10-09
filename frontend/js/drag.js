@@ -38,6 +38,10 @@ window.DSW = window.DSW || {};
       grabDX: e.screenX - window.screenX,
       grabDY: e.screenY - window.screenY,
       moved: false,
+      // 鲸鱼本体相对窗口的矩形（视口坐标就是窗口相对坐标）。拖拽时窗口大半是
+      // 透明的（内容块只有 250×scale，窗口固定 625），只有鲸鱼必须留在可见
+      // 范围内——它是唯一可交互的区域，出屏就再也抓不回来了。后端据此钳制。
+      keep: null,
     };
     DSW.dom.root.classList.add("dshwv-dragging");
 
@@ -57,6 +61,19 @@ window.DSW = window.DSW || {};
       DSW.audio.pressDown();
     }
 
+    // 量一次鲸鱼矩形，供后端钳制窗口位置用。按压形变（SQUISH）带 0.22s 过渡，
+    // 这里量到的是过渡前的位置，与最终矩形相差约 12% 高度——对「别把鲸鱼拖出屏」
+    // 这个用途来说足够，不值得为此把过渡等完。
+    try {
+      const r = DSW.dom.img.getBoundingClientRect();
+      flags.drag.keep = {
+        left: r.left,
+        top: r.top,
+        width: r.width,
+        height: r.height,
+      };
+    } catch (err) {}
+
     document.addEventListener("pointermove", onDocPointerMove, true);
     document.addEventListener("pointerup", onDocPointerUp, true);
     document.addEventListener("pointercancel", onDocPointerCancel, true);
@@ -70,9 +87,23 @@ window.DSW = window.DSW || {};
     const dy = e.screenY - flags.drag.startSY;
     if (dx * dx + dy * dy >= C.CLICK_SQ) flags.drag.moved = true;
     if (flags.drag.moved && DSW.invoke) {
+      // 单屏用户：后端只有一个工作区，鲸鱼被限制在它内部，行为与「整窗不出屏」一致。
+      // 双屏用户：后端在**所有**工作区里挑位移最小的那个，所以跨屏拖动照旧自由，
+      // 只有在鲸鱼将要整个离开两块屏时才拉回来——这是「拖出屏抓不回来」的兜底。
+      // 鲸鱼矩形量不到时退回整个窗口矩形，宁可多留一点余量。
+      const keep = flags.drag.keep || {
+        left: 0,
+        top: 0,
+        width: window.innerWidth,
+        height: window.innerHeight,
+      };
       DSW.invoke("set_window_position", {
         x: e.screenX - flags.drag.grabDX,
         y: e.screenY - flags.drag.grabDY,
+        whaleLeft: keep.left,
+        whaleTop: keep.top,
+        whaleWidth: keep.width,
+        whaleHeight: keep.height,
       }).catch(function () {});
     }
   }
