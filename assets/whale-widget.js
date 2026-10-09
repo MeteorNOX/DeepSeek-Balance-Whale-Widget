@@ -14004,10 +14004,56 @@ function whaleSysOpenItem(item) {
     sceneOpen('alert', function () { bubbleRenderModules(item.mods || []) }, (item && item.ttlMs != null) ? item.ttlMs : USAGE_ALERT_TTL)
   }
 }
+// ===== v0.3.18-p1（本地修复）：系统泡泡「状态自愈」 =====
+// 真机症状：某一轮消耗泡泡本该弹出，却**再也不弹**，而余额与其它界面一切正常，刷新页面又能恢复。
+// 排查结论：**不是数据链路**。前端每秒都能从 /dsh-whale/last-turn.json 拿到新 seq
+// （localStorage 的 `dshw-last-seq` 一路跟到宿主的最新值，证明轮询、playTaskEndSound、
+//  showCostBubble 之前的每一步都跑到了），真正卡住的是下面这几个**布尔门**：
+//   `costBubbleActive` / `waitShown` / `whaleSysItem` —— 它们只被成对地"打开/关闭"，
+// 一旦某条关闭路径没走到（场景被抢占、渲染抛错、等待泡泡换类型、页面休眠后回来……）就会残留为真：
+//   · whaleSysPush 里 `if (costBubbleActive && !whaleSysItem) return false` ⇒ **新的消耗项被直接丢弃**；
+//   · whaleSysTick 里 `if (costBubbleActive || waitShown || …) return` ⇒ 已入队的项也**永远轮不到上屏**。
+// 表现就是"消耗泡泡消失，且只有刷新页面才恢复"（与本插件历史上 issue #161/#188 的状态不同步同源）。
+// 修法：不再把布尔门当唯一真相 —— 每次入队/展示前拿它与**真实场景**（bubbleShown + bubbleScene.kind）
+// 交叉校验，只在**明显矛盾**（门为真而泡泡并不在显示）时复位。正常路径下两者本就一致 ⇒ 不改变既有行为。
+function dshwHealSysState() {
+  try {
+    var kind = (bubbleShown && bubbleScene) ? String(bubbleScene.kind || '') : ''
+    if (!bubbleShown) {
+      // 泡泡已经不在屏幕上：场景是陈旧值；非等待的"当前展示项"也一并清掉
+      // （等待项交给 pollWaitState / hideWaitBubble 那套每秒校准的既有逻辑处理）
+      bubbleScene = null
+      if (whaleSysItem && whaleSysItem.kind !== 'wait') whaleSysItem = null
+    }
+    if (costBubbleActive && !(bubbleShown && kind === 'cost')) costBubbleActive = false
+    if (waitShown && !(bubbleShown && kind === 'wait')) waitShown = false
+  } catch (err) {}
+}
+// v0.3.18-p1：排查钩子（只读状态 + 手动触发一次消耗泡泡）。纯诊断用，不参与任何正常逻辑；
+// 控制台里 `__dshwDebug.state()` 可一眼看出是哪个门卡住了，`__dshwDebug.cost(0.01)` 可手工验证链路。
+try {
+  window.__dshwDebug = {
+    state: function () {
+      return {
+        bubbleOn: bubbleOn, turnCostOn: turnCostOn,
+        costBubbleActive: costBubbleActive, waitShown: waitShown, bubbleShown: bubbleShown,
+        scene: bubbleScene ? bubbleScene.kind : null,
+        sysItem: whaleSysItem ? whaleSysItem.kind : null,
+        sysQueue: whaleSysQueue.length,
+        lastCostSeq: lastCostSeq, lastCostAligned: lastCostAligned,
+      }
+    },
+    heal: function () { dshwHealSysState(); return this.state() },
+    cost: function (amount) { showCostBubble(Number(amount) || 0.01); return this.state() },
+  }
+} catch (err) {}
 function whaleSysPush(item) {
   try {
     if (!bubbleOn || !bubbleBox || !textBox) return false
     if (!item || !item.kind) return false
+    // v0.3.18-p1：先自愈残留的门 —— 否则下面 `costBubbleActive && !whaleSysItem` 那条早退会把
+    // 新的一轮消耗**静默丢弃**（这正是"消耗泡泡再也不弹"的直接原因）。
+    dshwHealSysState()
     // v772：**等待交互（授权/提问）享有最高优先级，永远不会被"消耗泡泡正开着"挡住**。
     // 整轮对话都卡在等你回答/批准，它必须立刻可见；正在展示的其它系统泡泡（消耗/预警）退回队列，
     // 等挂起解除后照旧继续 —— 用户真机反馈「已有每轮消耗提示时，授权与提问不会显示」。
@@ -14048,12 +14094,15 @@ function whaleSysTick() {
   whaleSysTimer = null
   try {
     if (!bubbleOn || !bubbleBox || !textBox) { whaleSysQueue = []; whaleSysItem = null; return }
+    // v0.3.18-p1：入队/展示前统一自愈一次 —— 残留的 costBubbleActive / waitShown 会让下面两个早退
+    // 永久成立（消耗项一直排在队列里却永不上屏，刷新页面才恢复）。
+    dshwHealSysState()
     if (whaleSysItem) return
     if (!whaleSysQueue.length) return
     // 存在尚未入队的正展示系统泡?仅在鲸鱼空闲且无我们自己队列项时取下一个
     // v761（#161 C5）：waitShown 也必须算"正被占着"——等待泡泡是常驻的（whaleSysItem 会一直是它），
     // 正常走不到这里；但万一 item 被别的路径清掉而场景还停在等待内容上，也不能抢它的层。
-    if (costBubbleActive || waitShown || (bubbleScene && bubbleScene.kind === 'alert')) return
+    if (costBubbleActive || waitShown || (bubbleShown && bubbleScene && bubbleScene.kind === 'alert')) return
     var item = whaleSysQueue.shift()
     if (!item) return
     whaleSysOpenItem(item) // v772：展示逻辑抽成一份（tick / 淡切 / 抢占共用）
