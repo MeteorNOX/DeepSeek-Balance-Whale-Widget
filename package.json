@@ -16,6 +16,7 @@
     "assets",
     "cordis.patch.yml",
     "README.md",
+    "docs/ledger-coverage.md",
     "PROVENANCE.md"
   ],
   "repository": {
