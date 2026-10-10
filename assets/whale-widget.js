@@ -10039,6 +10039,7 @@ var bubbleColorOpenMenu = null // 当前展开的颜色下拉(纯色/跑马灯,�
 //                                                   .dshwv-audiomask·bubmask(20500) / .dshwv-slotlist(20600)
 //   21000 – 21999    对话框基础层                   .dshwv-confirmmask(21000，实际被 showConfirm 提到 40000)
 //   22000 – 22999    记账 / 吸附窗口                .dshwv-snapmask·usage-mask(22000)
+//   23000 – 23999    音乐播放器面板                 .dshwv-music-mask(23000) / 卡片 .dshwv-music-card
 //   26000 – 26999    小浮层                         .dshwv-qedit(26000) / .dshwv-usagepanel(26020) /
 //                                                   .dshwv-tplhelp·动态提示(26080+)
 //   29000 – 29999    模型子菜单 / 模型设置           JS 显式写入（refreshModelList / openApiModelMenu）
@@ -10067,7 +10068,8 @@ function visibleTopZ() {
     function () { return snapMask }, function () { return usageMoreMask },
     function () { return qeditEl }, function () { return dshwvTplHelpEl },
     function () { return dshwvHintEl }, function () { return apiModelMaskEl },
-    function () { return accountingMask }, function () { return window.__dshwRemindMask }
+    function () { return accountingMask }, function () { return window.__dshwRemindMask },
+    function () { return dshwMusicMask }
   ]
   function eff(el) {
     try {
@@ -16691,7 +16693,7 @@ function onDocPointerDown(e) {
         e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
         e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
         e.target.closest('.dshwv-resmask') ||
-        e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
+        e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn') || e.target.closest('.dshwv-music-card')) return
     // 菜单内的下拉切换按钮/导入按钮：它们自己的 click 负责开合，pointerdown 不干预
     if (e.target.closest('.dshwv-rolebtn') || e.target.closest('.dshwv-audiobtn') ||
         e.target.closest('.dshwv-roleimport') || e.target.closest('.dshwv-audioimport')) return
@@ -16754,7 +16756,7 @@ function onDocClickStopper(e) {
         e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') ||
         e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
         e.target.closest('.dshwv-resmask') ||
-        e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
+        e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn') || e.target.closest('.dshwv-music-card')) return
   }
   if (!isWhaleHit(e)) return
   try { e.preventDefault(); e.stopPropagation() } catch (err) {}
@@ -16775,7 +16777,7 @@ function onDocContextMenu(e) {
           e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
           e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
           e.target.closest('.dshwv-resmask') ||
-          e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
+          e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn') || e.target.closest('.dshwv-music-card')) return
     }
     if (!isWhaleHit(e)) return
     e.preventDefault()
@@ -16799,7 +16801,7 @@ function widgetUiHit(target) {
     target.closest('.dshwv-bubmask') || target.closest('.dshwv-qedit') || target.closest('.dshwv-usagepanel') ||
     target.closest('.dshwv-usage-mask') || target.closest('.dshwv-resmask') || target.closest('.dshwv-custmenu') ||
     target.closest('.dshwv-custbtn') || target.closest('.dshwv-rolebtn') || target.closest('.dshwv-audiobtn') ||
-    target.closest('.dshwv-roleimport') || target.closest('.dshwv-audioimport'))
+    target.closest('.dshwv-roleimport') || target.closest('.dshwv-audioimport') || target.closest('.dshwv-music-card'))
 }
 var touchDrag = null // 正在接管滚动的触摸(仅"起点命中鲸鱼"的那一次手势)
 // —— 移动端长按唤出菜单(v632):仅当开启「隐藏菜单按钮」时生效,替代电脑端的右键唤出 ——
@@ -16935,7 +16937,7 @@ function onDocPointerMoveCursor(e) {
   }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
-  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
+  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn') || el.closest('.dshwv-music-card'))) {
     setWidgetCursor('')
     if (!menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible')
     return
@@ -17288,6 +17290,1044 @@ function pollLastTurn() {
   } catch (err) {}
 }
 setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
+
+// ============================================================================
+// v790（本地 fork 追加块）：音乐播放器面板
+// ----------------------------------------------------------------------------
+// 【这块是什么】
+//   一个挂在 body 上、可拖拽、非模态的小窗：歌单 / 播放控制 / 进度与音量 / 循环与随机 /
+//   导入与删除 / 自定义音乐目录 / 「点按鲸鱼 = 播放·暂停」开关，并负责把挂件原有的
+//   「受击音效」（小黄鸭按压/松开音）按开关让位给音乐。
+//
+// 【为什么追加在 dshwInit() 末尾】
+//   本文件除最外层 IIFE 的那几行外，全部 UI（menuBox / menuRow / visibleTopZ /
+//   playPress / playRelease / pressDown / pressUp / whaleClick / isWhaleHit …）都声明在
+//   dshwInit() 这一个函数作用域里，而且都是**可重新赋值的绑定**（function 声明 / var）。
+//   所以把这一块放在 dshwInit() 最后一句之后：
+//     · 前面所有声明都已就绪，直接可用；
+//     · 函数声明可以被"保存原函数 → 替换绑定"的方式覆盖，而调用点
+//       （pressDown → playPress、pressUp → playRelease / playReleaseAt、
+//        endDrag → whaleClick、onDocPointerDown / onDocClickStopper / onDocPointerMoveCursor /
+//        onDocTouchStart → isWhaleHit、onDocTouchStart → widgetUiHit）都是**按作用域绑定取值**，
+//       替换即生效；
+//     · 因此这块本身不必改动前面的代码；全文只动了挂件既有代码里的这几处**登记点**（都是把面板
+//       登记进挂件自己的既有约定，没有改任何逻辑、注释或行序）：
+//         ① 层级表注释：L10042 新增「23000 – 23999 音乐播放器面板」一段；
+//         ② visibleTopZ() 候选表：L10071 行末补一个逗号 + L10072 新增一条取值函数
+//            `function () { return dshwMusicMask }`（让 dshwLayerUp/自绘下拉能算上本面板）；
+//         ③ 挂件自己的 UI 豁免名单各加一个 '.dshwv-music-card'（面板要跟资源管理/记账等面板同一套
+//            语义：面板上的按下/点击/右键/悬停都算"挂件 UI"，不是点鲸鱼）——
+//            onDocPointerDown L16696 / onDocClickStopper L16759 / onDocContextMenu L16780 /
+//            widgetUiHit L16804 / onDocPointerMoveCursor L16940。
+//        （行号是 v790 落盘时的；之后若有插入会漂移，改的时候认函数名与 '.dshwv-music-card' 即可。）
+//
+// 【pressMode 对"受击音效"做了什么】
+//   pressMode 为真 ⇒ 末尾替换的三个绑定 playPress / playRelease / playReleaseAt 直接返回，
+//   按压音与松开音都不响（**只静音**：按压 Q 弹动画、拖拽、吸附、右键、长按菜单全部照旧）；
+//   pressMode 为假 ⇒ 原样调用保存下来的原函数，音效行为与改造前逐字一致。
+//   例外：音效设置面板里的「试听按压音效」不能被静音（用户正在调试音效），它走
+//   playPreview() 包裹 → 期间 dshwvPreviewMark > 0，包装函数据此放行。
+//   另外（pressMode 为真）点一下鲸鱼 = 播放/暂停：主路径接的是挂件自己判定的"短按鲸鱼"
+//   （endDrag → whaleClick），再加一个 document 捕获期 click 兜底，两者用 350ms 窗口去重，
+//   所以拖拽、长按、右键、点在挂件自己的 UI 上都不会触发。
+//
+// 【与后端的对应关系】
+//   GET  /dsh-whale/music.json —— 歌单 + 设置（后端落盘 .dshw-music.json；托管音频在
+//                                 whale-music/，自定义目录里的文件后端只读不删）
+//   POST /dsh-whale/music.json —— set-settings / set-dir / upload / delete，四者都返回同一份整体 JSON
+//   音频流                     —— 直接用后端给的 track.url（/dsh-whale/music-file?id=…，支持 HTTP Range）
+//   DOM 一律 createElement + textContent（不写任何带变量的 innerHTML）⇒ ci-audit 第 ⑤ 项无需新增登记。
+//
+// 【层级】23000 – 23999（见 visibleTopZ 上方的层级表）：非模态、外壳 pointer-events:none，
+//   既不挡主菜单操作也不吞页面点击；卡片自身可拖拽。
+// ============================================================================
+var dshwMusicUrl = '/dsh-whale/music.json'
+var dshwMusicData = null
+var dshwMusicTracks = []
+// 默认值与后端（.dshw-music.json 的 settings 默认）**逐字一致**：拉取前的空窗期不该先显示一套
+// 与后端不同的值（否则音量/循环态/复选框会跳一下）。pressMode 默认开 —— 用户要把受击音效
+// 换成音乐播放器；页面刷新后仍以 GET 回来的 settings 为准。
+var dshwMusicSettings = { volume: 0.9, loop: 'all', shuffle: false, pressMode: true, autoplay: false }
+var dshwMusicDir = ''
+var dshwMusicDirError = ''
+var dshwMusicAudio = null
+var dshwMusicCurKey = ''
+var dshwMusicSeeking = false
+var dshwMusicVolBusy = false
+var dshwMusicVolTimer = null
+var dshwMusicTapAt = 0
+var dshwMusicStatus = ''
+var dshwMusicImportErr = ''
+var dshwMusicImportBusy = false
+var dshwMusicImportSkip = [] // 本次导入里因超限被跳过的文件名（只用于完成提示）
+// 客户端上传预检上限。取值依据：后端 body 上限 64MB，而 upload 走 data URL（base64 膨胀约 4/3）
+// ⇒ 64MB ÷ 4/3 = 48MB。超过它的文件**连 POST 都不发**：宿主的 64MB 上限会在读完请求体之前
+// 就回 400 并断开连接，浏览器侧只能看到一个通用网络错误、还白传几十 MB。后端仍保留最终防线。
+// ⚠️ 这个常量必须与后端 lib/index.js 里的 MUSIC_MAX_BYTES 同步改：改一个就要同时改另一个。
+var dshwMusicMaxBytes = 48 * 1024 * 1024
+var dshwMusicListTop = 0
+var dshwMusicPanelOpen = false
+var dshwMusicMask = null
+var dshwMusicCard = null
+var dshwMusicUi = null
+var dshwMusicDrag = null
+
+// —— 小工具（全部 createElement + textContent，不碰 innerHTML）——
+function dshwMusicEl(tag, cls, text) {
+  var el = document.createElement(tag)
+  if (cls) el.className = cls
+  if (text !== null && text !== undefined) el.textContent = String(text)
+  return el
+}
+function dshwMusicBtn(label, cls) {
+  var b = dshwMusicEl('button', cls || 'dshwv-music-btn', label)
+  b.type = 'button'
+  return b
+}
+function dshwMusicPad2(n) { return (n < 10 ? '0' : '') + n }
+function dshwMusicFmtTime(sec) {
+  var s = Number(sec)
+  if (!isFinite(s) || s < 0) s = 0
+  s = Math.floor(s)
+  var m = Math.floor(s / 60)
+  return dshwMusicPad2(m) + ':' + dshwMusicPad2(s % 60)
+}
+function dshwMusicTitleOf(tr) {
+  if (!tr) return ''
+  return String(tr.title || tr.name || tr.id || '')
+}
+function dshwMusicMetaOf(tr) {
+  var parts = []
+  try {
+    if (tr && tr.ext) parts.push(String(tr.ext).replace(/^\./, ''))
+    var sz = Number(tr && tr.size)
+    if (isFinite(sz) && sz > 0) parts.push(sz >= 1048576 ? (sz / 1048576).toFixed(1) + 'M' : Math.max(1, Math.round(sz / 1024)) + 'K')
+    var mt = Number(tr && tr.mtime)
+    if (isFinite(mt) && mt > 0) {
+      // 后端可能给秒级时间戳，太大才算毫秒（只用来显示，不参与任何判定）
+      var d = new Date(mt < 100000000000 ? mt * 1000 : mt)
+      if (!isNaN(d.getTime())) parts.push(d.getFullYear() + '-' + dshwMusicPad2(d.getMonth() + 1) + '-' + dshwMusicPad2(d.getDate()))
+    }
+  } catch (err) {}
+  return parts.join(' ')
+}
+// 本条曲目在后端是不是"托管目录里的文件"（**只有明确标注 inManaged === true 才允许删**）。
+// 方向刻意收紧：删的是用户磁盘上的真实文件，字段缺失/拿不到曲目对象时一律当作"不能删"。
+function dshwMusicDeletable(tr) { return !!(tr && tr.inManaged === true) }
+// 曲目标识：优先 id，没有 id 时退化为 url（列表/播放/删除都以它做身份判定）
+function dshwMusicKeyOf(tr) {
+  if (!tr) return ''
+  return String(tr.id || tr.url || '')
+}
+function dshwMusicIndexOfKey(key) {
+  if (!key) return -1
+  var k = String(key)
+  for (var i = 0; i < dshwMusicTracks.length; i++) {
+    if (dshwMusicKeyOf(dshwMusicTracks[i]) === k) return i
+  }
+  return -1
+}
+function dshwMusicSetStatus(msg) {
+  dshwMusicStatus = msg ? String(msg) : ''
+  try { if (dshwMusicUi) dshwMusicUi.status.textContent = dshwMusicStatus } catch (err) {}
+}
+function dshwMusicErrText(d) {
+  try {
+    if (d && typeof d.error === 'string' && d.error) return d.error
+    if (d && typeof d.message === 'string' && d.message) return d.message
+  } catch (err) {}
+  return '未知原因'
+}
+// pressMode 是否开启（缺省/未读到 ⇒ 开）
+function dshwMusicPressModeOn() {
+  try { return dshwMusicSettings.pressMode !== false } catch (err) { return true }
+}
+
+// —— 样式：自己的一个 <style>（同样打 data-plugin，见文件开头的 PR #114 说明）——
+var dshwMusicStyle = document.createElement('style')
+dshwMusicStyle.setAttribute('data-plugin', 'dsh-whale-widget')
+dshwMusicStyle.textContent = [
+  // 外壳：铺满视口但 pointer-events:none —— 只负责承载层级与定位，不挡任何东西
+  '.dshwv-music-mask{position:fixed;inset:0;z-index:23000;pointer-events:none;display:none;color-scheme:light}',
+  '.dshwv-music-mask.dshwv-music-open{display:block}',
+  // 卡片：白底圆角、正文色 #203170、12px，与主菜单/资源管理同款
+  '.dshwv-music-card{position:fixed;left:16px;top:16px;width:min(320px,calc(100vw - 16px));max-height:min(600px,calc(100vh - 16px));box-sizing:border-box;display:flex;flex-direction:column;background:#fff;border:1px solid rgba(32,49,112,.35);border-radius:10px;box-shadow:0 8px 22px rgba(15,23,42,.22);color:#203170;font-size:12px;pointer-events:auto;overflow:hidden}',
+  '.dshwv-music-head{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid rgba(32,49,112,.15);cursor:move;user-select:none;-webkit-user-select:none;flex:0 0 auto}',
+  '.dshwv-music-title{flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-music-x{border:none;background:none;color:#203170;opacity:.6;font-size:14px;line-height:1;padding:2px 4px;cursor:pointer;border-radius:5px}',
+  '.dshwv-music-x:hover{background:rgba(32,49,112,.1);opacity:1}',
+  '.dshwv-music-body{flex:1 1 auto;min-height:0;overflow-y:auto;padding:8px 10px 10px}',
+  '.dshwv-music-row{display:flex;align-items:center;gap:6px;margin:5px 0;white-space:nowrap}',
+  '.dshwv-music-row label{flex:0 0 auto}',
+  '.dshwv-music-btn{border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.06);color:#203170;font-size:11px;padding:2px 8px;cursor:pointer;flex:0 0 auto}',
+  '.dshwv-music-btn:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-music-btn:disabled{opacity:.4;cursor:not-allowed}',
+  '.dshwv-music-btn-on{background:#203170;color:#fff}',
+  '.dshwv-music-list{max-height:150px;overflow-y:auto;border:1px solid rgba(32,49,112,.15);border-radius:8px;background:#fafbfe;margin:2px 0 4px}',
+  '.dshwv-music-item{display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:6px;cursor:pointer}',
+  '.dshwv-music-item:hover{background:rgba(32,49,112,.06)}',
+  '.dshwv-music-item-on{background:rgba(32,49,112,.14)}',
+  '.dshwv-music-item-on .dshwv-music-nm{font-weight:600}',
+  '.dshwv-music-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-music-meta{flex:0 0 auto;color:#9fb0d9;font-size:11px}',
+  '.dshwv-music-time{flex:0 0 auto;min-width:78px;text-align:right;font-size:11px}',
+  '.dshwv-music-pct{flex:0 0 auto;min-width:34px;text-align:right;font-size:11px}',
+  '.dshwv-music-range{flex:1;min-width:0;accent-color:#203170}',
+  '.dshwv-music-inp{flex:1;min-width:0;border:1px solid rgba(32,49,112,.4);border-radius:6px;padding:2px 4px;font-size:12px;color:#203170;background:#fff;box-sizing:border-box}',
+  '.dshwv-music-hint{color:#9fb0d9;font-size:11px;margin:2px 0 0}',
+  '.dshwv-music-err{color:#8a1f1f;font-size:11px;margin:2px 0 0;word-break:break-all}',
+  '.dshwv-music-dir{color:#9fb0d9;font-size:11px;margin:2px 0 0;word-break:break-all}',
+  '.dshwv-music-sep{height:1px;background:rgba(32,49,112,.15);margin:7px 0}',
+  '.dshwv-music-ctl{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 2px}',
+  '.dshwv-music-ctl .dshwv-music-btn{padding:3px 10px;font-size:12px}',
+  '.dshwv-music-drop{outline:2px dashed rgba(32,49,112,.45);outline-offset:-4px}'
+].join('\n')
+try { document.head.appendChild(dshwMusicStyle) } catch (err) {}
+
+// —— 懒创建面板（第一次点开才建 DOM）——
+function dshwMusicEnsure() {
+  if (dshwMusicCard) return dshwMusicCard
+  try {
+    dshwMusicMask = document.createElement('div')
+    dshwMusicMask.className = 'dshwv-music-mask'
+    dshwMusicCard = dshwMusicEl('div', 'dshwv-music-card')
+
+    var head = dshwMusicEl('div', 'dshwv-music-head')
+    var title = dshwMusicEl('span', 'dshwv-music-title', '音乐')
+    var closeBtn = dshwMusicBtn('✕', 'dshwv-music-x')
+    closeBtn.title = '关闭面板（正在播放的音乐不会停）'
+    head.appendChild(title)
+    head.appendChild(closeBtn)
+
+    var body = dshwMusicEl('div', 'dshwv-music-body')
+
+    // ① 歌单（限高可滚动）
+    var list = dshwMusicEl('div', 'dshwv-music-list')
+    var hint = dshwMusicEl('div', 'dshwv-music-hint', '')
+    var status = dshwMusicEl('div', 'dshwv-music-hint', '')
+    var dirErr = dshwMusicEl('div', 'dshwv-music-err', '')
+
+    // ② 控制条
+    var ctl = dshwMusicEl('div', 'dshwv-music-ctl')
+    var prevBtn = dshwMusicBtn('⏮ 上一首')
+    var playBtn = dshwMusicBtn('⏯ 播放·暂停')
+    var nextBtn = dshwMusicBtn('⏭ 下一首')
+    ctl.appendChild(prevBtn)
+    ctl.appendChild(playBtn)
+    ctl.appendChild(nextBtn)
+
+    // ③ 进度（可拖动；拖动期间不被 timeupdate 抢回去）
+    var progRow = dshwMusicEl('div', 'dshwv-music-row')
+    var prog = document.createElement('input')
+    prog.type = 'range'
+    prog.min = '0'
+    prog.max = '0'
+    prog.step = '0.01'
+    prog.value = '0'
+    prog.className = 'dshwv-music-range'
+    prog.title = '拖动可跳转（后端支持 Range 请求）'
+    var timeLab = dshwMusicEl('span', 'dshwv-music-time', '00:00 / 00:00')
+    progRow.appendChild(prog)
+    progRow.appendChild(timeLab)
+
+    // ④ 音量（0–1，改动即生效 + 写回 set-settings）
+    var volRow = dshwMusicEl('div', 'dshwv-music-row')
+    var volLab = dshwMusicEl('span', '', '音量')
+    var vol = document.createElement('input')
+    vol.type = 'range'
+    vol.min = '0'
+    vol.max = '1'
+    vol.step = '0.01'
+    vol.value = '0.9'
+    vol.className = 'dshwv-music-range'
+    vol.title = '音乐音量（与挂件音效音量各自独立）'
+    var volPct = dshwMusicEl('span', 'dshwv-music-pct', '90%')
+    volRow.appendChild(volLab)
+    volRow.appendChild(vol)
+    volRow.appendChild(volPct)
+
+    // ⑤ 循环（off → all → one 三态）+ 随机开关
+    var modeRow = dshwMusicEl('div', 'dshwv-music-row')
+    var loopBtn = dshwMusicBtn('循环：关')
+    loopBtn.title = '循环：关 → 全部 → 单曲'
+    var shuffleChk = document.createElement('input')
+    shuffleChk.type = 'checkbox'
+    shuffleChk.className = 'dshwv-check'
+    shuffleChk.title = '随机播放（尽量不重复同一首）'
+    var shuffleLab = dshwMusicEl('label', '', '随机')
+    modeRow.appendChild(loopBtn)
+    modeRow.appendChild(shuffleChk)
+    modeRow.appendChild(shuffleLab)
+
+    // ⑥ 重新扫描 / 导入
+    var actRow = dshwMusicEl('div', 'dshwv-music-row')
+    var scanBtn = dshwMusicBtn('重新扫描')
+    var importBtn = dshwMusicBtn('导入')
+    importBtn.title = '导入本地音频文件（可多选，也可把文件拖到面板上）'
+    var file = document.createElement('input')
+    file.type = 'file'
+    // accept 用拼接得到 audio 通配：本块刻意不出现成对的块注释记号 ——
+    // check-dead-settings 会粗暴地按成对块注释记号剥文本，一旦这里出现就会把后面整段代码吃掉、误报一堆死键
+    file.accept = 'audio/' + '*'
+    file.multiple = true
+    file.style.display = 'none'
+    actRow.appendChild(scanBtn)
+    actRow.appendChild(importBtn)
+    actRow.appendChild(file)
+
+    // ⑦ 目录（留空 = 复位为插件托管目录）
+    var dirLab = dshwMusicEl('span', '', '目录')
+    var dirRow = dshwMusicEl('div', 'dshwv-music-row')
+    var dirInp = document.createElement('input')
+    dirInp.type = 'text'
+    dirInp.className = 'dshwv-music-inp'
+    dirInp.placeholder = '留空 = 用插件托管目录'
+    dirInp.title = '自定义音乐目录（后端只读取、不删除其中的文件）'
+    var dirBtn = dshwMusicBtn('保存')
+    dirRow.appendChild(dirLab)
+    dirRow.appendChild(dirInp)
+    dirRow.appendChild(dirBtn)
+    var dirText = dshwMusicEl('div', 'dshwv-music-dir', '')
+
+    // ⑧ 点按鲸鱼 = 播放/暂停
+    var pressRow = dshwMusicEl('div', 'dshwv-music-row')
+    var pressChk = document.createElement('input')
+    pressChk.type = 'checkbox'
+    pressChk.className = 'dshwv-check'
+    pressChk.title = '开启后：挂件不再响按压/松开音效，点一下鲸鱼 = 播放 / 暂停'
+    var pressLab = dshwMusicEl('label', '', '点按鲸鱼 = 播放/暂停')
+    pressRow.appendChild(pressChk)
+    pressRow.appendChild(pressLab)
+
+    body.appendChild(list)
+    body.appendChild(hint)
+    body.appendChild(status)
+    body.appendChild(dirErr)
+    body.appendChild(ctl)
+    body.appendChild(progRow)
+    body.appendChild(volRow)
+    body.appendChild(modeRow)
+    body.appendChild(dshwMusicEl('div', 'dshwv-music-sep'))
+    body.appendChild(actRow)
+    body.appendChild(dirRow)
+    body.appendChild(dirText)
+    body.appendChild(pressRow)
+
+    dshwMusicCard.appendChild(head)
+    dshwMusicCard.appendChild(body)
+    dshwMusicMask.appendChild(dshwMusicCard)
+
+    dshwMusicUi = {
+      head: head, list: list, hint: hint, status: status, dirErr: dirErr,
+      prevBtn: prevBtn, playBtn: playBtn, nextBtn: nextBtn,
+      prog: prog, timeLab: timeLab, vol: vol, volPct: volPct,
+      loopBtn: loopBtn, shuffleChk: shuffleChk, shuffleLab: shuffleLab,
+      scanBtn: scanBtn, importBtn: importBtn, file: file,
+      dirInp: dirInp, dirBtn: dirBtn, dirText: dirText,
+      pressChk: pressChk, pressLab: pressLab
+    }
+
+    // —— 事件 ——
+    closeBtn.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {} ; dshwMusicClosePanel() })
+    head.addEventListener('pointerdown', dshwMusicDragStart)
+    prevBtn.addEventListener('click', function () { dshwMusicStep(-1) })
+    nextBtn.addEventListener('click', function () { dshwMusicStep(1) })
+    playBtn.addEventListener('click', function () { dshwMusicTogglePlay() })
+
+    // 进度条：按下即进入"用户正在拖"状态，拖动中只更新文案，不被 timeupdate 覆盖
+    prog.addEventListener('pointerdown', function () { dshwMusicSeeking = true })
+    prog.addEventListener('pointerup', function () { dshwMusicSeeking = false })
+    prog.addEventListener('pointercancel', function () { dshwMusicSeeking = false })
+    prog.addEventListener('input', function () {
+      var t = Number(prog.value)
+      if (isFinite(t) && dshwMusicAudio) { try { dshwMusicAudio.currentTime = t } catch (err) {} }
+      dshwMusicRenderTime()
+    })
+    prog.addEventListener('change', function () {
+      var t = Number(prog.value)
+      dshwMusicSeeking = false
+      if (isFinite(t) && dshwMusicAudio) { try { dshwMusicAudio.currentTime = t } catch (err) {} }
+      dshwMusicRenderTime()
+    })
+
+    vol.addEventListener('input', function () {
+      var v = Math.max(0, Math.min(1, Number(vol.value) || 0))
+      dshwMusicSettings.volume = v
+      dshwMusicVolBusy = true
+      try { if (dshwMusicAudio) dshwMusicAudio.volume = v } catch (err) {}
+      volPct.textContent = Math.round(v * 100) + '%'
+      if (dshwMusicVolTimer) clearTimeout(dshwMusicVolTimer)
+      dshwMusicVolTimer = setTimeout(function () {
+        dshwMusicVolTimer = null
+        dshwMusicVolBusy = false
+        dshwMusicSave({ volume: v })
+      }, 400)
+    })
+    vol.addEventListener('change', function () {
+      var v = Math.max(0, Math.min(1, Number(vol.value) || 0))
+      if (dshwMusicVolTimer) { clearTimeout(dshwMusicVolTimer); dshwMusicVolTimer = null }
+      dshwMusicVolBusy = false
+      dshwMusicSettings.volume = v
+      try { if (dshwMusicAudio) dshwMusicAudio.volume = v } catch (err) {}
+      dshwMusicSave({ volume: v })
+    })
+
+    loopBtn.addEventListener('click', function () {
+      var order = ['off', 'all', 'one']
+      var cur = dshwMusicSettings.loop
+      var i = order.indexOf(cur)
+      var next = order[(i < 0 ? 0 : i + 1) % 3]
+      dshwMusicSettings.loop = next
+      try { if (dshwMusicAudio) dshwMusicAudio.loop = next === 'one' } catch (err) {}
+      dshwMusicRenderMode()
+      dshwMusicSave({ loop: next })
+    })
+    shuffleChk.addEventListener('change', function () {
+      dshwMusicSettings.shuffle = !!shuffleChk.checked
+      dshwMusicSave({ shuffle: dshwMusicSettings.shuffle })
+    })
+    pressChk.addEventListener('change', function () {
+      dshwMusicSettings.pressMode = !!pressChk.checked
+      dshwMusicSave({ pressMode: dshwMusicSettings.pressMode })
+    })
+
+    scanBtn.addEventListener('click', function () {
+      dshwMusicSetStatus('正在重新扫描…')
+      dshwMusicFetch(function (d) { if (d) dshwMusicSetStatus('已重新扫描：' + dshwMusicTracks.length + ' 首') })
+    })
+    importBtn.addEventListener('click', function () { try { file.click() } catch (err) {} })
+    file.addEventListener('change', function () {
+      dshwMusicImportFiles(file.files)
+      try { file.value = '' } catch (err) {}
+    })
+    dirBtn.addEventListener('click', dshwMusicApplyDir)
+    dirInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwMusicApplyDir() })
+
+    // 拖入文件导入
+    dshwMusicCard.addEventListener('dragover', function (e) {
+      try { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy' } catch (err) {}
+      dshwMusicCard.classList.add('dshwv-music-drop')
+    })
+    dshwMusicCard.addEventListener('dragleave', function () {
+      try { dshwMusicCard.classList.remove('dshwv-music-drop') } catch (err) {}
+    })
+    dshwMusicCard.addEventListener('drop', function (e) {
+      try { dshwMusicCard.classList.remove('dshwv-music-drop') } catch (err) {}
+      try {
+        e.preventDefault()
+        e.stopPropagation()
+        dshwMusicImportFiles(e.dataTransfer ? e.dataTransfer.files : null)
+      } catch (err) {}
+    })
+
+    // 登记进 body（走统一挂载器：SPA 换 body 子树后会被守护逻辑补挂）
+    dshwBodyAppend(dshwMusicMask)
+  } catch (err) {}
+  return dshwMusicCard
+}
+function dshwMusicOpenPanel() {
+  dshwMusicEnsure()
+  try {
+    if (!dshwMusicMask) return
+    dshwMusicMask.classList.add('dshwv-music-open')
+    dshwMusicPanelOpen = true
+    dshwMusicRenderAll()
+    dshwMusicClampCard()
+  } catch (err) {}
+  // 打开时同步一次后端状态（失败只在面板里显示，不打扰用户）
+  dshwMusicFetch(null)
+}
+function dshwMusicClosePanel() {
+  try { if (dshwMusicMask) dshwMusicMask.classList.remove('dshwv-music-open') } catch (err) {}
+  dshwMusicPanelOpen = false
+  // 关面板只收尾"面板自己的预览类操作"：本面板没有任何试听/预取动作，所以这里什么都不做；
+  // 正在播放的音乐**照常继续**（用户要求：关面板不停音乐）。
+}
+function dshwMusicTogglePanel() {
+  if (dshwMusicPanelOpen) { dshwMusicClosePanel(); return false }
+  dshwMusicOpenPanel()
+  return true
+}
+// 首次打开给个默认落点（左上角），之后只在越界时夹回视口内
+function dshwMusicClampCard() {
+  try {
+    if (!dshwMusicCard) return
+    var vp = viewport()
+    var r = dshwMusicCard.getBoundingClientRect()
+    var w = r.width > 0 ? r.width : 320
+    var h = r.height > 0 ? r.height : 420
+    var left = dshwMusicCard.offsetLeft
+    var top = dshwMusicCard.offsetTop
+    if (!isFinite(left) || left <= 0) left = 16
+    if (!isFinite(top) || top <= 0) top = 16
+    left = Math.max(8, Math.min(left, Math.max(8, vp.w - w - 8)))
+    top = Math.max(8, Math.min(top, Math.max(8, vp.h - h - 8)))
+    dshwMusicCard.style.left = Math.round(left) + 'px'
+    dshwMusicCard.style.top = Math.round(top) + 'px'
+  } catch (err) {}
+}
+// —— 面板拖拽（只拖卡片自己；鲸鱼那边已通过 isWhaleHit 覆盖做到"面板上的按下不算鲸鱼"）——
+function dshwMusicDragStart(e) {
+  try {
+    if (!dshwMusicCard) return
+    if (e && typeof e.button === 'number' && e.button !== 0) return
+    var r = dshwMusicCard.getBoundingClientRect()
+    dshwMusicDrag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height }
+    try { e.preventDefault() } catch (err) {}
+    document.addEventListener('pointermove', dshwMusicDragMove, true)
+    document.addEventListener('pointerup', dshwMusicDragEnd, true)
+    document.addEventListener('pointercancel', dshwMusicDragEnd, true)
+  } catch (err) {}
+}
+function dshwMusicDragMove(e) {
+  if (!dshwMusicDrag || !dshwMusicCard) return
+  try {
+    var vp = viewport()
+    var d = dshwMusicDrag
+    var left = Math.max(0, Math.min(d.left + (e.clientX - d.x), Math.max(0, vp.w - d.w)))
+    var top = Math.max(0, Math.min(d.top + (e.clientY - d.y), Math.max(0, vp.h - d.h)))
+    dshwMusicCard.style.left = Math.round(left) + 'px'
+    dshwMusicCard.style.top = Math.round(top) + 'px'
+    e.preventDefault()
+  } catch (err) {}
+}
+function dshwMusicDragEnd() {
+  dshwMusicDrag = null
+  try { document.removeEventListener('pointermove', dshwMusicDragMove, true) } catch (err) {}
+  try { document.removeEventListener('pointerup', dshwMusicDragEnd, true) } catch (err) {}
+  try { document.removeEventListener('pointercancel', dshwMusicDragEnd, true) } catch (err) {}
+}
+
+// —— 渲染 ——
+function dshwMusicRenderAll() {
+  dshwMusicRenderList()
+  dshwMusicRenderCtl()
+  dshwMusicRenderMode()
+  dshwMusicRenderDir()
+  dshwMusicRenderPress()
+  dshwMusicRenderVol()
+  dshwMusicRenderTime()
+}
+function dshwMusicRenderList() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    // 重建列表不打断用户的滚动位置
+    dshwMusicListTop = ui.list.scrollTop || 0
+    while (ui.list.firstChild) ui.list.removeChild(ui.list.firstChild)
+    var customCount = 0
+    for (var i = 0; i < dshwMusicTracks.length; i++) {
+      var tr = dshwMusicTracks[i] || {}
+      if (!dshwMusicDeletable(tr)) customCount++
+      var on = dshwMusicCurKey && dshwMusicKeyOf(tr) === dshwMusicCurKey
+      var row = dshwMusicEl('div', 'dshwv-music-item' + (on ? ' dshwv-music-item-on' : ''))
+      var nm = dshwMusicEl('span', 'dshwv-music-nm', dshwMusicTitleOf(tr))
+      nm.title = String(tr.name || dshwMusicTitleOf(tr))
+      var meta = dshwMusicEl('span', 'dshwv-music-meta', dshwMusicMetaOf(tr))
+      var del = dshwMusicBtn('删除')
+      if (dshwMusicDeletable(tr)) {
+        del.title = '删除「' + dshwMusicTitleOf(tr) + '」'
+      } else {
+        // 自定义目录里的文件后端会拒绝删除：直接禁用并说明（字段缺失时也按"不能删"处理）
+        del.disabled = true
+        del.title = tr && tr.inManaged === false
+          ? '自定义目录里的文件不会被删除'
+          : '后端未标注该文件在插件托管目录里，出于安全不提供删除'
+      }
+      row.appendChild(nm)
+      row.appendChild(meta)
+      row.appendChild(del)
+      dshwMusicBindRow(row, del, tr)
+      ui.list.appendChild(row)
+    }
+    if (!dshwMusicTracks.length) {
+      ui.list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有歌曲：点「导入」添加，或把音频文件拖到面板上。'))
+    }
+    ui.list.scrollTop = dshwMusicListTop
+    ui.hint.textContent = customCount ? '自定义目录里的文件不会被删除（共 ' + customCount + ' 首来自自定义目录）' : ''
+  } catch (err) {}
+}
+// 行内两个 click 单独抽出来，避免在循环里用闭包捕获 i
+function dshwMusicBindRow(row, del, tr) {
+  row.addEventListener('click', function () { dshwMusicPlayTrack(tr) })
+  del.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (!dshwMusicDeletable(tr)) return
+    dshwMusicAskDelete(tr)
+  })
+}
+function dshwMusicRenderCtl() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    var playing = false
+    try { playing = !!(dshwMusicAudio && !dshwMusicAudio.paused && !dshwMusicAudio.ended) } catch (err) {}
+    ui.playBtn.textContent = playing ? '⏸ 暂停' : '⏯ 播放·暂停'
+    ui.playBtn.title = playing ? '暂停' : '播放 / 暂停'
+    if (playing) ui.playBtn.classList.add('dshwv-music-btn-on')
+    else ui.playBtn.classList.remove('dshwv-music-btn-on')
+  } catch (err) {}
+}
+function dshwMusicRenderMode() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    var loop = dshwMusicSettings.loop === 'one' ? 'one' : (dshwMusicSettings.loop === 'all' ? 'all' : 'off')
+    ui.loopBtn.textContent = loop === 'one' ? '循环：单曲' : (loop === 'all' ? '循环：全部' : '循环：关')
+    if (loop === 'off') ui.loopBtn.classList.remove('dshwv-music-btn-on')
+    else ui.loopBtn.classList.add('dshwv-music-btn-on')
+    ui.shuffleChk.checked = !!dshwMusicSettings.shuffle
+  } catch (err) {}
+}
+function dshwMusicRenderDir() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    // 当前目录用 textContent 显示（输入框只承载"下一次要保存的值"，不写回，避免打断输入）
+    ui.dirText.textContent = dshwMusicDir ? ('当前目录：' + dshwMusicDir) : '当前目录：插件托管目录'
+    ui.dirErr.textContent = dshwMusicDirError ? ('目录不可用：' + dshwMusicDirError) : ''
+  } catch (err) {}
+}
+function dshwMusicRenderPress() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try { ui.pressChk.checked = dshwMusicPressModeOn() } catch (err) {}
+}
+function dshwMusicRenderVol() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    var v = Math.max(0, Math.min(1, Number(dshwMusicSettings.volume)))
+    if (!isFinite(v)) v = 0.9
+    if (!dshwMusicVolBusy) {
+      ui.vol.value = String(v)
+      ui.volPct.textContent = Math.round(v * 100) + '%'
+    }
+  } catch (err) {}
+}
+function dshwMusicRenderTime() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    var a = dshwMusicAudio
+    var cur = 0
+    var dur = 0
+    if (a) {
+      if (dshwMusicSeeking) cur = Number(ui.prog.value) || 0
+      else cur = Number(a.currentTime) || 0
+      dur = Number(a.duration)
+      if (!isFinite(dur) || dur < 0) dur = 0
+    }
+    if (!dshwMusicSeeking) {
+      ui.prog.max = String(dur > 0 ? dur : 0)
+      ui.prog.value = String(Math.min(cur, dur > 0 ? dur : 0))
+    }
+    ui.timeLab.textContent = dshwMusicFmtTime(cur) + ' / ' + dshwMusicFmtTime(dur)
+  } catch (err) {}
+}
+// timeupdate 回来的进度：用户正在拖就不抢
+function dshwMusicSyncTime() {
+  if (dshwMusicSeeking) { dshwMusicRenderTime(); return }
+  dshwMusicRenderTime()
+}
+
+// —— 状态落地（GET / POST 都回同一份整体 JSON）——
+function dshwMusicApply(d) {
+  if (!d || typeof d !== 'object') return
+  dshwMusicData = d
+  try {
+    if (Object.prototype.toString.call(d.tracks) === '[object Array]') dshwMusicTracks = d.tracks
+    var s = d.settings && typeof d.settings === 'object' ? d.settings : null
+    if (s) {
+      var v = Number(s.volume)
+      if (isFinite(v)) dshwMusicSettings.volume = Math.max(0, Math.min(1, v))
+      if (s.loop === 'off' || s.loop === 'all' || s.loop === 'one') dshwMusicSettings.loop = s.loop
+      if (typeof s.shuffle === 'boolean') dshwMusicSettings.shuffle = s.shuffle
+      if (typeof s.pressMode === 'boolean') dshwMusicSettings.pressMode = s.pressMode
+      if (typeof s.autoplay === 'boolean') dshwMusicSettings.autoplay = s.autoplay
+    }
+    dshwMusicDir = typeof d.dir === 'string' ? d.dir : ''
+    dshwMusicDirError = typeof d.dirError === 'string' ? d.dirError : ''
+    // 当前曲目已不在列表里（被删/换目录）→ 收尾，但不动正在响的音频以外的东西
+    if (dshwMusicCurKey && dshwMusicIndexOfKey(dshwMusicCurKey) < 0) {
+      dshwMusicCurKey = ''
+      try { if (dshwMusicAudio) dshwMusicAudio.pause() } catch (err) {}
+    }
+    try {
+      if (dshwMusicAudio) {
+        dshwMusicAudio.loop = dshwMusicSettings.loop === 'one'
+        if (!dshwMusicVolBusy) dshwMusicAudio.volume = Math.max(0, Math.min(1, Number(dshwMusicSettings.volume)))
+      }
+    } catch (err) {}
+    dshwMusicRenderAll()
+  } catch (err) {}
+}
+function dshwMusicHandle(d, done) {
+  if (d && d.ok) {
+    dshwMusicApply(d)
+    dshwMusicSetStatus('')
+  } else {
+    dshwMusicSetStatus('操作失败：' + dshwMusicErrText(d))
+  }
+  if (done) { try { done(d) } catch (err) {} }
+}
+function dshwMusicFetch(done) {
+  try {
+    fetch(dshwMusicUrl, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d && d.ok) { dshwMusicApply(d); dshwMusicSetStatus(''); if (done) done(d); return }
+        dshwMusicSetStatus('读取失败：' + dshwMusicErrText(d))
+        if (done) done(null)
+      })
+      .catch(function () {
+        dshwMusicSetStatus('读取失败：音乐接口不可用（/dsh-whale/music.json）')
+        if (done) done(null)
+      })
+  } catch (err) {
+    dshwMusicSetStatus('读取失败：' + (err && err.message ? err.message : err))
+    if (done) done(null)
+  }
+}
+function dshwMusicPost(payload, done) {
+  try {
+    fetch(dshwMusicUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json() })
+      .then(function (d) { dshwMusicHandle(d, done) })
+      .catch(function () {
+        dshwMusicSetStatus('请求失败：无法连接后端')
+        if (done) { try { done(null) } catch (err) {} }
+      })
+  } catch (err) {
+    dshwMusicSetStatus('请求失败：' + (err && err.message ? err.message : err))
+    if (done) { try { done(null) } catch (err2) {} }
+  }
+}
+// 只送"这次改动的键"，其余键由后端保留（契约里各字段都是可选的）
+function dshwMusicSave(patch) {
+  var s = {}
+  try {
+    for (var k in patch) { if (Object.prototype.hasOwnProperty.call(patch, k)) s[k] = patch[k] }
+  } catch (err) {}
+  dshwMusicPost({ action: 'set-settings', settings: s }, null)
+}
+function dshwMusicApplyDir() {
+  if (!dshwMusicUi) return
+  var v = ''
+  try { v = String(dshwMusicUi.dirInp.value || '').trim() } catch (err) {}
+  dshwMusicPost({ action: 'set-dir', dir: v }, function (d) {
+    if (d && d.ok) dshwMusicSetStatus(v ? '音乐目录已保存' : '已复位为插件托管目录')
+  })
+}
+function dshwMusicAskDelete(tr) {
+  if (!dshwMusicDeletable(tr)) return
+  try {
+    showConfirm('确定删除歌曲「' + dshwMusicTitleOf(tr) + '」吗？\n文件将从插件托管目录中删除，不可恢复。', function () {
+      dshwMusicDelete(tr)
+    })
+  } catch (err) {}
+}
+function dshwMusicDelete(tr) {
+  var id = String((tr && tr.id) || '')
+  if (!id) return
+  // 后端拒绝删除（自定义目录）时会回 { ok:false, error } —— 由 dshwMusicHandle 显示在面板状态行
+  dshwMusicPost({ action: 'delete', id: id }, null)
+}
+
+// —— 导入（FileReader → data URL → 逐个 POST upload）——
+function dshwMusicFilesToList(files) {
+  var out = []
+  try {
+    if (!files) return out
+    for (var i = 0; i < files.length; i++) { if (files[i]) out.push(files[i]) }
+  } catch (err) {}
+  return out
+}
+function dshwMusicImportFiles(files) {
+  var list = dshwMusicFilesToList(files)
+  if (!list.length) return
+  if (dshwMusicImportBusy) { dshwMusicSetStatus('正在导入，请稍候…'); return }
+  dshwMusicImportBusy = true
+  dshwMusicImportErr = ''
+  dshwMusicImportSkip = []
+  dshwMusicImportNext(list, 0, 0, 0)
+}
+function dshwMusicImportNext(list, i, okCount, failCount) {
+  if (i >= list.length) {
+    dshwMusicImportBusy = false
+    // 超限跳过的文件名写进完成提示里（状态行会被这次导入期间的后继步骤覆盖，所以要落到最终那条）
+    var skipped = dshwMusicImportSkip.length
+      ? ('，跳过 ' + dshwMusicImportSkip.length + ' 个超限文件（音频超过 48MB 上限：' + dshwMusicImportSkip.join('、') + '）')
+      : ''
+    var tail = failCount ? ('，失败 ' + failCount + ' 个' + (dshwMusicImportErr ? '（' + dshwMusicImportErr + '）' : '')) : ''
+    var msg = '导入完成：成功 ' + okCount + ' 个' + skipped + tail
+    dshwMusicSetStatus(msg)
+    // 末尾再整体对一次账；GET 成功会清状态行，所以回来后再把"导入完成"写回
+    dshwMusicFetch(function () { dshwMusicSetStatus(msg) })
+    return
+  }
+  var f = list[i]
+  var fname = String((f && f.name) || '')
+  // 预检（读文件之前）：超限的这**一个**直接跳过、不发 POST，然后继续处理剩下的文件（不整批中止）。
+  // 大小未知（拿不到 size）时不拦，交给后端做最终判断。
+  var fsize = Number(f && f.size)
+  if (isFinite(fsize) && fsize > dshwMusicMaxBytes) {
+    dshwMusicImportSkip.push(fname || '(未命名)')
+    dshwMusicSetStatus('音频超过 48MB 上限：' + fname + '（已跳过，继续处理其余文件）')
+    dshwMusicImportNext(list, i + 1, okCount, failCount)
+    return
+  }
+  dshwMusicSetStatus('正在导入 ' + (i + 1) + '/' + list.length + '：' + fname)
+  var fr = null
+  try { fr = new FileReader() } catch (err) { fr = null }
+  if (!fr) { dshwMusicImportNext(list, i + 1, okCount, failCount + 1); return }
+  fr.onload = function () {
+    var dataUrl = ''
+    try { dataUrl = String(fr.result || '') } catch (err) {}
+    if (dataUrl.indexOf('data:') !== 0) { dshwMusicImportNext(list, i + 1, okCount, failCount + 1); return }
+    dshwMusicPost({ action: 'upload', name: String((f && f.name) || 'audio'), dataUrl: dataUrl }, function (d) {
+      if (d && d.ok) dshwMusicImportNext(list, i + 1, okCount + 1, failCount)
+      else {
+        if (d) dshwMusicImportErr = dshwMusicErrText(d)
+        dshwMusicImportNext(list, i + 1, okCount, failCount + 1)
+      }
+    })
+  }
+  fr.onerror = function () { dshwMusicImportNext(list, i + 1, okCount, failCount + 1) }
+  try { fr.readAsDataURL(f) } catch (err) { dshwMusicImportNext(list, i + 1, okCount, failCount + 1) }
+}
+
+// —— 播放（自己的 <audio>，不复用 dshwvSound：那是给短音效预热/Web Audio 的）——
+function dshwMusicAudioEl() {
+  if (dshwMusicAudio) return dshwMusicAudio
+  try {
+    var a = document.createElement('audio')
+    a.preload = 'metadata'
+    try { a.volume = Math.max(0, Math.min(1, Number(dshwMusicSettings.volume) || 0.9)) } catch (err) {}
+    try { a.loop = dshwMusicSettings.loop === 'one' } catch (err) {}
+    a.addEventListener('timeupdate', dshwMusicRenderTime)
+    a.addEventListener('durationchange', dshwMusicRenderTime)
+    a.addEventListener('loadedmetadata', dshwMusicRenderTime)
+    a.addEventListener('play', dshwMusicRenderCtl)
+    a.addEventListener('pause', dshwMusicRenderCtl)
+    a.addEventListener('ended', dshwMusicOnEnded)
+    a.addEventListener('error', function () {
+      dshwMusicRenderCtl()
+      dshwMusicSetStatus('播放失败：这条音频读不出来（检查后端 music-file 路由与文件是否还在）')
+    })
+    dshwMusicAudio = a
+  } catch (err) {}
+  return dshwMusicAudio
+}
+function dshwMusicPlayTrack(tr) {
+  var i = dshwMusicIndexOfKey(dshwMusicKeyOf(tr))
+  if (i < 0) return
+  dshwMusicPlayIndex(i)
+}
+function dshwMusicPlayIndex(i) {
+  var n = dshwMusicTracks.length
+  if (i < 0 || i >= n) return
+  var tr = dshwMusicTracks[i] || {}
+  var url = typeof tr.url === 'string' ? tr.url : ''
+  if (!url) { dshwMusicSetStatus('这首歌没有可用的音频地址（后端未给出 url）'); return }
+  var a = dshwMusicAudioEl()
+  if (!a) return
+  var key = dshwMusicKeyOf(tr)
+  if (dshwMusicCurKey !== key) {
+    dshwMusicCurKey = key
+    try { a.src = url } catch (err) {}
+    try { a.load() } catch (err) {}
+    try { a.currentTime = 0 } catch (err) {}
+  }
+  try { a.loop = dshwMusicSettings.loop === 'one' } catch (err) {}
+  try { a.volume = Math.max(0, Math.min(1, Number(dshwMusicSettings.volume) || 0.9)) } catch (err) {}
+  var p = null
+  try { p = a.play() } catch (err) { p = null }
+  if (p && typeof p.catch === 'function') p.catch(function () { dshwMusicRenderCtl() })
+  dshwMusicRenderList()
+  dshwMusicRenderCtl()
+  dshwMusicRenderTime()
+}
+function dshwMusicTogglePlay() {
+  if (!dshwMusicTracks.length) {
+    dshwMusicSetStatus('还没有歌曲：点「导入」添加，或用「重新扫描」刷新')
+    return
+  }
+  var cur = dshwMusicIndexOfKey(dshwMusicCurKey)
+  if (cur < 0) { dshwMusicPlayIndex(0); return }
+  var a = dshwMusicAudioEl()
+  if (!a) return
+  var playing = false
+  try { playing = !a.paused && !a.ended } catch (err) {}
+  if (playing) {
+    try { a.pause() } catch (err) {}
+  } else {
+    var p = null
+    try { p = a.play() } catch (err) { p = null }
+    if (p && typeof p.catch === 'function') p.catch(function () {})
+  }
+  dshwMusicRenderCtl()
+}
+function dshwMusicStep(delta) {
+  var n = dshwMusicTracks.length
+  if (!n) return
+  var cur = dshwMusicIndexOfKey(dshwMusicCurKey)
+  if (cur < 0) { dshwMusicPlayIndex(0); return }
+  if (dshwMusicSettings.shuffle) { dshwMusicPlayIndex(dshwMusicRandomIndex(cur)); return }
+  dshwMusicPlayIndex((cur + delta + n) % n)
+}
+// 随机下一首：尽量不重复当前这首
+function dshwMusicRandomIndex(cur) {
+  var n = dshwMusicTracks.length
+  if (n <= 1) return n ? 0 : -1
+  var i = cur
+  for (var guard = 0; guard < 12 && i === cur; guard++) i = Math.floor(Math.random() * n)
+  if (i === cur) i = (cur + 1) % n
+  return i
+}
+// 播完一首：one 由 audio.loop 兜住（不会走到这里）；all 循环；off 停在最后一首
+function dshwMusicOnEnded() {
+  if (dshwMusicSettings.loop === 'one') return
+  var n = dshwMusicTracks.length
+  if (!n) { dshwMusicRenderCtl(); return }
+  var cur = dshwMusicIndexOfKey(dshwMusicCurKey)
+  if (dshwMusicSettings.shuffle) { dshwMusicPlayIndex(dshwMusicRandomIndex(cur)); return }
+  if (cur < 0) { dshwMusicPlayIndex(0); return }
+  if (cur + 1 < n) { dshwMusicPlayIndex(cur + 1); return }
+  if (dshwMusicSettings.loop === 'all') { dshwMusicPlayIndex(0); return }
+  dshwMusicRenderCtl()
+}
+
+// —— 与挂件本体的整合：① 面板区域不算鲸鱼 ② 短按鲸鱼 = 播放/暂停 ③ 按压音效让位 ——
+// ① 面板上的指针事件不算"命中鲸鱼"：本面板是 body 级浮层（不在 .dshwv-root 里），
+//    如果压在鲸鱼身上，onDocPointerDown / onDocClickStopper / onDocContextMenu /
+//    onDocPointerMoveCursor 会把面板上的操作当成"点鲸鱼"（起拖拽、吞 click、右键弹菜单）。
+//    这里用**纯附加**的方式覆盖 isWhaleHit / widgetUiHit 两个绑定（调用点全是按绑定取值），
+//    不改动、不重注册任何既有监听：
+//      · isWhaleHit   —— 覆盖 pointerdown / pointerup / click / contextmenu / pointermove 五条链路；
+//      · widgetUiHit  —— 覆盖触摸链路（onDocTouchStart 先问它，避免面板上的触摸被当成拖鲸鱼）。
+function dshwMusicUiHit(e) {
+  try {
+    var t = e && e.target
+    if (!t) return false
+    if (!t.closest) t = t.parentElement
+    if (!t || !t.closest) return false
+    return !!(t.closest('.dshwv-music-mask') || t.closest('.dshwv-music-card'))
+  } catch (err) { return false }
+}
+var dshwMusicOrigIsWhaleHit = isWhaleHit
+isWhaleHit = function (e) {
+  if (dshwMusicUiHit(e)) return false
+  return dshwMusicOrigIsWhaleHit.apply(this, arguments)
+}
+var dshwMusicOrigWidgetUiHit = widgetUiHit
+widgetUiHit = function (target) {
+  try {
+    if (target && target.closest && (target.closest('.dshwv-music-mask') || target.closest('.dshwv-music-card'))) return true
+  } catch (err) {}
+  return dshwMusicOrigWidgetUiHit.apply(this, arguments)
+}
+// ② 短按鲸鱼 = 播放/暂停
+//    主路径：endDrag() 判定"没拖动"后调用的 whaleClick()（挂件自己认定的短按，天然排除
+//    拖拽、长按唤菜单、点在挂件 UI 上）；次路径：document 捕获期 click 兜底（register 在
+//    onDocClickStopper 之后，同一节点上的 stopPropagation 不会挡住它）。两条路用一个
+//    350ms 窗口去重，同一次手势只会切换一次。
+function dshwMusicTapToggle() {
+  var now = Date.now()
+  if (now - dshwMusicTapAt < 350) return false
+  dshwMusicTapAt = now
+  dshwMusicTogglePlay()
+  return true
+}
+var dshwMusicOrigWhaleClick = whaleClick
+whaleClick = function () {
+  // pressMode 为假：逐字交回原实现（音乐只能从面板控制）
+  try {
+    if (dshwMusicPressModeOn()) dshwMusicTapToggle()
+  } catch (err) {}
+  // 原 whaleClick 的泡泡逻辑照常执行（用户只要求换掉"受击音效"，没要求停掉泡泡）
+  return dshwMusicOrigWhaleClick.apply(this, arguments)
+}
+function dshwMusicDocClick(e) {
+  try {
+    if (!dshwMusicPressModeOn()) return
+    if (!e) return
+    if (typeof e.button === 'number' && e.button !== 0) return // 只处理主键
+    if (dshwMusicUiHit(e)) return
+    if (e.target && e.target.closest) {
+      // 挂件自己的 UI（菜单/气泡/各类面板/裁剪窗）：一律不触发
+      if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') ||
+          e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') ||
+          e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
+          e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') ||
+          e.target.closest('.dshwv-usage-mask') || e.target.closest('.dshwv-resmask') || e.target.closest('.dshwv-custmenu') ||
+          e.target.closest('.dshwv-custbtn')) return
+    }
+    if (longPressRecent()) return // 长按唤出菜单的那一下不算短按
+    if (!isWhaleHit(e)) return
+    dshwMusicTapToggle()
+  } catch (err) {}
+}
+document.addEventListener('click', dshwMusicDocClick, true)
+// ③ pressMode 为真时，按压/松开音效不出声：保存原函数后替换绑定。
+//    三个都要挡：pressUp 在"时长已知"时走的是 playReleaseAt（不是 playRelease），
+//    pressAudio.onended 兜底又会回头调 playRelease —— 只挡 playRelease 会漏掉松开音。
+//    例外：设置面板里的「试听按压音效」被 playPreview() 包裹（期间 dshwvPreviewMark > 0），
+//    那是用户在调试音效，不能静音。
+function dshwMusicMutePress() {
+  try {
+    if (!dshwMusicPressModeOn()) return false
+    if (typeof dshwvPreviewMark === 'number' && dshwvPreviewMark > 0) return false
+    return true
+  } catch (err) { return false }
+}
+var dshwMusicOrigPlayPress = playPress
+var dshwMusicOrigPlayRelease = playRelease
+var dshwMusicOrigPlayReleaseAt = playReleaseAt
+playPress = function () {
+  if (dshwMusicMutePress()) return undefined
+  return dshwMusicOrigPlayPress.apply(this, arguments)
+}
+playRelease = function () {
+  if (dshwMusicMutePress()) return undefined
+  return dshwMusicOrigPlayRelease.apply(this, arguments)
+}
+playReleaseAt = function () {
+  if (dshwMusicMutePress()) return undefined
+  return dshwMusicOrigPlayReleaseAt.apply(this, arguments)
+}
+
+// —— 主菜单入口：「音乐」行（与「资源管理」行同款：menuLabel + dshwv-usage-more 按钮）——
+// 该行追加进 menuRootView（主菜单所有行都在里面），所以"主视图 / 用量视图"切换时
+// 与其它行完全一致地一起显示/隐藏。打开面板时顺手收起菜单，面板独立存在、可拖拽。
+var dshwMusicRow = menuRow()
+var dshwMusicRowBtn = document.createElement('button')
+dshwMusicRowBtn.type = 'button'
+dshwMusicRowBtn.className = 'dshwv-usage-more'
+dshwMusicRowBtn.style.flex = '1'
+dshwMusicRowBtn.style.margin = '0'
+dshwMusicRowBtn.textContent = '打开'
+dshwMusicRowBtn.title = '打开音乐播放器面板'
+dshwMusicRowBtn.addEventListener('click', function (e) {
+  try { e.stopPropagation() } catch (err) {}
+  var opened = dshwMusicTogglePanel()
+  // 打开时收起主菜单：面板是常驻小窗，留在菜单上层反而碍事（再点菜单行即关闭面板）
+  if (opened) { try { closeMenu() } catch (err) {} }
+})
+dshwMusicRow.appendChild(menuLabel('音乐'))
+dshwMusicRow.appendChild(dshwMusicRowBtn)
+try {
+  if (menuRootView) menuRootView.appendChild(dshwMusicRow)
+  else menuBox.appendChild(dshwMusicRow)
+} catch (err) {}
+
+// 启动时读一次后端设置：刷新页面后按 settings.pressMode 恢复开关（读不到就沿用默认"开"）。
+// 此时面板还没建 DOM，失败只记在状态字符串里，不会打扰用户。
+try { dshwMusicFetch(null) } catch (err) {}
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshwTryStart(true) } catch (err) {}

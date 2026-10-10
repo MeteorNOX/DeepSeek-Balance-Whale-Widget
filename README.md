@@ -76,6 +76,19 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
 
+### 音乐播放器（本地音乐库）
+
+- 🎵 **托管目录**：`$DSH_HOME/whale-music/`（接口首次被访问时自动创建）。把歌**直接拷进这个目录**就能被识别 —— 插件只读、**不建索引文件**，不需要走导入流程。它是**插件自带的曲库**：里面的曲目**始终**出现在歌单里（即使你已经把扫描目录指向了别的文件夹）。
+- 📂 **自定义目录**：面板里可以指向任意一个本地目录（如 `D:\CloudMusic`）当**额外扫描**的文件夹；**歌单是「自定义目录 ∪ 托管目录」的并集**（按 id 去重，两个目录相同时不会重复），排序按并集统一进行。自定义目录**失效时（U 盘拔了 / 改名 / 没权限）自动退回托管目录**，接口不报错，只在响应里多一个 `dirError` 说明原因（界面会显示它）。
+- 🗂️ **格式与扫描范围**：只认 `mp3` / `m4a` / `aac` / `ogg` / `opus` / `wav` / `flac`（小写比较）；**只扫一层，不递归子目录** —— 想放的歌直接放到扫描目录下。
+- 🎚️ **设置存哪**：音量、循环（`off` / `all` / `one`）、随机、按压模式、自动播放统一存在 `$DSH_HOME/.dshw-music.json`（**刻意不写进 `.dshw-size.json` / `.dshw-usage.json`**，播放器设置与挂件自己的设置分开，互不干扰）。
+- ⏩ **进度条可拖动**：音频接口实现 HTTP `Range`（`bytes=a-b` / `bytes=a-` / `bytes=-n`），按 `206` + `Content-Range` 分段流式下发 —— 这是浏览器 `<audio>` 能 seek、能显示总时长的前提。
+- 🗑️ **删除的安全边界**：**只有 `inManaged: true` 的曲目（即托管目录 `whale-music/` 里的文件）能被删除**；自定义目录（你自己的音乐库）里的文件插件**一律不删**，删除请求返回 400 并说明"自定义目录里的文件不会被插件删除"。
+- 🔌 **接口**（三条都接入浏览器信任栅栏；写请求还要求请求来自本机）：
+  - `GET /dsh-whale/music.json` → `{ok, managed, dir, custom, tracks[], settings, supported[]}`。`tracks[]` 是「当前生效目录 ∪ 托管目录」的并集（按 id 去重、统一排序），每项为 `{id, name, title, ext, size, mtime, inManaged, url}`；`dir` 仍是"当前生效目录"（面板显示用），`inManaged` 标注该文件是否在托管目录里；`id` 是「绝对路径小写规范化后的 `sha1` 前 16 位」，**不可反推路径**，同一文件每次扫描都一样
+  - `POST /dsh-whale/music.json`（body ≤ 64MB）→ 四种 action：`set-settings`（只接受白名单键 `volume` / `loop` / `shuffle` / `pressMode` / `autoplay`，未知键忽略、合并写入）、`set-dir`（`""` = 复位为托管目录）、`upload`（`data:audio/<白名单格式>;base64,`，扩展名取 `name` 后缀、不在白名单则按 mime 推断，文件名会消毒，**固定落在托管目录**，重名自动加 ` (2)` 不覆盖，**解码后 > 48MB 则 400**〔48MB = body 上限 64MB ÷ base64 的 4/3 膨胀，是真正可达的上限〕）、`delete`（只删托管目录）。**成功一律返回与 GET 同形的 JSON**（`upload` 另带新文件的 `id`），失败返回 `{ok:false, error}`
+  - `GET /dsh-whale/music-file?id=<id>` → 音频字节；按扩展名给 `Content-Type`，带 `Accept-Ranges: bytes`，支持 Range（`206` / 越界 `416` / 无 Range `200` 全量；未知 id `404`）。`id` 每次都靠**重新扫描目录**解析成路径，客户端字符串不参与拼路径
+
 ### 自定义 API（多厂商余额 / 额度）
 
 除内置的 DeepSeek 余额外，可在「小鲸鱼记账 → 模型」里添加任意厂商；每个模型独立配置余额预警 / 今日预算 / 额度：
@@ -148,8 +161,10 @@ dsh-whale-widget/
 | `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
+| `.dshw-music.json` | 音乐播放器状态（自定义扫描目录 `customDir` + 播放设置 `settings`；曲目不落盘，每次扫目录得出） |
 | `whale-roles/` | 自定义角色图 + `roles.json` 索引 |
 | `whale-audio/` | 音频片段 `<id>.wav` + `audio.json` 索引（音效组/片段） |
+| `whale-music/` | 音乐播放器的**托管目录**（用户拷进来或面板导入的歌；**始终出现在歌单里**，扫描不递归、无索引文件，删除也只允许删这里） |
 | `whale-bubble-imgs/` | 泡泡图库图片 + `bubble-imgs.json` 索引 |
 
 ## 安装
@@ -391,6 +406,7 @@ curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/widget.js
 curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/audio.json
+curl http://127.0.0.1:3080/dsh-whale/music.json
 ```
 
 - `/dsh-whale/balance.json` → 200 JSON，含 `{ok:true, totalBalance, currency, todayUsage}`
@@ -401,9 +417,11 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
 - `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
+- `/dsh-whale/music.json` → 200 JSON，含 `managed` / `dir` / `custom` / `tracks[]` / `settings` / `supported[]`（自定义目录失效时另带 `dirError`）
+- `/dsh-whale/music-file?id=<id>` → 200 或 206 音频字节（带 `Accept-Ranges: bytes`，所以浏览器能拖动进度条；未知 `id` → 404，区间越界 → 416）
 - 浏览器 F5 后右下角出现挂件
 
-> ⚠️ **关于上面这些 `curl`**：全部 **23 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
+> ⚠️ **关于上面这些 `curl`**：全部 **25 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
 > 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
