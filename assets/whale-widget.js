@@ -14100,8 +14100,8 @@ function hideUsageAlertBubble() {
 //   · 队列项 kind = 'cost' | 'alert' | 'wait'；'wait' 这一支只出现在 whaleSysTick /
 //     whaleSysSwapNext / bubbleAutoClose / bubbleNext 的**新增分支**里，alert/budget/cost 路径逐字未改。
 // 幂等 + 换类型（**v771 修掉真机卡死**）：等待泡泡**永远只有一条**，内容 = 宿主当前上报的那一条挂起。
-// 依据：宿主 `waitState` 也只有一个槽位（`notePendingEvent` 里每次 `waitState.pending = {...}` 覆盖），
-// 所以客户端"镜像最新一条"就与宿主同口径，不需要（也不能）排队多条常驻泡泡。
+// 宿主按会话保存所有未解决请求；客户端只展示当前最新一项，解除后再显示较早的挂起。
+// 不在浏览器队列中重复排入多条常驻泡泡，避免显示已由宿主解除的请求。
 // ⚠️ 旧实现遇到"正在显示 A 类、又来了 B 类"时：把 `whaleSysItem` 置空 → 把 A 项 `unshift` 回队首 → 再 push B。
 //    可屏幕上**仍在显示等待场景**（`waitShown` 依旧 true）⇒
 //      ① `whaleSysTick` 的 `if (waitShown) return` 守卫**永远**拦住队列（B 永不上屏、A 也不换）；
@@ -14117,12 +14117,12 @@ function showWaitBubble(kind, p) {
     // 门控：该事件总开关 + 该事件「冒泡提示」开关（任一为假都不冒泡）；pollWaitState 也会先判一次
     if (cfg.on === false || cfg.bubbleOn === false) return false
     if (!bubbleBox || !textBox) return false
-    var pid = (p && p.id) ? String(p.id) : ''
+    var pid = p ? JSON.stringify([p.session || '', k, p.id || '']) : ''
     // "正显示等待泡泡"看**场景**（权威）或已占位的队列项（次之）—— 二者取或，避免状态半同步时漏判
     var showingWait = !!((bubbleScene && bubbleScene.kind === 'wait') || (whaleSysItem && whaleSysItem.kind === 'wait'))
     if (showingWait) {
-      // 同一类：幂等丢弃（内容一样）。只是 pendingId 变了就顺手更新，便于排查。
-      if (whaleSysItem && whaleSysItem.kind === 'wait' && whaleSysItem.waitKind === k) {
+      // 同一请求：幂等丢弃；同类但不同会话/请求仍须替换内容。
+      if (whaleSysItem && whaleSysItem.kind === 'wait' && whaleSysItem.waitKind === k && whaleSysItem.pendingId === pid) {
         if (pid) whaleSysItem.pendingId = pid
         return false
       }
@@ -17200,13 +17200,32 @@ try {
 var WAIT_URL = '/dsh-whale/wait.json'
 var WAIT_SOUND_KEY = 'dshw-wait-sound'
 var waitSeenId = ''
+var waitPollBusy = false
 function waitEventCfg(kind) {
   try { return ((usageSet || {}).events || {})[kind] || {} } catch (err) { return {} }
 }
+function dshwFetchState(url) {
+  var controller = typeof AbortController === 'function' ? new AbortController() : null
+  var timer = null
+  var request = Promise.resolve().then(function () {
+    return fetch(url, { cache: 'no-store', signal: controller ? controller.signal : undefined })
+  }).then(function (response) {
+    if (!response.ok) throw new Error('state poll failed')
+    return response.json()
+  })
+  var timeout = new Promise(function (_resolve, reject) {
+    timer = setTimeout(function () {
+      if (controller) controller.abort()
+      reject(new Error('state poll timeout'))
+    }, 10000)
+  })
+  return Promise.race([request, timeout]).finally(function () { clearTimeout(timer) })
+}
 function pollWaitState() {
+  if (waitPollBusy) return Promise.resolve()
+  waitPollBusy = true
   try {
-    fetch(WAIT_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json() })
+    return dshwFetchState(WAIT_URL)
       .then(function (d) {
         if (!d || !d.ok) return
         if (typeof d.sessionName === 'string') waitSessionName = d.sessionName
@@ -17223,7 +17242,7 @@ function pollWaitState() {
         var ev = waitEventCfg(kind)
         // v777：这条挂起已经被用户点掉了 ⇒ 不再自动弹回（但仍然照常响铃判定与去重；回答/批准后
         // 上面的 !p 分支会把标记清掉，所以"下一次新的提问/授权"照常冒泡）。
-        waitPendingId = String(p.id || '')
+        waitPendingId = JSON.stringify([p.session || '', kind, p.id || ''])
         if (waitPendingId && waitPendingId === waitDismissedId) {
           // 什么都不做：既不显示，也不清 waitSeenId（同一挂起不重复响）
         } else {
@@ -17236,7 +17255,7 @@ function pollWaitState() {
         // 门控照旧：该事件的「冒泡提示」关掉就不冒泡（与声音各自独立判）。
         // v777：显示那一步已上移到"被点掉的挂起"判定里（见上面的 waitDismissedId 分支），这里不再重复调用。
         // 声音：同一个未回答的挂起只响一次（刷新页面也不重复响）
-        var key = kind + ':' + String(p.id || '')
+        var key = JSON.stringify([p.session || '', kind, p.id || ''])
         var remembered = ''
         try { remembered = localStorage.getItem(WAIT_SOUND_KEY) || '' } catch (err) {}
         if (key === waitSeenId || key === remembered) return
@@ -17247,45 +17266,85 @@ function pollWaitState() {
         // v762：音效行新增的「是否播这个音效」开关（events.<kind>.soundOn，缺省视为开）。
         // 门控 = 该事件总开关 on + 选了音效 sel（下拉已无「静音」，正常不为空）+ soundOn。
         // 任务结束音的播放判定不在这里，仍读既有的 usageSet.taskEnd.on（见 playTaskEndSound）。
-        if (on && sel && ev.soundOn !== false) playBindingSound({ on: true, sel: sel }, ev)
+        if (on && sel && ev.soundOn !== false && soundOn !== false) dshwPlayNotificationOnce('wait:' + key, function () { playBindingSound({ on: true, sel: sel }, ev) })
       })
       .catch(function () {})
+      .finally(function () { waitPollBusy = false })
+  } catch (err) { waitPollBusy = false; return Promise.resolve() }
+}
+var turnCursor = null
+var turnPollBusy = false
+var notificationSeen = Object.create(null)
+try {
+  var savedTurnCursor = JSON.parse(localStorage.getItem('dshw-turn-cursor') || 'null')
+  if (savedTurnCursor && typeof savedTurnCursor.streamId === 'string' && Number.isSafeInteger(savedTurnCursor.seq)) turnCursor = savedTurnCursor
+} catch (err) {}
+function rememberTurnCursor(streamId, seq) {
+  turnCursor = { streamId: streamId, seq: seq }
+  lastCostSeq = seq
+  try {
+    localStorage.setItem('dshw-turn-cursor', JSON.stringify(turnCursor))
+    localStorage.setItem('dshw-last-seq', String(seq))
   } catch (err) {}
 }
-function pollLastTurn() {
+// Web Locks serialize the read/claim/play transaction across windows on one origin.
+// Older/non-secure webviews retain best-effort storage deduplication.
+function dshwPlayNotificationOnce(id, play) {
+  if (!id || notificationSeen[id]) return Promise.resolve()
+  function claim() {
+    if (notificationSeen[id]) return
+    var heard = []
+    try { heard = JSON.parse(localStorage.getItem('dshw-notification-ids') || '[]') } catch (err) {}
+    if (!Array.isArray(heard)) heard = []
+    notificationSeen[id] = true
+    if (Object.keys(notificationSeen).length > 256) notificationSeen = Object.create(null)
+    if (heard.indexOf(id) !== -1) return
+    heard.push(id)
+    try { localStorage.setItem('dshw-notification-ids', JSON.stringify(heard.slice(-128))) } catch (err) {}
+    play()
+  }
   try {
-    fetch(LAST_TURN_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json() })
-      .then(function (d) {
-        if (!d || !d.ok || typeof d.seq !== 'number') return
-        if (!lastCostAligned) {
-          // 首次拿到数据：以本地记忆的 seq 为基准，只弹比它更新的轮次
-          lastCostAligned = true
-          if (d.seq > lastCostSeq) {
-            lastCostSeq = d.seq
-            try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
-            playTaskEndSound()
-            if (d.turn !== null && d.amount !== null) {
-              showCostBubble(Number(d.amount))
-            }
-          } else {
-            // 记忆值已过期（host 端重置/文件丢失）：拉齐到当前值，避免永久不弹
-            lastCostSeq = d.seq
-            try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
-          }
-          return
-        }
-        if (d.seq > lastCostSeq) {
-          lastCostSeq = d.seq
-          try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
-          playTaskEndSound()
-          if (d.turn !== null && d.amount !== null) {
-            showCostBubble(Number(d.amount))
-          }
-        }
-      })
-      .catch(function () {})
+    if (navigator.locks && typeof navigator.locks.request === 'function') {
+      return navigator.locks.request('dshw-notification-ledger', claim).catch(function () {})
+    }
+    claim()
   } catch (err) {}
+  return Promise.resolve()
+}
+function deliverTurnCompletion(event) {
+  if (!event || !Number.isSafeInteger(event.seq)) return
+  if (event.outcome === 'completed' || event.outcome === 'unknown' || !event.outcome) {
+    if (soundOn !== false && usageSet && usageSet.taskEnd && usageSet.taskEnd.on) {
+      dshwPlayNotificationOnce(event.eventId || ('legacy:' + event.seq), function () { playTaskEndSound() })
+    }
+  }
+  // Unknown cost stays unknown; a genuine measured zero is a valid amount.
+  if (event.turn !== null && typeof event.amount === 'number' && isFinite(event.amount)) showCostBubble(event.amount)
+}
+function pollLastTurn() {
+  if (turnPollBusy) return Promise.resolve()
+  turnPollBusy = true
+  var url = LAST_TURN_URL + '?after=' + (turnCursor ? turnCursor.seq : 0) + '&stream=' + encodeURIComponent(turnCursor ? turnCursor.streamId : '')
+  return dshwFetchState(url)
+    .then(function (d) {
+      if (!d || !d.ok || !Number.isSafeInteger(d.seq)) return
+      if (typeof d.streamId === 'string' && Array.isArray(d.events)) {
+        if (!d.reset && turnCursor && turnCursor.streamId === d.streamId) {
+          if (d.gap) console.warn('[whale-widget] Some completion notifications expired while disconnected.')
+          d.events.forEach(function (event) { if (event.seq > turnCursor.seq) deliverTurnCompletion(event) })
+        }
+        rememberTurnCursor(d.streamId, d.seq)
+        lastCostAligned = true
+        return
+      }
+      // An older host serves only one slot. Preserve its previous compatibility path.
+      if (d.seq > lastCostSeq) deliverTurnCompletion(d)
+      lastCostSeq = d.seq
+      lastCostAligned = true
+      try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
+    })
+    .catch(function () {})
+    .finally(function () { turnPollBusy = false })
 }
 setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
 }
