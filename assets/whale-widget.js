@@ -19088,6 +19088,1075 @@ try {
   else menuBox.appendChild(dshwMusicRow)
 } catch (err) {}
 
+// ============================================================================
+// v792（网易云标签页）：音乐面板顶部的第三个 tab + 音源三选一
+// ----------------------------------------------------------------------------
+// 【这块加在哪、复用了什么】
+//   与 v791 电台页同一层：DOM 全部懒建在既有的 dshwMusicMask / dshwMusicCard 里，
+//   既有函数**一行未改** —— 需要"接进既有渲染链"的三处一律用本文件自己的老办法
+//   「保存原函数 → 替换绑定」（与 isWhaleHit / whaleClick / playPress 同款）：
+//     · dshwRadioRenderTabs —— 既有 tab 渲染只认「本地 / 电台」两态；外面包一层：
+//       先逐字调用原函数（本地 / 电台的显隐与高亮完全不变），再把网易云的显隐对齐。
+//     · dshwMusicTapToggle —— 「点鲸鱼 = 播放/暂停」的唯一入口；音源 = netease 时改走
+//       control，其余音源逐字交回原函数（本地 / 电台的播放逻辑一行未动）。
+//     · dshwMusicOpenPanel / dshwMusicClosePanel —— 只为轮询的启停挂钩。
+//
+// 【音源三选一（后端 settings.activeSource）】
+//   本地 / 电台 / 网易云，点选即 POST set-source 落盘，刷新页面后按后端值恢复。
+//   · 切到 netease：暂停我方 <audio>（只是额外暂停一下，既有播放逻辑未动）；
+//   · 从 netease 切走且当时网易云 Playing：发一次 control pause（失败静默，不打扰用户）；
+//   · 点鲸鱼：local / radio 沿用既有行为（控制我方 <audio>），netease 发 control toggle。
+//   注意：切 **tab** 与切 **音源** 是两件事 —— tab 只切 CSS 显隐、绝不动 <audio>
+//   （与 v791 的约定一致），音源才决定"点鲸鱼控制谁"。
+//
+// 【轮询】只有「面板打开 且 停在网易云 tab」时每 3 秒 GET 一次 netease.json；
+//   切 tab / 关面板立即 clearTimeout。用自调度 setTimeout 链而不是 setInterval：
+//   停掉即"没有任何待执行回调"，不会残留定时器。
+//
+// 【后端契约（逐字对齐）】
+//   GET  /dsh-whale/netease.json        → { ok, app, smtc, nowPlaying, favorites, settings, limits }
+//   POST /dsh-whale/netease.json        → launch / play / control / set-source /
+//                                         add-favorite / remove-favorite（成功回同一形状）
+//   GET  /dsh-whale/netease-search?q=&limit=30 → { ok, query, songs[] }
+//   两条路由只允许回环来源；前端只负责把后端给的 error 文案写到状态行。
+//
+// 【纪律】DOM 一律 createElement + textContent（不写任何带变量的 innerHTML）；
+//   本块不出现成对的块注释记号（check-dead-settings 会粗暴剥注释、误报死键）。
+// ============================================================================
+var dshwNeteaseUrl = '/dsh-whale/netease.json'
+var dshwNeteaseSearchUrl = '/dsh-whale/netease-search'
+var dshwNeteasePollMs = 3000
+var dshwNeteaseLimit = 30
+var dshwNeteaseData = null
+var dshwNeteaseApp = { exe: '', exeExists: false, running: false }
+var dshwNeteaseSmtc = { ok: true, error: '' }
+var dshwNeteaseNow = null
+var dshwNeteaseFavorites = []
+var dshwNeteaseSource = 'local' // 当前音源：'local' | 'radio' | 'netease'（后端 settings.activeSource）
+var dshwNeteaseMaxFavorites = 0
+var dshwNeteaseSongs = []
+var dshwNeteaseSearched = false
+var dshwNeteaseBusy = false
+var dshwNeteaseLaunchBusy = false
+var dshwNeteaseTabOn = false // 当前是否停在「网易云」标签页（默认 false = 本地音乐，既有行为不变）
+var dshwNeteaseSearchKind = 'song' // 搜索模式：'song' = 单曲（既有行为，URL 里连 kind 都不加）；'playlist' = 歌单
+var dshwNeteasePlaylists = []
+var dshwNeteasePlSearched = false
+var dshwNeteaseLinkId = '' // 「粘贴歌单链接」里认出来的纯数字 id（空 = 还没认出来）
+var dshwNeteasePlInfo = null // kind=playlist-info 回来的 { id, name, trackCount, first }
+var dshwNeteaseUi = null
+var dshwNeteaseTimer = null // 轮询定时器（自调度 setTimeout；null = 没在轮询）
+var dshwNeteasePollFailed = false
+var dshwNeteaseStatusText = ''
+
+// —— 小工具 ——
+function dshwNeteaseIsArray(v) { return Object.prototype.toString.call(v) === '[object Array]' }
+function dshwNeteaseMode() { return !!dshwNeteaseTabOn }
+// 前端只认契约里的三种音源，其它值（含 undefined）一律回到 'local'
+function dshwNeteaseNormSource(s) { return s === 'radio' ? 'radio' : (s === 'netease' ? 'netease' : 'local') }
+function dshwNeteaseSourceLabel(s) {
+  var n = dshwNeteaseNormSource(s)
+  if (n === 'radio') return '在线电台'
+  if (n === 'netease') return '网易云'
+  return '本地音乐'
+}
+// 网易云页的状态行（自己的一个节点 + 共用那一行）：与电台页同一套语义
+function dshwNeteaseSetStatus(msg) {
+  dshwNeteaseStatusText = msg ? String(msg) : ''
+  try { if (dshwNeteaseUi && dshwNeteaseUi.status) dshwNeteaseUi.status.textContent = dshwNeteaseStatusText } catch (err) {}
+  dshwMusicSetStatus(dshwNeteaseStatusText)
+}
+function dshwNeteaseTitleOf(x) {
+  try { return String((x && (x.name || x.title)) || '') } catch (err) { return '' }
+}
+function dshwNeteaseNameOf(x) {
+  var n = dshwNeteaseTitleOf(x)
+  return n || '(未命名歌曲)'
+}
+function dshwNeteaseArtistsOf(x) {
+  try {
+    var a = x && x.artists !== undefined && x.artists !== null ? x.artists : (x ? x.ar : null)
+    if (dshwNeteaseIsArray(a)) {
+      var out = []
+      for (var i = 0; i < a.length; i++) {
+        var v = a[i]
+        var n = v && typeof v === 'object' ? v.name : v
+        if (n !== undefined && n !== null && String(n)) out.push(String(n))
+      }
+      return out.join(' / ')
+    }
+    if (a && typeof a === 'object' && a.name) return String(a.name)
+    return a === undefined || a === null ? '' : String(a)
+  } catch (err) { return '' }
+}
+function dshwNeteaseAlbumOf(x) {
+  try {
+    var al = x && x.album !== undefined && x.album !== null ? x.album : (x ? x.al : null)
+    if (al && typeof al === 'object') return String(al.name || '')
+    return al === undefined || al === null ? '' : String(al)
+  } catch (err) { return '' }
+}
+// nowPlaying 的歌手是**单数** artist（宿主契约），歌单 / 搜索结果是复数 artists —— 两个都要认
+function dshwNeteaseNowArtistOf(x) {
+  try {
+    var one = x && x.artist !== undefined && x.artist !== null ? x.artist : null
+    if (one && typeof one === 'object' && one.name) return String(one.name)
+    if (one !== null && one !== undefined && String(one)) return String(one)
+  } catch (err) {}
+  return dshwNeteaseArtistsOf(x)
+}
+function dshwNeteaseIdOf(x) {
+  try { return String(x && x.id !== undefined && x.id !== null ? x.id : '').trim() } catch (err) { return '' }
+}
+// play 的 id 只接受纯数字且大于 0（契约要求 id:'<纯数字>'；宿主也要求 > 0，否则回 400）
+function dshwNeteaseIdOk(id) {
+  var s = String(id === undefined || id === null ? '' : id).trim()
+  return !!s && /^[0-9]+$/.test(s) && Number(s) > 0
+}
+// 时长：后端可能直接透传网易云的毫秒，也可能是秒 —— 只用于显示，>10000 一律当毫秒
+function dshwNeteaseDurSec(v) {
+  var n = Number(v)
+  if (!isFinite(n) || n <= 0) return 0
+  if (n > 10000) n = n / 1000
+  return Math.round(n)
+}
+function dshwNeteaseMetaOf(x) {
+  var parts = []
+  try {
+    var a = dshwNeteaseArtistsOf(x)
+    if (a) parts.push(a)
+    var al = dshwNeteaseAlbumOf(x)
+    if (al) parts.push(al)
+    var s = dshwNeteaseDurSec(x && x.duration)
+    if (s > 0) parts.push(dshwMusicFmtTime(s))
+  } catch (err) {}
+  return parts.join(' · ')
+}
+function dshwNeteaseIsFavId(id) {
+  var k = String(id || '')
+  if (!k) return false
+  try {
+    for (var i = 0; i < dshwNeteaseFavorites.length; i++) {
+      if (dshwNeteaseIdOf(dshwNeteaseFavorites[i]) === k) return true
+    }
+  } catch (err) {}
+  return false
+}
+function dshwNeteaseNowStatus() {
+  try { return dshwNeteaseNow && dshwNeteaseNow.status ? String(dshwNeteaseNow.status) : '' } catch (err) { return '' }
+}
+function dshwNeteasePlayingNow() { return dshwNeteaseNowStatus() === 'Playing' }
+function dshwNeteaseCmdLabel(c) {
+  if (c === 'play') return '播放'
+  if (c === 'pause') return '暂停'
+  if (c === 'next') return '下一首'
+  if (c === 'prev') return '上一首'
+  return '播放·暂停'
+}
+// 歌单行的小字：作者 · N 首 · M 次播放（缺哪个就少哪个）
+function dshwNeteasePlMetaOf(pl) {
+  var parts = []
+  try {
+    var c = pl && pl.creator !== undefined && pl.creator !== null ? String(pl.creator) : ''
+    if (c) parts.push(c)
+    var n = Number(pl && pl.trackCount)
+    if (isFinite(n) && n > 0) parts.push(Math.round(n) + ' 首')
+    var v = Number(pl && pl.playCount)
+    if (isFinite(v) && v > 0) parts.push(Math.round(v) + ' 次播放')
+  } catch (err) {}
+  return parts.join(' · ')
+}
+// 从一段文本里认歌单 id：只认 "playlist" 后面不远处那串数字。
+// 故意**不**接受裸数字（歧义太大：歌曲 id / 歌单 id 长得一样），也顺带认掉
+// `?id=`、`#/playlist?id=`、`/playlist/123456` 这几种粘贴形态。
+function dshwNeteaseExtractPlaylistId(text) {
+  var s = String(text === undefined || text === null ? '' : text)
+  var m = /playlist[^0-9]{0,24}([0-9]{1,20})/i.exec(s)
+  return m ? m[1] : ''
+}
+// 收藏项按契约逐字给：{ id, name, artists, album, duration, fee }
+function dshwNeteaseItemOf(x) {
+  var out = {}
+  try {
+    out.id = dshwNeteaseIdOf(x)
+    out.name = dshwNeteaseNameOf(x)
+    out.artists = dshwNeteaseArtistsOf(x)
+    out.album = dshwNeteaseAlbumOf(x)
+    var d = Number(x && x.duration)
+    out.duration = isFinite(d) && d > 0 ? Math.round(d) : 0
+    var f = Number(x && x.fee)
+    out.fee = isFinite(f) ? Math.round(f) : 0
+  } catch (err) {}
+  return out
+}
+
+// —— 样式：自己的一个 <style>（同样打 data-plugin；前缀 dshwv-netease-*）——
+var dshwNeteaseStyle = document.createElement('style')
+dshwNeteaseStyle.setAttribute('data-plugin', 'dsh-whale-widget')
+dshwNeteaseStyle.textContent = [
+  '.dshwv-netease-srcrow{display:flex;align-items:center;gap:4px;padding:4px 10px;border-bottom:1px solid rgba(32,49,112,.15);flex:0 0 auto}',
+  '.dshwv-netease-srclab{flex:0 0 auto;color:#9fb0d9;font-size:11px}',
+  '.dshwv-netease-src{border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.06);color:#203170;font-size:11px;padding:2px 8px;cursor:pointer;flex:0 0 auto}',
+  '.dshwv-netease-src:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-netease-src-on{background:#203170;color:#fff}',
+  '.dshwv-netease-src-on:hover{background:#203170}',
+  '.dshwv-netease-page{display:none}',
+  '.dshwv-netease-page-on{display:block}',
+  '.dshwv-netease-fee{display:inline-block;margin-left:4px;border:1px solid rgba(138,31,31,.45);border-radius:4px;padding:0 3px;font-size:10px;line-height:1.4;color:#8a1f1f;background:rgba(138,31,31,.08)}',
+  '.dshwv-netease-now{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}',
+  '.dshwv-netease-mark{flex:0 0 auto;color:#9fb0d9;font-size:11px}',
+  '.dshwv-netease-hint{flex:1;min-width:0;color:#9fb0d9;font-size:11px;margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-netease-list{max-height:158px}',
+  // —— v793（歌单）：搜索模式单选 + 歌单页两块 ——
+  '.dshwv-netease-mode{border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.06);color:#203170;font-size:11px;padding:2px 8px;cursor:pointer;flex:0 0 auto}',
+  '.dshwv-netease-mode:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-netease-mode-on{background:#203170;color:#fff}',
+  '.dshwv-netease-mode-on:hover{background:#203170}',
+  '.dshwv-netease-plwrap{display:none}',
+  '.dshwv-netease-plwrap-on{display:block}',
+  '.dshwv-netease-songwrap{display:block}',
+  '.dshwv-netease-plmeta{color:#9fb0d9;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+].join('\n')
+try { document.head.appendChild(dshwNeteaseStyle) } catch (err) {}
+
+// —— ① 网易云页 UI（由 dshwNeteaseEnsureDom 懒建在既有的同一个卡片里）——
+function dshwNeteaseBuildPanel() {
+  var page = dshwMusicEl('div', 'dshwv-netease-page')
+
+  var stateRow = dshwMusicEl('div', 'dshwv-music-row')
+  var state = dshwMusicEl('span', 'dshwv-netease-hint', '')
+  var launchBtn = dshwMusicBtn('启动网易云')
+  launchBtn.title = '启动官方网易云客户端（不带任何调试参数）'
+  stateRow.appendChild(state)
+  stateRow.appendChild(launchBtn)
+
+  var nowRow = dshwMusicEl('div', 'dshwv-music-row')
+  var now = dshwMusicEl('span', 'dshwv-netease-now', '')
+  var mark = dshwMusicEl('span', 'dshwv-netease-mark', '')
+  nowRow.appendChild(now)
+  nowRow.appendChild(mark)
+
+  var ctlRow = dshwMusicEl('div', 'dshwv-music-ctl')
+  var playBtn = dshwMusicBtn('⏯ 播放·暂停')
+  playBtn.title = '遥控网易云客户端播放 / 暂停（没有媒体会话时后端回 409）'
+  var prevBtn = dshwMusicBtn('⏮ 上一首')
+  prevBtn.title = '遥控网易云客户端上一首'
+  var nextBtn = dshwMusicBtn('⏭ 下一首')
+  nextBtn.title = '遥控网易云客户端下一首'
+  ctlRow.appendChild(playBtn)
+  ctlRow.appendChild(prevBtn)
+  ctlRow.appendChild(nextBtn)
+
+  var smtcHint = dshwMusicEl('div', 'dshwv-netease-hint', '')
+
+  // v793：搜索模式单选（单曲 / 歌单）。单曲模式下的 DOM 与行为逐字不变 ——
+  // 切模式只切两块容器的 CSS 显隐（songWrap / plWrap）。
+  var modeRow = dshwMusicEl('div', 'dshwv-music-row')
+  var modeLab = dshwMusicEl('span', '', '模式')
+  var modeSongBtn = dshwMusicBtn('单曲', 'dshwv-netease-mode')
+  modeSongBtn.title = '按单曲搜索：点「▶ 播放」让客户端播这一首'
+  var modePlBtn = dshwMusicBtn('歌单', 'dshwv-netease-mode')
+  modePlBtn.title = '按歌单搜索：点「▶ 整单播放」让客户端接管播放队列'
+  modeRow.appendChild(modeLab)
+  modeRow.appendChild(modeSongBtn)
+  modeRow.appendChild(modePlBtn)
+
+  var qRow = dshwMusicEl('div', 'dshwv-music-row')
+  var qInp = document.createElement('input')
+  qInp.type = 'text'
+  qInp.className = 'dshwv-music-inp'
+  qInp.placeholder = '搜索歌曲 / 歌手（回车即搜）'
+  qInp.title = '搜索网易云音乐（能不能播由客户端用你自己的账号判断）'
+  var searchBtn = dshwMusicBtn('搜索')
+  qRow.appendChild(qInp)
+  qRow.appendChild(searchBtn)
+
+  var status = dshwMusicEl('div', 'dshwv-netease-hint', '')
+  var hint = dshwMusicEl('div', 'dshwv-netease-hint', '点「▶ 播放」让官方客户端自己播（走 orpheus 协议）；「会员」只是提示，不拦点击。')
+
+  // —— 单曲那一块（默认显示；DOM 与 v792 完全一样，只是多包了一层容器）——
+  var songWrap = dshwMusicEl('div', 'dshwv-netease-songwrap')
+  var resLab = dshwMusicEl('div', 'dshwv-music-section', '搜索结果')
+  var list = dshwMusicEl('div', 'dshwv-music-list dshwv-netease-list')
+  songWrap.appendChild(resLab)
+  songWrap.appendChild(list)
+
+  // —— 歌单那一块（默认隐藏：搜索模式 = 歌单 时才显示）——
+  var plWrap = dshwMusicEl('div', 'dshwv-netease-plwrap')
+  var plLinkLab = dshwMusicEl('div', 'dshwv-music-section', '粘贴歌单链接')
+  var plLinkRow = dshwMusicEl('div', 'dshwv-music-row')
+  var plInp = document.createElement('input')
+  plInp.type = 'text'
+  plInp.className = 'dshwv-music-inp'
+  plInp.placeholder = '如 https://music.163.com/playlist?id=2723543824'
+  plInp.title = '粘贴歌单链接（认 playlist 后面那串纯数字 id；裸数字不算）'
+  var plOpenBtn = dshwMusicBtn('打开歌单')
+  plLinkRow.appendChild(plInp)
+  plLinkRow.appendChild(plOpenBtn)
+  var plInfoRow = dshwMusicEl('div', 'dshwv-music-row')
+  var plPlayBtn = dshwMusicBtn('▶ 整单播放')
+  plPlayBtn.title = '让客户端播放这个歌单（会替换它当前的播放队列）'
+  plInfoRow.appendChild(plPlayBtn)
+  var plInfoLine = dshwMusicEl('div', 'dshwv-netease-hint', '')
+  var plHint = dshwMusicEl('div', 'dshwv-netease-hint', '整单播放与点单曲一样会切掉客户端当前在播的东西（客户端行为）；我们只负责"让客户端播"，不用我方 audio。')
+  var plListLab = dshwMusicEl('div', 'dshwv-music-section', '歌单搜索结果')
+  var plList = dshwMusicEl('div', 'dshwv-music-list dshwv-netease-list')
+  plWrap.appendChild(plLinkLab)
+  plWrap.appendChild(plLinkRow)
+  plWrap.appendChild(plInfoRow)
+  plWrap.appendChild(plInfoLine)
+  plWrap.appendChild(plHint)
+  plWrap.appendChild(plListLab)
+  plWrap.appendChild(plList)
+
+  var favLab = dshwMusicEl('div', 'dshwv-music-section', '收藏')
+  var favList = dshwMusicEl('div', 'dshwv-music-list dshwv-netease-list')
+
+  page.appendChild(stateRow)
+  page.appendChild(nowRow)
+  page.appendChild(ctlRow)
+  page.appendChild(smtcHint)
+  page.appendChild(modeRow)
+  page.appendChild(qRow)
+  page.appendChild(status)
+  page.appendChild(hint)
+  page.appendChild(songWrap)
+  page.appendChild(plWrap)
+  page.appendChild(favLab)
+  page.appendChild(favList)
+
+  return {
+    page: page, tab: null, srcRow: null, srcBtns: null,
+    stateRow: stateRow, state: state, launchBtn: launchBtn,
+    nowRow: nowRow, now: now, mark: mark, ctlRow: ctlRow,
+    playBtn: playBtn, prevBtn: prevBtn, nextBtn: nextBtn, smtcHint: smtcHint,
+    modeRow: modeRow, modeSongBtn: modeSongBtn, modePlBtn: modePlBtn,
+    qRow: qRow, qInp: qInp, searchBtn: searchBtn, status: status, hint: hint,
+    songWrap: songWrap, resLab: resLab, list: list,
+    plWrap: plWrap, plInp: plInp, plOpenBtn: plOpenBtn, plPlayBtn: plPlayBtn,
+    plInfoLine: plInfoLine, plHint: plHint, plListLab: plListLab, plList: plList,
+    favLab: favLab, favList: favList,
+    listTop: 0, favTop: 0, plListTop: 0
+  }
+}
+// 懒建：第三个 tab 按钮 + 音源单选行 + 网易云页；只建一次，全部挂在既有的卡片里
+function dshwNeteaseEnsureDom() {
+  var ui = dshwMusicUi
+  if (!ui || !ui.tabs) return null
+  if (dshwNeteaseUi) return dshwNeteaseUi
+  try {
+    var tab = dshwMusicBtn('网易云', 'dshwv-music-tab')
+    tab.title = '网易云音乐（官方客户端）'
+    ui.tabs.appendChild(tab)
+
+    // 音源三选一：紧挨着 tab 栏（插在 head 与 body 之间的那一行）
+    var srcRow = dshwMusicEl('div', 'dshwv-netease-srcrow')
+    var srcLab = dshwMusicEl('span', 'dshwv-netease-srclab', '音源')
+    var srcLocal = dshwMusicBtn('本地', 'dshwv-netease-src')
+    srcLocal.title = '点鲸鱼 = 控制面板里这个 <audio>（既有行为）'
+    var srcRadio = dshwMusicBtn('电台', 'dshwv-netease-src')
+    srcRadio.title = '点鲸鱼 = 控制在线电台直播流（同一个 <audio>）'
+    var srcNetease = dshwMusicBtn('网易云', 'dshwv-netease-src')
+    srcNetease.title = '点鲸鱼 = 遥控网易云客户端（控制期间会暂停我方 <audio>）'
+    srcRow.appendChild(srcLab)
+    srcRow.appendChild(srcLocal)
+    srcRow.appendChild(srcRadio)
+    srcRow.appendChild(srcNetease)
+
+    // body = 卡片里那块可滚动的 .dshwv-music-body（localWrap 的父节点）；
+    // 音源行要插在**卡片**的 head 与 body 之间（跟 tab 栏同一层，不跟着内容滚）
+    var body = ui.localWrap ? ui.localWrap.parentElement : null
+    var card = ui.head ? ui.head.parentElement : null
+    if (card && card.insertBefore && body) card.insertBefore(srcRow, body)
+    else if (body) body.insertBefore(srcRow, ui.localWrap)
+
+    var p = dshwNeteaseBuildPanel()
+    p.tab = tab
+    p.srcRow = srcRow
+    p.srcBtns = { local: srcLocal, radio: srcRadio, netease: srcNetease }
+
+    // 事件：全部挂在本块新建的节点上；既有两个 tab 上只是**追加**一个监听（不动既有监听）
+    tab.addEventListener('click', function () { dshwNeteaseSetTab(true) })
+    if (ui.tabLocal) ui.tabLocal.addEventListener('click', function () { dshwNeteaseSetTab(false) })
+    if (ui.tabRadio) ui.tabRadio.addEventListener('click', function () { dshwNeteaseSetTab(false) })
+    srcLocal.addEventListener('click', function () { dshwNeteaseSetSource('local') })
+    srcRadio.addEventListener('click', function () { dshwNeteaseSetSource('radio') })
+    srcNetease.addEventListener('click', function () { dshwNeteaseSetSource('netease') })
+    p.launchBtn.addEventListener('click', function () { dshwNeteaseLaunch() })
+    p.playBtn.addEventListener('click', function () { dshwNeteaseControl('toggle', false) })
+    p.prevBtn.addEventListener('click', function () { dshwNeteaseControl('prev', false) })
+    p.nextBtn.addEventListener('click', function () { dshwNeteaseControl('next', false) })
+    p.searchBtn.addEventListener('click', function () { dshwNeteaseSearch() })
+    p.qInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwNeteaseSearch() })
+    p.modeSongBtn.addEventListener('click', function () { dshwNeteaseSetSearchKind('song') })
+    p.modePlBtn.addEventListener('click', function () { dshwNeteaseSetSearchKind('playlist') })
+    p.plOpenBtn.addEventListener('click', function () { dshwNeteaseOpenPlaylist() })
+    p.plInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwNeteaseOpenPlaylist() })
+    p.plPlayBtn.addEventListener('click', function () { dshwNeteasePlayLinkPlaylist() })
+
+    if (body) body.appendChild(p.page)
+    dshwNeteaseUi = p
+    dshwNeteaseRenderAll()
+  } catch (err) {}
+  return dshwNeteaseUi
+}
+// —— ② tab 切换（第三个 tab 的显隐由这里补；本地 / 电台两态仍是原函数说了算）——
+function dshwNeteaseSetTab(on) {
+  var next = !!on
+  var changed = dshwNeteaseTabOn !== next
+  dshwNeteaseTabOn = next
+  // 切 tab 只切 CSS 显隐：绝不动 <audio>（既有约定：本地 / 电台照播）
+  if (next) { try { dshwRadioSetTab(false) } catch (err) {} }
+  try { dshwMusicRenderAll() } catch (err) {}
+  // 进入网易云页：先立即对一次后端状态，之后按 3 秒一轮轮询
+  if (next && changed) dshwNeteaseFetch(null, null)
+  dshwNeteasePollSync()
+}
+// 既有 tab 渲染只认「本地 / 电台」；外面补网易云那一档（原函数先跑，行为逐字不变）
+function dshwNeteasePatchTabs() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    if (!dshwNeteaseUi) dshwNeteaseEnsureDom()
+    var p = dshwNeteaseUi
+    if (!p) return
+    var on = dshwNeteaseMode()
+    if (on) {
+      // 网易云激活时本地容器必须藏起来（原函数只按"本地 / 电台"设显隐）
+      if (ui.localWrap) ui.localWrap.style.display = 'none'
+      if (ui.radio && ui.radio.wrap) ui.radio.wrap.classList.remove('dshwv-music-radio-on')
+      p.tab.classList.add('dshwv-music-tab-on')
+      p.page.classList.add('dshwv-netease-page-on')
+    } else {
+      p.tab.classList.remove('dshwv-music-tab-on')
+      p.page.classList.remove('dshwv-netease-page-on')
+    }
+    dshwNeteaseRenderSrc()
+    dshwNeteaseRenderStatus()
+    dshwNeteasePollSync()
+  } catch (err) {}
+}
+// —— ③ 渲染 ——
+function dshwNeteaseRenderAll() {
+  dshwNeteaseRenderSrc()
+  dshwNeteaseRenderStatus()
+  dshwNeteaseRenderMode()
+  dshwNeteaseRenderResults()
+  dshwNeteaseRenderPlResults()
+  dshwNeteaseRenderPlInfo()
+  dshwNeteaseRenderFavs()
+}
+// 搜索模式单选 + 两块容器的显隐（只切 CSS，不重建节点）
+function dshwNeteaseRenderMode() {
+  var p = dshwNeteaseUi
+  if (!p) return
+  try {
+    var pl = dshwNeteaseSearchKind === 'playlist'
+    if (p.modeSongBtn) {
+      if (pl) p.modeSongBtn.classList.remove('dshwv-netease-mode-on')
+      else p.modeSongBtn.classList.add('dshwv-netease-mode-on')
+    }
+    if (p.modePlBtn) {
+      if (pl) p.modePlBtn.classList.add('dshwv-netease-mode-on')
+      else p.modePlBtn.classList.remove('dshwv-netease-mode-on')
+    }
+    if (p.songWrap) p.songWrap.style.display = pl ? 'none' : ''
+    if (p.plWrap) {
+      if (pl) p.plWrap.classList.add('dshwv-netease-plwrap-on')
+      else p.plWrap.classList.remove('dshwv-netease-plwrap-on')
+    }
+  } catch (err) {}
+}
+function dshwNeteaseRenderPlInfo() {
+  var p = dshwNeteaseUi
+  if (!p) return
+  try {
+    var info = dshwNeteasePlInfo
+    var id = info && dshwNeteaseIdOf(info) ? dshwNeteaseIdOf(info) : dshwNeteaseLinkId
+    var name = (info && dshwNeteaseTitleOf(info)) || ''
+    var line = ''
+    if (info && id) {
+      var n = Number(info.trackCount)
+      var first = dshwNeteaseIsArray(info.first) ? info.first : []
+      var head = []
+      for (var i = 0; i < first.length && head.length < 5; i++) {
+        if (first[i] !== undefined && first[i] !== null && String(first[i])) head.push(String(first[i]))
+      }
+      line = '歌单：' + (name || id) + '（' + (isFinite(n) && n > 0 ? Math.round(n) + ' 首' : '曲目数未知')
+        + (head.length ? '，开头：' + head.join(' / ') : '') + '）'
+    } else if (id) {
+      // 信息没拿到（400/502）也允许直接整单播放 —— 只把"已认出的 id"摆出来
+      line = '已认出歌单 id：' + id + '（信息没拿到也能直接整单播放）'
+    } else {
+      line = '还没认出歌单 id：粘贴含 playlist 的链接后点「打开歌单」。'
+    }
+    p.plInfoLine.textContent = line
+    p.plPlayBtn.disabled = !dshwNeteaseIdOk(id)
+    p.plPlayBtn.textContent = name ? '▶ 整单播放（' + name + '）' : '▶ 整单播放'
+  } catch (err) {}
+}
+function dshwNeteaseRenderPlResults() {
+  var p = dshwNeteaseUi
+  if (!p || !p.plList) return
+  var list = p.plList
+  try {
+    p.plListTop = list.scrollTop || 0
+    while (list.firstChild) list.removeChild(list.firstChild)
+    for (var i = 0; i < dshwNeteasePlaylists.length; i++) list.appendChild(dshwNeteasePlRow(dshwNeteasePlaylists[i]))
+    if (!dshwNeteasePlaylists.length) {
+      if (dshwNeteasePlSearched) list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '没有找到歌单'))
+      else list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有歌单搜索结果：切到「歌单」模式后输入关键词回车，或直接粘歌单链接。'))
+    }
+    list.scrollTop = p.plListTop
+  } catch (err) {}
+}
+function dshwNeteasePlRow(pl) {
+  var id = dshwNeteaseIdOf(pl)
+  var name = dshwNeteaseNameOf(pl)
+  var row = dshwMusicEl('div', 'dshwv-music-rrow')
+  var box = dshwMusicEl('div', 'dshwv-music-rbox')
+  var nm = dshwMusicEl('span', 'dshwv-music-rnm', name)
+  nm.title = name
+  box.appendChild(nm)
+  box.appendChild(dshwMusicEl('div', 'dshwv-music-rmeta', dshwNeteasePlMetaOf(pl)))
+  row.appendChild(box)
+  var playBtn = dshwMusicBtn('▶ 整单播放')
+  playBtn.title = '让客户端播放这个歌单（会替换它当前的播放队列）'
+  row.appendChild(playBtn)
+  row.addEventListener('click', function () { dshwNeteasePlayPlaylist(id, name) })
+  playBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    dshwNeteasePlayPlaylist(id, name)
+  })
+  return row
+}
+function dshwNeteaseRenderSrc() {
+  var p = dshwNeteaseUi
+  if (!p || !p.srcBtns) return
+  try {
+    var keys = ['local', 'radio', 'netease']
+    for (var i = 0; i < keys.length; i++) {
+      var b = p.srcBtns[keys[i]]
+      if (!b) continue
+      if (keys[i] === dshwNeteaseSource) b.classList.add('dshwv-netease-src-on')
+      else b.classList.remove('dshwv-netease-src-on')
+      b.disabled = false
+    }
+    if (p.srcRow) p.srcRow.title = '当前音源：' + dshwNeteaseSourceLabel(dshwNeteaseSource) + '（点鲸鱼控制的就是它）'
+  } catch (err) {}
+}
+function dshwNeteaseRenderStatus() {
+  var p = dshwNeteaseUi
+  if (!p) return
+  try {
+    var running = !!(dshwNeteaseApp && dshwNeteaseApp.running)
+    var now = dshwNeteaseNow
+    // 状态区：未运行 → 提示 + 启动按钮；已运行但没在播 → 明确说"当前没有播放"
+    var stateText = ''
+    if (!running) stateText = '网易云未运行'
+    else if (!now) stateText = '已运行，当前没有播放'
+    p.state.textContent = stateText
+    p.stateRow.style.display = stateText ? '' : 'none'
+    p.launchBtn.style.display = running ? 'none' : ''
+    // 正在播放：title 可能为空 ⇒ 只显示歌手
+    var line = ''
+    var mark = ''
+    if (running && now) {
+      var t = dshwNeteaseTitleOf(now)
+      var a = dshwNeteaseNowArtistOf(now)
+      line = '正在播放：' + (t && a ? (t + ' — ' + a) : (t || a || '(未知曲目)'))
+      var st = dshwNeteaseNowStatus()
+      if (st === 'Playing') mark = '▶ 播放中'
+      else if (st === 'Paused') mark = '⏸ 已暂停'
+      else if (st === 'Stopped') mark = '■ 已停止'
+      else if (st === 'Closed') mark = '· 客户端已关闭'
+      else mark = ''
+    }
+    p.now.textContent = line
+    p.mark.textContent = mark
+    p.nowRow.style.display = line ? '' : 'none'
+    p.ctlRow.style.display = running ? '' : 'none'
+    // smtc.ok = false：系统读不到媒体会话 —— 说清楚，但点播 / 遥控仍可用
+    var se = dshwNeteaseSmtc && dshwNeteaseSmtc.ok === false ? String(dshwNeteaseSmtc.error || '系统读不到媒体会话') : ''
+    p.smtcHint.textContent = se ? ('媒体会话不可用：' + se + '（只是读不到状态，点播 / 遥控仍可用）') : ''
+    p.smtcHint.style.display = se ? '' : 'none'
+    p.status.textContent = dshwNeteaseStatusText
+  } catch (err) {}
+}
+function dshwNeteaseRenderResults() {
+  var p = dshwNeteaseUi
+  if (!p) return
+  var list = p.list
+  try {
+    p.listTop = list.scrollTop || 0
+    while (list.firstChild) list.removeChild(list.firstChild)
+    for (var i = 0; i < dshwNeteaseSongs.length; i++) list.appendChild(dshwNeteaseRow(dshwNeteaseSongs[i], 'result'))
+    if (!dshwNeteaseSongs.length) {
+      if (dshwNeteaseSearched) list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '没有找到歌曲'))
+      else list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有搜索结果：输入歌名或歌手后回车，或点「搜索」。'))
+    }
+    list.scrollTop = p.listTop
+  } catch (err) {}
+}
+function dshwNeteaseRenderFavs() {
+  var p = dshwNeteaseUi
+  if (!p) return
+  var list = p.favList
+  try {
+    p.favTop = list.scrollTop || 0
+    while (list.firstChild) list.removeChild(list.firstChild)
+    for (var i = 0; i < dshwNeteaseFavorites.length; i++) list.appendChild(dshwNeteaseRow(dshwNeteaseFavorites[i], 'fav'))
+    if (!dshwNeteaseFavorites.length) list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有收藏的歌曲'))
+    list.scrollTop = p.favTop
+  } catch (err) {}
+}
+function dshwNeteaseRow(item, kind) {
+  var id = dshwNeteaseIdOf(item)
+  var on = false
+  try { on = !!(id && dshwNeteaseNow && dshwNeteaseIdOf(dshwNeteaseNow) === id) } catch (err) {}
+  var row = dshwMusicEl('div', 'dshwv-music-rrow' + (on ? ' dshwv-music-rrow-on' : ''))
+  var box = dshwMusicEl('div', 'dshwv-music-rbox')
+  var nm = dshwMusicEl('span', 'dshwv-music-rnm', dshwNeteaseNameOf(item))
+  nm.title = dshwNeteaseNameOf(item)
+  box.appendChild(nm)
+  // fee === 1：会员曲目。只是提示 —— 点播放仍然允许（客户端用用户自己的账号判断）
+  var fee = Number(item && item.fee)
+  if (fee === 1) {
+    var badge = dshwMusicEl('span', 'dshwv-netease-fee', '会员')
+    badge.title = '网易云标注的会员曲目：只是提示，点播放仍然允许（客户端用你自己的账号判断）'
+    box.appendChild(badge)
+  }
+  box.appendChild(dshwMusicEl('div', 'dshwv-music-rmeta', dshwNeteaseMetaOf(item)))
+  row.appendChild(box)
+  var playBtn = dshwMusicBtn('▶ 播放')
+  playBtn.title = '让官方网易云客户端自己播放（orpheus 协议）'
+  row.appendChild(playBtn)
+  var faved = dshwNeteaseIsFavId(id)
+  var actBtn = dshwMusicBtn(kind === 'fav' ? '✕ 移除' : (faved ? '★ 已收藏' : '☆ 收藏'))
+  actBtn.title = kind === 'fav' ? '从收藏里移除' : (faved ? '点击取消收藏' : '加入收藏')
+  row.appendChild(actBtn)
+  dshwNeteaseBindRow(row, item, playBtn, actBtn, kind)
+  return row
+}
+// 行内事件单独抽出来（避免在循环里捕获下标）：点整行 = 播放
+function dshwNeteaseBindRow(row, item, playBtn, actBtn, kind) {
+  row.addEventListener('click', function () { dshwNeteasePlaySong(item) })
+  playBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    dshwNeteasePlaySong(item)
+  })
+  actBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (kind === 'fav') dshwNeteaseRemoveFav(item)
+    else if (dshwNeteaseIsFavId(dshwNeteaseIdOf(item))) dshwNeteaseRemoveFav(item)
+    else dshwNeteaseAddFav(item)
+  })
+}
+
+// —— ④ 后端：netease.json（GET / POST）——
+function dshwNeteaseRespJson(r) {
+  return r.json().catch(function () { return null }).then(function (d) {
+    if (r && r.ok === false && (!d || !d.error)) return { ok: false, error: 'HTTP ' + r.status }
+    return d
+  })
+}
+// 读取失败时的落地：轮询只在"第一次连续失败"时写状态行（每 3 秒刷同一句会盖掉用户在看的东西）
+function dshwNeteaseFailText(opts, msg) {
+  var o = opts && typeof opts === 'object' ? opts : {}
+  if (o.poll) {
+    if (dshwNeteasePollFailed) return
+    dshwNeteasePollFailed = true
+  } else if (o.silent) return
+  dshwNeteaseSetStatus(msg)
+}
+function dshwNeteaseFetch(opts, done) {
+  try {
+    fetch(dshwNeteaseUrl, { cache: 'no-store' })
+      .then(dshwNeteaseRespJson)
+      .then(function (d) {
+        if (d && d.ok) {
+          dshwNeteasePollFailed = false
+          dshwNeteaseApply(d)
+          if (done) done(d)
+          return
+        }
+        dshwNeteaseFailText(opts, '网易云读取失败：' + dshwMusicErrText(d))
+        if (done) done(null)
+      })
+      .catch(function () {
+        dshwNeteaseFailText(opts, '网易云读取失败：接口不可用（/dsh-whale/netease.json）')
+        if (done) done(null)
+      })
+  } catch (err) {
+    dshwNeteaseFailText(opts, '网易云读取失败：' + (err && err.message ? err.message : err))
+    if (done) done(null)
+  }
+}
+function dshwNeteasePost(payload, silent, done) {
+  try {
+    fetch(dshwNeteaseUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(dshwNeteaseRespJson)
+      .then(function (d) {
+        if (d && d.ok) { dshwNeteaseApply(d); if (done) done(d); return }
+        if (!silent) dshwNeteaseSetStatus('网易云操作失败：' + dshwMusicErrText(d))
+        if (done) done(null)
+      })
+      .catch(function () {
+        if (!silent) dshwNeteaseSetStatus('网易云操作失败：无法连接后端')
+        if (done) { try { done(null) } catch (err) {} }
+      })
+  } catch (err) {
+    if (!silent) dshwNeteaseSetStatus('网易云操作失败：' + (err && err.message ? err.message : err))
+    if (done) { try { done(null) } catch (err2) {} }
+  }
+}
+// 成功 / 失败都回同一形状 ⇒ 直接整体落地（音源也按 settings.activeSource 对齐）
+function dshwNeteaseApply(d) {
+  if (!d || typeof d !== 'object') return
+  dshwNeteaseData = d
+  try {
+    if (d.app && typeof d.app === 'object') {
+      dshwNeteaseApp = {
+        exe: String(d.app.exe || ''),
+        exeExists: !!d.app.exeExists,
+        running: !!d.app.running,
+      }
+    }
+    if (d.smtc && typeof d.smtc === 'object') {
+      dshwNeteaseSmtc = { ok: d.smtc.ok !== false, error: d.smtc.error ? String(d.smtc.error) : '' }
+    } else {
+      dshwNeteaseSmtc = { ok: true, error: '' }
+    }
+    dshwNeteaseNow = d.nowPlaying && typeof d.nowPlaying === 'object' ? d.nowPlaying : null
+    dshwNeteaseFavorites = dshwNeteaseIsArray(d.favorites) ? d.favorites : []
+    var s = d.settings && typeof d.settings === 'object' ? d.settings : null
+    if (s && (s.activeSource === 'local' || s.activeSource === 'radio' || s.activeSource === 'netease')) {
+      dshwNeteaseSource = s.activeSource
+    }
+    var lim = d.limits && typeof d.limits === 'object' ? Number(d.limits.maxFavorites) : NaN
+    if (isFinite(lim) && lim > 0) dshwNeteaseMaxFavorites = lim
+    dshwNeteaseRenderAll()
+  } catch (err) {}
+}
+// —— ⑤ 动作：启动 / 点播 / 遥控 / 搜索 / 收藏 ——
+function dshwNeteaseLaunch() {
+  if (dshwNeteaseLaunchBusy) return
+  dshwNeteaseLaunchBusy = true
+  try { if (dshwNeteaseUi) dshwNeteaseUi.launchBtn.disabled = true } catch (err) {}
+  dshwNeteaseSetStatus('正在启动网易云…')
+  dshwNeteasePost({ action: 'launch' }, false, function (d) {
+    dshwNeteaseLaunchBusy = false
+    try { if (dshwNeteaseUi) dshwNeteaseUi.launchBtn.disabled = false } catch (err) {}
+    // 失败文案已由 post 写进状态行；成功给一条明确提示（running 由后端回的同一形状刷新）
+    if (d && d.ok) dshwNeteaseSetStatus('已启动网易云（状态会随下一轮刷新跟上）')
+  })
+}
+function dshwNeteasePlaySong(item) {
+  var id = dshwNeteaseIdOf(item)
+  var name = dshwNeteaseNameOf(item)
+  if (!dshwNeteaseIdOk(id)) {
+    dshwNeteaseSetStatus('这首歌的 id 不是纯数字（' + (id || '空') + '），无法让客户端点播')
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+    return
+  }
+  dshwNeteaseSetStatus('正在让网易云播放：' + name + '…')
+  dshwNeteasePost({ action: 'play', kind: 'song', id: id }, false, function (d) {
+    if (d && d.ok) {
+      dshwNeteaseSetStatus('已让网易云播放：' + name + '（客户端会用自己的账号判断可用性）')
+      return
+    }
+    // 失败文案已写上；这里只把列表按钮复位（不卡在"加载中"）
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+  })
+}
+function dshwNeteaseControl(cmd, silent) {
+  var c = 'toggle'
+  if (cmd === 'play' || cmd === 'pause' || cmd === 'next' || cmd === 'prev') c = cmd
+  if (!silent) dshwNeteaseSetStatus('正在遥控网易云：' + dshwNeteaseCmdLabel(c) + '…')
+  dshwNeteasePost({ action: 'control', cmd: c }, !!silent, function (d) {
+    if (d && d.ok) {
+      if (!silent) {
+        var st = dshwNeteaseNowStatus()
+        dshwNeteaseSetStatus('已遥控网易云：' + dshwNeteaseCmdLabel(c) + (st ? '（当前 ' + st + '）' : ''))
+      }
+      return
+    }
+    if (!silent) dshwNeteaseRenderStatus()
+  })
+}
+function dshwNeteaseSearch() {
+  var p = dshwNeteaseUi
+  if (dshwNeteaseBusy) return
+  var q = ''
+  try { if (p && p.qInp) q = String(p.qInp.value || '').trim() } catch (err) {}
+  if (!q) { dshwNeteaseSetStatus('请输入歌名或歌手再搜索'); return }
+  var kind = dshwNeteaseSearchKind === 'playlist' ? 'playlist' : 'song'
+  dshwNeteaseBusy = true
+  try { if (p) p.searchBtn.disabled = true } catch (err) {}
+  dshwNeteaseSetStatus('正在搜索「' + q + '」…')
+  // 单曲模式的 URL 与 v792 逐字一致（连 kind 都不加：后端默认就是 song）；
+  // 歌单模式才显式带 kind=playlist。
+  var url = dshwNeteaseSearchUrl + '?q=' + encodeURIComponent(q) + '&limit=' + encodeURIComponent(String(dshwNeteaseLimit))
+  if (kind === 'playlist') url += '&kind=playlist'
+  try {
+    fetch(url, { cache: 'no-store' })
+      .then(dshwNeteaseRespJson)
+      .then(function (d) {
+        dshwNeteaseSearchDone()
+        if (kind === 'playlist') {
+          if (d && d.ok) {
+            // 严格只认契约里的 playlists：宿主对未知 kind 是 400，所以这里不会收到"歌单模式却回 songs"
+            dshwNeteasePlaylists = dshwNeteaseIsArray(d.playlists) ? d.playlists : []
+            dshwNeteasePlSearched = true
+            dshwNeteaseRenderPlResults()
+            dshwNeteaseSetStatus(dshwNeteasePlaylists.length
+              ? ('搜索到 ' + dshwNeteasePlaylists.length + ' 个歌单（共 ' + dshwNeteaseLimit + ' 条以内）')
+              : '没有找到歌单')
+            return
+          }
+          dshwNeteasePlaylists = []
+          dshwNeteasePlSearched = true
+          dshwNeteaseRenderPlResults()
+          dshwNeteaseSetStatus('搜索失败：' + dshwMusicErrText(d))
+          return
+        }
+        if (d && d.ok) {
+          dshwNeteaseSongs = dshwNeteaseIsArray(d.songs) ? d.songs : []
+          dshwNeteaseSearched = true
+          dshwNeteaseRenderResults()
+          dshwNeteaseSetStatus(dshwNeteaseSongs.length
+            ? ('搜索到 ' + dshwNeteaseSongs.length + ' 首歌（共 ' + dshwNeteaseLimit + ' 条以内）')
+            : '没有找到歌曲')
+          return
+        }
+        dshwNeteaseSongs = []
+        dshwNeteaseSearched = true
+        dshwNeteaseRenderResults()
+        dshwNeteaseSetStatus('搜索失败：' + dshwMusicErrText(d))
+      })
+      .catch(function () {
+        dshwNeteaseSearchDone()
+        dshwNeteaseSetStatus('搜索失败：无法连接后端（/dsh-whale/netease-search）')
+      })
+  } catch (err) {
+    dshwNeteaseSearchDone()
+    dshwNeteaseSetStatus('搜索失败：' + (err && err.message ? err.message : err))
+  }
+}
+// 搜索模式单选：只切 CSS + 单选样式；两边的结果各自留着，切回来还在（与电台换源同口径：
+// 换模式不假装"没有找到"，只把"还没搜过"的提示摆出来）
+function dshwNeteaseSetSearchKind(k) {
+  var next = k === 'playlist' ? 'playlist' : 'song'
+  if (next === dshwNeteaseSearchKind) { dshwNeteaseRenderMode(); return }
+  dshwNeteaseSearchKind = next
+  dshwNeteaseRenderMode()
+}
+// 粘贴歌单链接：先从文本里认纯数字 id，再去问后端要名字 / 曲目数 / 开头几首
+function dshwNeteaseOpenPlaylist() {
+  var p = dshwNeteaseUi
+  var raw = ''
+  try { if (p && p.plInp) raw = String(p.plInp.value || '').trim() } catch (err) {}
+  var id = dshwNeteaseExtractPlaylistId(raw)
+  if (!id) {
+    dshwNeteaseLinkId = ''
+    dshwNeteasePlInfo = null
+    dshwNeteaseRenderPlInfo()
+    dshwNeteaseSetStatus(raw
+      ? '没从这段文本里认出歌单 id：请粘贴带 playlist 的链接（如 https://music.163.com/playlist?id=2723543824）'
+      : '请先粘贴歌单链接（如 https://music.163.com/playlist?id=2723543824）')
+    return
+  }
+  dshwNeteaseLinkId = id
+  dshwNeteasePlInfo = null
+  dshwNeteaseRenderPlInfo()
+  dshwNeteaseSetStatus('正在读取歌单：' + id + '…')
+  dshwNeteasePlaylistInfo(id)
+}
+function dshwNeteasePlaylistInfo(id) {
+  var url = dshwNeteaseSearchUrl + '?kind=playlist-info&id=' + encodeURIComponent(String(id))
+  try {
+    fetch(url, { cache: 'no-store' })
+      .then(dshwNeteaseRespJson)
+      .then(function (d) {
+        if (d && d.ok && d.playlist && typeof d.playlist === 'object') {
+          dshwNeteasePlInfo = d.playlist
+          dshwNeteaseRenderPlInfo()
+          var nm = dshwNeteaseTitleOf(d.playlist) || String(id)
+          var n = Number(d.playlist.trackCount)
+          dshwNeteaseSetStatus('歌单：' + nm + '（' + (isFinite(n) && n > 0 ? Math.round(n) + ' 首' : '曲目数未知') + '）')
+          return
+        }
+        // 信息拿不到：把后端 error 写清楚，但**不**妨碍直接整单播放
+        dshwNeteaseRenderPlInfo()
+        dshwNeteaseSetStatus('读取歌单信息失败：' + dshwMusicErrText(d))
+      })
+      .catch(function () {
+        dshwNeteaseRenderPlInfo()
+        dshwNeteaseSetStatus('读取歌单信息失败：无法连接后端（/dsh-whale/netease-search）')
+      })
+  } catch (err) {
+    dshwNeteaseRenderPlInfo()
+    dshwNeteaseSetStatus('读取歌单信息失败：' + (err && err.message ? err.message : err))
+  }
+}
+// 整单播放：与点单曲走同一个 play 动作，只是 kind = playlist
+function dshwNeteasePlayPlaylist(id, name) {
+  var pid = String(id === undefined || id === null ? '' : id).trim()
+  var label = name ? String(name) : pid
+  if (!dshwNeteaseIdOk(pid)) {
+    dshwNeteaseSetStatus('歌单 id 不是纯数字（' + (pid || '空') + '），无法整单播放')
+    dshwNeteaseRenderPlInfo()
+    dshwNeteaseRenderPlResults()
+    return
+  }
+  dshwNeteaseSetStatus('正在让网易云播放歌单：' + label + '…')
+  dshwNeteasePost({ action: 'play', kind: 'playlist', id: pid }, false, function (d) {
+    if (d && d.ok) {
+      dshwNeteaseSetStatus('已让网易云播放歌单：' + label + '（会替换客户端当前的播放队列）')
+      return
+    }
+    dshwNeteaseRenderPlInfo()
+    dshwNeteaseRenderPlResults()
+  })
+}
+// 「打开歌单」那一行上的整单播放按钮：用认出来的 id
+function dshwNeteasePlayLinkPlaylist() {
+  var info = dshwNeteasePlInfo
+  var id = info && dshwNeteaseIdOf(info) ? dshwNeteaseIdOf(info) : dshwNeteaseLinkId
+  var name = (info && dshwNeteaseTitleOf(info)) || ''
+  dshwNeteasePlayPlaylist(id, name)
+}
+function dshwNeteaseSearchDone() {
+  dshwNeteaseBusy = false
+  try { if (dshwNeteaseUi) dshwNeteaseUi.searchBtn.disabled = false } catch (err) {}
+}
+function dshwNeteaseAddFav(item) {
+  var id = dshwNeteaseIdOf(item)
+  var name = dshwNeteaseNameOf(item)
+  if (!id) {
+    dshwNeteaseSetStatus('这首歌没有可收藏的 id')
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+    return
+  }
+  dshwNeteaseSetStatus('正在收藏：' + name + '…')
+  dshwNeteasePost({ action: 'add-favorite', item: dshwNeteaseItemOf(item) }, false, function (d) {
+    if (d && d.ok) { dshwNeteaseSetStatus('已收藏：' + name); return }
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+  })
+}
+function dshwNeteaseRemoveFav(item) {
+  var id = dshwNeteaseIdOf(item)
+  var name = dshwNeteaseNameOf(item)
+  if (!id) {
+    dshwNeteaseSetStatus('这首歌没有可移除的 id')
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+    return
+  }
+  dshwNeteaseSetStatus('正在取消收藏：' + name + '…')
+  dshwNeteasePost({ action: 'remove-favorite', id: id }, false, function (d) {
+    if (d && d.ok) { dshwNeteaseSetStatus('已取消收藏：' + name); return }
+    dshwNeteaseRenderResults()
+    dshwNeteaseRenderFavs()
+  })
+}
+// —— ⑥ 音源三选一（互斥 + 落盘）——
+function dshwNeteaseSetSource(src) {
+  var next = dshwNeteaseNormSource(src)
+  var prev = dshwNeteaseSource
+  if (next === prev) { dshwNeteaseRenderSrc(); return }
+  dshwNeteaseSource = next
+  dshwNeteaseRenderSrc()
+  // 互斥①：切到网易云 ⇒ 暂停我方 <audio>（既有播放逻辑一行未动，这里只是额外暂停）
+  if (next === 'netease') {
+    try { if (dshwMusicAudio && !dshwMusicAudio.paused) dshwMusicAudio.pause() } catch (err) {}
+    try { dshwMusicRenderCtl() } catch (err) {}
+  }
+  // 互斥②：从网易云切走 + 当时正在播 ⇒ 发一次 control pause（失败静默，不打扰用户）
+  if (prev === 'netease' && dshwNeteasePlayingNow()) dshwNeteaseControl('pause', true)
+  dshwNeteaseSetStatus('正在切换音源…')
+  dshwNeteasePost({ action: 'set-source', source: next }, false, function (d) {
+    if (d && d.ok) {
+      dshwNeteaseSetStatus('音源已切换：' + dshwNeteaseSourceLabel(dshwNeteaseSource))
+      return
+    }
+    // 失败：后端没落盘，界面不该显示成已切换 ⇒ 退回上一次的选中项
+    dshwNeteaseSource = prev
+    dshwNeteaseRenderSrc()
+  })
+}
+// —— ⑦ 轮询：只在「面板打开 且 停在网易云 tab」时跑 ——
+function dshwNeteasePollShould() { return !!(dshwMusicPanelOpen && dshwNeteaseTabOn) }
+function dshwNeteasePollStop() {
+  if (dshwNeteaseTimer) {
+    try { clearTimeout(dshwNeteaseTimer) } catch (err) {}
+    dshwNeteaseTimer = null
+  }
+}
+function dshwNeteasePollSchedule() {
+  if (dshwNeteaseTimer) return
+  if (!dshwNeteasePollShould()) return
+  dshwNeteaseTimer = setTimeout(dshwNeteasePollTick, dshwNeteasePollMs)
+}
+function dshwNeteasePollTick() {
+  dshwNeteaseTimer = null
+  if (!dshwNeteasePollShould()) return
+  dshwNeteaseFetch({ poll: true }, null)
+  if (!dshwNeteasePollShould()) return
+  dshwNeteasePollSchedule()
+}
+function dshwNeteasePollSync() {
+  if (dshwNeteasePollShould()) dshwNeteasePollSchedule()
+  else dshwNeteasePollStop()
+}
+
+// —— ⑧ 接进既有链路：保存原函数 → 替换绑定（不动既有函数体、不重注册既有监听）——
+// ① 既有 tab 渲染 → 追加第三档的显隐（本地 / 电台两态由原函数逐字决定）
+var dshwNeteaseOrigRenderTabs = dshwRadioRenderTabs
+dshwRadioRenderTabs = function () {
+  var r = dshwNeteaseOrigRenderTabs.apply(this, arguments)
+  try { dshwNeteasePatchTabs() } catch (err) {}
+  return r
+}
+// ② 点鲸鱼 = 播放/暂停：音源为网易云时改走 control（去重窗口必须在这里同样生效，
+//    否则 whaleClick 与 document 捕获期 click 兜底会把一次手势切成两次）
+var dshwNeteaseOrigTapToggle = dshwMusicTapToggle
+dshwMusicTapToggle = function () {
+  var now = Date.now()
+  if (now - dshwMusicTapAt < 350) return false
+  if (dshwNeteaseSource === 'netease') {
+    dshwMusicTapAt = now
+    dshwNeteaseControl('toggle', false)
+    return true
+  }
+  return dshwNeteaseOrigTapToggle.apply(this, arguments)
+}
+// ③ 面板开 / 关 → 轮询启停（关面板必须停掉，不留定时器空转）
+var dshwNeteaseOrigOpenPanel = dshwMusicOpenPanel
+dshwMusicOpenPanel = function () {
+  var r = dshwNeteaseOrigOpenPanel.apply(this, arguments)
+  try { dshwNeteasePollSync() } catch (err) {}
+  return r
+}
+var dshwNeteaseOrigClosePanel = dshwMusicClosePanel
+dshwMusicClosePanel = function () {
+  var r = dshwNeteaseOrigClosePanel.apply(this, arguments)
+  try { dshwNeteasePollStop() } catch (err) {}
+  return r
+}
+
+// v792：启动时读一次网易云状态 —— 只为用后端 settings.activeSource 恢复"音源"（刷新后不回退）。
+// 此时面板还没建 DOM，失败安静记着（面板一打开就会再同步一次，那次才写状态行）。
+try { dshwNeteaseFetch({ silent: true }, null) } catch (err) {}
+
 // 启动时读一次后端设置：刷新页面后按 settings.pressMode 恢复开关（读不到就沿用默认"开"）。
 // 此时面板还没建 DOM，失败只记在状态字符串里，不会打扰用户。
 try { dshwMusicFetch(null) } catch (err) {}
