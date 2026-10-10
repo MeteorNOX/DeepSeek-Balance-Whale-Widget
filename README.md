@@ -76,6 +76,88 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
 
+### 音乐播放器（本地音乐库）
+
+- 🎵 **托管目录**：`$DSH_HOME/whale-music/`（接口首次被访问时自动创建）。把歌**直接拷进这个目录**就能被识别 —— 插件只读、**不建索引文件**，不需要走导入流程。它是**插件自带的曲库**：里面的曲目**始终**出现在歌单里（即使你已经把扫描目录指向了别的文件夹）。
+- 📂 **自定义目录**：面板里可以指向任意一个本地目录（如 `D:\CloudMusic`）当**额外扫描**的文件夹；**歌单是「自定义目录 ∪ 托管目录」的并集**（按 id 去重，两个目录相同时不会重复），排序按并集统一进行。自定义目录**失效时（U 盘拔了 / 改名 / 没权限）自动退回托管目录**，接口不报错，只在响应里多一个 `dirError` 说明原因（界面会显示它）。
+- 🗂️ **格式与扫描范围**：只认 `mp3` / `m4a` / `aac` / `ogg` / `opus` / `wav` / `flac`（小写比较）；**只扫一层，不递归子目录** —— 想放的歌直接放到扫描目录下。
+- 🎚️ **设置存哪**：音量、循环（`off` / `all` / `one`）、随机、按压模式、自动播放统一存在 `$DSH_HOME/.dshw-music.json`（**刻意不写进 `.dshw-size.json` / `.dshw-usage.json`**，播放器设置与挂件自己的设置分开，互不干扰）。
+- ⏩ **进度条可拖动**：音频接口实现 HTTP `Range`（`bytes=a-b` / `bytes=a-` / `bytes=-n`），按 `206` + `Content-Range` 分段流式下发 —— 这是浏览器 `<audio>` 能 seek、能显示总时长的前提。
+- 🗑️ **删除的安全边界**：**只有 `inManaged: true` 的曲目（即托管目录 `whale-music/` 里的文件）能被删除**；自定义目录（你自己的音乐库）里的文件插件**一律不删**，删除请求返回 400 并说明"自定义目录里的文件不会被插件删除"。
+- 🔌 **接口**（三条都接入浏览器信任栅栏；写请求还要求请求来自本机）：
+  - `GET /dsh-whale/music.json` → `{ok, managed, dir, custom, tracks[], settings, supported[]}`。`tracks[]` 是「当前生效目录 ∪ 托管目录」的并集（按 id 去重、统一排序），每项为 `{id, name, title, ext, size, mtime, inManaged, url}`；`dir` 仍是"当前生效目录"（面板显示用），`inManaged` 标注该文件是否在托管目录里；`id` 是「绝对路径小写规范化后的 `sha1` 前 16 位」，**不可反推路径**，同一文件每次扫描都一样
+  - `POST /dsh-whale/music.json`（body ≤ 64MB）→ 四种 action：`set-settings`（只接受白名单键 `volume` / `loop` / `shuffle` / `pressMode` / `autoplay`，未知键忽略、合并写入）、`set-dir`（`""` = 复位为托管目录）、`upload`（`data:audio/<白名单格式>;base64,`，扩展名取 `name` 后缀、不在白名单则按 mime 推断，文件名会消毒，**固定落在托管目录**，重名自动加 ` (2)` 不覆盖，**解码后 > 48MB 则 400**〔48MB = body 上限 64MB ÷ base64 的 4/3 膨胀，是真正可达的上限〕）、`delete`（只删托管目录）。**成功一律返回与 GET 同形的 JSON**（`upload` 另带新文件的 `id`），失败返回 `{ok:false, error}`
+  - `GET /dsh-whale/music-file?id=<id>` → 音频字节；按扩展名给 `Content-Type`，带 `Accept-Ranges: bytes`，支持 Range（`206` / 越界 `416` / 无 Range `200` 全量；未知 id `404`）。`id` 每次都靠**重新扫描目录**解析成路径，客户端字符串不参与拼路径
+
+### 在线电台（Radio Browser / SomaFM）
+
+除本地音乐库外，播放器还能听**在线电台**：搜索走两个公开目录，播放由宿主代理转发。
+
+- 🔎 **两个搜索源**：**Radio Browser**（默认镜像 `https://de1.api.radio-browser.info`，按票数倒序，支持 `country` / `tag` 过滤，`q` 为空时就是"票数最高的前 n 个"；**带镜像自动回退**，见下）与 **SomaFM**（`https://somafm.com/channels.json`，在 `title` / `description` / `genre` / `id` 里做**不区分大小写**的包含匹配）。SomaFM 每个频道优先取 **`format` 含 mp3** 的 playlist（同为 mp3 时取 quality 最高的一条；一个 mp3 都没有才取 quality 最高的第一条），`country` 固定 `US`，`tags` 用 `genre`（个别频道没 genre 时退回截断的 description），`favicon` 用频道的 `image`。Radio Browser 侧 `url` 取 `url_resolved || url`，**`url` 为空的条目会被丢弃**（它点了也播不出来）。
+  - **SomaFM 的 playlist 是 `.pls` 播放列表**（`https://api.somafm.com/groovesalad256.pls`），**不是**音频流本身 —— 代理会在播放时**惰性解析**它（见下面的 `radio-stream`），所以搜索结果里给的仍然是可以直接播放的地址。
+  - `codec` / `bitrate` 的取值顺序：`bitrate` 取 URL 里自带的码率数字（`groovesalad256.pls` → `256`、`beatblender130.pls` → `130`）→ `quality` 里的数字（`128k`）→ `quality` 词映射（`highest` → 256 / `high` → 128 / `medium` → 96 / `low` → 64，**词是近似值**，真实码率只有 `.pls` 内容才知道）；`codec` 从 `format` 映射（`aacp` 即 HE-AAC，归为 `aac`），**不从 URL 里猜**。
+- ⭐ **收藏存哪**：`$DSH_HOME/.dshw-radio.json`（`version` / `lastSource` / `updatedAt` / `favorites[]`，每条为 `{id, name, url, favicon, tags, country, codec, bitrate, source}`）。**刻意不写进 `.dshw-size.json` / `.dshw-usage.json`** —— 那两张表的每个键都要过"控件有值、没有消费方"的死键审计，在线数据混进去只会让两边互相污染。收藏按 **`url` 去重**（重复收藏同一个 `url` 会**更新**名称等字段，不会出现两条），**上限 100 条**；状态文件是 **tmp + rename 原子写**（中途被杀不会留下半个 JSON）。
+- 🔌 **接口**（前两条之外，`radio.json` 与其它只读接口同口径；它的写请求仍受"必须来自本机"的写栅栏保护）：
+  - `GET /dsh-whale/radio.json` → `{ok, lastSource, favorites[], sources{rb,somafm}, limits{maxFavorites:100, maxStreams:4}}`；`sources.*.base` 是**生效的上游**（`rb` 报的是**当前真正在用的那个镜像**）
+  - `POST /dsh-whale/radio.json` → 三种 action：`add-favorite`（`station`，`url` 必须是 http/https，超过 100 条 → 400 并说明上限）、`remove-favorite`（`url`，不存在也返回 200 —— "让它不在收藏里"已经是目标状态）、`set-source`（`source` 为 `rb` / `somafm`，记 `lastSource`）；未知 action → 400。**成功一律返回与 GET 同形的 JSON**
+  - `GET /dsh-whale/radio-search?source=rb|somafm&q=<文本>&limit=<n>&country=<代码>&tag=<文本>` → `{ok, source, query, stations[]}`；`source` **只接受 `rb` / `somafm`**（别的值 `400`；**缺省或空串**按默认源 `rb`，这样宿主与前端版本不同步时也不会整条搜索失效）；`limit` 默认 **30**、上限 **50**（非法值回落默认）；`country` / `tag` 空串视为**未提供**；上游失败 / 超时 / JSON 坏 / 镜像全挂 → **502** + `{ok:false,error}`（不抛异常，文案不含 `ERR_*` 这类内部错误码）
+  - `GET|HEAD /dsh-whale/radio-stream?u=<encodeURIComponent(地址)>` → 音频流代理：状态码**原样透传**（200/206）、响应头透传 `Content-Type` / `Content-Length` / `Content-Range` / `Accept-Ranges` 与 `icy-name` / `icy-genre` / `icy-br` / `icy-description`（前端拿它显示电台名），并加 `Cache-Control: no-store`。客户端 `Range` 头原样转发 + 上游 `Referer`（不少电台校验它）与可识别 `User-Agent`，所以续播/拖动与本地音乐一致
+    - **播放列表会被解开再代理**：目标以 `.pls` / `.m3u` / `.m3u8` 结尾，或上游回的 `Content-Type` 是 `audio/x-scpls` / `audio/x-mpegurl` / `application/vnd.apple.mpegurl` / `text/uri-list` / `text/plain` 时，代理会先 GET 它、取出第一个可用地址（`.pls` 的 `FileN=`；`.m3u` 的第一条非 `#` 行）**再**去代理那个地址 —— 解析出来的地址同样要过完整套 SSRF 检查。**最多解两层**（超限 502）；解析不出来 → 502（`上游播放列表里没有可用地址`）。**绝不**把播放列表文本流给 `<audio>`（`audio/x-scpls` 也以 `audio/` 开头，靠白名单拦不住 —— 曾经因此"看着在播放但没有声音"）。
+    - **HEAD 预检**：与 GET 走**完全同一套判定**（所以状态码一致：`429` / `502` / `403` / `400`），只是不写 body（前端用状态码映射文案）。
+- 🛡️ **安全边界（这两条接口比其它只读接口更严，请务必一读）**：
+  - **`radio-search` 与 `radio-stream` 仅限本机（回环地址）访问** —— 它们会**代表宿主**向外部地址发请求；从局域网或反向代理访问一律 `403`，且**不接受** `DSHW_TRUSTED_HOSTS` / `DSHW_ADMIN_HOSTS` 里的声明（那两个开关是"远程管理"的口子，不是"远程代理"的口子 —— 否则等于把宿主的网络身份借给任何拿到 Web 会话的人）。
+  - **代理做了 SSRF 防护**：只允许 `http:` / `https:`；地址里不许带用户名密码；主机名解析后**任何一个**地址落在 回环 / `10/8` / `172.16/12` / `192.168/16` / 链路本地 `169.254/16` / CGNAT `100.64/10` / `192.0.0/24` / `198.18/15` / 组播 `224/4` / `240/4`，或 IPv6 的 `::1` / `::` / `fc00::/7` / `fe80::/10` 等范围就拒（只看第一条解析结果会被"多 A 记录 / DNS rebinding"绕过，所以**任一条命中即拒**）；`localhost` 与 `.local` / `.internal` / `.home.arpa` 域名同样拒。重定向**手动逐跳跟随**（最多 5 跳，超跳数 502），**每一跳都重新跑一整套检查**（播放列表解出来的地址同理）—— 第一跳是公网、第二跳跳回 `127.0.0.1` 照样拒。**解析不出来 ≠ 地址不安全**：前者是 `502`（上游不可达），只有真的命中内网段才是 `403`。
+  - **Content-Type 白名单**：只放行 `audio/*`（前缀）、`application/ogg`、`application/octet-stream`、`video/mp4`、`video/webm`、`application/vnd.apple.mpegurl`（缺 `Content-Type` 时按 `application/octet-stream` 放行）；`text/*`、`application/json`、`application/xml`、以及**播放列表类**（`audio/x-scpls` / `audio/x-mpegurl` …）一律 `502` —— 否则这条路由就成了**通用网页代理**或"把播放列表当音频"。
+  - **不缓存、不落盘、不整读**：所有电台响应的 `Cache-Control` 都是 `no-store`；上游音频**边收边转**（无限流不会被读进内存），**同时最多 4 条**（超出 `429`：`同时播放的在线流过多`）；客户端断开（关页面 / 切台）时立刻 `abort` 上游连接**并释放并发计数**，不会留下悬挂连接、也不会把计数泄漏成"以后全 429"。
+- 🌐 **Radio Browser 的镜像与回退**：`api.radio-browser.info` 并非处处可用 —— 实测某些网络里它 DNS 通但返回 **404 + text/html**（根本不是 API 响应），`all.api.radio-browser.info` 会 `ECONNRESET`，`nl1` / `at1` / `fi1` 官方已下线。所以搜索时会**依次尝试候选镜像**，并把**第一个真正可用的记住**（`sources.rb.base` 报的就是它），后续搜索不再重试坏镜像。判"可用"的判据很严：**HTTP 2xx + `Content-Type` 含 `application/json` + body 能解析成 JSON 数组**（所以"404 + text/html 的镜像"会被正确跳过）。单个镜像超时 4s，全部失败 → `502` + 可读文案。
+- ⚙️ **七个环境变量**（进程启动时读一次；前三个也是做离线端到端验证的钩子 —— 指向本地桩服务器就能把整套流程跑通）：
+
+  | 变量 | 默认值 | 作用 |
+  |---|---|---|
+  | `DSHW_RADIO_BROWSER_BASE` | 空 | **显式指定** Radio Browser 的 API 根（设了就**优先**用；失败仍会回退到下面的镜像表）。留空 = 用镜像表 |
+  | `DSHW_RADIO_BROWSER_MIRRORS` | `de1`,`all`,`api` 三个官方镜像（`de1` 第一） | 镜像候选表（逗号分隔，按顺序尝试）。自己搭了 Radio Browser 镜像、或所在网络对官方镜像都不友好时改它 |
+  | `DSHW_SOMAFM_URL` | `https://somafm.com/channels.json` | SomaFM 频道表 JSON 的地址 |
+  | `DSHW_RADIO_UA` | `dsh-whale-widget-radio/1.0 (+项目主页)` | 请求上游时带的 `User-Agent`。Radio Browser **明确要求**带可识别的 UA，别改成空值或通用脚本 UA（会被限流/拒绝，表现为"搜索永远 502"） |
+  | `DSHW_RADIO_ALLOW_HOSTS` | 空 | SSRF 防护的**窄口径逃生口**：逗号分隔，每项 `host` 或 `host:port`（大小写不敏感、**精确匹配**，不支持通配符 / 前缀 / CIDR）。命中的目标**只**跳过"私网 / 回环 / 链路本地"那一段拒绝 —— 协议白名单、URL 不许带用户名密码、逐跳重定向检查、Content-Type 白名单**照旧全部执行**，而且**重定向的每一跳各自重新判定**（第一跳命中名单、第二跳跳到未放行的 `127.0.0.1` → 仍然拒）。**默认空 = 只允许公网地址**：只在你**自己局域网**里跑 Icecast / 自建电台、或本机联调时用它显式放行那一台，而**不要**关掉整个防护 |
+  | `DSHW_TRUSTED_HOSTS` | 空 | 允许的 Host（反代 / 局域网访问本插件的 `/dsh-whale/…` 接口时用，可带端口）。**对上面两条电台接口无效** |
+  | `DSHW_ADMIN_HOSTS` | 空 | 允许发起**写请求**的主机（可带端口）。**对上面两条电台接口无效** |
+
+  例：`DSHW_RADIO_ALLOW_HOSTS=192.168.1.20:8000,myradio.lan DSHW_RADIO_BROWSER_MIRRORS=https://de1.api.radio-browser.info dsh web`
+
+### 网易云联动（官方客户端）
+
+第三套音频来源：**点播交给官方客户端自己播**，宿主**不搬运音频字节** —— 插件把一条 `orpheus://` 命令交给 Windows Shell（等价于你手动点了一个链接），由官方客户端用它自己的账号去播放；播放状态则通过 **Windows 媒体会话（SMTC）** 读回来。所以 **VIP 曲目也能播**：能不能听完全由客户端判定，插件不参与版权决策。
+
+- 🎧 **点播走官方协议**：真实形态是 `orpheus://<base64(JSON命令)>`（命令为 `{type:'song'|'playlist', id:'<数字>', cmd:'play'}`），**不是** `orpheus://song/<id>`。宿主只做形状校验（`kind` 白名单、`id` 必须是 1~20 位纯数字且 > 0），拼好地址后用 `cmd /c start` 交给 Shell 关联处理。响应里会带上生成的 `url`，方便复核"它到底发了什么"。
+- 🎚️ **控制走 SMTC**：能读 **标题 / 歌手 / 播放状态**，能控制 **播放 / 暂停 / 切换上下曲**（`toggle` 由宿主先读一次状态再决定发 `play` 还是 `pause`）。**读不到进度与时长**（客户端不发 timeline），所以**没有进度条**、`seek` 不可用；音量、专辑名、歌单收藏也都拿不到。
+- 🔒 **SMTC 只认网易云自己的会话**：系统媒体会话是**全机共享**的（浏览器、其它播放器、DSH 自己都会发布会话），助手按 AppId 过滤（实测为 `cloudmusic.exe`，兼容 `netease`），**绝不**去动 Chrome / Edge / 其它播放器的会话。
+- 🚀 **启动客户端**：按**进程名**（`cloudmusic.exe`）判断是否已在运行，没在跑才启动；启动时**不带任何参数**（刻意不加调试端口 —— 那会把已登录的账号会话暴露在本机一个可连接的端口上）。安装位置从注册表 `HKLM\SOFTWARE\Classes\orpheus\shell\open\command` 的默认值解析（形如 `"D:\...\cloudmusic.exe"--webcmd="%1"`），拿不到再按常见路径兜底。
+- 🔌 **接口（三条都仅限本机 / 回环地址访问）**：
+  - `GET /dsh-whale/netease.json` → `{ok, app{exe, exeExists, running}, smtc{ok[,error]}, nowPlaying|null, favorites[], settings{activeSource}, limits{maxFavorites:200}}`。`exe` 是探测到的绝对路径（探测不到为空串），`running` 按进程名判断。**没有网易云媒体会话时 `nowPlaying` 为 `null`**；**SMTC 不可用**（系统 / PowerShell 问题）时 `smtc` 为 `{ok:false, error:'可读中文原因'}`、`nowPlaying` 为 `null`，**其余字段照常返回、接口不 500**。
+  - `POST /dsh-whale/netease.json`（body ≤ 8KB）→ 六种 action：`launch`（返回额外带 `launched:true|false`）、`play`（`kind` 为 `song` / `playlist` + 纯数字 `id`，返回额外带 `url` 与 `launched:true`；**`kind=playlist` 会替换客户端当前的播放队列**，见下面「整单播放」）、`control`（`cmd` 为 `play` / `pause` / `toggle` / `next` / `prev`，返回额外带 `did`；**没有可控制的会话 → 409** `没有可控制的网易云媒体会话`）、`set-source`（`source` 为 `local` / `radio` / `netease`，非法值 400）、`add-favorite`（`item`，按 **`id` 去重**〔已存在则更新名称等字段〕、超过 **200** 首 → 400，`id` 必须是纯数字）、`remove-favorite`（`id`，**不存在也返回 200** —— "让它不在收藏里"已经是目标状态，幂等）；未知 action → 400。**成功一律返回与 GET 同形的 JSON**（外加该 action 自己的字段）
+  - `GET /dsh-whale/netease-search?q=<文本>&kind=<模式>&limit=<n>` → **一条 path、三种模式**（`kind` 缺省 = `song`；三种都只在国内网易云那套公开接口上读，免登录）：
+    - **`kind=song`（单曲搜索）** → `{ok, kind:"song", query, songs[{id, name, artists, album, duration, fee, cover}]}`。`artists` 用 **`/`** 分隔、`duration` 是**毫秒**、`fee`（`1` 会员 / `8` 免费档 / `0` 无版权）**只作展示提示**（**不**据此阻止点播 —— 客户端会用你自己的账号判断）。
+    - **`kind=playlist`（歌单搜索）** → `{ok, kind:"playlist", query, playlists[{id, name, creator, trackCount, playCount, cover}]}`（`creator` 是创建者昵称、`cover` 是封面图；上游其余几十个字段不下发）。
+    - **`kind=playlist-info&id=<纯数字>`（歌单信息，不需要 `q`）** → `{ok, kind:"playlist-info", playlist{id, name, trackCount, first[]}}`，`first` 是该歌单**前 5 首的曲名**（用来在整单播放前先看清这是什么歌单）。
+    - `kind` 只认这三个值，其它 → **400** `kind 只能是 song / playlist / playlist-info`；`q` 在 `song` / `playlist` 模式下为空 → **400** `请输入搜索关键词`；`playlist-info` 的 `id` 非纯数字 → **400** `id 必须是纯数字`；`limit` 默认 **30**、上限 **50**（非法值回落默认）；上游请求带 `UA` + `Referer`、整请求 **10s** 超时；上游非 2xx / body 不是 JSON / 结构不对 → **502** `上游搜索失败`（内部原因只进宿主日志）。**刻意不按 `Content-Type` 判 JSON**：上游响应头写的是 `text/plain;charset=UTF-8`，但 body 其实是 JSON。
+- 📚 **整单播放（歌单 → 队列）**：用法是「`kind=playlist` 搜歌单 → `kind=playlist-info` 看前 5 首 → `POST {"action":"play","kind":"playlist","id":"<歌单 id>"}` 整单播」。它和单曲走**同一个官方协议**，只是命令里的 `type` 是 `playlist`（`orpheus://base64({"type":"playlist","id":"…","cmd":"play"})`），客户端会**接管播放队列**。⚠️ **整单播放会替换客户端当前的播放队列** —— 正在听的专辑 / 歌单会被整个换掉，所以这是一次"有意为之"的动作，不是一个"接着播"的动作。
+- 💾 **状态存哪**：`$DSH_HOME/.dshw-netease.json`（`version` / `settings.activeSource` / `favorites[]`，每条为 `{id, name, artists, album, duration, fee}`）。**刻意不写进 `.dshw-size.json` / `.dshw-usage.json` / `.dshw-music.json` / `.dshw-radio.json`** —— 那两张挂件设置表的每个键都要过"控件有值、没有消费方"的死键审计，在线数据混进去只会让两边互相污染。收藏按 **`id` 去重**、**上限 200 首**；状态文件是 **tmp + rename 原子写**（中途被杀不会留下半个 JSON）。
+- ⚙️ **四个环境变量**：
+
+  | 变量 | 默认值 | 作用 |
+  |---|---|---|
+  | `DSHW_NETEASE_BASE` | `https://music.163.com` | 搜索上游的根地址（也是做离线端到端验证的钩子：指向本地桩就能把搜索归一化 / 400 / 502 / limit 整套跑通） |
+  | `DSHW_NETEASE_EXE` | 空（自动探测） | 指定 `cloudmusic.exe` 的**绝对路径**。设了就以它为准（**不做存在性检查**，`exeExists` 会如实汇报）；留空 = 注册表 → 常见路径 |
+  | `DSHW_NETEASE_UA` | `dsh-whale-widget-netease/1.0 (+项目主页)` | 搜索上游时带的 `User-Agent` |
+  | `DSHW_NETEASE_PS` | `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` | 跑 SMTC 助手的 PowerShell。**必须是 5.1**：只有它能加载 WinRT 投影（`System.Runtime.WindowsRuntime`），`pwsh` 7 加载不了 |
+
+- 🛡️ **安全边界**：
+  - **不读账号 / cookie / 歌单 / 播放历史**：搜索用的是**免登录**的公开接口，只把关键词送出去；插件不保存任何凭据，也不做登录。
+  - **不解析音频、不碰版权**：宿主从不下载 / 解码 / 转发音频字节 —— 点播只是把一条官方 `orpheus://` 协议地址交给系统 Shell，**播放与会员判定全在客户端内完成**。
+  - **三条路由仅限本机（回环地址）**：它们会起 PowerShell / `reg` / `tasklist`、会唤起本机程序，**不接受** `DSHW_TRUSTED_HOSTS` / `DSHW_ADMIN_HOSTS` 的声明（那两个开关是"远程管理"的口子，不是"远程代理"的口子）。
+  - **SMTC 只操作 `cloudmusic.exe` 这一个会话**：助手按 AppId 白名单挑会话，挑不到就报"没有会话"，**不会**去控制浏览器或别的播放器。
+- ⚠️ **已知限制**：拿不到**播放进度 / 时长 / 专辑名 / 音量**（客户端不发布 timeline），**不能**读你自己账号里的歌单与收藏（只能**搜公开歌单**、看公开歌单的**前 5 首**曲名），**没有进度条**、不能 `seek`；SMTC 依赖 **Windows 10+** 与 **PowerShell 5.1**，且需要客户端正在运行才会有会话。
+
 ### 自定义 API（多厂商余额 / 额度）
 
 除内置的 DeepSeek 余额外，可在「小鲸鱼记账 → 模型」里添加任意厂商；每个模型独立配置余额预警 / 今日预算 / 额度：
@@ -148,8 +230,12 @@ dsh-whale-widget/
 | `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
+| `.dshw-music.json` | 音乐播放器状态（自定义扫描目录 `customDir` + 播放设置 `settings`；曲目不落盘，每次扫目录得出） |
+| `.dshw-radio.json` | 在线电台状态（`lastSource` 上次搜索源 + `favorites[]` 收藏；搜索与播放都不落盘） |
+| `.dshw-netease.json` | 网易云联动状态（`settings.activeSource` 当前音频来源 + `favorites[]` 收藏；`id` 去重、上限 200，媒体会话本身不落盘） |
 | `whale-roles/` | 自定义角色图 + `roles.json` 索引 |
 | `whale-audio/` | 音频片段 `<id>.wav` + `audio.json` 索引（音效组/片段） |
+| `whale-music/` | 音乐播放器的**托管目录**（用户拷进来或面板导入的歌；**始终出现在歌单里**，扫描不递归、无索引文件，删除也只允许删这里） |
 | `whale-bubble-imgs/` | 泡泡图库图片 + `bubble-imgs.json` 索引 |
 
 ## 安装
@@ -330,6 +416,8 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
    - 为什么：任意持有 DSH Web 会话的人如果能写模型配置，就等于能决定"凭据被发往哪里" —— 那会把你的 API key 直接送到对方服务器上。**只读接口不受影响**（局域网里照常能看挂件）。
    - 需要远端管理？用环境变量显式声明：`DSHW_ADMIN_HOSTS=192.0.2.10:3080,myhost.lan`（逗号分隔，可带端口；默认空）。
 3. 接口地址不允许携带用户名/密码（`https://user:pass@host/`），凭据名只允许字母、数字与下划线。
+4. **在线电台的搜索与音频代理（`radio-search` / `radio-stream`）连读都只允许来自本机**：它们会代表宿主向外部地址发请求，所以做了 SSRF 防护（私网 / 回环 / 链路本地 / 保留段一律拒、重定向逐跳复查）与 `Content-Type` 白名单（非音频一律 502）；这两条**不接受**上面的 `DSHW_TRUSTED_HOSTS` / `DSHW_ADMIN_HOSTS`。确需在**自己局域网**里播自建电台（Icecast 等）时，用 `DSHW_RADIO_ALLOW_HOSTS` **精确**放行那一台（默认空 = 只允许公网地址，详见「在线电台（Radio Browser / SomaFM）」）。
+5. **网易云联动的两条接口（`netease.json` / `netease-search`）也连读都只允许来自本机**：`netease.json` 的 GET 会起 PowerShell / `reg` / `tasklist` 读本机的媒体会话，`POST` 会唤起本机程序（`orpheus://`）；`netease-search` 会代表宿主去打搜索上游。它们同样**不接受** `DSHW_TRUSTED_HOSTS` / `DSHW_ADMIN_HOSTS`（详见「网易云联动（官方客户端）」）。
 
 添加自定义模型时，还会按需用到各自厂商的凭据名（都可不配，用到哪个配哪个）：
 
@@ -391,6 +479,9 @@ curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/widget.js
 curl http://127.0.0.1:3080/dsh-whale/image.png
 curl http://127.0.0.1:3080/dsh-whale/audio.json
+curl http://127.0.0.1:3080/dsh-whale/music.json
+curl http://127.0.0.1:3080/dsh-whale/radio.json
+curl http://127.0.0.1:3080/dsh-whale/netease.json
 ```
 
 - `/dsh-whale/balance.json` → 200 JSON，含 `{ok:true, totalBalance, currency, todayUsage}`
@@ -401,9 +492,13 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
 - `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
+- `/dsh-whale/music.json` → 200 JSON，含 `managed` / `dir` / `custom` / `tracks[]` / `settings` / `supported[]`（自定义目录失效时另带 `dirError`）
+- `/dsh-whale/music-file?id=<id>` → 200 或 206 音频字节（带 `Accept-Ranges: bytes`，所以浏览器能拖动进度条；未知 `id` → 404，区间越界 → 416）
+- `/dsh-whale/radio.json` → 200 JSON，含 `favorites[]` / `lastSource` / `sources` / `limits`（在线电台；`radio-search` 与 `radio-stream` **仅限回环地址**，见「在线电台（Radio Browser / SomaFM）」）
+- `/dsh-whale/netease.json` → 200 JSON，含 `app` / `smtc` / `nowPlaying` / `favorites[]` / `settings` / `limits`（网易云联动；这条与 `netease-search` 都**仅限回环地址**，没有媒体会话时 `nowPlaying` 为 `null`，见「网易云联动（官方客户端）」）
 - 浏览器 F5 后右下角出现挂件
 
-> ⚠️ **关于上面这些 `curl`**：全部 **23 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
+> ⚠️ **关于上面这些 `curl`**：全部 **30 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
 > 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
