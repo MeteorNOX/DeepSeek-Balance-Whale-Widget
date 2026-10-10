@@ -14767,6 +14767,10 @@ function setSoundSet(v) {
   saveConfig()
 }
 var SQUISH = 'scaleY(0.88) scaleX(1.05)'
+// 快速轻点的 down/up 可能发生在同一帧，按压视觉状态至少保留 120ms；不延迟音效和点击
+var PRESS_VISUAL_MIN_MS = 120
+var pressVisualStartedAt = 0
+var pressVisualTimer = null
 var pressAudio = null
 var releaseAudio = null
 var pressing = false
@@ -14883,12 +14887,23 @@ function playReleaseAt(delaySec) {
   } catch (err) {}
 }
 function pressDown() {
+  if (pressVisualTimer) { clearTimeout(pressVisualTimer); pressVisualTimer = null }
+  pressVisualStartedAt = performance.now()
   body.style.transform = SQUISH
   pressing = true
   playPress()
 }
 function pressUp() {
-  body.style.transform = 'scaleY(1) scaleX(1)'
+  if (pressVisualTimer) { clearTimeout(pressVisualTimer); pressVisualTimer = null }
+  var visualDelay = Math.max(0, PRESS_VISUAL_MIN_MS - (performance.now() - pressVisualStartedAt))
+  if (visualDelay > 0) {
+    pressVisualTimer = setTimeout(function () {
+      pressVisualTimer = null
+      if (!pressing) body.style.transform = 'scaleY(1) scaleX(1)'
+    }, visualDelay)
+  } else {
+    body.style.transform = 'scaleY(1) scaleX(1)'
+  }
   pressing = false
   if (pressEnded) {
     // hold (or released after Ya1 finished) → Ya2 now
