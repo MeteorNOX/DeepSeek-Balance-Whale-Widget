@@ -17371,6 +17371,31 @@ var dshwMusicMask = null
 var dshwMusicCard = null
 var dshwMusicUi = null
 var dshwMusicDrag = null
+// —— v791（在线电台标签页）：状态全部独立于本地音乐那套，只共用同一个 <audio> 与状态行 ——
+var dshwRadioUrl = '/dsh-whale/radio.json' // 收藏 / 数据源（GET + POST 同址）
+var dshwRadioSearchUrl = '/dsh-whale/radio-search' // 搜索
+var dshwRadioStreamUrl = '/dsh-whale/radio-stream' // 宿主代理的音频流（?u=<encodeURIComponent(url)>）
+var dshwRadioData = null // 最近一次 GET/POST radio.json 的整体响应
+var dshwRadioFavorites = []
+var dshwRadioSources = null
+var dshwRadioSource = 'rb' // 数据源：'rb' = Radio Browser；'somafm' = SomaFM；以后端 lastSource 为准
+var dshwRadioLimit = 30 // 搜索条数：契约里固定 30
+var dshwRadioQuery = '' // 已提交（按回车/点搜索）的查询词
+var dshwRadioCountry = '' // Radio Browser 的国家代码（SomaFM 模式下不用）
+var dshwRadioTag = '' // Radio Browser 的风格 tag（SomaFM 模式下不用）
+var dshwRadioStations = [] // 搜索结果
+var dshwRadioSearched = false // 本次进入电台页后有没有搜过（没搜过不显示"没有找到电台"）
+var dshwRadioBusy = false // 搜索中（按钮置灰、状态行显示"正在搜索…"）
+var dshwRadioErrShown = false // 状态行上已经写着"可读的流错误"：此后 <audio> 的 error 不许用通用文案盖掉它
+var dshwRadioLoading = false // 正在加载/播放某个电台（避免重复点）
+var dshwRadioCur = null // 正在播的电台 { id, name, url, ... }（值语义：直接来自搜索结果或收藏）
+var dshwRadioKey = '' // 正在播的电台身份（dshwRadioKeyOf(radioCur)）
+var dshwRadioIcy = '' // 后端透传的 icy-name（能拿到就优先显示它）
+var dshwRadioPlaying = false // 音频里现在这条是不是电台流（true 时进度条/循环/随机都是"直播"语义）
+var dshwRadioErrInfo = '' // 预检拿到的可读流错误（供 <audio> error 兜底复用）
+var dshwRadioListTop = 0 // 搜索结果列表的滚动位置（与本地歌单的 dshwMusicListTop 分开）
+var dshwRadioFavTop = 0 // 收藏列表的滚动位置
+var dshwRadioTabOn = false // 当前是否停在「在线电台」标签页（默认 false = 本地音乐，既有行为不变）
 
 // —— 小工具（全部 createElement + textContent，不碰 innerHTML）——
 function dshwMusicEl(tag, cls, text) {
@@ -17430,6 +17455,63 @@ function dshwMusicIndexOfKey(key) {
 function dshwMusicSetStatus(msg) {
   dshwMusicStatus = msg ? String(msg) : ''
   try { if (dshwMusicUi) dshwMusicUi.status.textContent = dshwMusicStatus } catch (err) {}
+  // v791：同一行状态栏也是电台页的状态栏（见 dshwRadioSetStatus / dshwRadioRenderLists）
+  try { if (dshwMusicUi && dshwMusicUi.radio) dshwMusicUi.radio.radioStatus.textContent = dshwMusicStatus } catch (err) {}
+}
+// v791：电台页的状态行与本地音乐共用同一行（语义各自独立，互不覆盖）。
+function dshwRadioSetStatus(msg) { dshwMusicSetStatus(msg) }
+function dshwRadioStatusOf() { return dshwMusicStatus || '' }
+// v791：电台身份（收藏判重、上一台/下一台定位都用 url；没有 url 才退化到 id）
+function dshwRadioKeyOf(st) {
+  if (!st) return ''
+  return String(st.url || st.id || '')
+}
+// v791：当前停在「在线电台」标签页（本地音乐 tab 默认态 = false）
+function dshwRadioMode() { return !!dshwRadioTabOn }
+// v791：前端只认契约里的两种数据源，其它值（含 undefined）一律回到 'rb'
+function dshwRadioNormSource(s) { return s === 'somafm' ? 'somafm' : 'rb' }
+// v791：把电台的一条元信息拼成一行小字（国家 / 码率 / codec / tags），结果只走 textContent
+function dshwRadioMetaOf(st) {
+  var parts = []
+  try {
+    var c = st && st.country ? String(st.country).trim() : ''
+    if (c) parts.push(c)
+    var br = Number(st && st.bitrate)
+    if (isFinite(br) && br > 0) parts.push(Math.round(br) + 'kbps')
+    var cd = st && st.codec ? String(st.codec).trim() : ''
+    if (cd) parts.push(cd)
+    var tg = st && st.tags ? String(st.tags).replace(/\s+/g, ' ').trim() : ''
+    if (tg) {
+      // tag 可能是一长串（Radio Browser 常见几十个）：截断成一行小字
+      if (tg.length > 42) tg = tg.slice(0, 42) + '…'
+      parts.push(tg)
+    }
+  } catch (err) {}
+  return parts.join(' · ')
+}
+// v791：当前可见的电台列表 —— 优先搜索结果，其次收藏
+function dshwRadioVisibleList() {
+  try { if (dshwRadioStations && dshwRadioStations.length) return dshwRadioStations } catch (err) {}
+  try { if (dshwRadioFavorites && dshwRadioFavorites.length) return dshwRadioFavorites } catch (err) {}
+  return []
+}
+// v791：当前电台在可见列表里的下标（没有就 -1）
+function dshwRadioListIndex() {
+  if (!dshwRadioKey) return -1
+  var l = dshwRadioVisibleList()
+  for (var i = 0; i < l.length; i++) { if (dshwRadioKeyOf(l[i]) === dshwRadioKey) return i }
+  return -1
+}
+// v791：是不是"已经收藏"（按 url 判重，与后端 favorites 的 url 对齐）
+function dshwRadioIsFav(st) {
+  var k = dshwRadioKeyOf(st)
+  if (!k) return false
+  try {
+    for (var i = 0; i < dshwRadioFavorites.length; i++) {
+      if (dshwRadioKeyOf(dshwRadioFavorites[i]) === k) return true
+    }
+  } catch (err) {}
+  return false
 }
 function dshwMusicErrText(d) {
   try {
@@ -17480,7 +17562,26 @@ dshwMusicStyle.textContent = [
   '.dshwv-music-sep{height:1px;background:rgba(32,49,112,.15);margin:7px 0}',
   '.dshwv-music-ctl{display:flex;align-items:center;justify-content:center;gap:8px;margin:6px 0 2px}',
   '.dshwv-music-ctl .dshwv-music-btn{padding:3px 10px;font-size:12px}',
-  '.dshwv-music-drop{outline:2px dashed rgba(32,49,112,.45);outline-offset:-4px}'
+  '.dshwv-music-drop{outline:2px dashed rgba(32,49,112,.45);outline-offset:-4px}',
+  // —— v791（在线电台标签页）的样式：沿用 dshwv-music-* 前缀与既有配色 ——
+  '.dshwv-music-tabs{display:flex;gap:4px;padding:5px 10px 0;flex:0 0 auto}',
+  '.dshwv-music-tab{border:1px solid rgba(32,49,112,.4);border-bottom:none;border-radius:6px 6px 0 0;background:rgba(32,49,112,.06);color:#203170;font-size:11px;padding:3px 9px;cursor:pointer}',
+  '.dshwv-music-tab:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-music-tab-on{background:#203170;color:#fff}',
+  '.dshwv-music-tab-on:hover{background:#203170}',
+  '.dshwv-music-local{display:block}',
+  '.dshwv-music-radio{display:none}',
+  '.dshwv-music-radio-on{display:block}',
+  '.dshwv-music-list-radio{max-height:158px}',
+  '.dshwv-music-inp-sm{flex:0 0 82px}',
+  '.dshwv-music-rrow{display:flex;align-items:flex-start;gap:6px;padding:4px 7px;border-radius:6px;cursor:pointer}',
+  '.dshwv-music-rrow:hover{background:rgba(32,49,112,.06)}',
+  '.dshwv-music-rrow-on{background:rgba(32,49,112,.14)}',
+  '.dshwv-music-rbox{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}',
+  '.dshwv-music-rnm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-music-rmeta{color:#9fb0d9;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-music-section{color:#9fb0d9;font-size:11px;margin:6px 0 1px}',
+  '.dshwv-music-range:disabled{opacity:.45;cursor:not-allowed}'
 ].join('\n')
 try { document.head.appendChild(dshwMusicStyle) } catch (err) {}
 
@@ -17498,6 +17599,16 @@ function dshwMusicEnsure() {
     closeBtn.title = '关闭面板（正在播放的音乐不会停）'
     head.appendChild(title)
     head.appendChild(closeBtn)
+
+    // v791：面板顶部标签栏（本地音乐 / 在线电台）—— 默认停在本地音乐，既有行为完全不变
+    var tabs = dshwMusicEl('div', 'dshwv-music-tabs')
+    var tabLocal = dshwMusicBtn('本地音乐', 'dshwv-music-tab')
+    tabLocal.title = '本地歌单'
+    var tabRadio = dshwMusicBtn('在线电台', 'dshwv-music-tab')
+    tabRadio.title = '在线电台（Radio Browser / SomaFM）'
+    tabs.appendChild(tabLocal)
+    tabs.appendChild(tabRadio)
+    head.appendChild(tabs)
 
     var body = dshwMusicEl('div', 'dshwv-music-body')
 
@@ -17599,19 +17710,28 @@ function dshwMusicEnsure() {
     pressRow.appendChild(pressChk)
     pressRow.appendChild(pressLab)
 
-    body.appendChild(list)
-    body.appendChild(hint)
-    body.appendChild(status)
-    body.appendChild(dirErr)
-    body.appendChild(ctl)
-    body.appendChild(progRow)
-    body.appendChild(volRow)
-    body.appendChild(modeRow)
-    body.appendChild(dshwMusicEl('div', 'dshwv-music-sep'))
-    body.appendChild(actRow)
-    body.appendChild(dirRow)
-    body.appendChild(dirText)
-    body.appendChild(pressRow)
+    // v791：本地音乐那一整块（以下元素一个没少、顺序不变）现在装在一个容器里：
+    // 「在线电台」标签页靠显隐这个容器来切换（不重建、不动既有节点，既有行为逐字不变）。
+    var localWrap = dshwMusicEl('div', 'dshwv-music-local')
+    localWrap.appendChild(list)
+    localWrap.appendChild(hint)
+    localWrap.appendChild(status)
+    localWrap.appendChild(dirErr)
+    localWrap.appendChild(ctl)
+    localWrap.appendChild(progRow)
+    localWrap.appendChild(volRow)
+    localWrap.appendChild(modeRow)
+    localWrap.appendChild(dshwMusicEl('div', 'dshwv-music-sep'))
+    localWrap.appendChild(actRow)
+    localWrap.appendChild(dirRow)
+    localWrap.appendChild(dirText)
+    localWrap.appendChild(pressRow)
+    body.appendChild(localWrap)
+
+    // v791：在线电台标签页（同层同卡；默认隐藏，点「在线电台」标签才显示）
+    var radioWrap = dshwRadioBuildPanel()
+
+    body.appendChild(radioWrap)
 
     dshwMusicCard.appendChild(head)
     dshwMusicCard.appendChild(body)
@@ -17624,7 +17744,10 @@ function dshwMusicEnsure() {
       loopBtn: loopBtn, shuffleChk: shuffleChk, shuffleLab: shuffleLab,
       scanBtn: scanBtn, importBtn: importBtn, file: file,
       dirInp: dirInp, dirBtn: dirBtn, dirText: dirText,
-      pressChk: pressChk, pressLab: pressLab
+      pressChk: pressChk, pressLab: pressLab,
+      tabs: tabs, tabLocal: tabLocal, tabRadio: tabRadio, localWrap: localWrap,
+      // v791：电台页的控件引用是在 dshwMusicUi 赋值之前建好的，建的时候先挂在容器节点上，这里取回来
+      radio: radioWrap ? radioWrap.dshwRadioUi : null
     }
 
     // —— 事件 ——
@@ -17635,15 +17758,17 @@ function dshwMusicEnsure() {
     playBtn.addEventListener('click', function () { dshwMusicTogglePlay() })
 
     // 进度条：按下即进入"用户正在拖"状态，拖动中只更新文案，不被 timeupdate 覆盖
-    prog.addEventListener('pointerdown', function () { dshwMusicSeeking = true })
-    prog.addEventListener('pointerup', function () { dshwMusicSeeking = false })
-    prog.addEventListener('pointercancel', function () { dshwMusicSeeking = false })
+    prog.addEventListener('pointerdown', function () { if (dshwRadioMode()) return; dshwMusicSeeking = true })
+    prog.addEventListener('pointerup', function () { if (dshwRadioMode()) return; dshwMusicSeeking = false })
+    prog.addEventListener('pointercancel', function () { if (dshwRadioMode()) return; dshwMusicSeeking = false })
     prog.addEventListener('input', function () {
+      if (dshwRadioMode()) return
       var t = Number(prog.value)
       if (isFinite(t) && dshwMusicAudio) { try { dshwMusicAudio.currentTime = t } catch (err) {} }
       dshwMusicRenderTime()
     })
     prog.addEventListener('change', function () {
+      if (dshwRadioMode()) return
       var t = Number(prog.value)
       dshwMusicSeeking = false
       if (isFinite(t) && dshwMusicAudio) { try { dshwMusicAudio.currentTime = t } catch (err) {} }
@@ -17719,6 +17844,15 @@ function dshwMusicEnsure() {
         dshwMusicImportFiles(e.dataTransfer ? e.dataTransfer.files : null)
       } catch (err) {}
     })
+
+    // v791：在线电台标签页的事件（都注册在块内新建的节点上，不动既有监听）
+    dshwRadioWire(dshwMusicUi)
+    // v791：电台页首帧也要渲染一次（启动时那次 radio.json GET 可能早就回来了 —— 那时面板还没建
+    // DOM，所以那份 favorites / lastSource 必须在这里补渲一次，不能只等切 tab 时的下一次 GET）
+    dshwRadioRenderLists()
+    // 首次渲染：默认停在本地音乐（既有行为），进度条/循环/随机态照旧
+    dshwRadioRenderTabs()
+    dshwRadioPatchHost()
 
     // 登记进 body（走统一挂载器：SPA 换 body 子树后会被守护逻辑补挂）
     dshwBodyAppend(dshwMusicMask)
@@ -17807,6 +17941,8 @@ function dshwMusicRenderAll() {
   dshwMusicRenderPress()
   dshwMusicRenderVol()
   dshwMusicRenderTime()
+  // v791：面板整体刷新时顺带把电台标签页（含直播态的控件灰化）对齐到当前状态
+  dshwRadioRenderAll()
 }
 function dshwMusicRenderList() {
   var ui = dshwMusicUi
@@ -17872,6 +18008,16 @@ function dshwMusicRenderMode() {
   var ui = dshwMusicUi
   if (!ui) return
   try {
+    // v791：电台模式下循环/随机对直播流无意义 —— 两个控件都灰掉（切回本地自动恢复）
+    if (dshwRadioMode()) {
+      ui.loopBtn.disabled = true
+      ui.shuffleChk.disabled = true
+      ui.loopBtn.textContent = '循环：直播不适用'
+      ui.loopBtn.classList.remove('dshwv-music-btn-on')
+      return
+    }
+    ui.loopBtn.disabled = false
+    ui.shuffleChk.disabled = false
     var loop = dshwMusicSettings.loop === 'one' ? 'one' : (dshwMusicSettings.loop === 'all' ? 'all' : 'off')
     ui.loopBtn.textContent = loop === 'one' ? '循环：单曲' : (loop === 'all' ? '循环：全部' : '循环：关')
     if (loop === 'off') ui.loopBtn.classList.remove('dshwv-music-btn-on')
@@ -17909,6 +18055,17 @@ function dshwMusicRenderTime() {
   var ui = dshwMusicUi
   if (!ui) return
   try {
+    // v791：直播流没有时长（duration 是 Infinity）—— 进度条灰掉、不写 number 值，
+    // 也不让面板里出现 NaN / Infinity 字样。判据只看"当前停在哪个 tab"：
+    // 切回本地就恢复，哪怕直播流还在响（用户要求：切回本地时进度条要恢复可用）。
+    if (dshwRadioMode()) {
+      ui.prog.disabled = true
+      ui.prog.max = '0'
+      ui.prog.value = '0'
+      ui.timeLab.textContent = '直播'
+      return
+    }
+    ui.prog.disabled = false
     var a = dshwMusicAudio
     var cur = 0
     var dur = 0
@@ -18117,6 +18274,9 @@ function dshwMusicAudioEl() {
     a.addEventListener('ended', dshwMusicOnEnded)
     a.addEventListener('error', function () {
       dshwMusicRenderCtl()
+      // v791：同一个 <audio> 也放电台直播流 —— 电台模式下把流错误讲清楚（预检拿到的文案优先），
+      // 本地曲目的既有文案逐字不变。
+      if (dshwRadioPlaying || dshwRadioMode()) { try { dshwRadioAudioErr(a) } catch (err) {} ; return }
       dshwMusicSetStatus('播放失败：这条音频读不出来（检查后端 music-file 路由与文件是否还在）')
     })
     dshwMusicAudio = a
@@ -18131,6 +18291,10 @@ function dshwMusicPlayTrack(tr) {
 function dshwMusicPlayIndex(i) {
   var n = dshwMusicTracks.length
   if (i < 0 || i >= n) return
+  // v791：本地曲目接管音频 —— 清掉直播语义，进度条/循环/随机恢复可用
+  dshwRadioPlaying = false
+  dshwRadioErrShown = false
+  dshwRadioErrInfo = ''
   var tr = dshwMusicTracks[i] || {}
   var url = typeof tr.url === 'string' ? tr.url : ''
   if (!url) { dshwMusicSetStatus('这首歌没有可用的音频地址（后端未给出 url）'); return }
@@ -18153,6 +18317,8 @@ function dshwMusicPlayIndex(i) {
   dshwMusicRenderTime()
 }
 function dshwMusicTogglePlay() {
+  // v791：电台标签页下，播放/暂停作用于当前直播流（同一个 <audio>）
+  if (dshwRadioMode()) { dshwRadioTogglePlay(); return }
   if (!dshwMusicTracks.length) {
     dshwMusicSetStatus('还没有歌曲：点「导入」添加，或用「重新扫描」刷新')
     return
@@ -18173,6 +18339,8 @@ function dshwMusicTogglePlay() {
   dshwMusicRenderCtl()
 }
 function dshwMusicStep(delta) {
+  // v791：电台标签页下，上一台/下一台 = 在当前可见电台列表（优先搜索结果、其次收藏）里切换
+  if (dshwRadioMode()) { dshwRadioStep(delta); return }
   var n = dshwMusicTracks.length
   if (!n) return
   var cur = dshwMusicIndexOfKey(dshwMusicCurKey)
@@ -18191,6 +18359,8 @@ function dshwMusicRandomIndex(cur) {
 }
 // 播完一首：one 由 audio.loop 兜住（不会走到这里）；all 循环；off 停在最后一首
 function dshwMusicOnEnded() {
+  // v791：直播流正常不会 ended（duration 是 Infinity），真结束了也不该沿本地歌单往下走
+  if (dshwRadioPlaying || dshwRadioMode()) { dshwMusicRenderCtl(); return }
   if (dshwMusicSettings.loop === 'one') return
   var n = dshwMusicTracks.length
   if (!n) { dshwMusicRenderCtl(); return }
@@ -18200,6 +18370,599 @@ function dshwMusicOnEnded() {
   if (cur + 1 < n) { dshwMusicPlayIndex(cur + 1); return }
   if (dshwMusicSettings.loop === 'all') { dshwMusicPlayIndex(0); return }
   dshwMusicRenderCtl()
+}
+
+// ============================================================================
+// v791（在线电台标签页）：音乐面板顶部的第二个 tab
+// ----------------------------------------------------------------------------
+// 【这块加在哪、复用了什么】
+//   面板与 DOM 仍是 v790 那一套（同一个 dshwMusicMask / dshwMusicCard，同一个 <audio>，
+//   同一个状态行、音量、播放/暂停、✕ 关面板不停播）。这里只做三件事：
+//     ① 面板顶部加了「本地音乐 / 在线电台」两个 tab（默认本地音乐，既有行为不变）；
+//     ② 本地音乐那一整块被装进 .dshwv-music-local 容器，切 tab 只显隐容器，不重建节点；
+//     ③ 新增电台页 UI + 与后端的三个路由对接；播放就是往同一个 <audio> 里塞代理流的地址。
+//
+// 【互斥与复位（本地 ↔ 电台）】
+//   · dshwRadioPlaying 表示"音频里现在这条是直播流"，dshwRadioTabOn 表示"当前停在电台 tab"；
+//   · 两者的 src 互斥设置：本地走 dshwMusicPlayIndex()（track.url），电台走
+//     dshwRadioStartStream()（/dsh-whale/radio-stream?u=…），不会互相串；
+//   · 切到电台：进度条/循环/随机灰掉（直播没有时长），状态行显示"正在播放：<电台名>（直播）"；
+//   · 切回本地：进度条/循环/随机立即恢复（dshwMusicRenderMode / dshwMusicRenderTime 里各有一段
+//     按 dshwRadioMode() 分支的复位）；正在响的直播流不被切 tab 打断。
+//
+// 【后端契约（逐字对齐）】
+//   GET  /dsh-whale/radio.json                   → { ok, lastSource, favorites[], sources, limits }
+//   POST /dsh-whale/radio.json                   → add-favorite / remove-favorite / set-source
+//   GET  /dsh-whale/radio-search?source&q&limit&country&tag → { ok, source, query, stations[] }
+//   音频流 /dsh-whale/radio-stream?u=<encodeURIComponent(url)>（宿主代理，429 = 并发上限、
+//   502 = 上游失败、403 = 非回环来源；三种的可读文案都写到状态行）
+//   两条新路由只允许回环来源，LAN 浏览器会拿到 403 —— 前端只负责把 error 文案显示出来。
+//
+// 【纪律】DOM 一律 createElement + textContent（不写任何带变量的 innerHTML）；
+//   本块不出现成对的块注释记号（check-dead-settings 会粗暴剥注释、误报死键）。
+// ============================================================================
+// —— ① 电台页 UI（由 dshwMusicEnsure 在同一个面板里创建）——
+function dshwRadioBuildPanel() {
+  var wrap = dshwMusicEl('div', 'dshwv-music-radio')
+  var srcRow = dshwMusicEl('div', 'dshwv-music-row')
+  var srcLab = dshwMusicEl('span', '', '数据源')
+  var srcRbBtn = dshwMusicBtn('Radio Browser')
+  var srcSomaBtn = dshwMusicBtn('SomaFM')
+  srcRow.appendChild(srcLab)
+  srcRow.appendChild(srcRbBtn)
+  srcRow.appendChild(srcSomaBtn)
+
+  var qRow = dshwMusicEl('div', 'dshwv-music-row')
+  var qInp = document.createElement('input')
+  qInp.type = 'text'
+  qInp.className = 'dshwv-music-inp'
+  qInp.placeholder = '搜索电台（回车即搜）'
+  qInp.title = '按名称 / tag 搜索在线电台'
+  var searchBtn = dshwMusicBtn('搜索')
+  qRow.appendChild(qInp)
+  qRow.appendChild(searchBtn)
+
+  var optRow = dshwMusicEl('div', 'dshwv-music-row')
+  var tagLab = dshwMusicEl('span', '', '风格 tag')
+  var tagInp = document.createElement('input')
+  tagInp.type = 'text'
+  tagInp.className = 'dshwv-music-inp dshwv-music-inp-sm'
+  tagInp.placeholder = '如 jazz'
+  tagInp.title = 'Radio Browser 专用：按风格 tag 过滤'
+  var ctyLab = dshwMusicEl('span', '', '国家代码')
+  var ctyInp = document.createElement('input')
+  ctyInp.type = 'text'
+  ctyInp.className = 'dshwv-music-inp dshwv-music-inp-sm'
+  ctyInp.placeholder = '如 CN'
+  ctyInp.title = 'Radio Browser 专用：两位国家代码'
+  optRow.appendChild(tagLab)
+  optRow.appendChild(tagInp)
+  optRow.appendChild(ctyLab)
+  optRow.appendChild(ctyInp)
+
+  var radioStatus = dshwMusicEl('div', 'dshwv-music-hint', '')
+  var radioHint = dshwMusicEl('div', 'dshwv-music-hint', '点「搜索」列出电台；点某一行或「▶ 播放」开始直播。收藏保存在后端。')
+
+  var resLab = dshwMusicEl('div', 'dshwv-music-section', '搜索结果')
+  var list = dshwMusicEl('div', 'dshwv-music-list dshwv-music-list-radio')
+  var favLab = dshwMusicEl('div', 'dshwv-music-section', '收藏')
+  var favList = dshwMusicEl('div', 'dshwv-music-list dshwv-music-list-radio')
+
+  wrap.appendChild(srcRow)
+  wrap.appendChild(qRow)
+  wrap.appendChild(optRow)
+  wrap.appendChild(radioStatus)
+  wrap.appendChild(radioHint)
+  wrap.appendChild(resLab)
+  wrap.appendChild(list)
+  wrap.appendChild(favLab)
+  wrap.appendChild(favList)
+
+  try {
+    // 注意：这块 DOM 是在 dshwMusicUi 赋值**之前**建的，所以这里只把状态挂在这个节点上，
+    // 由 dshwMusicEnsure 在 dshwMusicUi 就绪后取走（见那里的 dshwMusicUi.radio = radioWrap.dshwRadioUi）。
+    wrap.dshwRadioUi = {
+      wrap: wrap, srcRbBtn: srcRbBtn, srcSomaBtn: srcSomaBtn, srcLab: srcLab,
+      qInp: qInp, searchBtn: searchBtn, tagLab: tagLab, tagInp: tagInp,
+      ctyLab: ctyLab, ctyInp: ctyInp, radioStatus: radioStatus, hint: radioHint,
+      resLab: resLab, list: list, favLab: favLab, favList: favList
+    }
+  } catch (err) {}
+  return wrap
+}
+// —— ② 事件注册（面板建好之后由 dshwMusicEnsure 调用；只挂块内新建的节点）——
+function dshwRadioWire(ui) {
+  try {
+    var r = ui && ui.radio
+    if (!r) return
+    ui.tabLocal.addEventListener('click', function () { dshwRadioSetTab(false) })
+    ui.tabRadio.addEventListener('click', function () { dshwRadioSetTab(true) })
+    r.srcRbBtn.addEventListener('click', function () { dshwRadioSetSrc('rb') })
+    r.srcSomaBtn.addEventListener('click', function () { dshwRadioSetSrc('somafm') })
+    r.searchBtn.addEventListener('click', function () { dshwRadioSearch() })
+    r.qInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwRadioSearch() })
+    r.tagInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwRadioSearch() })
+    r.ctyInp.addEventListener('keydown', function (e) { if (e && e.key === 'Enter') dshwRadioSearch() })
+  } catch (err) {}
+}
+// —— ③ tab 切换 ——
+function dshwRadioRenderTabs() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    var on = dshwRadioMode()
+    if (on) { ui.tabRadio.classList.add('dshwv-music-tab-on'); ui.tabLocal.classList.remove('dshwv-music-tab-on') }
+    else { ui.tabLocal.classList.add('dshwv-music-tab-on'); ui.tabRadio.classList.remove('dshwv-music-tab-on') }
+    if (ui.localWrap) ui.localWrap.style.display = on ? 'none' : ''
+    if (ui.radio && ui.radio.wrap) ui.radio.wrap.classList[on ? 'add' : 'remove']('dshwv-music-radio-on')
+  } catch (err) {}
+}
+function dshwRadioSetTab(on) {
+  var next = !!on
+  var changed = dshwRadioTabOn !== next
+  dshwRadioTabOn = next
+  dshwRadioRenderTabs()
+  // 切 tab 绝不动 <audio>：本地音乐照播、直播流照播（用户要求：切到电台不打断本地播放）
+  if (!next) dshwRadioRefreshSrcOpts()
+  if (next && changed) dshwRadioEnsure()
+  try { dshwMusicRenderAll() } catch (err) {}
+}
+// 电台页首次进入时同步一次后端状态（失败只在状态行显示，不打扰用户）
+function dshwRadioEnsure() { try { dshwRadioFetch(null) } catch (err) {} }
+// —— ④ 渲染 ——
+function dshwRadioRenderAll() {
+  dshwRadioRenderTabs()
+  dshwRadioPatchHost()
+  dshwRadioRenderLists()
+}
+// 「直播」语义回写到共用的控件：进度条灰掉、循环/随机灰掉、时间显示改成"直播"
+function dshwRadioPatchHost() {
+  var ui = dshwMusicUi
+  if (!ui) return
+  try {
+    if (!dshwRadioMode()) return
+    ui.prog.disabled = true
+    ui.prog.max = '0'
+    ui.prog.value = '0'
+    ui.timeLab.textContent = '直播'
+    ui.loopBtn.disabled = true
+    ui.shuffleChk.disabled = true
+    ui.loopBtn.textContent = '循环：直播不适用'
+    ui.loopBtn.classList.remove('dshwv-music-btn-on')
+  } catch (err) {}
+}
+// 数据源单选样式 + Radio Browser 专用的两个输入框（SomaFM 模式下隐藏）
+function dshwRadioRefreshSrcOpts() {
+  var ui = dshwMusicUi
+  if (!ui || !ui.radio) return
+  var r = ui.radio
+  try {
+    var rb = dshwRadioSource !== 'somafm'
+    if (rb) { r.srcRbBtn.classList.add('dshwv-music-btn-on'); r.srcSomaBtn.classList.remove('dshwv-music-btn-on') }
+    else { r.srcSomaBtn.classList.add('dshwv-music-btn-on'); r.srcRbBtn.classList.remove('dshwv-music-btn-on') }
+    var show = rb ? '' : 'none'
+    r.tagLab.style.display = show
+    r.tagInp.style.display = show
+    r.ctyLab.style.display = show
+    r.ctyInp.style.display = show
+    var lab = 'Radio Browser'
+    try {
+      if (dshwRadioSources && dshwRadioSources[dshwRadioSource] && dshwRadioSources[dshwRadioSource].label) {
+        lab = String(dshwRadioSources[dshwRadioSource].label)
+      }
+    } catch (err) {}
+    r.srcLab.textContent = '数据源：' + lab
+  } catch (err) {}
+}
+function dshwRadioRenderLists() {
+  dshwRadioRefreshSrcOpts()
+  dshwRadioRenderResults()
+  dshwRadioRenderFavs()
+}
+function dshwRadioRenderResults() {
+  var ui = dshwMusicUi
+  if (!ui || !ui.radio) return
+  var list = ui.radio.list
+  try {
+    dshwRadioListTop = list.scrollTop || 0
+    while (list.firstChild) list.removeChild(list.firstChild)
+    for (var i = 0; i < dshwRadioStations.length; i++) {
+      list.appendChild(dshwRadioRow(dshwRadioStations[i], 'result'))
+    }
+    if (!dshwRadioStations.length) {
+      // 换源后旧结果作废：显示"换源/搜索"提示，而不是假装"没有找到"
+      if (dshwRadioSearched) list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '没有找到电台'))
+      else list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有搜索结果：输入关键词后回车，或点「搜索」。'))
+    }
+    list.scrollTop = dshwRadioListTop
+  } catch (err) {}
+}
+function dshwRadioRenderFavs() {
+  var ui = dshwMusicUi
+  if (!ui || !ui.radio) return
+  var list = ui.radio.favList
+  try {
+    dshwRadioFavTop = list.scrollTop || 0
+    while (list.firstChild) list.removeChild(list.firstChild)
+    for (var i = 0; i < dshwRadioFavorites.length; i++) {
+      list.appendChild(dshwRadioRow(dshwRadioFavorites[i], 'fav'))
+    }
+    if (!dshwRadioFavorites.length) {
+      list.appendChild(dshwMusicEl('div', 'dshwv-music-hint', '还没有收藏的电台'))
+    }
+    list.scrollTop = dshwRadioFavTop
+  } catch (err) {}
+}
+function dshwRadioRow(st, kind) {
+  var k = dshwRadioKeyOf(st)
+  var on = !!k && k === dshwRadioKey
+  var row = dshwMusicEl('div', 'dshwv-music-rrow' + (on ? ' dshwv-music-rrow-on' : ''))
+  var box = dshwMusicEl('div', 'dshwv-music-rbox')
+  var nm = dshwMusicEl('span', 'dshwv-music-rnm', dshwRadioNameOf(st))
+  nm.title = dshwRadioNameOf(st)
+  var meta = dshwMusicEl('span', 'dshwv-music-rmeta', dshwRadioMetaOf(st))
+  nm.title = String((st && st.name) || dshwRadioNameOf(st))
+  box.appendChild(nm)
+  box.appendChild(meta)
+  row.appendChild(box)
+  var playBtn = dshwMusicBtn('▶ 播放')
+  playBtn.title = '播放这个电台（走宿主代理的直播流）'
+  row.appendChild(playBtn)
+  var actBtn = dshwMusicBtn(kind === 'fav' ? '✕ 移除' : (dshwRadioIsFav(st) ? '★ 已收藏' : '☆ 收藏'))
+  actBtn.title = kind === 'fav' ? '从收藏里移除' : (dshwRadioIsFav(st) ? '点击取消收藏' : '加入收藏')
+  row.appendChild(actBtn)
+  dshwRadioBindRow(row, st, playBtn, actBtn, kind)
+  return row
+}
+// 行内事件单独抽出来（避免在循环里捕获下标）：点整行 = 播放
+function dshwRadioBindRow(row, st, playBtn, actBtn, kind) {
+  row.addEventListener('click', function () { dshwRadioPlay(st) })
+  playBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    dshwRadioPlay(st)
+  })
+  actBtn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (kind === 'fav') dshwRadioRemoveFav(st)
+    else if (dshwRadioIsFav(st)) dshwRadioRemoveFav(st)
+    else dshwRadioAddFav(st)
+  })
+}
+function dshwRadioNameOf(st) {
+  try { return String((st && (st.name || st.id || st.url)) || '(未命名电台)') } catch (err) { return '(未命名电台)' }
+}
+// —— ⑤ 后端：radio.json（GET / POST）——
+function dshwRadioFetch(done) {
+  try {
+    fetch(dshwRadioUrl, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d && d.ok) { dshwRadioApply(d); if (done) done(d); return }
+        dshwRadioSetStatus('电台读取失败：' + dshwMusicErrText(d))
+        if (done) done(null)
+      })
+      .catch(function () {
+        dshwRadioSetStatus('电台读取失败：接口不可用（/dsh-whale/radio.json）')
+        if (done) done(null)
+      })
+  } catch (err) {
+    dshwRadioSetStatus('电台读取失败：' + (err && err.message ? err.message : err))
+    if (done) done(null)
+  }
+}
+function dshwRadioApply(d) {
+  if (!d || typeof d !== 'object') return
+  dshwRadioData = d
+  try {
+    dshwRadioFavorites = Object.prototype.toString.call(d.favorites) === '[object Array]' ? d.favorites : []
+    if (d.sources && typeof d.sources === 'object') dshwRadioSources = d.sources
+    if (d.lastSource === 'rb' || d.lastSource === 'somafm') {
+      // 只在换源时复位结果（后端回的 lastSource 用于初始化，不覆盖用户刚点的源）
+      if (dshwRadioSource !== d.lastSource) {
+        dshwRadioSource = d.lastSource
+        dshwRadioStations = []
+        dshwRadioSearched = false
+      }
+    }
+    dshwRadioRenderLists()
+  } catch (err) {}
+}
+function dshwRadioPost(payload, done) {
+  try {
+    fetch(dshwRadioUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (d && d.ok) { dshwRadioApply(d); if (done) done(d); return }
+        dshwRadioSetStatus('电台操作失败：' + dshwMusicErrText(d))
+        if (done) done(null)
+      })
+      .catch(function () {
+        dshwRadioSetStatus('电台操作失败：无法连接后端')
+        if (done) { try { done(null) } catch (err) {} }
+      })
+  } catch (err) {
+    dshwRadioSetStatus('电台操作失败：' + (err && err.message ? err.message : err))
+    if (done) { try { done(null) } catch (err2) {} }
+  }
+}
+// —— ⑥ 数据源 / 搜索 ——
+function dshwRadioSetSrc(src) {
+  var next = dshwRadioNormSource(src)
+  if (next === dshwRadioSource) { dshwRadioRefreshSrcOpts(); return }
+  dshwRadioSource = next
+  dshwRadioStations = []
+  dshwRadioSearched = false
+  dshwRadioRenderLists()
+  dshwRadioSetStatus('正在切换数据源…')
+  dshwRadioPost({ action: 'set-source', source: next }, function (d) {
+    if (d && d.ok) dshwRadioSetStatus('数据源已切换：' + (next === 'somafm' ? 'SomaFM' : 'Radio Browser'))
+  })
+}
+// 按当前输入框提交搜索（limit 固定 30；country / tag 只对 Radio Browser 有意义）
+function dshwRadioSearch() {
+  var ui = dshwMusicUi
+  if (dshwRadioBusy) return
+  var q = ''
+  var tag = ''
+  var cty = ''
+  try {
+    if (ui && ui.radio) {
+      q = String(ui.radio.qInp.value || '').trim()
+      if (dshwRadioSource !== 'somafm') {
+        tag = String(ui.radio.tagInp.value || '').trim()
+        cty = String(ui.radio.ctyInp.value || '').trim()
+      }
+    }
+  } catch (err) {}
+  if (!q && !tag && !cty) { dshwRadioSetStatus('请输入关键词（或用 tag / 国家代码过滤）再搜索'); return }
+  dshwRadioQuery = q
+  dshwRadioTag = tag
+  dshwRadioCountry = cty
+  dshwRadioBusy = true
+  if (ui && ui.radio) ui.radio.searchBtn.disabled = true
+  dshwRadioSetStatus('正在搜索「' + (q || tag || cty) + '」…')
+  var url = dshwRadioSearchUrl + '?source=' + encodeURIComponent(dshwRadioSource) +
+    '&q=' + encodeURIComponent(q) +
+    '&limit=' + encodeURIComponent(String(dshwRadioLimit)) +
+    '&country=' + encodeURIComponent(cty) +
+    '&tag=' + encodeURIComponent(tag)
+  try {
+    fetch(url, { cache: 'no-store' })
+      .then(function (r) {
+        // 非 2xx（502 上游失败等）也把 error 文案取出来（后端在错误体里给了 { ok:false, error }）
+        return r.json().catch(function () { return null }).then(function (d) {
+          if (r && r.ok === false) return d && d.error ? d : { ok: false, error: '搜索失败（HTTP ' + r.status + '）' }
+          return d
+        })
+      })
+      .then(function (d) {
+        dshwRadioSearchDone()
+        if (d && d.ok) {
+          dshwRadioStations = Object.prototype.toString.call(d.stations) === '[object Array]' ? d.stations : []
+          dshwRadioSearched = true
+          dshwRadioRenderResults()
+          if (dshwRadioStations.length) dshwRadioSetStatus('搜索到 ' + dshwRadioStations.length + ' 个电台（共 30 条以内）')
+          else dshwRadioSetStatus('没有找到电台')
+          return
+        }
+        dshwRadioStations = []
+        dshwRadioSearched = true
+        dshwRadioRenderResults()
+        dshwRadioSetStatus('搜索失败：' + dshwMusicErrText(d))
+      })
+      .catch(function () {
+        dshwRadioSearchDone()
+        dshwRadioSetStatus('搜索失败：无法连接后端（/dsh-whale/radio-search）')
+      })
+  } catch (err) {
+    dshwRadioSearchDone()
+    dshwRadioSetStatus('搜索失败：' + (err && err.message ? err.message : err))
+  }
+}
+function dshwRadioSearchDone() {
+  dshwRadioBusy = false
+  try { if (dshwMusicUi && dshwMusicUi.radio) dshwMusicUi.radio.searchBtn.disabled = false } catch (err) {}
+}
+// —— ⑦ 收藏 / 取消收藏 ——
+function dshwRadioAddFav(st) {
+  if (!st || !dshwRadioKeyOf(st)) { dshwRadioSetStatus('这个电台没有可收藏的地址'); return }
+  dshwRadioSetStatus('正在收藏：' + dshwRadioNameOf(st))
+  // station 逐字带上后端契约里的字段（多余字段后端忽略，缺字段后端自己兜底）
+  dshwRadioPost({ action: 'add-favorite', station: dshwRadioStationOf(st) }, function (d) {
+    if (d && d.ok) dshwRadioSetStatus('已收藏：' + dshwRadioNameOf(st))
+  })
+}
+function dshwRadioRemoveFav(st) {
+  var k = dshwRadioKeyOf(st)
+  if (!k) { dshwRadioSetStatus('这个电台没有可移除的地址'); return }
+  dshwRadioSetStatus('正在移除收藏：' + dshwRadioNameOf(st))
+  dshwRadioPost({ action: 'remove-favorite', url: k }, function (d) {
+    if (d && d.ok) dshwRadioSetStatus('已移除收藏：' + dshwRadioNameOf(st))
+  })
+}
+// 【关键】收藏对象按契约逐字给：id / name / url / favicon / tags / country / codec / bitrate / source
+function dshwRadioStationOf(st) {
+  var out = {}
+  try {
+    out.id = String((st && st.id) || '')
+    out.name = dshwRadioNameOf(st)
+    out.url = String((st && st.url) || '')
+    out.favicon = String((st && st.favicon) || '')
+    out.tags = String((st && st.tags) || '')
+    out.country = String((st && st.country) || '')
+    out.codec = String((st && st.codec) || '')
+    var br = Number(st && st.bitrate)
+    out.bitrate = isFinite(br) && br > 0 ? Math.round(br) : 0
+    out.source = dshwRadioNormSource((st && st.source) || dshwRadioSource)
+  } catch (err) {}
+  return out
+}
+// —— ⑧ 播放：同一个 <audio>，地址走宿主代理的 radio-stream ——
+function dshwRadioStreamUrlOf(u) {
+  return dshwRadioStreamUrl + '?u=' + encodeURIComponent(String(u))
+}
+function dshwRadioNoSrc(st) {
+  dshwRadioLoading = false
+  dshwRadioSetStatus('这个电台没有可用的流地址（' + dshwRadioNameOf(st) + '）')
+}
+function dshwRadioPlay(st) {
+  if (!st) return
+  var u = ''
+  try { u = String(st.url || '') } catch (err) {}
+  if (!u) { dshwRadioNoSrc(st); return }
+  var k = dshwRadioKeyOf(st)
+  dshwRadioCur = st
+  dshwRadioKey = k
+  dshwRadioIcy = ''
+  // 注意：不在这里清 dshwRadioErrShown —— 预检拿到的可读文案（429/502/403）
+  // 必须在随后可能到来的 <audio> error 事件里仍然可复述（见 dshwRadioAudioErr）。
+  dshwRadioLoading = true
+  dshwRadioSetStatus('正在连接：' + dshwRadioNameOf(st))
+  dshwRadioPatchHost()
+  // 注意：这里传的是**原始** station.url，代理地址与预检 URL 都在 dshwRadioStreamOk 里拼
+  // （早先这里误传了已经包好的代理地址，导致预检请求被包裹两次）。
+  dshwRadioStreamOk(st, u)
+}
+// 先看响应头：宿主代理的 4xx / 5xx 一定带 JSON（{ ok:false, error }），比 <audio> 的通用
+// MediaError 可读得多（429 = 并发上限、502 = 上游失败、403 = 非回环来源）。预检只取头、不读流。
+function dshwRadioStreamOk(st, u) {
+  var url = dshwRadioStreamUrlOf(u)
+  try {
+    fetch(url, { method: 'HEAD', cache: 'no-store' })
+      .then(function (r) {
+        if (r && r.ok) return null
+        var status = (r && r.status) || 0
+        return r.json().catch(function () { return null }).then(function (d) {
+          return '播放失败（HTTP ' + status + '）：' + dshwMusicErrText(d)
+        })
+      })
+      .catch(function () { return null }) // 预检自己失败（网络/被拦）：交给 <audio> 直接试播
+      .then(function (msg) { if (msg) dshwRadioFail(msg, st); else dshwRadioStartStream(st, url) })
+  } catch (err) {
+    dshwRadioStartStream(st, url)
+  }
+}
+function dshwRadioStartStream(st, url) {
+  // 预检通过了：清掉上一次预检的可读错误，别让它一会儿又盖到新状态上
+  dshwRadioErrShown = false
+  dshwRadioErrInfo = ''
+  var a = dshwMusicAudioEl()
+  if (!a) { dshwRadioFail('播放失败：音频元素不可用', st); return }
+  try {
+    a.pause()
+    // 直播流不能沿用本地曲目的循环设置（混在一起会让下一条音频的语义变乱）
+    try { a.loop = false } catch (err) {}
+    a.src = url
+    a.load()
+    dshwRadioPlaying = true
+    dshwMusicCurKey = '' // 本地"当前曲"作废：电台不是歌单里的一首
+    try { a.volume = Math.max(0, Math.min(1, Number(dshwMusicSettings.volume) || 0.9)) } catch (err) {}
+    var p = null
+    try { p = a.play() } catch (err) { p = null }
+    if (p && typeof p.catch === 'function') {
+      p.catch(function () {
+        dshwRadioLoading = false
+        dshwRadioRenderAll()
+      })
+    }
+    dshwRadioLoading = false
+    dshwRadioSetStatus('正在播放：' + dshwRadioNameOf(st) + '（直播）')
+    // 完成提示不能盖在"正在播放"上：稍后再问一次 icy-name（拿到就补上）
+    setTimeout(dshwRadioIce, 1200)
+  } catch (err) {
+    dshwRadioFail('播放失败：' + (err && err.message ? err.message : err), st)
+  }
+  dshwRadioRenderAll()
+}
+function dshwRadioFail(msg, st) {
+  dshwRadioLoading = false
+  dshwRadioErrShown = true
+  dshwRadioErrInfo = String(msg || '')
+  dshwRadioSetStatus(dshwRadioErrInfo)
+  // 有可能已经处于"音频在响"的状态：把它停掉，别让用户以为换台成功了
+  try { if (dshwMusicAudio) dshwMusicAudio.pause() } catch (err) {}
+  dshwRadioRenderAll()
+}
+// <audio> 的 error 事件：电台模式下把可读文案写到状态行（预检拿到的文案优先，不被通用文案盖掉）
+function dshwRadioAudioErr(a) {
+  // 预检拿到的可读文案（429 并发上限 / 502 上游失败 / 403 非回环来源）优先复述
+  if (dshwRadioErrShown && dshwRadioErrInfo) { dshwRadioSetStatus(dshwRadioErrInfo); return }
+  var msg = '播放失败：这条直播流读不出来（检查网络与 /dsh-whale/radio-stream）'
+  try {
+    var code = a && a.error ? Number(a.error.code) : 0
+    if (code === 2) msg = '播放失败：直播流网络错误（可能是上游不可达或代理被并发上限挡住）'
+    else if (code === 3) msg = '播放失败：直播流解码失败'
+    else if (code === 4) msg = '播放失败：这个电台的流地址不可播放（codec 不支持）'
+  } catch (err) {}
+  dshwRadioSetStatus(msg)
+}
+// 后端透传的 icy-name（元信息）：拿得到就优先显示在状态行里
+function dshwRadioIce() {
+  if (!dshwRadioCur) return
+  var a = dshwMusicAudio
+  if (!a) { dshwRadioLoading = false; return }
+  var paused = false
+  try { paused = !!a.paused } catch (err) {}
+  var u = ''
+  try { u = String(dshwRadioCur.url || '') } catch (err) {}
+  if (paused || !u) { dshwRadioLoading = false; return }
+  if (dshwRadioIcy) return
+  dshwRadioProbeIcy(u)
+}
+function dshwRadioProbeIcy(u) {
+  var url = dshwRadioStreamUrlOf(u)
+  try {
+    fetch(url, { method: 'GET', cache: 'no-store', headers: { Range: 'bytes=0-0' } })
+      .then(function (r) { return r.headers && r.headers.get ? r.headers.get('icy-name') : '' })
+      .then(function (name) { dshwRadioIceNow(name) })
+      .catch(function () { dshwRadioLoading = false })
+  } catch (err) { dshwRadioLoading = false }
+}
+function dshwRadioIceNow(name) {
+  dshwRadioLoading = false
+  var n = name ? String(name).trim() : ''
+  if (!n || !dshwRadioCur) return
+  dshwRadioIcy = n
+  if (dshwRadioErrShown) return
+  dshwRadioSetStatus('正在播放：' + dshwRadioNameOf(dshwRadioCur) + '（直播 · ' + n + '）')
+}
+// 播放/暂停共用按钮：电台页按下它 = 暂停/继续当前直播流；还没选台就播列表第一台
+function dshwRadioTogglePlay() {
+  var a = dshwMusicAudio
+  var playing = false
+  try { playing = !!(a && !a.paused && !a.ended) } catch (err) {}
+  if (a && playing) {
+    try { a.pause() } catch (err) {}
+    dshwMusicRenderCtl()
+    dshwRadioRenderAll()
+    return
+  }
+  if (dshwRadioCur) {
+    try {
+      var p = a ? a.play() : null
+      if (p && typeof p.catch === 'function') p.catch(function () {})
+    } catch (err) {}
+    if (a) { try { a.loop = false } catch (err) {} }
+    dshwRadioSetStatus('正在播放：' + dshwRadioNameOf(dshwRadioCur) + '（直播' + (dshwRadioIcy ? ' · ' + dshwRadioIcy : '') + '）')
+    dshwMusicRenderCtl()
+    dshwRadioRenderAll()
+    return
+  }
+  var l = dshwRadioVisibleList()
+  if (!l.length) { dshwRadioSetStatus('先在电台页搜一个电台，或从收藏里点一个'); return }
+  dshwRadioPlay(l[0])
+}
+// 电台模式下的「上一台 / 下一台」：在当前可见列表（优先搜索结果，其次收藏）里切换
+function dshwRadioStep(delta) {
+  var l = dshwRadioVisibleList()
+  if (!l.length) { dshwRadioSetStatus('当前没有可切换的电台：先搜索或添加收藏'); return }
+  var cur = dshwRadioListIndex()
+  var i = cur < 0 ? 0 : ((cur + delta) % l.length + l.length) % l.length
+  dshwRadioPlay(l[i])
 }
 
 // —— 与挂件本体的整合：① 面板区域不算鲸鱼 ② 短按鲸鱼 = 播放/暂停 ③ 按压音效让位 ——
