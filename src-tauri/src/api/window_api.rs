@@ -11,18 +11,33 @@ use crate::application::config;
 use crate::application::window;
 use crate::domain::config::model::WidgetPosition;
 use crate::domain::window::model::SnapResult;
-use crate::domain::window::service::window_service::no_snap;
-use crate::shell::window::{current_geometry, work_area};
+use crate::domain::window::service::window_service::{
+    clamp_window_position, no_snap, to_physical_keep,
+};
+use crate::shell::window::{current_geometry, work_area, work_areas};
 use crate::types::common::constants::{MENU_CONFIG, MENU_FEED, MENU_HIDE_WIDGET, MENU_QUIT_APP};
 use crate::types::exception::{guard, AppError, AppResult, IntoWire};
 use crate::types::utils::num::round2;
 
-/// 拖拽过程中把挂件窗口移动到指定的「逻辑屏幕坐标」。
+/// 拖拽过程中把挂件窗口移动到指定的「逻辑屏幕坐标」，并保证鲸鱼不出屏。
+///
+/// `whale_*` 是前端测量的鲸鱼矩形（逻辑像素，相对窗口客户区）。它只用于钳制，
+/// 不参与定位——见 `clamp_window_position`。
 #[tauri::command]
-pub fn set_window_position(window: WebviewWindow, x: f64, y: f64) {
+pub fn set_window_position(
+    window: WebviewWindow,
+    x: f64,
+    y: f64,
+    whale_left: f64,
+    whale_top: f64,
+    whale_width: f64,
+    whale_height: f64,
+) {
     let sf = window.scale_factor().unwrap_or(1.0);
     let px = (x * sf).round() as i32;
     let py = (y * sf).round() as i32;
+    let keep = to_physical_keep(sf, (whale_left, whale_top, whale_width, whale_height));
+    let (px, py) = clamp_window_position(px, py, keep, &work_areas(&window));
     let _ = window.set_position(Position::Physical(PhysicalPosition::new(px, py)));
 }
 
@@ -32,15 +47,26 @@ pub fn set_ignore_cursor_events(window: WebviewWindow, ignore: bool) {
     let _ = window.set_ignore_cursor_events(ignore);
 }
 
-/// 读取全局光标位置，按窗口缩放因子换算为逻辑屏幕坐标返回。
+/// 读取全局光标位置，换算为**相对窗口客户区左上角**的物理像素偏移。
+///
+/// 这里刻意返回「相对窗口」而不是屏幕坐标：前端 `window.screenX/Y` 是渲染进程侧
+/// 的 CSS 像素，在缩放倍率不为 1 的显示器上与「物理坐标 ÷ 缩放因子」并不落在同一个
+/// 坐标系里，跨屏后光标→客户区的换算会整体偏移（表现为鲸鱼点不动、拖不动）。
+/// 改成在这里做一次纯物理像素的减法，前端再除以自己的 `devicePixelRatio`，
+/// 换算所用数据就只有一份来源。
 #[tauri::command]
 pub fn get_cursor_position(window: WebviewWindow) -> (f64, f64) {
     let mut point = POINT { x: 0, y: 0 };
     unsafe {
         let _ = GetCursorPos(&mut point);
     }
-    let sf = window.scale_factor().unwrap_or(1.0);
-    (point.x as f64 / sf, point.y as f64 / sf)
+    // 无边框窗口客户区左上角即窗口左上角；inner 读不到时退化为 outer。
+    let origin = window
+        .inner_position()
+        .or_else(|_| window.outer_position())
+        .map(|p| (p.x, p.y))
+        .unwrap_or((0, 0));
+    ((point.x - origin.0) as f64, (point.y - origin.1) as f64)
 }
 
 /// 拖拽释放后按实际内容矩形吸附到屏幕边缘。
@@ -125,9 +151,15 @@ fn snap_window_inner(
         sf,
     );
 
-    let _ = window.set_position(Position::Physical(PhysicalPosition::new(
-        outcome.x, outcome.y,
-    )));
+    // 吸附结果再过一遍钳制：吸附只纠正触发阈值的那一个轴，另一个轴可能仍把鲸鱼留在
+    // 屏外（例如只触发了左右吸附、而竖直方向已经在屏外）。
+    let (out_x, out_y) = clamp_window_position(
+        outcome.x,
+        outcome.y,
+        to_physical_keep(sf, whale),
+        &work_areas(window),
+    );
+    let _ = window.set_position(Position::Physical(PhysicalPosition::new(out_x, out_y)));
 
     // 位置落库失败不影响本次吸附结果。
     let anchors = (outcome.result.h.clone(), outcome.result.v.clone());
