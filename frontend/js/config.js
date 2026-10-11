@@ -227,6 +227,7 @@
   const resetColorEl = document.getElementById("resetColor");
   const checkUpdateEl = document.getElementById("checkUpdate");
   const tutorialEl = document.getElementById("tutorial");
+  const appVersionEl = document.getElementById("appVersion");
   const modalOverlayEl = document.getElementById("modalOverlay");
   const confirmModalEl = document.getElementById("confirmModal");
   const confirmMsgEl = document.getElementById("confirmMsg");
@@ -668,6 +669,10 @@
     disappointedThresholdMinEl.value = String(w.disappointedThresholdMin);
     angryThresholdClicksEl.value = String(w.angryThresholdClicks);
     shyThresholdSecEl.value = String(w.shyThresholdSec);
+    // 吸附距离以**物理像素**展示与配置；从未设置过（0）时按 300 物理像素折算成比例。
+    // 后端在阈值未设置时用的默认值与这里**必须一致**（见
+    // `domain::window::service::window_service::WIDGET_SNAP_DISTANCE_DEFAULT_PX`），
+    // 吸附阈值因此只有一个来源：就是本页面填的这个数。
     if (!w.snapDistance || w.snapDistance < 0 || w.snapDistance >= 1) {
       w.snapDistance = 300 / screenPhysicalWidth();
     }
@@ -3359,6 +3364,30 @@
     });
   }
   loadDataDir();
+
+  // ===== 当前软件版本 =====
+  //
+  // 「小鲸鱼设置」标题右下方那行灰色小字，展示的是**本机安装的版本号**，不是远端最新版
+  // （「最新版」只在点「检查更新」时才请求）。取值走 Tauri 的 app.getVersion()，
+  // 与 Cargo.toml / tauri.conf.json 的 version 同源，因此打包升级后会跟着变。
+  function renderAppVersion() {
+    if (!appVersionEl) return;
+    const app = window.__TAURI__ && window.__TAURI__.app;
+    if (!app || !app.getVersion) return;
+    Promise.resolve(app.getVersion())
+      .then(function (ver) {
+        const text = String(
+          ver === undefined || ver === null ? "" : ver,
+        ).trim();
+        if (!text) return;
+        appVersionEl.textContent = "v" + text;
+        appVersionEl.hidden = false;
+      })
+      .catch(function (err) {
+        console.error("读取软件版本失败", err);
+      });
+  }
+  renderAppVersion();
 
   // ===== 峰谷日历 =====
   //

@@ -14,14 +14,24 @@ window.DSW = window.DSW || {};
   var C = DSW.C;
   var state = DSW.state;
 
-  // 更新吸附朝向：
+  // 更新渲染用的吸附锚点与朝向：
   // - 左吸附：整体水平翻转，鲸鱼贴到窗口左侧；
   // - 上吸附：内容贴窗口上沿（窗口顶部那块透明区变成「气泡预留区」），
-  //   气泡因此完整落在屏幕内、鲸鱼紧接在气泡下方。
-  // 两者可同时生效（左上角吸附）。
+  //   气泡因此完整落在屏幕内、鲸鱼紧接在气泡下方；
+  // - 朝向：独立于锚点（由后端按所在屏幕的物理中心判定，`left`/`right` 即鲸鱼
+  //   面朝的方向），只决定贴图是否再翻一次。
+  //   默认贴图**朝左**；内容层左吸附时（`.dshwv-left` 给 `.dshwv-scaler` 加
+  //   `scaleX(-1)`）整层镜像一次，贴图随之变成朝右。
+  //   因此目标「净镜像次数」为：朝左 = 0 次、朝右 = 1 次；补翻次数 = 目标净镜像
+  //   次数 异或 内容层已有的镜像次数（左吸附记 1 次）。两者相同则不再补翻。
+  // 前两者可同时生效（左上角吸附）。
   DSW.express = function () {
     DSW.dom.root.classList.toggle("dshwv-left", state.h === "left");
     DSW.dom.root.classList.toggle("dshwv-top", state.v === "top");
+    DSW.dom.root.classList.toggle(
+      "dshwv-face-flip",
+      (state.facing === "right") !== (state.h === "left"),
+    );
   };
 
   // 首屏初始化顺序：朝向 -> 渲染 -> 音效/命中测试 -> 空闲计时。
@@ -67,8 +77,20 @@ window.DSW = window.DSW || {};
           if (pos.v === "top" || pos.v === "bottom" || pos.v === "none") {
             state.v = pos.v;
           }
+          if (pos.facing === "left" || pos.facing === "right") {
+            state.facing = pos.facing;
+          }
           DSW.express();
         }
+        // 朝向以后端现算为准：老配置没有该字段、或换过屏幕 / 缩放后，落库值可能已过期。
+        DSW.invoke("get_monitor_report")
+          .then(function (rep) {
+            if (rep && (rep.facing === "left" || rep.facing === "right")) {
+              state.facing = rep.facing;
+              DSW.express();
+            }
+          })
+          .catch(function () {});
         const w = cfg && cfg.widget ? cfg.widget : null;
         if (w) {
           DSW.widgetConfig.applyWidgetConfig(w);

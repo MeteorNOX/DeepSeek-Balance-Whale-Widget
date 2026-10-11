@@ -7,7 +7,10 @@
 
 use serde::Serialize;
 
-/// 吸附结果：水平/垂直锚点（供前端决定是否镜像翻转）。
+/// 吸附结果：水平/垂直锚点（决定内容块贴窗口哪一侧）与桌宠朝向。
+///
+/// `facing` 与 `h` **语义无关**：`h` 是吸附锚点（左右贴边用），
+/// `facing` 由桌宠所在屏幕的半区决定（左半区朝右、右半区朝左）。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnapResult {
@@ -15,6 +18,8 @@ pub struct SnapResult {
     pub h: String,
     /// 垂直方向吸附结果：`top` / `bottom` / `none`。
     pub v: String,
+    /// 桌宠朝向：`left` / `right`（面向屏幕中心）。
+    pub facing: String,
 }
 
 /// 吸附计算输入（窗口与工作区为物理像素，`whale` 为逻辑像素）。
@@ -40,8 +45,8 @@ pub struct SnapInput {
     pub content: (f64, f64, f64, f64),
     /// 窗口缩放因子。
     pub scale_factor: f64,
-    /// 边缘吸附阈值（占工作区宽度比例，0 表示未设置）。
-    pub snap_ratio: f64,
+    /// 边缘吸附阈值（**物理像素**，已由应用层按配置解析；0 表示不吸附）。
+    pub snap_distance_px: i32,
 }
 
 /// 吸附计算结果。
@@ -59,15 +64,17 @@ pub struct SnapOutcome {
 mod tests {
     use super::*;
 
-    /// 前端契约：锚点字段为 `h` / `v`，取值为固定小写字符串。
+    /// 前端契约：锚点字段为 `h` / `v` / `facing`，取值为固定小写字符串。
     #[test]
     fn snap_result_is_wire_compatible() {
         let snap = SnapResult {
             h: "left".to_string(),
             v: "none".to_string(),
+            facing: "right".to_string(),
         };
         let json = serde_json::to_string(&snap).unwrap();
         assert!(json.contains("\"h\":\"left\""), "{}", json);
         assert!(json.contains("\"v\":\"none\""), "{}", json);
+        assert!(json.contains("\"facing\":\"right\""), "{}", json);
     }
 }

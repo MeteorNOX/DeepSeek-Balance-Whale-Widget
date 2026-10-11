@@ -70,6 +70,14 @@ body {
   cursor: grabbing;
 }
 
+/* 朝向：只镜像**鲸鱼贴图本身**（原地翻转），不动内容块的左右锚定，
+   因此「换朝向」不会带来任何横向位移（锚定一变，鲸鱼会横跳一个内容块宽度）。
+   有效朝向 = 内容层镜像（左右吸附的 `.dshwv-left`）异或这里的贴图镜像：
+   目标朝向与「当前锚定镜像」相同则不加，不同才加，由 JS 统一换算后落到本类上。 */
+.dshwv-root.dshwv-face-flip .dshwv-img {
+  transform: scaleX(-1);
+}
+
 .dshwv-body {
   position: absolute;
   left: 0;

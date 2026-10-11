@@ -11,11 +11,11 @@ use crate::domain::bubble::model::entity::bubble_config::{
 };
 use crate::domain::config::model::{
     default_blink_interval_max_sec, default_blink_interval_min_sec, default_bubble_block_size,
-    default_exhausted_balance_threshold, AppConfig, WidgetConfig, DEFAULT_BASE_URL,
+    default_exhausted_balance_threshold, AppConfig, WidgetConfig, WidgetPosition, DEFAULT_BASE_URL,
     DEFAULT_CODEX_BASE_URL, DEFAULT_COLOR, DEFAULT_THEME, THEMES,
 };
 use crate::domain::widget_image::service::widget_image_service as widget_rules;
-use crate::types::enums::{Currency, DialogueMode, HorizontalAnchor, VerticalAnchor};
+use crate::types::enums::{Currency, DialogueMode, Facing, HorizontalAnchor, VerticalAnchor};
 use crate::types::exception::{AppError, AppResult};
 
 /// 失望阈值上限（分钟）：24 小时。
@@ -236,7 +236,7 @@ fn normalize_widget(widget: &mut WidgetConfig) {
     }
 }
 
-/// 规范化挂件位置：坐标必须有限，朝向必须合法。
+/// 规范化挂件位置：坐标必须有限，朝向必须合法，坐标口径必须可识别。
 fn normalize_widget_position(config: &mut AppConfig) {
     let Some(position) = &mut config.widget_position else {
         return;
@@ -254,6 +254,19 @@ fn normalize_widget_position(config: &mut AppConfig) {
     match VerticalAnchor::parse(&position.v) {
         Some(anchor) => position.v = anchor.as_str().to_string(),
         None => position.v = VerticalAnchor::DEFAULT.as_str().to_string(),
+    }
+    // 朝向：老配置缺字段 / 非法取值都回落默认（下次落库时按屏幕半区补齐）。
+    position.facing = position.facing.trim().to_string();
+    match Facing::parse(&position.facing) {
+        Some(facing) => position.facing = facing.as_str().to_string(),
+        None => position.facing = Facing::DEFAULT.as_str().to_string(),
+    }
+    // 坐标口径：空串保留（历史数据 = 主屏逻辑坐标，读取方负责折算）；
+    // 其它无法识别的取值按物理像素处理 —— 宁可当作字面数值再夹进工作区，
+    // 也不要拿它去乘缩放因子（那会把宠物推到屏外）。
+    position.unit = position.unit.trim().to_string();
+    if !position.unit.is_empty() && !position.is_physical() {
+        position.unit = WidgetPosition::UNIT_PHYSICAL.to_string();
     }
 }
 
@@ -375,7 +388,7 @@ mod tests {
         assert_eq!(cfg.widget.blink_interval_max_sec, 8);
     }
 
-    /// 挂件位置：非法锚点兜底为默认值，非法坐标整条丢弃。
+    /// 挂件位置：非法锚点兜底为默认值，非法坐标整条丢弃，坐标口径必须可识别。
     #[test]
     fn widget_position_is_normalized() {
         let mut cfg = AppConfig {
@@ -384,6 +397,8 @@ mod tests {
                 y: 8.0,
                 h: "  left ".to_string(),
                 v: "  top ".to_string(),
+                unit: " physical ".to_string(),
+                facing: "  left ".to_string(),
             }),
             ..AppConfig::default()
         };
@@ -392,36 +407,59 @@ mod tests {
         assert_eq!(position.h, "left");
         assert_eq!(position.v, "top", "顶部吸附必须被保留（重启后仍贴顶）");
         assert_eq!(position.x, 12.5);
+        assert_eq!(position.unit, "physical", "物理口径去空白后保留");
+        assert_eq!(position.facing, "left", "朝向去空白后保留");
+        assert!(position.is_physical());
 
         cfg.widget_position = Some(WidgetPosition {
             x: 1.0,
             y: 1.0,
             h: "middle".to_string(),
             v: "middle".to_string(),
+            unit: "unknown-space".to_string(),
+            facing: "up".to_string(),
         });
         normalize(&mut cfg);
         let position = cfg.widget_position.as_ref().unwrap();
         assert_eq!(position.h, "right");
         assert_eq!(position.v, "none", "非法垂直锚点回落默认（贴窗口下沿）");
+        assert_eq!(position.facing, "right", "非法朝向回落默认");
+        assert_eq!(
+            position.unit, "physical",
+            "无法识别的口径按物理像素处理：宁可当作字面数值再夹进工作区，也不能乘缩放"
+        );
 
         cfg.widget_position = Some(WidgetPosition {
             x: f64::NAN,
             y: 1.0,
             h: "left".to_string(),
             v: "top".to_string(),
+            unit: WidgetPosition::UNIT_PHYSICAL.to_string(),
+            facing: "right".to_string(),
         });
         normalize(&mut cfg);
         assert!(cfg.widget_position.is_none(), "非法坐标应整条丢弃");
     }
 
-    /// 老配置（`widgetPosition` 里没有 `v`）必须能读出来，并按默认锚定处理。
+    /// 老配置（`widgetPosition` 里没有 `v` / `unit`）必须能读出来：
+    /// `v` 按默认锚定处理，`unit` 保持空串表示「主屏逻辑坐标」，交由读取方折算。
     #[test]
     fn legacy_widget_position_without_vertical_anchor() {
         let mut cfg: AppConfig =
             serde_json::from_str(r#"{"widgetPosition":{"x":10,"y":20,"h":"left"}}"#).unwrap();
         assert_eq!(cfg.widget_position.as_ref().unwrap().v, "none");
+        assert_eq!(
+            cfg.widget_position.as_ref().unwrap().unit,
+            WidgetPosition::UNIT_LEGACY_LOGICAL
+        );
+        assert!(!cfg.widget_position.as_ref().unwrap().is_physical());
         normalize(&mut cfg);
         assert_eq!(cfg.widget_position.as_ref().unwrap().v, "none");
+        assert_eq!(
+            cfg.widget_position.as_ref().unwrap().unit,
+            WidgetPosition::UNIT_LEGACY_LOGICAL,
+            "历史数据必须保持「待折算」状态，不能被规范化就地改成物理口径"
+        );
     }
 
     /// 地址：空值回落默认，尾部斜杠被裁剪。

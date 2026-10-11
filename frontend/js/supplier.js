@@ -4033,6 +4033,36 @@
 
   // ===== 启动 =====
 
+  /**
+   * 进入配置页即把「余额配置」设为默认展示的模块。
+   *
+   * WebView 会恢复上一次的滚动位置与焦点（实测会停在页面底部附近的「打开数据目录」），
+   * 于是用户一进来看到的不是余额配置，右侧的 claude / codex 图标反倒离视口更近，
+   * 极易被误当作余额配置入口。这里在首屏渲染完成后主动：
+   * ① 展开供应商列表；② 把整张卡片滚进视口顶部；③ 清掉恢复出来的旧焦点。
+   *
+   * 刻意**不**把焦点放到「余额配置」按钮上：首次交互前的程序化聚焦会命中
+   * `:focus-visible`，默认态因此比「切走再手动切回」多出一圈外描边；清掉焦点即可让
+   * 两者完全一致，而键盘用户 TAB 到该按钮时仍会得到统一的外描边提示。
+   */
+  function activateBalanceModule() {
+    if (!supplierCardEl) return;
+    supplierCardEl.classList.remove("collapsed");
+    if (supplierToggleEl)
+      supplierToggleEl.setAttribute("aria-expanded", "true");
+    try {
+      supplierCardEl.scrollIntoView({ block: "start", behavior: "auto" });
+    } catch (err) {
+      supplierCardEl.scrollIntoView();
+    }
+    var el = document.activeElement;
+    if (el && el !== document.body && el.blur) {
+      try {
+        el.blur();
+      } catch (err) {}
+    }
+  }
+
   function bootstrap() {
     if (!supplierCardEl) return;
     // 日历浮层摘到 <body>：否则毛玻璃主题的弹窗（带 backdrop-filter）会成为它的
@@ -4063,6 +4093,7 @@
         renderScopeTabs();
         formClient = clientById(scope);
         renderList();
+        activateBalanceModule();
       });
   }
 

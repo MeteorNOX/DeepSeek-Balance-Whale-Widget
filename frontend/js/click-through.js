@@ -40,8 +40,12 @@ window.DSW = window.DSW || {};
     DSW.invoke("get_cursor_position")
       .then(function (pos) {
         if (!Array.isArray(pos) || pos.length < 2) return;
-        const sx = pos[0] - window.screenX;
-        const sy = pos[1] - window.screenY;
+        // 后端返回的是相对窗口客户区的**物理**像素偏移，除以渲染进程自己的
+        // devicePixelRatio 才与 getBoundingClientRect() 同属一套 CSS 像素
+        // （不再用 window.screenX/Y 混算：缩放不为 1 时两者不同源，判定区会整体偏移）。
+        const dpr = window.devicePixelRatio || 1;
+        const sx = pos[0] / dpr;
+        const sy = pos[1] / dpr;
         const interactive = isInteractiveAt(sx, sy);
         applyClickThrough(!interactive);
       })

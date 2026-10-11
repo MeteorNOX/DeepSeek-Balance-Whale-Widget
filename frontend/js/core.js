@@ -97,6 +97,9 @@ window.DSW = window.DSW || {};
     // 垂直锚点：`top` 贴窗口上沿（为上方的气泡预留空间），`bottom` / `none` 都贴窗口下沿。
     // 初值取 `none`，与配置里的默认值同一套取值，避免两种写法指同一状态。
     v: "none",
+    // 桌宠朝向：由后端按「所在显示器工作区的物理中心」判定（左半区朝右、右半区朝左），
+    // 与上面的吸附锚点 `h` 是两套语义。前端只负责按它决定贴图是否镜像。
+    facing: "right",
     balance: null,
     currency: null,
     todayUsage: null,

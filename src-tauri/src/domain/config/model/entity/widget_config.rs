@@ -38,7 +38,10 @@ pub struct WidgetConfig {
     /// 峰谷提前提示的预警分钟数。
     #[serde(default = "default_peak_warn_minutes")]
     pub peak_warn_minutes: u32,
-    /// 边缘吸附阈值（占屏幕物理宽度比例 0–1；0 表示未设置，回退四分之一区域）。
+    /// 边缘吸附阈值（占屏幕物理宽度比例 0–1；0 表示未设置，回退配置页默认的
+    /// 300 物理像素，见 `window_service::WIDGET_SNAP_DISTANCE_DEFAULT_PX`）。
+    ///
+    /// 这是吸附阈值的**唯一来源**：超出该距离的位置一律不吸附（不再有「按区域吸附」）。
     #[serde(default)]
     pub snap_distance: f64,
     /// 余额显示币种（六种之一，默认人民币）。

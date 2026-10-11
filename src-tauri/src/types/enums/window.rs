@@ -73,6 +73,52 @@ impl VerticalAnchor {
     }
 }
 
+/// 桌宠朝向。
+///
+/// 判定基准是**桌宠所在显示器工作区的物理水平中心**，与拖拽方向无关：
+/// 桌宠落在左半区 → 朝右；落在右半区 → 朝左 —— 两种情形都「面向屏幕中心」。
+///
+/// 刻意与 [`HorizontalAnchor`] 分开：锚点决定内容块贴在窗口的哪一侧（左右吸附要
+/// 靠它做零间隙贴合），朝向只决定贴图是否镜像。二者可以取值相同而含义完全无关
+/// （例如「左下角贴合并朝右」）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Facing {
+    /// 面朝屏幕左侧。
+    Left,
+    /// 面朝屏幕右侧。
+    Right,
+}
+
+impl Facing {
+    /// 默认朝向（坐标不可用时）。
+    pub const DEFAULT: Facing = Facing::Right;
+
+    /// 朝向标识（前端取值，同时是持久化取值）。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Facing::Left => "left",
+            Facing::Right => "right",
+        }
+    }
+
+    /// 解析朝向。
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "left" => Some(Facing::Left),
+            "right" => Some(Facing::Right),
+            _ => None,
+        }
+    }
+
+    /// 反向朝向。
+    pub fn flipped(self) -> Self {
+        match self {
+            Facing::Left => Facing::Right,
+            Facing::Right => Facing::Left,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +149,17 @@ mod tests {
             "none",
             "默认锚定是「贴窗口下沿」，即历史行为"
         );
+    }
+
+    /// 朝向与锚点是两套语义：取值可以相同，但解析互不影响。
+    #[test]
+    fn facing_round_trip_and_flip() {
+        for facing in [Facing::Left, Facing::Right] {
+            assert_eq!(Facing::parse(facing.as_str()), Some(facing));
+        }
+        assert_eq!(Facing::parse("none"), None, "朝向没有 none");
+        assert_eq!(Facing::Left.flipped(), Facing::Right);
+        assert_eq!(Facing::Right.flipped(), Facing::Left);
+        assert_eq!(Facing::DEFAULT.as_str(), "right");
     }
 }

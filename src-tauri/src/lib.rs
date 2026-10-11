@@ -203,6 +203,7 @@ pub fn run() {
             api::window_api::set_ignore_cursor_events,
             api::window_api::get_cursor_position,
             api::window_api::snap_window,
+            api::window_api::get_monitor_report,
             api::window_api::show_context_menu,
             api::update_api::check_update,
             api::update_api::open_external,

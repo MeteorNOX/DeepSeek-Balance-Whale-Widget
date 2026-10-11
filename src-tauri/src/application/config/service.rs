@@ -2,12 +2,12 @@
 //!
 //! 覆盖配置的读取、全量保存、分片保存（挂件显示 / 台词 / 币种）与位置记录。
 
+use crate::application::config::result::ConfigSaveOutcome;
+use crate::application::registry;
 use crate::domain::bubble::model::entity::bubble_config::DEFAULT_BUBBLE_GROUP;
 use crate::domain::config::model::{AppConfig, DialogueConfig, WidgetConfig, WidgetPosition};
 use crate::types::enums::Currency;
 use crate::types::exception::AppResult;
-use crate::application::config::result::ConfigSaveOutcome;
-use crate::application::registry;
 
 /// 读取完整应用配置。
 ///
@@ -229,6 +229,8 @@ mod tests {
             y: 456.0,
             h: "left".to_string(),
             v: "top".to_string(),
+            unit: WidgetPosition::UNIT_PHYSICAL.to_string(),
+            facing: "left".to_string(),
         });
         previous.dialogue.lines = vec!["我自己的台词".to_string()];
         previous.dialogue.interval_min = 99;

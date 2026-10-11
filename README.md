@@ -1,12 +1,12 @@
 # DS 小鲸鱼 · 独立 Windows 桌面版
 
-> DS Desktop Whale · Standalone Windows Desktop Edition · v2.0.0
+> DS Desktop Whale · Standalone Windows Desktop Edition · v2.0.1
 
 基于 [Tauri v2](https://tauri.app) 的 Windows 桌面桌宠 + DeepSeek 余额挂件：一只 Q 版小鲸鱼常驻桌面，实时展示余额与今日已用，自带本地记账、峰谷倒计时、模块化气泡、多供应商与模型路由，以及完全离线的智能抠图。
 
 A Windows desktop pet + DeepSeek balance widget built with Tauri v2. It shows your account balance and today's usage in real time, and also ships local usage tracking, peak/off-peak countdown, modular bubbles, multi-supplier & model routing, and fully offline background removal. No browser extension and no third-party relay.
 
-***
+---
 
 ## 功能特性 · Features
 
@@ -16,7 +16,8 @@ A Windows desktop pet + DeepSeek balance widget built with Tauri v2. It shows yo
 - **自定义挂件本体**：上传图片 → 智能抠图（Rust 原生、完全离线）→ 保存为自定义挂件组，按状态动态切换；可管理多个挂件组。
 - **智能抠图**：内置 BiRefNet（birefnet-general-lite）模型与 onnxruntime，首次使用时按需下载/释放到本地，**全程无需联网推理、无需 Python**。
 - **大小缩放**：挂件与气泡内容整体等比缩放，不产生「字与图两张皮」。
-- **拖拽与边缘吸附**：按住拖动，松手后吸附屏幕四边；吸附距离随屏幕尺寸缩放，左侧吸附自动镜像翻转。
+- **拖拽与边缘吸附**：按住即逐像素跟随光标（屏幕中部不做任何位置改写）；松手时若进入配置页设定的吸附距离，则**零间隙**贴合四边（底部完全贴合任务栏上沿），阈值只在配置页设置、以物理像素计。
+- **朝向按屏幕半区**：以桌宠所在显示器的物理中心为界，左半区朝右、右半区朝左（都面向屏幕中心），拖拽过程中实时切换。
 - **顶部吸附预留气泡区**：吸附到屏幕上沿时，气泡占据顶部预留区并完整显示、绝不超出屏幕，鲸鱼紧接在气泡下方；预留高度随挂件缩放等比变化，因此自定义大小与不同分辨率下都成立（吸附状态跨重启保持）。
 - **鼠标穿透**：鲸鱼实体之外的透明区域不拦截点击，可直接操作其下方窗口。
 - **互动与心情**：点击 / 长按 / 抚摸触发不同反应；失望、生气、害羞阈值与眨眼频率均可配置。
@@ -73,7 +74,7 @@ A Windows desktop pet + DeepSeek balance widget built with Tauri v2. It shows yo
 - **纯原生前端**：HTML / CSS / JS，无前端框架、无打包步骤。
 - **可测**：Rust 端 300+ 单元测试覆盖领域规则、用例与线缆契约。
 
-***
+---
 
 ## 环境要求 · Requirements
 
@@ -83,7 +84,7 @@ A Windows desktop pet + DeepSeek balance widget built with Tauri v2. It shows yo
 
 > 终端用户**无需安装 Python 或任何 AI/推理环境**——智能抠图所需的模型与 onnxruntime 已随程序分发，首次使用时释放到本地目录。
 
-***
+---
 
 ## 安装与运行 · Install & Run
 
@@ -91,10 +92,10 @@ A Windows desktop pet + DeepSeek balance widget built with Tauri v2. It shows yo
 
 构建产物位于 `src-tauri/target/release/`：
 
-| 文件                                                 | 说明                 |
-| -------------------------------------------------- | ------------------ |
-| `bundle/nsis/DS Desktop Whale_2.0.0_x64-setup.exe` | 标准安装包（当前用户模式，免管理员） |
-| `DS Desktop Whale.exe`                             | 便携版，免安装，双击即用       |
+| 文件                                               | 说明                                 |
+| -------------------------------------------------- | ------------------------------------ |
+| `bundle/nsis/DS Desktop Whale_2.0.1_x64-setup.exe` | 标准安装包（当前用户模式，免管理员） |
+| `DS Desktop Whale.exe`                             | 便携版，免安装，双击即用             |
 
 ### 从源码构建
 
@@ -109,7 +110,7 @@ npm run dev
 npm run build
 ```
 
-***
+---
 
 ## 首次使用 · First-run Setup
 
@@ -121,7 +122,7 @@ npm run build
 
 > 随时可打开设置：右键鲸鱼 → 打开配置，或右键系统托盘图标 → 打开配置。
 
-***
+---
 
 ## 挂件本体与智能抠图 · Custom Widget & Matting
 
@@ -131,7 +132,7 @@ npm run build
 2. 为某个状态上传图片，或点击「智能抠图」一键去背景；抠图在本地完成，可离线使用。
 3. 保存后，桌宠会在对应状态下自动切换为该组图片。
 
-***
+---
 
 ## 数据存储 · Data Storage
 
@@ -153,7 +154,7 @@ npm run build
 
 API Key 仅保存在本机，程序直接请求各供应商官方接口。
 
-***
+---
 
 ## 目录结构 · Project Layout
 
@@ -175,7 +176,7 @@ src-tauri/src/                 # Rust 后端（DDD 分层）
 scripts/                       # 一次性资源提取/同步脚本（预设、logo、图标、echarts）
 ```
 
-***
+---
 
 ## 常见问题 · FAQ
 
@@ -186,7 +187,7 @@ scripts/                       # 一次性资源提取/同步脚本（预设、l
 - **关闭桌宠**：右键鲸鱼 → 隐藏桌宠（后台继续运行），或托盘 → 退出。
 - **换电脑怎么迁移**：整个 `data` 目录随程序目录一起拷贝即可（便携版）。
 
-***
+---
 
 ## 致谢 · Acknowledgments
 

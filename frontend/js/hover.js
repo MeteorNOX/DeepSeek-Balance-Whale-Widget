@@ -48,8 +48,10 @@ window.DSW = window.DSW || {};
             DSW.invoke("get_cursor_position")
               .then(function (pos) {
                 if (!Array.isArray(pos) || pos.length < 2) return;
-                const sx = pos[0] - window.screenX;
-                const sy = pos[1] - window.screenY;
+                // 同 click-through.js：后端给的是相对窗口客户区的物理像素偏移。
+                const dpr = window.devicePixelRatio || 1;
+                const sx = pos[0] / dpr;
+                const sy = pos[1] / dpr;
                 if (
                   flags.mood === "normal" &&
                   flags.isHovering &&

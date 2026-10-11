@@ -34,8 +34,8 @@ ${StrLoc}
 !define MANUFACTURER "dsw"
 !define PRODUCTNAME "DS Desktop Whale"
 !define SHORTCUTNAME "DS小鲸鱼"
-!define VERSION "2.0.0"
-!define VERSIONWITHBUILD "2.0.0.0"
+!define VERSION "2.0.1"
+!define VERSIONWITHBUILD "2.0.1.0"
 !define HOMEPAGE ""
 !define INSTALLMODE "currentUser"
 !define LICENSE ""
@@ -50,7 +50,10 @@ ${StrLoc}
 !define COPYRIGHT ""
 !define OUTFILE "nsis-output.exe"
 !define ARCH "x64"
-!define ADDITIONALPLUGINSPATH "C:\Users\20235\AppData\Local\tauri\NSIS\Plugins\x86-unicode\additional"
+; Tauri 本地 NSIS 插件目录（存放 nsis_tauri_utils.dll）。这里必须保留占位符：
+; 该路径因机器而异，打包时由 Tauri CLI 按本机实际位置替换；写成某个开发机的
+; 绝对路径既会泄漏本机用户名，也会让别人的安装包构建失败。
+!define ADDITIONALPLUGINSPATH "{{additional_plugins_path}}"
 !define ALLOWDOWNGRADES "true"
 !define DISPLAYLANGUAGESELECTOR "false"
 !define INSTALLWEBVIEW2MODE "downloadBootstrapper"

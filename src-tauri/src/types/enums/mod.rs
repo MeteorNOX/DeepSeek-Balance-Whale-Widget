@@ -11,7 +11,7 @@
 //! | [`dialogue`] | `DialogueMode` | 台词播放模式 |
 //! | [`audio`] | `AudioMode` | 音效组模式（单 / 双音效） |
 //! | [`widget`] | `WidgetState` | 挂件图片状态 |
-//! | [`window`] | `HorizontalAnchor` / `VerticalAnchor` | 挂件窗口吸附锚点 |
+//! | [`window`] | `HorizontalAnchor` / `VerticalAnchor` / `Facing` | 挂件窗口吸附锚点与朝向 |
 //! | [`pricing`] | `PeakPeriod` / `DateKind` | 峰谷时段与日期类型 |
 //! | [`error`] | `ErrorCode` | 统一异常码 |
 //!
@@ -31,4 +31,4 @@ pub use dialogue::DialogueMode;
 pub use error::ErrorCode;
 pub use pricing::{DateKind, PeakPeriod};
 pub use widget::WidgetState;
-pub use window::{HorizontalAnchor, VerticalAnchor};
+pub use window::{Facing, HorizontalAnchor, VerticalAnchor};

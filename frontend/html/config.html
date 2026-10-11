@@ -24,7 +24,11 @@
   <body>
     <div class="app">
       <header class="header">
-        <h1>小鲸鱼设置</h1>
+        <div class="title-block">
+          <h1>小鲸鱼设置</h1>
+          <!-- 当前软件版本（非远端最新版），由 config.js 经 Tauri app.getVersion() 回填。 -->
+          <span class="app-version" id="appVersion" hidden></span>
+        </div>
         <a id="tutorial" class="tutorial-link" href="#">使用教程</a>
       </header>
 
@@ -47,7 +51,14 @@
           <div class="model-head supplier-head">
             <h2>余额与模型路由配置</h2>
             <div class="scope-bar">
-              <button id="scopeBalance" type="button" class="scope-tab active">余额配置</button>
+              <button
+                id="scopeBalance"
+                type="button"
+                class="scope-tab scope-primary active"
+              >
+                余额配置
+              </button>
+              <span class="scope-divider" aria-hidden="true"></span>
               <div class="scope-clients" id="scopeClients"></div>
               <button
                 id="addSupplier"
@@ -56,7 +67,10 @@
                 title="添加供应商"
                 aria-label="添加供应商"
               >
-                <span class="icon" style="--icon: url('../assets/icons/plus.svg')"></span>
+                <span
+                  class="icon"
+                  style="--icon: url(&quot;../assets/icons/plus.svg&quot;)"
+                ></span>
               </button>
             </div>
             <button
@@ -83,7 +97,9 @@
           <div class="supplier-body collapsible" id="supplierBody">
             <div class="collapsible-inner">
               <div class="supplier-list" id="supplierList"></div>
-              <div class="supplier-empty" id="supplierEmpty">目前没有任何供应商余额配置</div>
+              <div class="supplier-empty" id="supplierEmpty">
+                目前没有任何供应商余额配置
+              </div>
             </div>
           </div>
         </section>
@@ -114,9 +130,16 @@
                   />
                 </svg>
               </button>
-              <div class="picker-list" id="widgetBodyList" role="listbox" hidden></div>
+              <div
+                class="picker-list"
+                id="widgetBodyList"
+                role="listbox"
+                hidden
+              ></div>
             </div>
-            <button id="uploadBodyBtn" type="button" class="toggle-eye">上传图片</button>
+            <button id="uploadBodyBtn" type="button" class="toggle-eye">
+              上传图片
+            </button>
           </div>
           <label class="field">
             <span class="field-label short">大小</span>
@@ -145,9 +168,16 @@
                   />
                 </svg>
               </button>
-              <div class="picker-list" id="widgetSoundList" role="listbox" hidden></div>
+              <div
+                class="picker-list"
+                id="widgetSoundList"
+                role="listbox"
+                hidden
+              ></div>
             </div>
-            <button id="addCustomSound" type="button" class="toggle-eye">上传音效</button>
+            <button id="addCustomSound" type="button" class="toggle-eye">
+              上传音效
+            </button>
           </div>
           <label class="field">
             <span class="field-label short">音量</span>
@@ -210,9 +240,17 @@
                 <label class="field">
                   <span class="field-label short">眨眼频率</span>
                   <div class="range-inputs">
-                    <input id="blinkIntervalMinSec" type="text" inputmode="numeric" />
+                    <input
+                      id="blinkIntervalMinSec"
+                      type="text"
+                      inputmode="numeric"
+                    />
                     <span class="range-sep">至</span>
-                    <input id="blinkIntervalMaxSec" type="text" inputmode="numeric" />
+                    <input
+                      id="blinkIntervalMaxSec"
+                      type="text"
+                      inputmode="numeric"
+                    />
                   </div>
                   <span class="ctx-unit">秒</span>
                 </label>
@@ -269,7 +307,11 @@
                       aria-expanded="false"
                     >
                       <span class="picker-label"></span>
-                      <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                      <svg
+                        class="picker-caret"
+                        viewBox="0 0 12 8"
+                        aria-hidden="true"
+                      >
                         <path
                           d="M1 1.5 6 6.5 11 1.5"
                           fill="none"
@@ -315,9 +357,20 @@
           <div class="model-head">
             <h2>台词管理</h2>
             <div class="dialogue-actions">
-              <button id="addLine" type="button" class="toggle-eye">添加台词</button>
-              <button id="resetLines" type="button" class="toggle-eye">恢复默认台词</button>
-              <button id="toggleDialogue" type="button" class="toggle-eye" aria-expanded="false">展开</button>
+              <button id="addLine" type="button" class="toggle-eye">
+                添加台词
+              </button>
+              <button id="resetLines" type="button" class="toggle-eye">
+                恢复默认台词
+              </button>
+              <button
+                id="toggleDialogue"
+                type="button"
+                class="toggle-eye"
+                aria-expanded="false"
+              >
+                展开
+              </button>
             </div>
           </div>
           <div class="dialogue-body collapsible" id="dialogueBody">
@@ -334,7 +387,11 @@
                     aria-expanded="false"
                   >
                     <span class="picker-label"></span>
-                    <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                    <svg
+                      class="picker-caret"
+                      viewBox="0 0 12 8"
+                      aria-hidden="true"
+                    >
                       <path
                         d="M1 1.5 6 6.5 11 1.5"
                         fill="none"
@@ -360,7 +417,13 @@
               </label>
               <label class="field">
                 <span class="field-label short">波动幅度</span>
-                <input id="dialogueJitter" type="range" min="0" max="100" step="1" />
+                <input
+                  id="dialogueJitter"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                />
                 <span id="dialogueJitterVal" class="scale-val">0%</span>
               </label>
             </div>
@@ -434,7 +497,11 @@
                           aria-expanded="false"
                         >
                           <span class="picker-label"></span>
-                          <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                          <svg
+                            class="picker-caret"
+                            viewBox="0 0 12 8"
+                            aria-hidden="true"
+                          >
                             <path
                               d="M1 1.5 6 6.5 11 1.5"
                               fill="none"
@@ -445,7 +512,12 @@
                             />
                           </svg>
                         </button>
-                        <div class="picker-list" id="bubbleGroupList" role="listbox" hidden></div>
+                        <div
+                          class="picker-list"
+                          id="bubbleGroupList"
+                          role="listbox"
+                          hidden
+                        ></div>
                       </div>
                     </div>
                     <!-- 顶部可选模块区：列出全部可添加的模块，点击即添加到下方编辑区 -->
@@ -497,7 +569,10 @@
                               stroke-width="18"
                             />
                           </svg>
-                          <div class="dsb-preview-text" id="bubblePreview"></div>
+                          <div
+                            class="dsb-preview-text"
+                            id="bubblePreview"
+                          ></div>
                         </div>
                       </div>
                     </div>
@@ -509,7 +584,9 @@
                      挂在折叠体之外：折叠体的 .collapsible-inner 是 overflow:hidden，
                      放进去会被折叠动画的高度裁掉。 -->
                 <div class="dsb-apply-dock">
-                  <button id="bubbleApply" type="button" class="dsb-apply">应用</button>
+                  <button id="bubbleApply" type="button" class="dsb-apply">
+                    应用
+                  </button>
                 </div>
               </div>
             </div>
@@ -521,8 +598,12 @@
           <div class="model-head">
             <h2>系统配置</h2>
             <div class="dialogue-actions">
-              <button id="resetColor" type="button" class="toggle-eye">重置设置</button>
-              <button id="checkUpdate" type="button" class="toggle-eye">检查更新</button>
+              <button id="resetColor" type="button" class="toggle-eye">
+                重置设置
+              </button>
+              <button id="checkUpdate" type="button" class="toggle-eye">
+                检查更新
+              </button>
             </div>
           </div>
           <div class="sys-row">
@@ -544,20 +625,40 @@
           <div class="field">
             <span class="field-label short">全局主题</span>
             <div class="theme-picker" id="themePicker">
-              <button type="button" class="theme-btn active" data-theme="light">浅色</button>
-              <button type="button" class="theme-btn" data-theme="dark">深色</button>
-              <button type="button" class="theme-btn" data-theme="glass">毛玻璃</button>
+              <button type="button" class="theme-btn active" data-theme="light">
+                浅色
+              </button>
+              <button type="button" class="theme-btn" data-theme="dark">
+                深色
+              </button>
+              <button type="button" class="theme-btn" data-theme="glass">
+                毛玻璃
+              </button>
             </div>
           </div>
           <!-- 配置文件：只读展示数据目录，「打开」用系统文件管理器定位到该目录。 -->
           <div class="field">
             <span class="field-label short">配置文件</span>
-            <input id="dataDir" type="text" readonly aria-label="配置文件所在目录" />
-            <button id="openDataDir" type="button" class="toggle-eye">打开</button>
+            <input
+              id="dataDir"
+              type="text"
+              readonly
+              aria-label="配置文件所在目录"
+            />
+            <button id="openDataDir" type="button" class="toggle-eye">
+              打开
+            </button>
           </div>
           <div class="field">
             <span class="field-label short">全局颜色</span>
-            <input id="globalColor" type="range" min="0" max="360" step="1" class="color-slider" />
+            <input
+              id="globalColor"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              class="color-slider"
+            />
           </div>
         </section>
       </main>
@@ -572,7 +673,13 @@
         <div class="modal-title">确认</div>
         <div class="modal-msg" id="confirmMsg"></div>
         <div class="modal-actions">
-          <button id="confirmYes" type="button" class="modal-btn modal-btn-primary">是</button>
+          <button
+            id="confirmYes"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
+            是
+          </button>
           <button id="confirmNo" type="button" class="modal-btn">否</button>
         </div>
       </div>
@@ -590,13 +697,27 @@
           spellcheck="false"
         />
         <div class="audio-mode-picker" id="soundModePicker">
-          <button type="button" class="audio-mode-btn active" data-mode="press">按下</button>
-          <button type="button" class="audio-mode-btn" data-mode="release">松开</button>
-          <button type="button" class="audio-mode-btn" data-mode="dual">按下松开</button>
+          <button type="button" class="audio-mode-btn active" data-mode="press">
+            按下
+          </button>
+          <button type="button" class="audio-mode-btn" data-mode="release">
+            松开
+          </button>
+          <button type="button" class="audio-mode-btn" data-mode="dual">
+            按下松开
+          </button>
         </div>
         <div class="modal-actions">
-          <button id="soundNameOk" type="button" class="modal-btn modal-btn-primary">确认</button>
-          <button id="soundNameCancel" type="button" class="modal-btn">取消</button>
+          <button
+            id="soundNameOk"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
+            确认
+          </button>
+          <button id="soundNameCancel" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
       <div class="modal name-modal" id="bodyNameModal" hidden>
@@ -613,8 +734,16 @@
           spellcheck="false"
         />
         <div class="modal-actions">
-          <button id="bodyNameOk" type="button" class="modal-btn modal-btn-primary">确认</button>
-          <button id="bodyNameCancel" type="button" class="modal-btn">取消</button>
+          <button
+            id="bodyNameOk"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
+            确认
+          </button>
+          <button id="bodyNameCancel" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
 
@@ -667,7 +796,13 @@
           </div>
           <label class="field dsb-only" data-only="media" hidden>
             <span class="field-label short">媒体宽度</span>
-            <input id="blockMediaWidth" type="range" min="50" max="300" step="10" />
+            <input
+              id="blockMediaWidth"
+              type="range"
+              min="50"
+              max="300"
+              step="10"
+            />
             <span class="scale-val" id="blockMediaWidthVal">120px</span>
           </label>
           <!-- 余额 / 今日已用模块：数据来源供应商 -->
@@ -692,11 +827,20 @@
                   />
                 </svg>
               </button>
-              <div class="picker-list" id="blockSupplierList" role="listbox" hidden></div>
+              <div
+                class="picker-list"
+                id="blockSupplierList"
+                role="listbox"
+                hidden
+              ></div>
             </div>
           </div>
           <!-- 字体（媒体模块没有文字，不展示） -->
-          <div class="field dsb-only" data-only="text balance today countdown link" hidden>
+          <div
+            class="field dsb-only"
+            data-only="text balance today countdown link"
+            hidden
+          >
             <span class="field-label short">字体</span>
             <div class="picker" id="blockFontPicker">
               <button
@@ -717,18 +861,40 @@
                   />
                 </svg>
               </button>
-              <div class="picker-list" id="blockFontList" role="listbox" hidden></div>
+              <div
+                class="picker-list"
+                id="blockFontList"
+                role="listbox"
+                hidden
+              ></div>
             </div>
-            <button id="blockFontPick" type="button" class="toggle-eye">上传字体</button>
+            <button id="blockFontPick" type="button" class="toggle-eye">
+              上传字体
+            </button>
           </div>
-          <label class="field dsb-only" data-only="text balance today countdown link" hidden>
+          <label
+            class="field dsb-only"
+            data-only="text balance today countdown link"
+            hidden
+          >
             <span class="field-label short">字体大小</span>
             <input id="blockFontSize" type="range" min="10" max="40" step="1" />
             <span class="scale-val" id="blockFontSizeVal">18</span>
           </label>
-          <label class="field dsb-only" data-only="text balance today countdown link" hidden>
+          <label
+            class="field dsb-only"
+            data-only="text balance today countdown link"
+            hidden
+          >
             <span class="field-label short">字体颜色</span>
-            <input id="blockColor" type="range" min="0" max="360" step="1" class="color-slider" />
+            <input
+              id="blockColor"
+              type="range"
+              min="0"
+              max="360"
+              step="1"
+              class="color-slider"
+            />
           </label>
           <!-- 背景色：仅勾选「底色」时展示 -->
           <label
@@ -748,7 +914,11 @@
             />
           </label>
           <!-- 排布格式：加粗 / 文字底色 / 下划线 / 斜体 四个图标按钮 + 流光 -->
-          <div class="field dsb-only" data-only="text balance today countdown link" hidden>
+          <div
+            class="field dsb-only"
+            data-only="text balance today countdown link"
+            hidden
+          >
             <span class="field-label short">格式</span>
             <div class="dsb-fmt">
               <button
@@ -760,7 +930,10 @@
                 aria-label="加粗"
                 aria-pressed="false"
               >
-                <span class="icon" style="--icon: url('../assets/icons/bold.svg')"></span>
+                <span
+                  class="icon"
+                  style="--icon: url(&quot;../assets/icons/bold.svg&quot;)"
+                ></span>
               </button>
               <button
                 id="blockBg"
@@ -771,7 +944,10 @@
                 aria-label="文字底色"
                 aria-pressed="false"
               >
-                <span class="icon" style="--icon: url('../assets/icons/text-bg.svg')"></span>
+                <span
+                  class="icon"
+                  style="--icon: url(&quot;../assets/icons/text-bg.svg&quot;)"
+                ></span>
               </button>
               <button
                 id="blockUnderline"
@@ -782,7 +958,10 @@
                 aria-label="下划线"
                 aria-pressed="false"
               >
-                <span class="icon" style="--icon: url('../assets/icons/underline.svg')"></span>
+                <span
+                  class="icon"
+                  style="--icon: url(&quot;../assets/icons/underline.svg&quot;)"
+                ></span>
               </button>
               <button
                 id="blockItalic"
@@ -793,7 +972,10 @@
                 aria-label="斜体"
                 aria-pressed="false"
               >
-                <span class="icon" style="--icon: url('../assets/icons/italic.svg')"></span>
+                <span
+                  class="icon"
+                  style="--icon: url(&quot;../assets/icons/italic.svg&quot;)"
+                ></span>
               </button>
               <label class="dsb-check">
                 <input id="blockGlow" type="checkbox" />
@@ -804,7 +986,11 @@
           <div class="field-error" id="blockError" hidden></div>
         </div>
         <div class="modal-actions">
-          <button id="blockApply" type="button" class="modal-btn modal-btn-primary">
+          <button
+            id="blockApply"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
             应用
           </button>
           <button id="blockCancel" type="button" class="modal-btn">取消</button>
@@ -816,7 +1002,11 @@
            下拉列表，同时落盘 data/bubble/<组名>/group.json；输入当前组名 →
            覆写当前组（等价于显式保存这次编辑）。
            与「挂件名称 / 音效名称」同一个 .name-modal 组件，蒙层与渐显渐隐完全一致。 -->
-      <div class="modal name-modal dsb-group-modal" id="bubbleGroupModal" hidden>
+      <div
+        class="modal name-modal dsb-group-modal"
+        id="bubbleGroupModal"
+        hidden
+      >
         <div class="modal-title" id="bubbleGroupTitle">自定义气泡组</div>
         <div class="modal-msg" id="bubbleGroupMsg">
           新名称＝另存新组；当前组名＝覆写当前组：
@@ -833,10 +1023,16 @@
           spellcheck="false"
         />
         <div class="modal-actions">
-          <button id="bubbleGroupOk" type="button" class="modal-btn modal-btn-primary">
+          <button
+            id="bubbleGroupOk"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
             应用
           </button>
-          <button id="bubbleGroupCancel" type="button" class="modal-btn">取消</button>
+          <button id="bubbleGroupCancel" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
     </div>
@@ -875,28 +1071,61 @@
             </div>
           </div>
           <div class="editor-ratios" id="editorRatios">
-            <button type="button" class="editor-ratio-btn active" data-ratio="free">自由</button>
-            <button type="button" class="editor-ratio-btn" data-ratio="1:1">1:1</button>
-            <button type="button" class="editor-ratio-btn" data-ratio="4:3">4:3</button>
-            <button type="button" class="editor-ratio-btn" data-ratio="3:4">3:4</button>
-            <button type="button" class="editor-ratio-btn" data-ratio="16:9">16:9</button>
-            <button type="button" class="editor-ratio-btn" data-ratio="9:16">9:16</button>
+            <button
+              type="button"
+              class="editor-ratio-btn active"
+              data-ratio="free"
+            >
+              自由
+            </button>
+            <button type="button" class="editor-ratio-btn" data-ratio="1:1">
+              1:1
+            </button>
+            <button type="button" class="editor-ratio-btn" data-ratio="4:3">
+              4:3
+            </button>
+            <button type="button" class="editor-ratio-btn" data-ratio="3:4">
+              3:4
+            </button>
+            <button type="button" class="editor-ratio-btn" data-ratio="16:9">
+              16:9
+            </button>
+            <button type="button" class="editor-ratio-btn" data-ratio="9:16">
+              9:16
+            </button>
           </div>
           <!-- 工具栏两行：第一行是画面调节（缩放 / 旋转），第二行是「状态 + 处理方式」，
                状态下拉与「智能抠图」「重新上传图片」同处一行，布局更紧凑协调。 -->
           <div class="editor-toolbar">
             <div class="editor-toolbar-row">
-              <label class="editor-tool">缩放
-                <input id="editorZoom" type="range" min="1" max="3" step="0.2" value="1" />
+              <label class="editor-tool"
+                >缩放
+                <input
+                  id="editorZoom"
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.2"
+                  value="1"
+                />
                 <span class="editor-val" id="editorZoomVal">100%</span>
               </label>
-              <label class="editor-tool">旋转
-                <input id="editorRotate" type="range" min="-180" max="180" step="20" value="0" />
+              <label class="editor-tool"
+                >旋转
+                <input
+                  id="editorRotate"
+                  type="range"
+                  min="-180"
+                  max="180"
+                  step="20"
+                  value="0"
+                />
                 <span class="editor-val" id="editorRotateVal">0°</span>
               </label>
             </div>
             <div class="editor-toolbar-row">
-              <div class="editor-tool">状态
+              <div class="editor-tool">
+                状态
                 <div class="picker editor-state-picker" id="editorStatePicker">
                   <button
                     type="button"
@@ -905,7 +1134,11 @@
                     aria-expanded="false"
                   >
                     <span class="picker-label"></span>
-                    <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                    <svg
+                      class="picker-caret"
+                      viewBox="0 0 12 8"
+                      aria-hidden="true"
+                    >
                       <path
                         d="M1 1.5 6 6.5 11 1.5"
                         fill="none"
@@ -926,13 +1159,25 @@
                   <span class="slider"></span>
                 </span>
               </label>
-              <button id="editorReplaceImage" type="button" class="editor-replace-btn">重新上传图片</button>
+              <button
+                id="editorReplaceImage"
+                type="button"
+                class="editor-replace-btn"
+              >
+                重新上传图片
+              </button>
             </div>
           </div>
         </div>
       </div>
       <div class="page-foot">
-        <button id="editorSave" type="button" class="modal-btn modal-btn-primary">保存</button>
+        <button
+          id="editorSave"
+          type="button"
+          class="modal-btn modal-btn-primary"
+        >
+          保存
+        </button>
         <button id="editorCancel" type="button" class="modal-btn">取消</button>
       </div>
     </div>
@@ -949,26 +1194,52 @@
         </div>
       </div>
       <div class="page-foot">
-        <button id="audioApply" type="button" class="modal-btn modal-btn-primary">应用</button>
+        <button
+          id="audioApply"
+          type="button"
+          class="modal-btn modal-btn-primary"
+        >
+          应用
+        </button>
         <button id="audioCancel" type="button" class="modal-btn">取消</button>
       </div>
     </div>
 
-    <div class="modal-overlay download-modal-overlay" id="downloadModalOverlay" hidden>
+    <div
+      class="modal-overlay download-modal-overlay"
+      id="downloadModalOverlay"
+      hidden
+    >
       <div class="modal" id="downloadConfirmModal" hidden>
         <div class="modal-title">下载抠图模型</div>
         <div class="modal-msg">需要下载抠图模型（213MB），是否下载？</div>
         <div class="modal-actions">
-          <button id="downloadConfirmYes" type="button" class="modal-btn modal-btn-primary">确定</button>
-          <button id="downloadConfirmNo" type="button" class="modal-btn">取消</button>
+          <button
+            id="downloadConfirmYes"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
+            确定
+          </button>
+          <button id="downloadConfirmNo" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
       <div class="modal" id="downloadErrorModal" hidden>
         <div class="modal-title">下载失败</div>
         <div class="modal-msg" id="downloadErrorMsg"></div>
         <div class="modal-actions">
-          <button id="downloadRetry" type="button" class="modal-btn modal-btn-primary">重新下载</button>
-          <button id="downloadCancel" type="button" class="modal-btn">取消</button>
+          <button
+            id="downloadRetry"
+            type="button"
+            class="modal-btn modal-btn-primary"
+          >
+            重新下载
+          </button>
+          <button id="downloadCancel" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
     </div>
@@ -977,7 +1248,12 @@
       <div class="download-box">
         <div class="download-title">正在下载抠图模型</div>
         <div class="download-percent" id="downloadPercent">0%</div>
-        <progress class="download-bar" id="downloadBar" max="100" value="0"></progress>
+        <progress
+          class="download-bar"
+          id="downloadBar"
+          max="100"
+          value="0"
+        ></progress>
       </div>
     </div>
 
@@ -986,7 +1262,10 @@
       <div class="modal supplier-modal" id="presetModal" hidden>
         <div class="modal-title" id="presetTitle">添加供应商</div>
         <div class="search-row">
-          <span class="icon search-icon" style="--icon: url('../assets/icons/search.svg')"></span>
+          <span
+            class="icon search-icon"
+            style="--icon: url(&quot;../assets/icons/search.svg&quot;)"
+          ></span>
           <input
             id="presetSearch"
             type="text"
@@ -998,8 +1277,12 @@
         <div class="preset-list" id="presetList" role="listbox"></div>
         <div class="preset-empty" id="presetEmpty" hidden>没有匹配的供应商</div>
         <div class="modal-actions">
-          <button id="presetCustom" type="button" class="modal-btn">自定义供应商</button>
-          <button id="presetCancel" type="button" class="modal-btn">取消</button>
+          <button id="presetCustom" type="button" class="modal-btn">
+            自定义供应商
+          </button>
+          <button id="presetCancel" type="button" class="modal-btn">
+            取消
+          </button>
         </div>
       </div>
     </div>
@@ -1014,23 +1297,46 @@
         <div class="page-col page-panel">
           <div class="form-section">
             <div class="form-section-title">基础信息</div>
-            <div class="form-section-hint">带<span class="required-mark">*</span>为必填项</div>
+            <div class="form-section-hint">
+              带<span class="required-mark">*</span>为必填项
+            </div>
             <label class="field">
-              <span class="field-label short">供应商名称<span class="required-mark">*</span></span>
-              <input id="supName" type="text" placeholder="例如：DeepSeek" autocomplete="off" />
+              <span class="field-label short"
+                >供应商名称<span class="required-mark">*</span></span
+              >
+              <input
+                id="supName"
+                type="text"
+                placeholder="例如：DeepSeek"
+                autocomplete="off"
+              />
             </label>
             <div class="field-error" id="supNameError" hidden></div>
             <label class="field">
-              <span class="field-label short">API Key<span class="required-mark">*</span></span>
-              <input id="supApiKey" type="password" placeholder="sk-…" autocomplete="off" />
-              <button id="supToggleKey" type="button" class="toggle-eye">显示</button>
+              <span class="field-label short"
+                >API Key<span class="required-mark">*</span></span
+              >
+              <input
+                id="supApiKey"
+                type="password"
+                placeholder="sk-…"
+                autocomplete="off"
+              />
+              <button id="supToggleKey" type="button" class="toggle-eye">
+                显示
+              </button>
             </label>
             <div class="field-error" id="supApiKeyError" hidden></div>
             <!-- 「获取 API Key」紧跟在 API Key 输入框下方（与它描述的字段相邻）。 -->
             <div class="field" id="supKeyLinkRow" hidden>
               <span class="field-label short"></span>
               <button id="supKeyLink" type="button" class="link-btn">
-                <span class="icon" style="--icon: url('../assets/icons/external-link.svg')"></span>
+                <span
+                  class="icon"
+                  style="
+                    --icon: url(&quot;../assets/icons/external-link.svg&quot;);
+                  "
+                ></span>
                 获取 API Key
               </button>
             </div>
@@ -1044,10 +1350,14 @@
                 placeholder="网页控制台会话令牌（可选）"
                 autocomplete="off"
               />
-              <button id="supToggleToken" type="button" class="toggle-eye">显示</button>
+              <button id="supToggleToken" type="button" class="toggle-eye">
+                显示
+              </button>
             </label>
             <label class="field">
-              <span class="field-label short">请求地址<span class="required-mark">*</span></span>
+              <span class="field-label short"
+                >请求地址<span class="required-mark">*</span></span
+              >
               <input
                 id="supBaseUrl"
                 type="text"
@@ -1067,7 +1377,11 @@
                   aria-expanded="false"
                 >
                   <span class="picker-label"></span>
-                  <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <svg
+                    class="picker-caret"
+                    viewBox="0 0 12 8"
+                    aria-hidden="true"
+                  >
                     <path
                       d="M1 1.5 6 6.5 11 1.5"
                       fill="none"
@@ -1091,7 +1405,11 @@
                   aria-expanded="false"
                 >
                   <span class="picker-label"></span>
-                  <svg class="picker-caret" viewBox="0 0 12 8" aria-hidden="true">
+                  <svg
+                    class="picker-caret"
+                    viewBox="0 0 12 8"
+                    aria-hidden="true"
+                  >
                     <path
                       d="M1 1.5 6 6.5 11 1.5"
                       fill="none"
@@ -1107,7 +1425,12 @@
             </div>
             <label class="field" id="supNoteRow">
               <span class="field-label short">备注</span>
-              <input id="supNote" type="text" placeholder="可选" autocomplete="off" />
+              <input
+                id="supNote"
+                type="text"
+                placeholder="可选"
+                autocomplete="off"
+              />
             </label>
           </div>
 
@@ -1126,7 +1449,8 @@
                 <div class="form-section-actions" id="supCatalogActions"></div>
               </div>
               <div class="form-section-hint">
-                生成 Codex model_catalog_json，让 /model 命令显示这些第三方模型名
+                生成 Codex model_catalog_json，让 /model
+                命令显示这些第三方模型名
               </div>
               <div id="supCatalogRows"></div>
             </div>
@@ -1153,8 +1477,16 @@
         </div>
       </div>
       <div class="page-foot">
-        <button id="supplierSave" type="button" class="modal-btn modal-btn-primary">保存</button>
-        <button id="supplierCancel" type="button" class="modal-btn">取消</button>
+        <button
+          id="supplierSave"
+          type="button"
+          class="modal-btn modal-btn-primary"
+        >
+          保存
+        </button>
+        <button id="supplierCancel" type="button" class="modal-btn">
+          取消
+        </button>
       </div>
     </div>
 
@@ -1174,13 +1506,17 @@
               用来在不同供应商之间共享插件、环境变量等非敏感配置。切换供应商时不会丢失这些设置。
             </p>
             <p class="common-guide-body">
-              用法：① 点击「从编辑内容提取」保存通用部分 ② 新建供应商时勾选「应用通用配置」
+              用法：① 点击「从编辑内容提取」保存通用部分 ②
+              新建供应商时勾选「应用通用配置」
             </p>
             <p class="common-guide-body">
-              如果您新安装了插件或 Hook，请重新提取一次通用配置，以便同步到其他供应商。
+              如果您新安装了插件或
+              Hook，请重新提取一次通用配置，以便同步到其他供应商。
             </p>
           </div>
-          <div class="common-hint">该片段会在勾选'应用通用配置'时追加到 config.toml 末尾</div>
+          <div class="common-hint">
+            该片段会在勾选'应用通用配置'时追加到 config.toml 末尾
+          </div>
           <!-- 与「配置预览」里的 json / toml 展示框同一套样式；wrap="off" 让长行横向
                滚动而不是折行，纵向高度由前端随内容自适应（完整展示、无内部纵向滚动条）。 -->
           <textarea
@@ -1194,9 +1530,19 @@
         </div>
       </div>
       <div class="page-foot">
-        <button id="commonConfigExtract" type="button" class="modal-btn">从编辑内容提取</button>
-        <button id="commonConfigSave" type="button" class="modal-btn modal-btn-primary">保存</button>
-        <button id="commonConfigCancel" type="button" class="modal-btn">取消</button>
+        <button id="commonConfigExtract" type="button" class="modal-btn">
+          从编辑内容提取
+        </button>
+        <button
+          id="commonConfigSave"
+          type="button"
+          class="modal-btn modal-btn-primary"
+        >
+          保存
+        </button>
+        <button id="commonConfigCancel" type="button" class="modal-btn">
+          取消
+        </button>
       </div>
     </div>
 
@@ -1247,7 +1593,9 @@
             </div>
             <!-- 金额柱状图：逐时间段的总消费。鼠标悬浮的提示里按模型逐行列出金额。 -->
             <div class="usage-chart" id="usageChart"></div>
-            <div class="usage-blank" id="usageMoneyEmpty" hidden>暂无金额消耗</div>
+            <div class="usage-blank" id="usageMoneyEmpty" hidden>
+              暂无金额消耗
+            </div>
           </div>
           <!-- 模型 Token 柱状图：「模型 Token 消耗」是一级标题（与「金额消耗」同字号），
                其下每个模型一块独立图表（命中缓存 / 未命中缓存 / 输出），模型名是二级标题。
@@ -1258,10 +1606,12 @@
               <span class="usage-block-title">模型 Token 消耗</span>
               <span class="usage-token-legend">
                 <span class="usage-token-key">
-                  <i class="usage-token-dot usage-token-dot-hit"></i>输入（命中缓存）
+                  <i class="usage-token-dot usage-token-dot-hit"></i
+                  >输入（命中缓存）
                 </span>
                 <span class="usage-token-key">
-                  <i class="usage-token-dot usage-token-dot-miss"></i>输入（未命中缓存）
+                  <i class="usage-token-dot usage-token-dot-miss"></i
+                  >输入（未命中缓存）
                 </span>
                 <span class="usage-token-key">
                   <i class="usage-token-dot usage-token-dot-out"></i>输出
@@ -1269,7 +1619,9 @@
               </span>
             </div>
             <div class="usage-token-charts" id="usageTokenCharts"></div>
-            <div class="usage-blank" id="usageTokenEmpty" hidden>暂无模型 Token 消耗</div>
+            <div class="usage-blank" id="usageTokenEmpty" hidden>
+              暂无模型 Token 消耗
+            </div>
           </div>
           <div class="usage-daily" id="usageDailyList"></div>
         </div>

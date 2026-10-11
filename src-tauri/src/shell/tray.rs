@@ -13,8 +13,8 @@ use tauri::{
 };
 
 use super::window;
-use crate::types::common::constants::{MENU_OPEN_CONFIG, MENU_QUIT, MENU_SHOW_WIDGET, TRAY_ID};
 use crate::application::registry;
+use crate::types::common::constants::{MENU_OPEN_CONFIG, MENU_QUIT, MENU_SHOW_WIDGET, TRAY_ID};
 
 /// 构建托盘菜单；`widget_visible` 决定「显示桌宠」是否打勾。
 fn build_menu(app: &AppHandle, widget_visible: bool) -> tauri::Result<Menu<Wry>> {

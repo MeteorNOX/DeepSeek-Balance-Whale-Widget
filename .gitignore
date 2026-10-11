@@ -19,6 +19,13 @@ lerna-debug.log*
 .env.*
 !.env.example
 
+# ---- 运行时数据（含 API Key 与用量记录，绝不能提交）----
+# 便携版会把 data/ 放在主程序同级；从仓库内运行或复制便携包进来时，
+# credential.json 里是真实 API Key，误提交等于直接泄露账号。
+/data/
+/DSW-Data/
+src-tauri/data/
+
 # ---- 编辑器与系统文件 ----
 .vscode/*
 !.vscode/extensions.json
