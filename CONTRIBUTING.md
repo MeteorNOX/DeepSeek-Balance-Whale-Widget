@@ -62,7 +62,7 @@ dsh-whale-widget/
 
 ### 发布流程（改版本号前必读）
 
-余额排版回归：`node tools/balance-fit-ui.mjs` 使用模拟余额验证原版前端，输出前后截图与结果。需安装 Playwright 和 Electron；也可通过 `WHALE_PLAYWRIGHT_DIR` 指定已有依赖所在目录（例如另一项目的 `node_modules`），不增加插件的运行时依赖。`WHALE_FIT_OUTPUT` 可指定截图目录，默认位于系统临时目录；加 `--serve` 启动本机交互对比页面，可调整模拟余额、字号和安全区宽度。测试不连接真实账户、不写入真实配置。
+余额排版回归：`node tools/balance-fit-ui.mjs` 使用模拟余额验证原版前端，输出前后截图与结果（模拟泡泡与真实一致，含峰谷状态徽标与倒计时行）。需安装 Playwright 和 Electron；也可通过 `WHALE_PLAYWRIGHT_DIR` 指定已有依赖所在目录（例如另一项目的 `node_modules`），不增加插件的运行时依赖。`WHALE_FIT_OUTPUT` 可指定截图目录，默认位于系统临时目录；加 `--serve` 启动本机交互对比页面，可调整模拟余额、字号和安全区宽度，`WHALE_FIT_PORT` 可固定预览端口（默认随机）。测试不连接真实账户、不写入真实配置。
 
 **发布是手动触发的，push 不会发版。**
 

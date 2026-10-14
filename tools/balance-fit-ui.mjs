@@ -20,6 +20,7 @@ const hook = `
 window.balanceFixture = function(o) {
   if (animId) cancelAnimationFrame(animId);
   shown = null; state.balance = o.balance; state.currency = o.currency || 'CNY'; state.status = 'ok';
+  state.isPeak = bubbleCountdownIsPeak(); // 无服务端数据:峰谷状态与本地倒计时规则同源
   root.style.width = o.width + 'px'; root.style.height = o.width + 'px';
   root.style.setProperty('--dshw-u', (o.width / 1026) + 'px');
   textBox.style.setProperty('--dshw-u', (o.width / 1026) + 'px');
@@ -28,7 +29,11 @@ window.balanceFixture = function(o) {
   textBox.style.width = o.safe ? o.safe + '%' : '66%';
   var mods = [{type:'text',text:'DeepSeek 余额',size:6,bold:true},
     {type:'balance',size:o.size || 21,tpl:o.tpl || '{balance_ds}',bg:o.bg || '',fontFamily:o.font || ''},
-    {type:'text',text:'今日已用 ¥ 0.00',size:4}];
+    {type:'text',text:'今日已用 ¥ 0.00',size:4},
+    // #245 预览与真实泡泡对齐:峰谷行(状态徽标 + 倒计时)本来就在泡内,不能漏
+    {type:'peak',row:4,size:4,bold:true,peakStyle:'mini',peakColor:'#ffffff',peakBg:'#e0433f',offColor:'#ffffff',offBg:'#2fa24c',tpl:'{status}'},
+    {type:'peak',row:4,size:6,bold:true,peakStyle:'count',peakColor:'#e0433f',offColor:'#2fa24c',tpl:'{countdown}'}];
+  window.__fixtureBalanceText = bubbleAmountText();
   bubbleShown = false;
   sceneOpen('custom', function(){bubbleRenderModules(mods)}, 0);
   if (o.legacy) {
@@ -61,7 +66,7 @@ const server = http.createServer((req, res) => {
   if (fs.existsSync(asset) && fs.statSync(asset).isFile()) { res.setHeader('Content-Type',name.endsWith('.png')?'image/png':name.endsWith('.gif')?'image/gif':'application/octet-stream'); fs.createReadStream(asset).pipe(res); return }
   res.setHeader('Content-Type','application/json'); res.end('{}')
 })
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+await new Promise(resolve => server.listen(Number(process.env.WHALE_FIT_PORT) || 0, '127.0.0.1', resolve))
 const url = `http://127.0.0.1:${server.address().port}`
 console.log('Preview: ' + url)
 if (process.argv.includes('--serve')) { fs.writeFileSync(path.join(output,'preview-url.txt'),url); }
@@ -75,14 +80,36 @@ else {
     const page = await app.firstWindow()
     const options = { balance:24271.67,currency:'CNY',width:487,size:21 }
     const setup = async(mode,o=options)=>{await page.goto(url+'/fixture?mode='+mode);await page.waitForFunction(()=>!!window.balanceFixture);await page.evaluate(o=>window.balanceFixture(o),o);await page.waitForTimeout(650)}
+    // 余额行按夹具记录的文本定位:峰谷行加入后,行序不再是固定位置
     const geometry = () => page.evaluate(() => {
-      const row = document.querySelector('.dshwv-text .dshwv-trow:nth-last-child(2)') || document.querySelector('.dshwv-amount')
+      const rows = Array.prototype.slice.call(document.querySelectorAll('.dshwv-text .dshwv-trow'))
+      const row = rows.filter(el => el.textContent === window.__fixtureBalanceText).pop()
+      if (!row) throw new Error('balance row not found (want ' + window.__fixtureBalanceText + ')')
       const range=document.createRange();range.selectNodeContents(row);const boxes=[...range.getClientRects()];const css=getComputedStyle(row)
       return {text:row.textContent,lines:new Set(boxes.map(b=>Math.round(b.top))).size,font:parseFloat(css.fontSize),width:row.getBoundingClientRect().width,parent:row.parentElement.clientWidth,overflow:row.scrollWidth>row.clientWidth+1}
     })
-    await setup('before');const baseline=await geometry();await page.screenshot({path:path.join(output,'before.png')})
-    await setup('after');const fixed=await geometry();await page.screenshot({path:path.join(output,'after.png')})
-    console.log(JSON.stringify({baseline,fixed}));assert.ok(baseline.lines>1,JSON.stringify(baseline));assert.equal(fixed.lines,1);assert.equal(fixed.text,'¥ 24271.67');assert.ok(fixed.font<baseline.font);assert.equal(fixed.overflow,false)
+    // 峰谷行探针:状态徽标 + HH:MM:SS 倒计时,且同行显示(修复前后内容一致)
+    const peakRow = () => page.evaluate(() => {
+      const rows = Array.prototype.slice.call(document.querySelectorAll('.dshwv-text .dshwv-trow'))
+      const badge = rows.filter(el => el.textContent === '峰' || el.textContent === '谷')[0]
+      const count = rows.filter(el => /^\d{2}:\d{2}:\d{2}$/.test(el.textContent))[0]
+      const linesOf = (el) => { const r = document.createRange(); r.selectNodeContents(el); return new Set(Array.prototype.slice.call(r.getClientRects()).map(b => Math.round(b.top))).size }
+      return {
+        badge: badge ? badge.textContent : null,
+        countdown: count ? count.textContent : null,
+        sameRow: !!(badge && count && badge.parentElement === count.parentElement),
+        countdownLines: count ? linesOf(count) : 0,
+      }
+    })
+    await setup('before');const baseline=await geometry();const baselinePeak=await peakRow();await page.screenshot({path:path.join(output,'before.png')})
+    await setup('after');const fixed=await geometry();const fixedPeak=await peakRow();await page.screenshot({path:path.join(output,'after.png')})
+    console.log(JSON.stringify({baseline,fixed,baselinePeak,fixedPeak}));assert.ok(baseline.lines>1,JSON.stringify(baseline));assert.equal(fixed.lines,1);assert.equal(fixed.text,'¥ 24271.67');assert.ok(fixed.font<baseline.font);assert.equal(fixed.overflow,false)
+    assert.equal(baselinePeak.badge,fixedPeak.badge)
+    assert.match(fixedPeak.badge,/^[峰谷]$/)
+    assert.match(fixedPeak.countdown,/^\d{2}:\d{2}:\d{2}$/)
+    assert.equal(fixedPeak.sameRow,true,JSON.stringify(fixedPeak))
+    assert.equal(fixedPeak.countdownLines,1)
+    assert.equal(baselinePeak.countdownLines,1)
     let cases = 0;
     for(const balance of [0,12.34,24271.67,9999999.99,-24271.67,null])for(const currency of ['CNY','USD','EUR'])for(const width of [240,487])for(const safe of [0,25]){
       await page.evaluate(o=>window.balanceFixture(o),{...options,balance,currency,width,safe,bg:'#ffe6ef',font:'Consolas'})
@@ -106,7 +133,8 @@ else {
     }
     await page.evaluate(()=>document.fonts.dispatchEvent(new Event('loadingdone')))
     await page.waitForTimeout(30);assert.equal((await geometry()).overflow,false)
-    fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({baseline,fixed,cases,small},null,2))
+    assert.match((await peakRow()).countdown,/^\d{2}:\d{2}:\d{2}$/)
+    fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({baseline,fixed,cases,small,baselinePeak,fixedPeak},null,2))
     await page.goto(url);await page.waitForTimeout(900);await page.screenshot({path:path.join(output,'comparison.png'),fullPage:true})
     console.log('Balance fit: original wrap reproduced; single-line values, currencies, fonts, safe areas, restoration, preview and animation passed.')
   } finally { await app.close();server.close();fs.rmSync(home,{recursive:true,force:true}) }
