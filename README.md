@@ -1,5 +1,7 @@
 # DSH 小鲸鱼记账挂件（DeepSeek Balance Whale Widget）
 
+大额余额显示：金额与币种保持一行，超宽时自动缩小显示字号，保留完整数值；保存的字号不变。维护者可用 `node tools/balance-fit-ui.mjs` 验证 #245 的修复，或加 `--serve` 查看模拟余额的前后对比。依赖与运行说明见 [贡献指南](CONTRIBUTING.md)。
+
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
 DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。

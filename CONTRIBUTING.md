@@ -50,7 +50,8 @@ dsh-whale-widget/
 │   └── minecraft-exp-orb.wav / task-end-a.wav
 │
 ├── tools/
-│   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   ├── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   └── balance-fit-ui.mjs                 #245 大额余额真实浏览器回归与交互对比预览
 │
 └── .github/workflows/
     ├── ci.yml                       68 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
@@ -60,6 +61,8 @@ dsh-whale-widget/
 > 上面的行数会随代码变化，不是硬约束。想核对或更新，用 `git ls-tree -r --long main` 看文件清单，用 `git show main:<路径>` 自行统计行数即可；改完请顺手更新本节和 README 里对应的数字。
 
 ### 发布流程（改版本号前必读）
+
+余额排版回归：`node tools/balance-fit-ui.mjs` 使用模拟余额验证原版前端，输出前后截图与结果。需安装 Playwright 和 Electron；也可通过 `WHALE_PLAYWRIGHT_DIR` 指定已有依赖所在目录（例如另一项目的 `node_modules`），不增加插件的运行时依赖。`WHALE_FIT_OUTPUT` 可指定截图目录，默认位于系统临时目录；加 `--serve` 启动本机交互对比页面，可调整模拟余额、字号和安全区宽度。测试不连接真实账户、不写入真实配置。
 
 **发布是手动触发的，push 不会发版。**
 
