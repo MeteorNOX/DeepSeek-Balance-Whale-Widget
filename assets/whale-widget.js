@@ -14193,6 +14193,7 @@ function applyBubbleLines(lines) {
   var els = [labelEl, amountEl, hintEl]
   for (var i = 0; i < 3; i++) {
     var el = els[i]
+    bubbleResetAmountFit(el)
     var ln = lines && lines[i]
     if (ln) {
       el.style.display = ''
@@ -14883,6 +14884,7 @@ function frameReapplyCurrent() {
   try {
     if (!bubbleShown) return
     applyBubbleFrameFor({ frameId: frameAppliedId, frameOverride: frameAppliedOverride })
+    bubbleScheduleAmountFit()
     // v846：框变了（尤其内容限制范围的宽度变了）⇒ 顺便把内容行重建一次，
     //   让"折行/宽度"按新的安全区重新算一遍（以前只有下次弹泡泡才会重排）。
     if (bubbleLiveMods && textBox) bubbleRowsTo(textBox, bubbleLiveMods)
@@ -18257,7 +18259,8 @@ function bubbleRowContentOf(mod) {
   if (mod.type === 'nextpeak' || (mod.type === 'peak' && bubbleIsPeakCount(mod))) return { txt: bubbleCountTextOf(mod), line: null }
   if (mod.type === 'balance') {
     var bv = bubbleIsModelMod(mod) ? apiModelBalanceText(mod.modelId) : bubbleAmountText()
-    return { txt: bubbleContentText(mod, bv), line: null }
+    var bt = bubbleContentText(mod, bv)
+    return { txt: bt, line: null, fitAmount: bt === bv }
   }
   // v782：赠金 / 充值余额两个数值模块（与「总余额(充值金额+赠金)」并列，取不到数时自动文案是 —）
   if (mod.type === 'bonus') return { txt: bubbleContentText(mod, bubbleBonusText()), line: null }
@@ -18297,6 +18300,55 @@ function bubbleRowContentOf(mod) {
 // 渲染一组模块为泡泡内容(F2 渲染层:按行分组 → 行内 flex 并排(≤6 模块/行)→ 超宽自动折行;
 // 图片单独一整行;泡泡行数上限维持 6)
 // 把模块追加为行到指定父容器(真实泡泡 textBox 与编辑器预览共用;旧配置每模块一行 → 与旧版逐像素一致)
+// #245: keep a bare balance (including its currency) together. Fit only the
+// displayed font; the saved font level and the formatted amount stay intact.
+function bubbleResetAmountFit(el) {
+  if (!el || !el._dshwAmountFontU) return
+  el.style.fontSize = ''
+  el.style.whiteSpace = ''
+  el.style.wordBreak = ''
+  el.style.overflowWrap = ''
+  el.style.maxWidth = ''
+  el.classList.remove('dshwv-amount-fit')
+  delete el._dshwAmountFontU
+}
+function bubbleFitAmount(el, fontU) {
+  if (!el || !el.parentElement) return
+  el._dshwAmountFontU = fontU
+  el.classList.add('dshwv-amount-fit')
+  el.style.fontSize = 'calc(var(--dshw-u) * ' + fontU + ')'
+  el.style.whiteSpace = 'nowrap'
+  el.style.wordBreak = 'normal'
+  el.style.overflowWrap = 'normal'
+  el.style.maxWidth = 'none'
+  var css = window.getComputedStyle(el)
+  var unit = parseFloat(css.fontSize) / fontU
+  var parent = el.parentElement
+  var available = parent.clientWidth
+  if (!parent.classList.contains('dshwv-textsafe')) available = Math.min(available, 560 * unit)
+  var padding = (parseFloat(css.paddingLeft) || 0) + (parseFloat(css.paddingRight) || 0)
+  var natural = el.scrollWidth - padding
+  if (available > padding && natural > available - padding) {
+    var ratio = Math.min(1, (available - padding - 1) / natural)
+    el.style.fontSize = 'calc(var(--dshw-u) * ' + (fontU * ratio) + ')'
+  }
+}
+function bubbleRefitAmounts() {
+  var els = document.querySelectorAll('.dshwv-amount-fit')
+  for (var i = 0; i < els.length; i++) bubbleFitAmount(els[i], els[i]._dshwAmountFontU)
+}
+var bubbleAmountFitFrame = null
+function bubbleScheduleAmountFit() {
+  if (bubbleAmountFitFrame !== null) return
+  bubbleAmountFitFrame = requestAnimationFrame(function () {
+    bubbleAmountFitFrame = null
+    bubbleRefitAmounts()
+  })
+}
+if (document.fonts) {
+  document.fonts.ready.then(bubbleScheduleAmountFit)
+  document.fonts.addEventListener('loadingdone', bubbleScheduleAmountFit)
+}
 function bubbleRowsTo(parentEl, mods) {
   if (!parentEl || !Array.isArray(mods)) return
   var old = parentEl.querySelectorAll('.dshwv-trow, .dshwv-mimg')
@@ -18410,12 +18462,17 @@ function bubbleRowsTo(parentEl, mods) {
         row.style.background = effBg
       }
     }
-    return { el: row, tx: tx, fSize: fSize, mod: m, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak }
+    return { el: row, tx: tx, fSize: fSize, mod: m, fitAmount: !!rowContent.fitAmount, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak }
   }
   // 超宽判定(与旧版一致):先单行渲染,测量实际超出泡泡内宽(560u)才允许该块内折行——
   // 预览与真实共用此逻辑,保证两者一致
   function maybeWrap(blk) {
     if (!blk || blk.peak) return
+    if (blk.fitAmount) {
+      bubbleFitAmount(blk.el, bubbleModuleFontU(blk.fSize))
+      bubbleScheduleAmountFit()
+      return
+    }
     try {
       var compFs = window.getComputedStyle ? parseFloat(window.getComputedStyle(blk.el).fontSize) : 0
       var multNow = bubbleModuleFontU(blk.fSize)
@@ -18563,7 +18620,7 @@ function bubbleRowsTo(parentEl, mods) {
           pe.style.boxDecorationBreak = 'clone'
           pe.style.webkitBoxDecorationBreak = 'clone'
         }
-        if (!pr.peak) {
+        if (!pr.peak && !pr.fitAmount) {
           pe.style.whiteSpace = 'normal'
           pe.style.overflowWrap = 'anywhere'
           pe.style.wordBreak = 'break-word'
@@ -18575,6 +18632,10 @@ function bubbleRowsTo(parentEl, mods) {
       parentEl.appendChild(para)
       for (var p2 = 0; p2 < chunk.length; p2++) {
         registerIfCountdown(chunk[p2])
+        if (chunk[p2].fitAmount) {
+          chunk[p2].el.style.display = 'inline-block'
+          maybeWrap(chunk[p2])
+        }
       }
       rows++
     }
@@ -19037,8 +19098,15 @@ function animateAmount(from, to, currency, duration) {
   if (from === to) {
     shown = to
     amountEl.textContent = fmt(to, currency)
+    bubbleFitAmount(amountEl, 128)
     return
   }
+  // Reserve the widest digits once, rather than measuring layout every frame.
+  var reserve = fmt(Math.max(Math.abs(from), Math.abs(to)), currency).replace(/[0-9]/g, '8')
+  if (from < 0 || to < 0) reserve = '-' + reserve
+  amountEl.textContent = reserve
+  bubbleFitAmount(amountEl, 128)
+  amountEl.textContent = fmt(from, currency)
   var startTime = null
   function step(ts) {
     // 帧级保护：成本泡泡出现后立即停止滚动，避免后续帧把余额写进金额行
@@ -19057,6 +19125,7 @@ function animateAmount(from, to, currency, duration) {
       animId = null
       shown = to
       amountEl.textContent = fmt(to, currency)
+      bubbleFitAmount(amountEl, 128)
     }
   }
   animId = requestAnimationFrame(step)
@@ -19076,6 +19145,7 @@ function render() {
     hint = (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
   }
   amountEl.textContent = amount
+  bubbleFitAmount(amountEl, 128)
   if (bubbleRandomActive && bubbleRandomLines) {
     applyBubbleLines(bubbleRandomLines)
   } else {
@@ -19552,6 +19622,7 @@ function setScale(v) {
   var fy = rect.bottom
   state.scale = next
   root.style.setProperty('--dshw-scale', String(next))
+  bubbleScheduleAmountFit()
   scaleInput.value = String(next)
   scaleNumber.value = String(scaleToDisplay(next))
   saveConfig()
@@ -22049,6 +22120,7 @@ function applyAnchorPos() {
   } catch (err) { return false }
 }
 window.addEventListener('resize', function () {
+  bubbleScheduleAmountFit()
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
 })
