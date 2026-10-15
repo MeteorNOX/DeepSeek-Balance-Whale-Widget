@@ -27,3 +27,6 @@ node_modules/
 *.bak2
 *.bak-devpaths
 _patch_*.patch
+
+# 测试会在 test/ 下建一个临时的 DSH_HOME
+test/.dsh-home/

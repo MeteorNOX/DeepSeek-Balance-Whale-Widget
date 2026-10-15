@@ -4643,6 +4643,25 @@ function usageAlertBudgetEditor(key, onSave) {
 // ===== 自定义 API 模型（v657）：状态 / 拉取 / 每模型提醒 / 模型设置窗口 =====
 var apiModels = [] // 最近一次拉到的模型列表（含实时余额 / 今日已用）
 var apiTemplates = [] // 可选厂商模板
+// v0.4.0：宿主从 DSH 配置里发现的 provider 路由（用户自己填的 Provider ID / 显示名 / 地址 /
+// 凭据引用名 / 建议模板 / 该凭据是否已配置）。模型可以绑定其中一条，凭据名与地址就跟随它。
+var apiDshRoutes = []
+function apiDshRouteOf(routeId) {
+  var id = String(routeId || '')
+  for (var i = 0; i < apiDshRoutes.length; i++) if (apiDshRoutes[i] && apiDshRoutes[i].route === id) return apiDshRoutes[i]
+  return null
+}
+// 该模板最可能对应的 DSH 路由（按 baseURL 主机反推，宿主算好下发）：只有唯一一条时才返回
+function apiDshRouteForTemplate(tplId) {
+  var hit = null
+  for (var i = 0; i < apiDshRoutes.length; i++) {
+    var r = apiDshRoutes[i]
+    if (!r || r.suggestedTemplate !== String(tplId || '')) continue
+    if (hit) return null
+    hit = r
+  }
+  return hit
+}
 var apiModelsLoaded = false
 var apiAlertFired = {} // modelId+阈值 → 已弹过（低于阈值后恢复会复位）
 var apiBudgetFired = {} // modelId+当日+金额 → 已弹过
@@ -4727,6 +4746,7 @@ function apiModelsFetch(tries) {
       if (d && d.ok && Array.isArray(d.models)) {
         apiModels = d.models
         apiTemplates = Array.isArray(d.templates) ? d.templates : []
+        apiDshRoutes = Array.isArray(d.dshRoutes) ? d.dshRoutes : []
         apiModelsLoaded = true
         apiModelsError = ''
         apiModelsLoading = false
@@ -4933,6 +4953,58 @@ function openApiModelPanel(modelId) {
     tplNote.className = 'dshwv-bubhint'
     tplNote.style.margin = '0 0 7px'
     card.appendChild(tplNote)
+    // —— v0.4.0：Provider ID 绑定 ——
+    // 自定义厂商的 provider id 与显示名都是用户自己在 DSH 里填的，插件内置模板跟它们无从对应。
+    // 这里把宿主从 DSH 配置里发现的路由列出来（附该路由的凭据引用名与是否已配置），选一条即可让
+    // 「凭据名 / Base URL」跟随它：**留空＝跟随，填了＝显式覆盖**。
+    var routeOpts = [['', apiDshRoutes.length ? '不绑定（用模板默认）' : '未发现 DSH 路由']]
+    for (var rj = 0; rj < apiDshRoutes.length; rj++) {
+      var rjR = apiDshRoutes[rj]
+      if (!rjR || !rjR.route) continue
+      var rjCred = rjR.credential
+      var rjMark = rjCred && rjCred.configured ? '✓ ' : (rjR.apiKeyEnv ? '✗ ' : '')
+      var rjLab = rjMark + rjR.route + (rjR.displayName && rjR.displayName !== rjR.route ? ' · ' + rjR.displayName : '')
+      if (rjR.apiKeyEnv) rjLab += ' · ' + rjR.apiKeyEnv
+      routeOpts.push([rjR.route, rjLab])
+    }
+    var routeSel = apiSelectEl(routeOpts, isNew ? '' : (m.dshRoute || ''))
+    routeSel.title = 'DSH 里那条 provider 路由 id（用户自己填的 Provider ID）'
+    card.appendChild(apiPanelRow('DSH 路由', routeSel))
+    var routeHint = document.createElement('div')
+    routeHint.className = 'dshwv-bubhint'
+    routeHint.style.margin = '0 0 7px'
+    card.appendChild(routeHint)
+    // 绑定提示：说清"留空会跟随成什么"，以及该凭据从哪一层解析出来、能不能写
+    function syncRouteUi() {
+      try {
+        var r = apiDshRouteOf(routeSel.value)
+        var t = null
+        for (var ti = 0; ti < apiTemplates.length; ti++) if (apiTemplates[ti].id === tplSel.value) t = apiTemplates[ti]
+        var tplRef = (t && t.keyRef) || ''
+        if (r) {
+          var cred = r.credential || null
+          var srcTxt = cred && cred.source === 'env' ? '·启动环境' : (cred && cred.source === 'file' ? '·凭据文件' : '')
+          var credTxt = r.apiKeyEnv ? (r.apiKeyEnv + (cred ? (cred.configured ? '（已配置' + srcTxt + '）' : '（未配置）') : '')) : '（该路由没写 apiKeyEnv）'
+          var s = '凭据名与 Base URL 留空即跟随这条路由：' + credTxt + ' · ' + (r.baseUrl || '（该路由没写 baseURL）')
+          if (cred && cred.configured && cred.writable === false) s += ' · 只读（启动环境提供，保存会被拒）'
+          if (!r.suggestedTemplate) s += ' · 未能从地址反推模板，请确认上面的厂商模板选对了'
+          routeHint.textContent = s
+          keyRefInp.placeholder = '留空＝跟随路由 ' + (r.apiKeyEnv || '')
+          baseInp.placeholder = '留空＝跟随路由 ' + (r.baseUrl || '')
+        } else {
+          routeHint.textContent = apiDshRoutes.length
+            ? '未绑定：用模板默认（凭据名 ' + (tplRef || '无') + '）。选一条 DSH 路由可让凭据名与地址自动跟随，不必手抄。'
+            : '宿主没发现 DSH provider 路由：先在 DSH 设置里把该厂商配成 provider（会带上 apiKeyEnv 与 baseURL），或直接在下面手填。'
+          keyRefInp.placeholder = '凭据名，例如 ' + (tplRef || 'OPENROUTER_API_KEY')
+          baseInp.placeholder = '例如 https://my-gateway.example.com'
+        }
+      } catch (err) {}
+    }
+    routeSel.addEventListener('change', function () {
+      // 从"填了具体名字"切到"跟随路由"时，把输入框清空——否则旧值会遮住路由里的名字
+      try { if (routeSel.value) keyRefInp.value = '' } catch (err) {}
+      syncRouteUi()
+    })
     var curSel = apiSelectEl([['CNY', '人民币 ¥'], ['USD', '美元 $']], isNew ? 'USD' : m.currency)
     card.appendChild(apiPanelRow('币种', curSel))
     // 密钥
@@ -4957,7 +5029,9 @@ function openApiModelPanel(modelId) {
     keyState.textContent = isNew ? '' : (m.hasKey ? '已配置密钥 ✓' : '尚未配置密钥')
     card.appendChild(keyState)
     var delKey = apiBtn('删除密钥', 'dshwv-snapbtn dshwv-snapbtn-no', function () {
-      var ref = (keyRefInp.value || '').trim()
+      // 凭据名留空 = 跟随绑定的路由：删除的应当是路由里那个 apiKeyEnv，而不是没名字可删
+      var bound = apiDshRouteOf(routeSel.value)
+      var ref = (keyRefInp.value || '').trim() || (bound && bound.apiKeyEnv ? String(bound.apiKeyEnv) : '')
       if (!ref) return
       postApiModels({ action: 'delete-key', keyRef: ref }, function () {
         keyState.textContent = '密钥已删除'
@@ -5089,6 +5163,7 @@ function openApiModelPanel(modelId) {
           name: (nameInp.value || '').trim(),
           provider: tplSel.value,
           currency: curSel.value,
+          dshRoute: (routeSel.value || '').trim(),
           keyRef: (keyRefInp.value || '').trim(),
           baseUrl: (baseInp.value || '').trim(),
           balance: {
@@ -5302,6 +5377,14 @@ function openApiModelPanel(modelId) {
           : '该厂商没有「用 API key 查余额」的接口 → 余额显示「—」，今日已用按会话事件估算（本机每轮对话的真实 token）。'
         // ⑥ 余额接口行保持可见（即使模板没有默认地址）：用户可以自己填
         balUrlRow.style.display = isCodexT ? 'none' : ''
+        // ⑦ Provider ID：模板能反推出唯一一条 DSH 路由时自动选中（用户随时可改回"不绑定"），
+        //    并把凭据名清空 = 跟随路由（那样就不必手抄 apiKeyEnv）。
+        if (!routeSel.value) {
+          var autoRoute = apiDshRouteForTemplate(tplSel.value)
+          if (autoRoute) routeSel.value = autoRoute.route
+        }
+        if (routeSel.value) keyRefInp.value = ''
+        syncRouteUi()
       }
       tplSel.addEventListener('change', applyTpl)
       applyTpl()
@@ -5310,6 +5393,7 @@ function openApiModelPanel(modelId) {
       for (var tk = 0; tk < apiTemplates.length; tk++) if (apiTemplates[tk].id === m.provider && apiTemplates[tk].needsBaseUrl) needBase = true
       baseRow.style.display = needBase ? '' : 'none'
     }
+    syncRouteUi()
   } catch (err) {}
 }
 var apiModelMaskEl = null

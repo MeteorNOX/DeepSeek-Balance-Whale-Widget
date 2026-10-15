@@ -80,19 +80,24 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 除内置的 DeepSeek 余额外，可在「小鲸鱼记账 → 模型」里添加任意厂商；每个模型独立配置余额预警 / 今日预算 / 额度：
 
-- 🧩 **厂商模板（34 个，选完自动带好凭据名 / 币种 / 接口 / 字段路径 / 事件匹配 / 探活地址）**：
-  - **可直接查到余额或额度**：DeepSeek（内置）、OpenRouter、Kimi / Moonshot（CN / 国际）、阶跃星辰 StepFun、Novita、智谱 GLM Coding Plan（国内 / 国际 z.ai）、Kimi Coding、MiniMax Coding（国内 / 国际）、**OpenCode Go（订阅，5h / 周 / 月三窗口）**、OpenAI 兼容中转站（OneAPI / New API）
+- 🧩 **厂商模板（35 个，选完自动带好凭据名 / 币种 / 接口 / 字段路径 / 事件匹配 / 探活地址）**：
+  - **可直接查到余额或额度**：DeepSeek（内置）、OpenRouter、Kimi / Moonshot（CN / 国际）、阶跃星辰 StepFun、Novita、智谱 GLM Coding Plan（国内 / 国际 z.ai）、Kimi Coding、MiniMax Coding（国内 / 国际）、**OpenCode Go（订阅，5h / 周 / 月三窗口）**、**Command Code GOAT（订阅，5h / 周 / 月三窗口）**、OpenAI 兼容中转站（OneAPI / New API）
   - **官方没有「用 API key 查余额」的接口**（下拉里标注「（无余额接口）」，选完会用 `probeUrl` 探活验证 key，余额显示「—」，今日已用按会话事件估算）：硅基流动（CN / EN）、火山方舟 Ark、OpenAI、Anthropic Claude、Google Gemini、xAI Grok、Groq、Mistral AI、Together AI、Fireworks AI、DeepInfra、Cerebras、阿里云百炼（通义千问）、百度千帆（文心）、腾讯混元、讯飞星火、魔搭 ModelScope、本地模型（Ollama / LM Studio）
   - **全手填**：自定义 HTTP（URL 与字段路径自己写）、Codex（本地会话，无需接口）
 - 🔑 **密钥不落配置**：密钥写入 DSH 官方凭据服务，配置文件里只存**凭据名**（如 `OPENROUTER_API_KEY`）；删除模型会连带清理该模型的额度模块与设置
 - 💰 **余额**：按模板的接口与 JSON 字段路径读取（支持 `a.b[0].c` 与 `scale` 乘数）；点「测试连通性」可先验证 key
 - 📉 **今日已用**：有余额接口时记录观测到的**下降额**（当天首次观测为统计起点，充值等增加额不会冲掉消费），无余额接口的厂商显示本机会话**估算**
 - 🎯 **额度（订阅 / 资源包）**：填总量即可，已用**按 DSH 会话 token 自动累计**（口径 `input + cacheRead + output`，推理 token 已含在 output 内，跨天保留），也可切换手动填写；支持「不重置 / 每日 / 每月」
-- 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（目前 OpenCode Go 为 5h / 周 / 月三窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径
+- 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（目前 OpenCode Go 与 Command Code GOAT 都是 5h / 周 / 月三窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径。窗口既可以用 `percent` 直接给百分比，也可以用 `used` + `cap`（金额）现算 —— `cap` 还能写成**路径数组**表示求和；有的厂商额度要跨端点拼（Command Code 的月度上限 = `/alpha/usage/summary.totalCredits` + `/alpha/billing/credits.credits.monthlyCredits`），模板用 `quota.extras` 追加副请求，字段路径加前缀即可命中（副请求失败不会连累主窗口，只让该窗口的百分比显示 `--`，不编造数字）
+- 🔗 **Provider ID 绑定**：自定义厂商的 **provider id 与显示名都是你自己在 DSH 里填的**，插件内置的模板 id 与它们无从对应，所以额度请求的**凭据名与地址可以绑定到 DSH 里那条 provider 路由**（模型条目加 `dshRoute` = 你填的 Provider ID）：
+  - 路由信息从 DSH 配置读：优先 `settings` 服务（已解析、随配置热更新，改完 `settings.yaml` 刷一下面板就生效，不用重启），拿不到时降级扫 `$DSH_HOME/settings.yaml`（块式与流式 YAML 都支持）。取它的 `apiKeyEnv`（→ 凭据名）与 `baseURL`（→ 地址，**自动去掉尾部的 `/provider/vN`**，因为额度端点在主机根路径；自建网关挂在别的子路径时子路径保留）。
+  - **凭据名 / Base URL 留空即跟随绑定**；显式填了就按你填的走（显式优先）。绑定后不必再手抄凭据名——密钥仍由 DSH 凭据服务解析（启动环境 → `.credentials.yaml` → `.env`），你也不必在小鲸鱼里重贴一次。
+  - 宿主接口 `/dsh-whale/api-models.json` 会多下发一个 `dshRoutes`：路由 id / 显示名 / 地址 / 凭据引用名 / **建议模板**（按 baseURL 主机反推，如 `api.commandcode.ai` → `commandcode_goat`）/ 该凭据是否已配置及来源。**只列真正存在于 settings 里的路由**——`llm` 目录里那上百条内置 catalog 路由（anthropic / openai / …）不算"你配了 provider"，一律不列。模型编辑器里新增一行 **「DSH 路由」** 下拉：选中一条即绑定，下面常显一行说明「凭据名与 Base URL 留空即跟随这条路由：`COMMANDCODE_GOAT_API_KEY`（已配置·凭据文件）· `https://api.commandcode.ai/provider/v1`」；**模板能反推出唯一一条路由时会自动预选**（可改回「不绑定」）。也可以直接在 `.dshw-api.json` 的模型条目里写 `"dshRoute": "<provider id>"`。
+  - **只读、只取名字**：字面 `apiKey` 明文绝不进浏览器（该路由只标记 `hasLiteralKey: true`）。
 - 💱 **单价（可选）**：位置在「密钥 / 接口」面板 → 展开「接口与字段（高级）」→「单价（可选）」。每个模型可自填单价 —— **缓存命中 / 未命中输入 / 输出**，单位是「币种 / 百万 token」；币种支持人民币（CNY）与美元（USD），**选美元时必须填汇率（元/USD）**；记账与账本**统一按人民币结算**（美元单价会按汇率折算）；单价**不分峰谷**（两个时段同价）。留空则沿用内置价目表（DeepSeek flash / pro）。注意：**内置 DeepSeek 不支持自定义单价**（始终用内置峰谷价）；额度单位选「金额（元）」时，已用**只能手动填写**
 - 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`
 
-> 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计。
+> 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go / Command Code）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计；Command Code 的 **$1 Go 档没有 API 权限**（额度接口一律 404），Provider 档是按量计费、没有滚动窗口。
 >
 > 模板只提供**默认值**：选完模板后可以随意改写接口地址与字段路径；留空的字段会**继续沿用模板默认值**（不会因为留空而失效）。
 
@@ -353,6 +358,7 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
 | `ARK_API_KEY` | 火山方舟 `/api/v3/models` 探活 |
 | `ZHIPU_API_KEY` | 智谱（订阅额度接口 / Coding 端点） |
 | `OPENCODE_GO_API_KEY` | OpenCode Go 订阅额度（`opencode.ai/zen/go/v1/usage`，鉴权为 `Authorization: Bearer <key>`） |
+| `COMMAND_CODE_API_KEY` | Command Code 订阅额度（`api.commandcode.ai/alpha/*`，鉴权为 `Authorization: Bearer <key>`；Base URL 留空即用官方域名，填了则指向代理 / 自建网关。密钥形如 `user_…`；别名 `COMMANDCODE_GOAT_API_KEY` / `COMMANDCODE_API_KEY` / `CMD_API_KEY` 会依次兜底） |
 | `CUSTOM_API_KEY` | 自定义 HTTP / OpenAI 兼容中转站 |
 
 > ⚠️ 自定义模型面板里的「凭据名」决定密钥写进哪个 ref。换厂商时请确认这一栏跟着模板变了，否则新密钥会写进上一家厂商的凭据名里（覆盖掉原来的 key）。v679 起新增模型会自动跟随模板。
@@ -456,6 +462,9 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - **隐藏了菜单按钮怎么进菜单**：电脑端右键鲸鱼，手机端长按鲸鱼约 1.5 秒。
 - **改了前端代码不生效**：前端 `assets/whale-widget.js` 由宿主按 mtime 热读取，**硬刷新**（Ctrl+F5）即可；改了宿主 `lib/index.js` 必须**重启 `dsh web`**。
 - **模型名看不懂**：账本记录的是 API 模型 id；`deepseek-flash` 即 DeepSeek-V4.1-Flash，旧名 `deepseek-v4-flash` / `-vision-exp` 现在也由同一颗 V4.1-Flash 提供并按 Flash 计价（面板里已加标注）。
+- **Command Code 额度报「额度接口请求失败: HTTP 404」**：当前账号没有 API 权限 —— 官方规定 **$1 的 Go 档不含 API**（额度接口一律 404），GOAT / Pro / Max / Team 都有。另外 **Provider 档是按量计费**，没有滚动窗口，5h / 周两行本来就不会有。
+- **Command Code 的「月」窗口显示 `--`**：月度上限接口不直接给，要用「本周期已用 + 套餐剩余」求和（两个数分属 `/alpha/usage/summary` 与 `/alpha/billing/credits`），重置时间取自 `/alpha/billing/subscriptions`。任一请求失败就按**字段缺失**处理：宁可显示 `--`，也不编一个看起来合理的百分比。
+- **额度报「未配置 `XXX_API_KEY`」**：这是**按名取凭据**，名字必须对上。两条路：① 面板「凭据名」填成你 DSH 里那条 provider 的 `apiKeyEnv`（例如 `COMMANDCODE_GOAT_API_KEY`）；② **省事的做法**是在模型编辑器里用 **「DSH 路由」下拉**绑定你那条 provider 路由（也可以在 `.dshw-api.json` 的模型条目里直接写 `"dshRoute": "<provider id>"`），凭据名与地址就会自动跟随那条路由 —— `/dsh-whale/api-models.json` 里的 `dshRoutes` 能看到当前发现了哪些路由、每个 `apiKeyEnv` 是否已配置、来自环境还是凭据文件。当然也可以把小鲸鱼当成独立一份：直接在面板粘贴密钥，它会存进你填的那个凭据名里。
 
 ## 定价表
 
