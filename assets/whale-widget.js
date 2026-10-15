@@ -17289,6 +17289,7 @@ function sceneOpen(kind, renderFn, ttlMs) {
   bubbleScene = { kind: kind, ttlMs: ttlMs || 0 }
   bubbleShown = true
   costBubbleActive = (kind === 'cost')
+  waitShown = (kind === 'wait') // 场景已切换；不要等淡出后的渲染才更新占位
   bubbleRandomActive = (kind === 'random')
   lastHintText = null // 内容整体重置,提示行走“首次直写”,避免半途淡出残留
   function finish() {
@@ -18583,14 +18584,11 @@ function bubbleRowsTo(parentEl, mods) {
 // 当前泡泡正在显示的模块列表(供场景切换时记录;显示期间不再即时整泡重绘,
 // 避免用户观看时内容被刷新打断——更新统一在“泡泡消失→下一次显示”的渲染采用最新 state)
 var bubbleLiveMods = null
-// v761（#161 C5）：当前是否正显示「等待交互」的常驻泡泡。只有真正渲染出等待内容时才置位，
-// 因此拿它做幂等判断（同名再次入队直接丢弃）不会把"排了队但还没轮到"的项误判成已显示。
+// 当前是否处于「等待交互」场景（包括内容淡切期间）；仅排队的等待项不会置位。
 var waitShown = false
 function bubbleRenderModules(mods) {
   try {
-    // v761（#161 C5）：等待交互泡泡（kind:'wait'）从布场景到渲染都是同步完成的，所以真正的
-    // "已显示"标记放在这里取；其它场景/关闭路径会把 bubbleScene 置空或换 kind，因此
-    // 该标记不可能残留成"其实没显示却以为在显示"。
+    // 与 sceneOpen 同口径；切换场景时已同步更新，渲染只做对齐。
     waitShown = !!(bubbleScene && bubbleScene.kind === 'wait')
     bubbleLiveMods = Array.isArray(mods) ? mods.slice() : null
     // 清掉旧模块行,隐藏老三行与 gif(它们仍保留在 DOM 供普通场景使用)
@@ -18751,13 +18749,17 @@ function bubbleNext() {
 function showBubble() {
   // 通用打开(余额变化等事件):当作“开新轮从第1项”,打断当前手动/随机内容
   if (!bubbleOn) return
+  whaleSysReconcile()
   if (costBubbleActive) return
+  // #254：余额刷新不能覆盖预警/等待场景，否则其收尾回调被取消，系统队列占位会残留。
+  if (bubbleScene && (bubbleScene.kind === 'alert' || bubbleScene.kind === 'wait')) return
   bubbleRoundOn = true
   bubbleSeqIdx = 0
   bubbleShowSeqNext()
 }
 function hideBubble() {
   bubbleClearAll()
+  costBubbleActive = false
   bubbleRoundOn = false
   bubbleSeqIdx = 0
   bubbleScene = null
@@ -18766,6 +18768,7 @@ function hideBubble() {
   bubbleRandomLines = null
   lastHintText = null
   bubbleCloseVisual()
+  whaleSysDone()
 }
 function showCostBubble(amount) {
   if (!bubbleOn || !turnCostOn) return
@@ -18798,6 +18801,26 @@ var USAGE_ALERT_TTL = 6500 // 提醒泡泡停留毫秒数
 var whaleSysQueue = []
 var whaleSysItem = null // 当前正展示的 {kind, mods/amount, rank}
 var whaleSysTimer = null
+// #254：只释放与当前场景不一致的占位，不按停留时间清除常驻提示，也不重播旧项。
+function whaleSysReconcile() {
+  var kind = bubbleShown && bubbleScene ? bubbleScene.kind : null
+  var staleItem = whaleSysItem && whaleSysItem.kind !== kind
+  if (!staleItem && costBubbleActive === (kind === 'cost') && waitShown === (kind === 'wait')) return
+  try {
+    console.warn('[dsh-whale] system bubble state recovered', {
+      reason: 'scene-owner-mismatch',
+      itemKind: whaleSysItem ? whaleSysItem.kind : null,
+      sceneKind: kind,
+      costBubbleActive: costBubbleActive,
+      waitShown: waitShown,
+      queueLength: whaleSysQueue.length
+    })
+  } catch (err) {}
+  if (staleItem) whaleSysItem = null
+  costBubbleActive = (kind === 'cost')
+  waitShown = (kind === 'wait')
+  return true
+}
 // 队列插入（v772 起抽成函数，供 push / 抢占退回 共用）：
 //   rank 小的先出（1 今日预算 / 2 余额预警 / 3 每轮消耗 / 4 等待交互）；
 //   **同档的「每轮消耗」后入先出** —— 新的一轮消耗插到已有消耗项之前 ⇒ 新的置顶，旧的排队；
@@ -18832,11 +18855,10 @@ function whaleSysPush(item) {
   try {
     if (!bubbleOn || !bubbleBox || !textBox) return false
     if (!item || !item.kind) return false
+    whaleSysReconcile()
     // v772：**等待交互（授权/提问）享有最高优先级，永远不会被"消耗泡泡正开着"挡住**。
     // 整轮对话都卡在等你回答/批准，它必须立刻可见；正在展示的其它系统泡泡（消耗/预警）退回队列，
     // 等挂起解除后照旧继续 —— 用户真机反馈「已有每轮消耗提示时，授权与提问不会显示」。
-    // 顺带兜住历史上的一个坑：`costBubbleActive` 万一残留成 true 而 `whaleSysItem` 为空，
-    // 下面的 `costBubbleActive && !whaleSysItem` 早退会把所有入队都吃掉（等待泡泡一起被丢）。
     if (item.kind === 'wait') {
       if (whaleSysItem && whaleSysItem.kind === 'wait') {
         if (whaleSysItem.waitKind === item.waitKind) return true // 已在显示同一类：内容无需重渲染
@@ -18852,8 +18874,7 @@ function whaleSysPush(item) {
       whaleSysOpenItem(item)
       return true
     }
-    // 正在展示消耗泡泡时,新提醒退化为居中卡片(避免与消耗内容抢层);排队中的则按序等
-    if (costBubbleActive && !whaleSysItem) return false
+    // 当前系统场景即使缺少队列占位，新提示也先入队，由 tick 等待该场景正常关闭。
     // v772：**每轮消耗改后入先出** —— 新一轮消耗直接置顶，原来那条退回队列（点击时按"新→旧"回看）。
     if (item.kind === 'cost' && whaleSysItem && whaleSysItem.kind === 'cost') {
       var pre2 = whaleSysItem
@@ -18872,12 +18893,11 @@ function whaleSysTick() {
   whaleSysTimer = null
   try {
     if (!bubbleOn || !bubbleBox || !textBox) { whaleSysQueue = []; whaleSysItem = null; return }
+    whaleSysReconcile()
     if (whaleSysItem) return
     if (!whaleSysQueue.length) return
-    // 存在尚未入队的正展示系统泡?仅在鲸鱼空闲且无我们自己队列项时取下一个
-    // v761（#161 C5）：waitShown 也必须算"正被占着"——等待泡泡是常驻的（whaleSysItem 会一直是它），
-    // 正常走不到这里；但万一 item 被别的路径清掉而场景还停在等待内容上，也不能抢它的层。
-    if (costBubbleActive || waitShown || (bubbleScene && bubbleScene.kind === 'alert')) return
+    // 仍在显示的系统场景不能抢占；失去场景的旧标记不能阻塞队列。
+    if (bubbleShown && bubbleScene && (bubbleScene.kind === 'cost' || bubbleScene.kind === 'wait' || bubbleScene.kind === 'alert')) return
     var item = whaleSysQueue.shift()
     if (!item) return
     whaleSysOpenItem(item) // v772：展示逻辑抽成一份（tick / 淡切 / 抢占共用）
@@ -18941,6 +18961,7 @@ function showWaitBubble(kind, p) {
     // 门控：该事件总开关 + 该事件「冒泡提示」开关（任一为假都不冒泡）；pollWaitState 也会先判一次
     if (cfg.on === false || cfg.bubbleOn === false) return false
     if (!bubbleBox || !textBox) return false
+    whaleSysReconcile()
     var pid = (p && p.id) ? String(p.id) : ''
     // "正显示等待泡泡"看**场景**（权威）或已占位的队列项（次之）—— 二者取或，避免状态半同步时漏判
     var showingWait = !!((bubbleScene && bubbleScene.kind === 'wait') || (whaleSysItem && whaleSysItem.kind === 'wait'))
@@ -18970,6 +18991,7 @@ function showWaitBubble(kind, p) {
 // 复用它们的做法：**不**把正在显示的那一项摘掉，交给 whaleSysSwapNext() 去换或去清场。
 function hideWaitBubble() {
   try {
+    var recovered = whaleSysReconcile()
     // v771：判断"当前是不是正显示等待泡泡"必须**同时看场景与队列项**。历史上只看 whaleSysItem，
     // 一旦它与场景不同步（showWaitBubble 换类型的旧实现就会造成）就永远走不到关闭分支 ⇒ 泡泡卡死。
     var showingWait = !!((bubbleScene && bubbleScene.kind === 'wait') || (whaleSysItem && whaleSysItem.kind === 'wait') || waitShown)
@@ -18990,8 +19012,8 @@ function hideWaitBubble() {
       whaleSysDone()
       return
     }
-    // 没在显示等待泡泡：只清掉了排队中的等待项 → 补一次 tick，让别的项继续走
-    if (whaleSysQueue.length !== beforeLen) whaleSysTick()
+    // 清除等待项或修复了残留占位后，继续推进；复用等待轮询，不需要另设恢复计时器。
+    if (whaleSysQueue.length !== beforeLen || recovered) whaleSysTick()
   } catch (err) {}
 }
 // v777（用户反馈「授权提示/提问提示无法点击关闭」）：
