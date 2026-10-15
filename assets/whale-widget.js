@@ -9670,7 +9670,7 @@ function bubbleEditorDirty() {
   try {
     if (bubbleEditorSnap === null) return true
     // v821：框库与保底框也算"有改动"（必须与打开时写进快照的数组完全一致，否则永远是脏的）
-    return bubbleEditorSnap !== JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, framesNow()])
+    return bubbleEditorSnap !== JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, bubbleLoopChk.checked, framesNow()])
   } catch (err) { return true }
 }
 // v783：打开编辑器前**先从宿主重读一遍配置**。为什么必须重读：泡泡配置只在页面加载时取一次
@@ -9687,6 +9687,7 @@ function refreshBubbleCfgFromHost(cb) {
           bubbleCfg = d.config
           bubbleLib = (d.config.lib && Array.isArray(d.config.lib)) ? JSON.parse(JSON.stringify(d.config.lib)) : []
           bubbleTapAdvance = d.config.tapAdvance === true // v727
+          bubbleLoop = d.config.loop === true // [本地补丁] 循环点按
           try { applyBubbleCfgSeq() } catch (err) {}
         }
       })
@@ -9703,6 +9704,7 @@ function openBubbleEditorWithCache() {
     closeAudioGroupPanel()
     bubbleLib = (bubbleCfg && bubbleCfg.lib && Array.isArray(bubbleCfg.lib)) ? JSON.parse(JSON.stringify(bubbleCfg.lib)) : []
     bubbleTapAdvChk.checked = bubbleTapAdvance === true // v727：把已保存的开关状态显示出来
+    bubbleLoopChk.checked = bubbleLoop === true // [本地补丁] 循环点按
     var list = []
     if (bubbleCfg && Array.isArray(bubbleCfg.items) && bubbleCfg.items.length) {
       list = bubbleCfg.items.slice()
@@ -9732,7 +9734,7 @@ function openBubbleEditorWithCache() {
         modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined,
       }, frameFieldsOf(src)))
     }
-    bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, framesNow()]) // v727 含开关；v821 含框库与保底
+    bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, bubbleLoopChk.checked, framesNow()]) // v727 含开关；v821 含框库与保底；[本地补丁] 含循环开关
     renderBubbleEditor()
     // v821（P1）：窗口打开时刷新框库行（保底框名可能变了）+ 收起残留的下拉
     try { frameLibToggle(false); frameLibRefresh() } catch (err) {}
@@ -9778,7 +9780,8 @@ function bubbleEditorSave() {
       var scrubbed = framesScrubDanglingRefs(items)
       // v727：开关随本窗口的「保存」一起落盘；保存成功后立即生效（不必重载）
       var tapAdv = bubbleTapAdvChk.checked === true
-      var payload = { v: 1, items: items, lib: bubbleLib, tapAdvance: tapAdv }
+      var loopOn = bubbleLoopChk.checked === true // [本地补丁] 循环点按
+      var payload = { v: 1, items: items, lib: bubbleLib, tapAdvance: tapAdv, loop: loopOn }
       // v815：框库只在"需要持久化"时写（有自定义框 / 曾经写过 / 保底改过）⇒ 老配置零 churn
       try {
         if (framesShouldPersist()) {
@@ -9790,6 +9793,7 @@ function bubbleEditorSave() {
       saveBubbleCfg(payload, function (ok) {
         if (ok !== false) {
           bubbleTapAdvance = tapAdv
+          bubbleLoop = loopOn // [本地补丁] 保存成功即生效，不必重载
           closeBubbleEditor()
           // v821：被删掉的框留下的引用已改回保底框 ⇒ 明确提示一次（决策 3）
           if (scrubbed > 0) {
@@ -11615,7 +11619,8 @@ bubbleTapAdvLab.textContent = '点按角色推进泡泡队列'
 // v777d：「再稍稍右移」⇒ margin-left 由 -3px 改成 0（间距 = 行的自然列间距 6px）。
 var bubbleTapAdvAsk = dshwvAskDot(
   '关闭（默认）：<b>点角色</b>＝回到第 1 个泡泡（点泡泡才是往后推进）。<br><br>' +
-  '开启：<b>点一下角色 = 往后推进一项</b>（不再回到首次点击泡泡）；走到最后一项再点＝收起泡泡。'
+  '开启：<b>点一下角色 = 往后推进一项</b>（不再回到首次点击泡泡）；走到最后一项再点＝收起泡泡'
+  + '（若同时勾选下方的「循环点按」，则改为回到第 2 项继续抽，不会收起）。'
 )
 bubbleTapAdvAsk.style.marginLeft = '0'
 bubbleTapAdvAsk.style.marginRight = '0'
@@ -11626,6 +11631,37 @@ bubbleTapAdvRow.appendChild(bubbleTapAdvChk)
 bubbleTapAdvRow.appendChild(bubbleTapAdvLab)
 bubbleTapAdvRow.appendChild(bubbleTapAdvAsk)
 bubbleCard.appendChild(bubbleTapAdvRow)
+// [本地补丁] 「循环点按」勾选开关：与上面那行同款结构；随本窗口的「保存」一起落盘（宿主已同步放行 loop 字段）
+var bubbleLoopRow = document.createElement('div')
+bubbleLoopRow.className = 'dshwv-bubsec'
+bubbleLoopRow.style.display = 'flex'
+bubbleLoopRow.style.alignItems = 'center'
+bubbleLoopRow.style.flexWrap = 'wrap'
+bubbleLoopRow.style.gap = '4px 6px'
+bubbleLoopRow.style.color = '#203170'
+var bubbleLoopChk = document.createElement('input')
+bubbleLoopChk.type = 'checkbox'
+bubbleLoopChk.className = 'dshwv-check'
+bubbleLoopChk.id = 'dshwv-bubbleloop'
+bubbleLoopChk.title = ''
+var bubbleLoopLab = document.createElement('label')
+bubbleLoopLab.setAttribute('for', 'dshwv-bubbleloop')
+bubbleLoopLab.style.cursor = 'pointer'
+bubbleLoopLab.style.fontSize = '12px'
+bubbleLoopLab.textContent = '循环点按（走完不收起）'
+var bubbleLoopAsk = dshwvAskDot(
+  '需要同时开启上面的「<b>点按角色推进泡泡队列</b>」才有效。<br><br>' +
+  '开启：走到最后一项后再点角色 ⇒ <b>回到第 2 项继续抽</b>（余额卡之后的随机段），可以一直点下去，不再收起。<br><br>' +
+  '关闭（默认）：走到最后一项再点 ⇒ 收起泡泡，下次点按从第 1 项重新开始。<br><br>' +
+  '注：只影响<b>点角色</b>；点泡泡仍是「到最后一项就收起」。'
+)
+bubbleLoopAsk.style.marginLeft = '0'
+bubbleLoopAsk.style.marginRight = '0'
+bubbleLoopAsk.title = ''
+bubbleLoopRow.appendChild(bubbleLoopChk)
+bubbleLoopRow.appendChild(bubbleLoopLab)
+bubbleLoopRow.appendChild(bubbleLoopAsk)
+bubbleCard.appendChild(bubbleLoopRow)
 // 按钮行
 var bubbleBtns = document.createElement('div')
 bubbleBtns.className = 'dshwv-bubbtns'
@@ -14318,6 +14354,7 @@ var bubbleLib = [] // 可选模块库(当前会话编辑用,随配置保存):[{i
 //   关闭（默认）= 点鲸鱼时，正在看第 2 项及以后 → 回到第 1 项（旧行为）
 //   开启       = 点鲸鱼 = 往后推进一项；已是最后一项 → 收起泡泡（与「点泡泡」一致），下次点按从第 1 项开始
 var bubbleTapAdvance = false
+var bubbleLoop = false // [本地补丁] 「循环点按」开关：随泡泡配置落盘，见 whaleClick() 的循环分支
 
 // ===== v815：自定义泡泡框 —— 数据模型 / 归一化 / 渲染（P0：只读，外观必须与历史逐字符一致） =====
 // 背景：泡泡形状原先是**写死**在 bubbleBox.innerHTML 里的（大泡泡 path + 两个小泡泡 ellipse）。
@@ -17082,6 +17119,7 @@ function loadBubbleCfg() {
           bubbleCfg = d.config
           bubbleLib = (d.config.lib && Array.isArray(d.config.lib)) ? JSON.parse(JSON.stringify(d.config.lib)) : []
           bubbleTapAdvance = d.config.tapAdvance === true // v727
+          bubbleLoop = d.config.loop === true // [本地补丁] 循环点按
           applyBubbleCfgSeq()
           maybeBubbleMigratePeak()
         }
@@ -18719,7 +18757,18 @@ function whaleClick() {
     }
     // v727：开启「点按角色推进泡泡队列」→ 点角色＝往后推进一项（不再回到第 1 项）；
     // 已是最后一项时与「点泡泡」一致：收起泡泡，下次点按从第 1 项开始。
-    if (bubbleTapAdvance) { bubbleNext(); return }
+    if (bubbleTapAdvance) {
+      // [本地补丁 · 循环点按] 仅在「循环点按」开关打开时生效：队列走完后回到第 2 项
+      //   （余额卡之后的随机段）继续抽，不再收起。开关关着时一律走下面的原逻辑。
+      //   只改"点角色"这条路：点泡泡仍由 bubbleNext() 负责，到最后一项照旧收起。
+      //   原始文件备份在 $DSH_HOME\whale-widget.js.orig-<时间戳>。
+      if (bubbleLoop && bubbleShown && bubbleRoundOn && bubbleSeq.length > 1 && bubbleSeqIdx >= bubbleSeq.length) {
+        bubbleSeqIdx = 1
+        bubbleShowSeqNext()
+        return
+      }
+      bubbleNext(); return
+    }
     if (!bubbleRoundOn) return // 非手动轮场景:不动
     if (bubbleSeqIdx <= 1) {
       // 正显示第 1 次点击泡泡:仅重置留存计时(续时)
