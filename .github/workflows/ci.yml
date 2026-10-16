@@ -102,3 +102,15 @@ jobs:
             if (p.name !== 'dsh-whale-widget') { console.error('包名意外: ' + p.name); process.exit(1) }
             console.log('package.json OK: ' + p.name + '@' + p.version)
           "
+
+      # 泡泡配置文件被静默误用（issue #258）：`~/.dsh/.dshw-bubble.json` 是**全量替换**语义 ——
+      #   文件里的 items 就是整条点击序列，出厂序列（第 1 项 custom 里的两个 peak、第 2 项整个
+      #   choice）只在读不到文件时兜底；而客户端会把不认识的 kind 静默渲染成普通泡 ⇒ 写错的人
+      #   只会"看着还行、其实少了东西"，只能靠现象发现（报告者：靠峰谷不见了才发现）。
+      #   两层：① 从 lib/index.js 逐字抽出真 bubbleConfigProblem / loadBubbleConfig 跑行为断言 ——
+      #   只拒绝"写下来一定不是本意"的形态，且必须点名文件与原因告警、不采用、不改文件；
+      #   同时钉住面板产出的 custom + modules: [] 与老配置的无 kind 项不许被误伤；
+      #   ② README 必须写明全量替换语义与恢复办法（外部用户就是栽在没有这句话上）。
+      #   脚本 0 依赖（只用 node:fs），自带 negative control（证明断言有区分度）。
+      - name: Bubble-config audit (全量替换语义 + 语义校验)
+        run: node tools/bubble-config-audit.mjs
