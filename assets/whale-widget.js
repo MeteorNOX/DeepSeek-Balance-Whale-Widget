@@ -2094,6 +2094,74 @@ bubbleCustomBtn.textContent = '按压泡泡设置'
 bubbleCustomBtn.title = '打开“按压泡泡设置”（按压时的泡泡内容与队列）'
 bubbleCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); openBubbleEditor() })
 row6.appendChild(bubbleCustomBtn)
+// —— 自定义余额（显示层覆盖）：数字输入 + 应用 + 取消覆盖 + 状态/错误提示 ——
+// 只覆盖气泡显示的总余额（含自定义模型余额模块的 {balance}）；真实余额 / 记账 / 今日用量 / 通知不受影响。
+// 排版沿用主菜单现成样式（menuRow/menuLabel/dshwv-roleimport/dshwv-number），宽度不越过 .dshwv-menu 的 max-width。
+var balanceOverrideInput = document.createElement('input')
+balanceOverrideInput.type = 'number'
+balanceOverrideInput.step = 'any'
+balanceOverrideInput.className = 'dshwv-number'
+balanceOverrideInput.style.width = '64px'
+balanceOverrideInput.style.flex = '0 0 auto'
+balanceOverrideInput.setAttribute('aria-label', '自定义余额：气泡显示的总余额，可填 0 与小数')
+balanceOverrideInput.title = '自定义余额：只改气泡显示的总余额，不改真实余额与记账'
+var balanceOverrideApplyBtn = document.createElement('button')
+balanceOverrideApplyBtn.type = 'button'
+balanceOverrideApplyBtn.className = 'dshwv-roleimport'
+balanceOverrideApplyBtn.textContent = '应用'
+balanceOverrideApplyBtn.title = '把输入的数字应用到气泡显示的总余额（保存在本地，刷新后仍然生效）'
+var balanceOverrideClearBtn = document.createElement('button')
+balanceOverrideClearBtn.type = 'button'
+balanceOverrideClearBtn.className = 'dshwv-roleimport'
+balanceOverrideClearBtn.textContent = '取消覆盖'
+balanceOverrideClearBtn.title = '取消自定义余额，恢复显示实际余额'
+var rowBal = menuRow()
+// 极窄屏（<300px）时允许这一行内部换行：宁可整行变高，也不把菜单撑出 max-width
+rowBal.style.flexWrap = 'wrap'
+rowBal.appendChild(menuLabel('自定义余额'))
+rowBal.appendChild(balanceOverrideInput)
+rowBal.appendChild(balanceOverrideApplyBtn)
+rowBal.appendChild(balanceOverrideClearBtn)
+// 提示行独立成行并允许换行：长文案只增高、不撑宽菜单
+var balanceOverrideStatus = document.createElement('div')
+balanceOverrideStatus.className = 'dshwv-menu-row'
+balanceOverrideStatus.style.whiteSpace = 'normal'
+balanceOverrideStatus.style.lineHeight = '1.3'
+balanceOverrideStatus.style.fontSize = '11px'
+balanceOverrideStatus.style.margin = '2px 0'
+balanceOverrideStatus.setAttribute('role', 'status')
+balanceOverrideStatus.setAttribute('aria-live', 'polite')
+// 提示级别：ok（绿）/ err（红）/ info（灰）；无文案时整行隐藏（不给菜单留空档）
+function balanceOverrideStatusSet(text, level) {
+  try {
+    var t = text || ''
+    balanceOverrideStatus.textContent = t
+    balanceOverrideStatus.style.display = t ? '' : 'none'
+    balanceOverrideStatus.style.color = level === 'err' ? '#c0392b' : (level === 'ok' ? '#1f7a45' : 'rgba(32,49,112,.65)')
+  } catch (err) {}
+}
+// 输入框与提示回显（启动 / storage 同步时用）：有覆盖就把生效值填进输入框，让用户看得见当前状态
+function balanceOverrideSyncMenu() {
+  try {
+    var v = balanceOverrideValue()
+    balanceOverrideInput.value = v !== null ? String(v) : ''
+    balanceOverrideStatusSet(v !== null ? '当前为自定义余额 ' + fmt(v, state.currency || 'CNY') : '', v !== null ? 'ok' : 'info')
+  } catch (err) {}
+}
+balanceOverrideApplyBtn.addEventListener('click', function (e) {
+  e.stopPropagation()
+  var r = balanceOverrideApply(balanceOverrideInput.value)
+  if (!r.ok) { balanceOverrideStatusSet(r.error, 'err'); return }
+  balanceOverrideInput.value = String(r.value)
+  balanceOverrideStatusSet('已应用：气泡显示总余额 ' + fmt(r.value, state.currency || 'CNY'), 'ok')
+})
+balanceOverrideClearBtn.addEventListener('click', function (e) {
+  e.stopPropagation()
+  var r = balanceOverrideClear()
+  if (!r.ok) { balanceOverrideStatusSet(r.error, 'err'); return }
+  balanceOverrideInput.value = ''
+  balanceOverrideStatusSet(r.had ? '已取消覆盖，显示实际余额' : '当前没有自定义余额覆盖', r.had ? 'ok' : 'info')
+})
 var menuSep1 = document.createElement('div')
 menuSep1.className = 'dshwv-menu-sep'
 // v720:「自动关闭 n 秒」与「任务结束音效」都收进「自定义提示」窗口,这一行只留开关 + 入口按钮
@@ -2145,6 +2213,9 @@ menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
 menuBox.appendChild(row2)
 menuBox.appendChild(row6)
+// 自定义余额（显示层覆盖）：紧跟「气泡全局开关 / 按压泡泡设置」之后
+menuBox.appendChild(rowBal)
+menuBox.appendChild(balanceOverrideStatus)
 // v762：「每轮消耗提示」整行**不再挂到主菜单**（菜单里已再无此行，配置入口移进「全局设置」面板）。
 // ⚠️ row7 及其内部控件（turnCostToggle / turnCostCustomBtn）的创建**必须原样保留**：
 //    turnCostToggle 仍被 OPEN 时的状态同步与 setTurnCostOn() 引用，**取消挂载 ≠ 删除创建**。
@@ -14152,6 +14223,86 @@ var bubbleTimer = null
 var bubbleRandomActive = false
 var bubbleRandomLines = null
 var BUBBLE_STYLE_CLASS = { A: 'dshwv-label', B: 'dshwv-amount', P: 'dshwv-period', C: 'dshwv-hint' }
+// ===== 自定义余额显示覆盖（只覆盖气泡「总余额」的显示层）=====
+// 需求：主菜单「气泡全局开关 / 按压泡泡设置」附近可手填一个数字，显式「应用」后把它当作气泡显示的
+//   **总余额**（含自定义模型余额模块及其 {balance} / {balance_ds} 占位符）；「取消覆盖」恢复实际余额。
+// 铁律：只动显示层 —— 真实 state.balance / shown / 接口查询 / 记账 / 赠金·充值拆项 / 今日用量 / 通知
+//   一律不改（覆盖值**不写回** state，也不会被当成余额变化去触发动画或提醒）。
+var BALANCE_OVERRIDE_KEY = 'dshw-balance-display-override'
+// 严格解析：空白 / NaN / Infinity / ±Infinity 一律 null（Number('') === 0，必须先把空白挡掉）
+function balanceOverrideParse(raw) {
+  if (raw === null || raw === undefined) return null
+  var s = String(raw).trim()
+  if (!s) return null
+  var n = Number(s)
+  if (!isFinite(n)) return null
+  return n
+}
+// 生效值：number（含 0 与小数）才算覆盖；其余（null / NaN / 非 number）视为没有覆盖
+function balanceOverrideValue() {
+  return (typeof balanceOverride === 'number' && isFinite(balanceOverride)) ? balanceOverride : null
+}
+// 气泡总余额的覆盖文本；没有覆盖返回 null，调用方走原有逻辑。币种沿用挂件当前币种（未知时按 CNY）
+function balanceOverrideAmountText() {
+  var v = balanceOverrideValue()
+  if (v === null) return null
+  return fmt(v, state.currency || 'CNY')
+}
+function balanceOverrideLoad() {
+  try { return balanceOverrideParse(localStorage.getItem(BALANCE_OVERRIDE_KEY)) } catch (err) { return null }
+}
+// 刷新后仍然生效：启动即读一次（严格校验后才认）
+var balanceOverride = balanceOverrideLoad()
+// 启动回显：菜单元素已在前面建好，这里 state 也已就绪（刷新后能看到当前是否处于覆盖态）
+try { balanceOverrideSyncMenu() } catch (err) {}
+// 应用 / 取消后刷新**已显示**的泡泡：只认正常泡与模块泡；cost / wait / alert / random 一律不碰
+//   （random 内容不含余额；cost / wait / alert 各有自己的场景生命周期，碰了会打断或串内容）
+function balanceOverrideRefreshBubble() {
+  try {
+    if (animId) { cancelAnimationFrame(animId); animId = null }
+    if (costBubbleActive) return
+    var kind = bubbleScene && bubbleScene.kind
+    if (!kind) { render(); return }
+    if (kind === 'normal') { restoreBubbleLines(); return }
+    if (kind === 'custom') { if (bubbleLiveMods) bubbleRenderModules(bubbleLiveMods); return }
+  } catch (err) {}
+}
+// 显式应用：**先落盘、后生效**（落盘失败一律不动内存值，也绝不报成功）
+function balanceOverrideApply(raw) {
+  var n = balanceOverrideParse(raw)
+  if (n === null) return { ok: false, error: '请输入有效的有限数字（0 与小数都可以）' }
+  try {
+    localStorage.setItem(BALANCE_OVERRIDE_KEY, String(n))
+  } catch (err) {
+    return { ok: false, error: '保存失败：' + ((err && err.message) ? err.message : '本地存储不可用') }
+  }
+  balanceOverride = n
+  balanceOverrideRefreshBubble()
+  return { ok: true, value: n }
+}
+// 取消覆盖：removeItem 后恢复实际余额（shown 与真实 state.balance 对齐，避免动画中途的旧值残留）
+function balanceOverrideClear() {
+  try {
+    localStorage.removeItem(BALANCE_OVERRIDE_KEY)
+  } catch (err) {
+    return { ok: false, error: '取消失败：' + ((err && err.message) ? err.message : '本地存储不可用') }
+  }
+  var had = balanceOverrideValue() !== null
+  balanceOverride = null
+  if (animId) { cancelAnimationFrame(animId); animId = null }
+  if (state.balance !== null && state.balance !== undefined && isFinite(Number(state.balance))) shown = state.balance
+  balanceOverrideRefreshBubble()
+  return { ok: true, had: had }
+}
+// 其它同源窗口改了同一个键 → 本窗口同步生效（storage 事件只在**别的**窗口触发，不会自激）
+try {
+  window.addEventListener('storage', function (e) {
+    if (!e || e.key !== BALANCE_OVERRIDE_KEY) return
+    balanceOverride = balanceOverrideParse(e.newValue)
+    balanceOverrideSyncMenu()
+    balanceOverrideRefreshBubble()
+  })
+} catch (err) {}
 function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function singleCenter(style, text, color, wrap) { return [null, { t: text, s: style, c: color || '', w: !!wrap }, null] }
 var RANDOM_GROUPS = [
@@ -17427,6 +17578,9 @@ function bubbleModuleFontU(level) {
   return Math.round(40 + (n - 1) * 200 / 49)
 }
 function bubbleAmountText() {
+  // 自定义余额显示覆盖优先（只改显示文本，不动 shown / state.balance）
+  var ov = balanceOverrideAmountText()
+  if (ov !== null) return ov
   var v = shown !== null ? shown : (state.balance !== null ? state.balance : null)
   if (v === null) return '…'
   return fmt(v, state.currency)
@@ -17458,6 +17612,9 @@ function apiModelBalanceInfo(modelId) {
 function apiModelBalanceText(modelId) {
   var i = apiModelBalanceInfo(modelId)
   if (!i) return '--'
+  // 自定义余额显示覆盖同样作用于自定义模型余额模块（沿用该模型自己的币种与 apiFmtMoney 排版）
+  var ov = balanceOverrideValue()
+  if (ov !== null) return apiFmtMoney(ov, i.currency)
   if (i.balance === null || i.balance === undefined) return '—'
   return apiFmtMoney(i.balance, i.currency)
 }
@@ -19032,6 +19189,15 @@ function fmt(balance, currency) {
 function animateAmount(from, to, currency, duration) {
   // 消耗金额泡泡显示期间，余额数字滚动不触碰金额行
   if (costBubbleActive) return
+  // 自定义余额覆盖生效期间：不滚真实数字（动画帧会把临时值刷掉），但真实值仍**静默**跟上 shown，
+  // 这样「取消覆盖」时能立刻回到实际余额，而不是停在覆盖开始前的旧值。
+  var ovText = balanceOverrideAmountText()
+  if (ovText !== null) {
+    if (animId) { cancelAnimationFrame(animId); animId = null }
+    if (to !== null && to !== undefined && isFinite(Number(to))) shown = to
+    amountEl.textContent = ovText
+    return
+  }
   if (animId) cancelAnimationFrame(animId)
   if (from === null || !isFinite(from)) from = to
   if (from === to) {
@@ -19075,7 +19241,9 @@ function render() {
     amount = shown !== null ? fmt(shown, state.currency) : fmt(state.balance, state.currency)
     hint = (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
   }
-  amountEl.textContent = amount
+  // 金额行：自定义余额显示覆盖优先（hint / 状态文案与通知一律保持原样）
+  var ovAmount = balanceOverrideAmountText()
+  amountEl.textContent = ovAmount !== null ? ovAmount : amount
   if (bubbleRandomActive && bubbleRandomLines) {
     applyBubbleLines(bubbleRandomLines)
   } else {
