@@ -93,6 +93,14 @@ jobs:
       - name: Dead-settings audit (控件有值但没有消费方)
         run: node tools/check-dead-settings.mjs
 
+      # 并列步骤的候选不许被静默裁掉（issue #263：手写配置里第 3 个及以后的候选**永远不出现**，
+      #   控制台与界面都没有提示；编辑器读配置那一趟还会在「打开一次再保存」时把它们从配置里抹掉）。
+      #   做法与仓库其它门禁一致：从 assets/whale-widget.js 里**逐字抽出真函数/真代码块**跑行为断言 ——
+      #   运行期映射、抽两万次每个候选都得出现过、编辑器"读配置→保存"整趟（按 2/3/4/5 个候选逐规模）、
+      #   四个编辑动作一个候选都不许丢、保存 payload 的真循环。脚本 0 依赖（只用 node:fs）。
+      - name: Choice-options audit (并列候选被静默裁掉)
+        run: node tools/choice-options-audit.mjs
+
       # package.json 必须能被解析，且 version 是 semver（发布流程按它取版本号）
       - name: package.json sanity
         run: |

@@ -9143,7 +9143,9 @@ function bubbleRowLabel(it) {
   if (it.modules && it.modules.length) return bubbleKindLabel('custom') + ' · ' + it.modules.length + '个模块'
   return bubbleKindLabel(it.kind)
 }
-// —— 并列泡(choice)步骤:一步可含 ≤2 个候选泡(A/B),每轮到该步按权重抽一个 ——
+// —— 并列泡(choice)步骤:一步可含 N 个候选泡,每轮到该步按权重抽一个 ——
+//   编辑器只呈现前两个候选(A/B 两侧:bubbleChoiceRowUI 只渲染 s < 2 两组,bubbleEditSide 也只在 0/1 取值),
+//   但**不裁**其余候选:手写配置里的第 3 个及以后,运行期照常参与抽取、保存时照常写回(issue #263)。
 // 步骤两种形态:单选 {kind, modules?};并列 {kind:'choice', options:[{w, item:{...完整泡...}}]}
 function bubbleIsChoice(step) { return !!(step && step.kind === 'choice') }
 function bubbleChoiceOptions(step) { return (step && step.kind === 'choice' && Array.isArray(step.options)) ? step.options : [] }
@@ -9332,6 +9334,13 @@ function bubbleSideSplitDrop(from, side, to, zone) {
     // 拖回本行上/下半区 = 调换 A/B 次序,直接拆成两个单行
     if (from === to) {
       if (!rest.length) return
+      // 候选多于两个时,上/下半区的语义推广为"把拖动的候选挪到最前/最后",整行仍是并列:
+      // 原来那条"拆成两个单行"会把没被拖动的其余候选一起丢掉(issue #263 的同类问题)。
+      if (opts.length > 2) {
+        step.options = (zone === 'before') ? [opts[side]].concat(rest) : rest.concat([opts[side]])
+        renderBubbleMore()
+        return
+      }
       arr.splice(from, 1, bubbleSingleFromItem(rest[0].item))
       arr.splice((zone === 'before') ? from : from + 1, 0, movedStep)
       renderBubbleMore()
@@ -9341,7 +9350,13 @@ function bubbleSideSplitDrop(from, side, to, zone) {
     if (rest.length === 1) {
       // 只剩一侧 → 该行还原为普通单行
       arr.splice(from, 1, bubbleSingleFromItem(rest[0].item))
+    } else if (rest.length >= 2) {
+      // 还剩多个候选 → 整行继续是并列(与 bubbleDropToEnd 的处理一致)。整行删掉会把没被
+      // 拖动的候选一起丢掉(issue #263 的同类问题):修复前这条分支不可达,因为编辑态里
+      // 从没有过 2 个以上的候选。
+      step.options = rest
     } else {
+      // rest 为空:这个"并列"行本来就只有一项(退化配置),整行移除
       arr.splice(from, 1)
     }
     var ti = arr.indexOf(target)
@@ -9438,7 +9453,7 @@ function bubbleChoiceRowUI(row, step, idx) {
       var split = document.createElement('button')
       split.type = 'button'
       split.className = 'dshwv-splitbtn'
-      split.title = '点击拆开:恢复为两个独立泡泡(拆开后每行才显示 ✕ 删除)'
+      split.title = '点击拆开:恢复为各自独立的泡泡(拆开后每行才显示 ✕ 删除)'
       var sp = document.createElement('span')
       split.appendChild(sp)
       split.addEventListener('click', function () { bubbleUnpairStep(idx) })
@@ -9713,15 +9728,22 @@ function openBubbleEditorWithCache() {
     for (var k = 0; k < list.length; k++) {
       var src = list[k]
       if (src && src.kind === 'choice' && Array.isArray(src.options)) {
-        // 并列步骤:整步保留,内部 A/B 各自深拷贝为 custom 泡
+        // 并列步骤:整步保留,内部每个候选各自深拷贝为 custom 泡
+        // 候选同样不裁(issue #263):编辑器只渲染前两个,但第 3 个及以后必须原样带过这一趟,
+        // 否则「打开编辑器再保存」就会把它们从配置里抹掉 —— 而运行期是认这些候选的。
         var opts = []
-        for (var oi = 0; oi < src.options.length && oi < 2; oi++) {
+        for (var oi = 0; oi < src.options.length; oi++) {
           var oi2 = src.options[oi] || {}
           var srcItem = oi2.item || {}
           var srcMods = Array.isArray(srcItem.modules) ? JSON.parse(JSON.stringify(srcItem.modules)) : (srcItem.kind === 'random' ? bubbleDefaultSecondModules() : [])
           // v821：框设置要跟着走（option 与 item 两处都认，item 优先 —— 与 applyBubbleCfgSeq 一致）
           var oiFrame = Object.assign({}, frameFieldsOf(oi2), frameFieldsOf(srcItem))
           opts.push(Object.assign({ w: bubbleChoiceWeight(oi2), item: Object.assign({ kind: 'custom', modules: srcMods }, oiFrame) }, oiFrame))
+        }
+        if (src.options.length > 2) {
+          try {
+            console.warn('[dsh-whale] 并列步骤含 ' + src.options.length + ' 个候选:编辑器只呈现前两个(权重可调),第 3 个及以后的候选按原样保留、运行期照常参与抽取')
+          } catch (err) {}
         }
         if (opts.length === 1) { bubbleEditItems.push(Object.assign(bubbleSingleFromItem(opts[0].item), frameFieldsOf(opts[0]), frameFieldsOf(opts[0].item))); continue }
         if (opts.length >= 2) { bubbleEditItems.push(Object.assign({ kind: 'choice', options: opts }, frameFieldsOf(src))); continue }
@@ -17045,7 +17067,10 @@ function applyBubbleCfgSeq() {
       } catch (err) {}
       if (it && it.kind === 'choice' && Array.isArray(it.options)) {
         var opts = []
-        for (var ci = 0; ci < it.options.length && ci < 2; ci++) {
+        // 候选数不裁:配置里写了几个就用几个(运行期按权重抽一个,见 bubblePickChoiceStep)。
+        // 曾经的 `&& ci < 2` 会把第 3 个及以后的候选**静默丢掉** —— 手写配置时表现为
+        // 「那条台词永远不出现,而且控制台/界面没有任何提示」(issue #263)。
+        for (var ci = 0; ci < it.options.length; ci++) {
           var co = it.options[ci] || {}
           var cit = co.item || {}
           var citem = null
