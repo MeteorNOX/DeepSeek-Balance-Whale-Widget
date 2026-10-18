@@ -14205,6 +14205,7 @@ function applyBubbleLines(lines) {
       el.style.color = ''
     }
   }
+  scheduleBubbleFit()
 }
 var bubbleSwapTimer = null
 var hintFadeTimer = null
@@ -17266,6 +17267,76 @@ function bubbleClearModuleRows() {
     for (var i = 0; i < els.length; i++) { try { textBox.removeChild(els[i]) } catch (err) {} }
   } catch (err) {}
 }
+// ===== v8xx（issue #159）：按气泡椭圆安全区自动缩放文字块 =====
+// .dshwv-text 是 66% × 64% 的**矩形**，而泡泡主体是椭圆；大字号/多行/小尺寸时
+// 首末行会落到椭圆收窄处之外。这里不改字号和换行，只在渲染后量一次内容外接框，
+// 按椭圆内接条件整体等比缩放（k >= 1 时不动），避免裁切和逐行抖动。
+// 只处理文字/模块行；图片模块单独排版，不参与。
+var bubbleFitRaf = null
+function bubbleFitText() {
+  try {
+    var box = textBox
+    if (!box || !bubbleBox || !bubbleBox.classList.contains('dshwv-pop-open')) return
+    var pop = bubbleBox
+    var shape = pop.querySelector('.dshwv-bshape')
+    if (!shape || typeof shape.getBBox !== 'function') return
+    // 先中和上一次的缩放，否则量出来的是缩小后的值，会反复放大/缩小。
+    var base = 'translate(-50%,-50%)' + (state.flip ? ' scaleX(-1)' : '')
+    var prevTrans = box.style.transition
+    box.style.transition = 'none'
+    box.style.transform = base
+    function stopMeasuring() {
+      try { box.style.transition = prevTrans } catch (err) {}
+      return null
+    }
+    var popRect = pop.getBoundingClientRect()
+    if (!(popRect.width > 0) || !(popRect.height > 0)) return stopMeasuring()
+    var bbox = shape.getBBox()
+    if (!(bbox.width > 0) || !(bbox.height > 0)) return stopMeasuring()
+    var sx = popRect.width / 1026
+    var sy = popRect.height / 700
+    // bshape 的 bbox 含尾巴：主体椭圆约为 bbox 高度的 464/490。用 0.94 留余量。
+    var a = bbox.width * sx / 2 * 0.98
+    var b = bbox.height * sy / 2 * 0.94
+    if (!(a > 1) || !(b > 1)) return stopMeasuring()
+    var cx = popRect.left + (bbox.x + bbox.width / 2) * sx
+    var cy = popRect.top + (bbox.y + bbox.height / 2) * sy
+    var left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
+    for (var i = 0; i < box.children.length; i++) {
+      var el = box.children[i]
+      if (!el) continue
+      var cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue
+      var r = el.getBoundingClientRect()
+      if (!(r.width > 0) || !(r.height > 0)) continue
+      if (r.left < left) left = r.left
+      if (r.top < top) top = r.top
+      if (r.right > right) right = r.right
+      if (r.bottom > bottom) bottom = r.bottom
+    }
+    if (!isFinite(left) || !isFinite(top)) return stopMeasuring()
+    // 以气泡中心为基准取内容的最大半宽/半高；内容略偏移时也按更远的一侧算。
+    var cw = 2 * Math.max(cx - left, right - cx)
+    var ch = 2 * Math.max(cy - top, bottom - cy)
+    var k = 0.96 / Math.sqrt(Math.pow(cw / (2 * a), 2) + Math.pow(ch / (2 * b), 2))
+    if (!isFinite(k) || k >= 0.995) return stopMeasuring()
+    k = Math.max(0.55, k)
+    box.style.transform = base + ' scale(' + k.toFixed(4) + ')'
+    requestAnimationFrame(function () {
+      try { box.style.transition = prevTrans } catch (err) {}
+    })
+  } catch (err) {}
+}
+function scheduleBubbleFit() {
+  try {
+    if (bubbleFitRaf) cancelAnimationFrame(bubbleFitRaf)
+    bubbleFitRaf = requestAnimationFrame(function () {
+      bubbleFitRaf = null
+      bubbleFitText()
+    })
+  } catch (err) {}
+}
+
 function sceneOpen(kind, renderFn, ttlMs) {
   var wasOpen = bubbleShown
   // v821（P1）：系统泡泡（消耗 / 预警 / 等待）没有"第 n 次点击"上下文 ⇒ 默认用**保底框**；
@@ -17306,6 +17377,7 @@ function sceneOpen(kind, renderFn, ttlMs) {
         }, 180)
       } catch (err) {}
     }
+    try { scheduleBubbleFit() } catch (err) {}
     if (ttlMs > 0) { bubbleTtlArmed(ttlMs); bubbleTtlTimer = setTimeout(bubbleAutoClose, ttlMs) }
     else bubbleTtlClear()
   }
@@ -18351,8 +18423,8 @@ function bubbleRowsTo(parentEl, mods) {
     // 底色与文字(含文字跑马灯/颜色)不再互相占用 background,可共存,文字不必转白
     var tx = row
     if (needBg) {
-      row.style.padding = '1px 6px'
-      row.style.borderRadius = '7px'
+      row.style.padding = 'calc(var(--dshw-u) * 4) calc(var(--dshw-u) * 24)'
+      row.style.borderRadius = 'calc(var(--dshw-u) * 28)'
       row.style.textShadow = 'none'
       tx = document.createElement('span')
       tx.className = 'dshwv-trowtx'
@@ -18579,6 +18651,7 @@ function bubbleRowsTo(parentEl, mods) {
       rows++
     }
   }
+  scheduleBubbleFit()
 }
 // 当前泡泡正在显示的模块列表(供场景切换时记录;显示期间不再即时整泡重绘,
 // 避免用户观看时内容被刷新打断——更新统一在“泡泡消失→下一次显示”的渲染采用最新 state)
@@ -19094,6 +19167,7 @@ function express() {
   state.top = clampWidgetTop(state.top)
   root.style.top = state.top + 'px'
   root.classList.toggle('dshwv-left', !!state.flip)
+  scheduleBubbleFit()
 }
 function settle() {
   var vp = viewport()
@@ -19571,6 +19645,7 @@ function setScale(v) {
   // （翻转时叠加 transform .3s 更明显，表现为抽搐）。
   requestAnimationFrame(function () {
     root.style.transition = prevTrans
+    scheduleBubbleFit()
   })
 }
 function setVol(v) {
