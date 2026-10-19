@@ -622,8 +622,8 @@ var css = [
   '.dshwv-pop .dshwv-bshape{transition-delay:.1s}',
   '.dshwv-pop .dshwv-b1{transition-delay:.2s}',
   '.dshwv-pop .dshwv-b2{transition-delay:.3s}',
-  '.dshwv-text{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);width:66%;height:64%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .16s ease,transform .3s ease}',
-  '.dshwv-pop.dshwv-pop-open .dshwv-text{opacity:1;transition:opacity .16s ease .36s,transform .3s ease}',
+  '.dshwv-text{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);width:66%;height:64%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#536ba9;line-height:1.15;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .16s ease}',
+  '.dshwv-pop.dshwv-pop-open .dshwv-text{opacity:1;transition:opacity .16s ease .36s}',
   '.dshwv-root.dshwv-left .dshwv-text{transform:translate(-50%,-50%) scaleX(-1)}',
   // 大号字体垂直居中修正：flex 容器以 --dshw-vx/--dshw-vy 为整体中心，
   // 内容(任意行数/字号)由 justify-content:center 整体居中，不随字体度量漂移。
@@ -13878,6 +13878,377 @@ bubbleBox.appendChild(gifEl)
 var gifFailed = false
 gifEl.onerror = function () { gifFailed = true }
 bubbleBox.appendChild(textBox)
+
+// 按全部文本的纵向位置分配椭圆弦宽；数字各行长度由实际字宽和所在高度决定。
+function bubbleWrapAmounts(tb, baseW) {
+  var amounts = tb.querySelectorAll('.dshwv-amount, .dshwv-money, [data-dshwv-wrapped]')
+  var visible = []
+  var keys = ['width', 'maxWidth', 'minWidth', 'boxSizing', 'whiteSpace', 'overflowWrap', 'wordBreak', 'display']
+  for (var i = 0; i < amounts.length; i++) {
+    var amount = amounts[i]
+    var numeric = (amount.classList.contains('dshwv-amount') || amount.classList.contains('dshwv-money')) && /\d/.test(amount.textContent)
+    if (!numeric && amount._dshwAmountStyle) {
+      var saved = amount._dshwAmountStyle
+      Object.keys(saved).forEach(function (key) { amount.style[key] = saved[key] })
+      amount._dshwAmountStyle = null
+      amount.removeAttribute('data-dshwv-wrapped')
+    }
+    if (!numeric || !amount.getClientRects().length) continue
+    if (!amount._dshwAmountStyle) {
+      amount._dshwAmountStyle = {}
+      for (var k = 0; k < keys.length; k++) amount._dshwAmountStyle[keys[k]] = amount.style[keys[k]]
+      amount.setAttribute('data-dshwv-wrapped', '')
+    }
+    // 先恢复单行以测量字形和行高。span 层保留原底色/渐变样式，textContent 不加换行符。
+    var target = amount.querySelector('.dshwv-trowtx') || amount
+    var source = target.textContent
+    if (target.querySelector('.dshwv-numberline')) target.textContent = source
+    amount.style.width = 'auto'
+    amount.style.maxWidth = 'none'
+    amount.style.minWidth = '0'
+    amount.style.boxSizing = 'border-box'
+    amount.style.whiteSpace = 'nowrap'
+    amount.style.overflowWrap = 'normal'
+    amount.style.wordBreak = 'normal'
+    if (amount.style.display === 'inline') amount.style.display = 'inline-block'
+    visible.push({ el: amount, target: target, text: source })
+  }
+  if (!visible.length) return
+  var rows = []
+  for (var r = 0; r < tb.children.length; r++) {
+    var child = tb.children[r]
+    if (!child.getClientRects().length) continue
+    var rect = child.getBoundingClientRect(), style = window.getComputedStyle(child)
+    rows.push({ el: child, top: rect.top, height: rect.height,
+      before: parseFloat(style.marginTop) || 0, after: parseFloat(style.marginBottom) || 0, refs: [] })
+  }
+  var canvas = document.createElement('canvas')
+  var context = canvas.getContext('2d')
+  if (!context) return
+  for (var m = 0; m < visible.length; m++) {
+    var item = visible[m], rowEl = item.el
+    while (rowEl.parentNode !== tb && rowEl.parentNode) rowEl = rowEl.parentNode
+    item.row = -1
+    for (var ri = 0; ri < rows.length; ri++) if (rows[ri].el === rowEl) item.row = ri
+    if (item.row < 0) continue
+    var cs = window.getComputedStyle(item.el)
+    context.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily
+    var spacing = parseFloat(cs.letterSpacing) || 0
+    var range = document.createRange()
+    range.selectNodeContents(item.target)
+    var glyph = range.getBoundingClientRect()
+    item.glyphH = glyph.height || parseFloat(cs.fontSize)
+    item.offset = glyph.top - rows[item.row].top
+    item.lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.15
+    item.padding = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0)
+    item.chars = Array.from(item.text)
+    var len = item.chars.length
+    item.widths = []
+    for (var start = 0; start < len; start++) {
+      item.widths[start] = []
+      for (var end = start + 1; end <= len; end++) {
+        item.widths[start][end] = context.measureText(item.chars.slice(start, end).join('')).width + Math.max(0, end - start - 1) * spacing
+      }
+    }
+    // 货币/负号与首位数字、末尾小数与相邻整数、币种后缀保持完整。
+    var first = -1, last = -1
+    for (var ci = 0; ci < len; ci++) {
+      if (/\d/.test(item.chars[ci])) { if (first < 0) first = ci; last = ci }
+    }
+    var decimal = item.text.match(/[.,]\d{1,2}(?:\s*[^\d.,]*)?$/)
+    var decimalAt = decimal ? Array.from(item.text.slice(0, decimal.index)).length : len + 1
+    item.cuts = [0]
+    for (var cut = 1; cut < len; cut++) {
+      if (cut > first && cut <= last && cut < decimalAt) item.cuts.push(cut)
+    }
+    item.cuts.push(len)
+    item.limit = Math.min(item.cuts.length - 1, 10,
+      Math.max(2, Math.ceil(Math.sqrt(item.widths[0][len] / (item.lineH * 1.6))) + 3))
+  }
+  visible = visible.filter(function (item) { return item.row >= 0 })
+  if (!visible.length) return
+  // 标题、说明、并排行内的其他文字都计入整体高度和轮廓约束。
+  var walker = document.createTreeWalker(tb, NodeFilter.SHOW_TEXT), node
+  while ((node = walker.nextNode())) {
+    if (!node.textContent.trim() || node.parentElement.closest('.dshwv-amount, .dshwv-money')) continue
+    var parent = node.parentElement
+    while (parent.parentNode !== tb && parent.parentNode) parent = parent.parentNode
+    var rowIndex = -1
+    for (var rr = 0; rr < rows.length; rr++) if (rows[rr].el === parent) rowIndex = rr
+    if (rowIndex < 0) continue
+    var reference = document.createRange()
+    reference.selectNodeContents(node)
+    var boxes = reference.getClientRects()
+    for (var b = 0; b < boxes.length; b++) {
+      if (boxes[b].width && boxes[b].height) rows[rowIndex].refs.push({ width: boxes[b].width,
+        top: boxes[b].top - rows[rowIndex].top, height: boxes[b].height })
+    }
+  }
+  var unit = baseW / 1026, rx = 364 * unit, ry = 223 * unit
+  var pad = Math.max(2, unit * 12)
+  function need(width, height, y) {
+    return Math.sqrt(Math.pow((width / 2 + pad) / rx, 2) + Math.pow((Math.abs(y) + height / 2 + pad) / ry, 2))
+  }
+  // 给定行数，动态规划选择断点；再在同一椭圆内按弦宽均衡分配，避免尾行只剩一位。
+  function partition(item, count, y0, grow) {
+    var len = item.chars.length, dp = [], previous = []
+    for (var line = 0; line <= count; line++) { dp[line] = []; previous[line] = [] }
+    dp[0][0] = 0
+    for (var lineNo = 1; lineNo <= count; lineNo++) {
+      var y = y0 + (lineNo - 1) * item.lineH
+      var normalized = (Math.abs(y) + item.glyphH / 2 + pad) / (ry * (grow || 1))
+      var capacity = grow ? Math.max(0, 2 * rx * grow * Math.sqrt(Math.max(0, 1 - normalized * normalized)) - pad * 2 - item.padding) : 0
+      for (var e = 1; e < item.cuts.length; e++) {
+        var to = item.cuts[e], best = Infinity
+        for (var s = 0; s < e; s++) {
+          var from = item.cuts[s], before = dp[lineNo - 1][from]
+          if (before === undefined) continue
+          var width = item.widths[from][to]
+          if (grow && width > capacity + 0.01) continue
+          var cost = grow ? before + width * width / Math.max(1, capacity) : Math.max(before, need(width + item.padding, item.glyphH, y))
+          if (cost < best) { best = cost; previous[lineNo][to] = from }
+        }
+        if (isFinite(best)) dp[lineNo][to] = best
+      }
+    }
+    if (dp[count][len] === undefined) return null
+    var parts = [], pos = len
+    for (var n = count; n > 0; n--) {
+      var at = previous[n][pos]
+      parts.unshift(item.chars.slice(at, pos).join(''))
+      pos = at
+    }
+    return { cost: dp[count][len], parts: parts }
+  }
+  var memo = {}
+  function evaluate(counts) {
+    var key = counts.join(',')
+    if (Object.prototype.hasOwnProperty.call(memo, key)) return memo[key]
+    var deltas = rows.map(function () { return 0 }), starts = [], height = 0
+    for (var i = 0; i < visible.length; i++) deltas[visible[i].row] = Math.max(deltas[visible[i].row], (counts[i] - 1) * visible[i].lineH)
+    for (var r = 0; r < rows.length; r++) {
+      starts[r] = height + rows[r].before
+      height += rows[r].before + rows[r].height + deltas[r] + rows[r].after
+    }
+    var grow = 1, results = [], centers = []
+    for (var r = 0; r < rows.length; r++) {
+      for (var f = 0; f < rows[r].refs.length; f++) {
+        var ref = rows[r].refs[f]
+        grow = Math.max(grow, need(ref.width, ref.height, starts[r] + ref.top + deltas[r] + ref.height / 2 - height / 2))
+      }
+    }
+    for (var i = 0; i < visible.length; i++) {
+      var item = visible[i]
+      centers[i] = starts[item.row] + item.offset + deltas[item.row] - (counts[i] - 1) * item.lineH + item.glyphH / 2 - height / 2
+      var solution = partition(item, counts[i], centers[i], 0)
+      if (!solution) { memo[key] = null; return null }
+      results[i] = solution.parts
+      grow = Math.max(grow, solution.cost)
+    }
+    for (var i = 0; i < visible.length; i++) {
+      var balanced = partition(visible[i], counts[i], centers[i], grow * 1.002)
+      if (balanced) results[i] = balanced.parts
+    }
+    return (memo[key] = { grow: grow, parts: results, counts: counts.slice() })
+  }
+  var counts = visible.map(function () { return 1 }), best = evaluate(counts)
+  // 每个金额选择合适行数；多金额按各自字号、位置独立分配，不固定每行字符数。
+  for (var round = 0; round < 2; round++) {
+    var changed = false
+    for (var i = 0; i < visible.length; i++) {
+      var selected = best
+      for (var n = 1; n <= visible[i].limit; n++) {
+        var candidateCounts = counts.slice()
+        candidateCounts[i] = n
+        var candidate = evaluate(candidateCounts)
+        if (candidate && (!selected || candidate.grow < selected.grow - 0.001 ||
+          (Math.abs(candidate.grow - selected.grow) <= 0.001 && candidate.counts.reduce(function (a, b) { return a + b }, 0) < selected.counts.reduce(function (a, b) { return a + b }, 0)))) selected = candidate
+      }
+      if (selected !== best) changed = true
+      best = selected
+      counts = best.counts.slice()
+    }
+    if (!changed) break
+  }
+  if (!best) return
+  for (var i = 0; i < visible.length; i++) {
+    var item = visible[i], parts = best.parts[i], width = 0
+    for (var p = 0; p < parts.length; p++) {
+      var consumed = parts.slice(0, p).join('').length
+      // 断点以码点计数；宽度仍用完整子串测量，包含货币符号和字距。
+      var from = Array.from(item.text.slice(0, consumed)).length
+      width = Math.max(width, item.widths[from][from + Array.from(parts[p]).length])
+    }
+    item.el.style.width = (Math.ceil((width + item.padding + 0.5) * 64) / 64) + 'px'
+    if (parts.length > 1) {
+      var fragment = document.createDocumentFragment()
+      for (var p = 0; p < parts.length; p++) {
+        var span = document.createElement('span')
+        span.className = 'dshwv-numberline'
+        span.style.cssText = 'display:block;white-space:pre;text-align:center'
+        span.textContent = parts[p]
+        fragment.appendChild(span)
+      }
+      item.target.textContent = ''
+      item.target.appendChild(fragment)
+    }
+  }
+}
+// 先换行，再以每一行的边界求最小等比放大倍数，避免用整块矩形预留过多空白。
+function bubbleFitContent(pop, tb, baseW, preview) {
+  if (!pop || !tb || !pop.isConnected || !(baseW > 0)) return
+  var baseH = baseW * 700 / 1026
+  pop.style.width = baseW + 'px'
+  pop.style.height = baseH + 'px'
+  if (!preview) { pop.style.left = '0px'; pop.style.top = '0px' }
+  var svg = pop.querySelector('svg')
+  // 容器宽高比恒为 1026:700，meet 与 viewBox 完全吻合，放大时不会横向拉长文字或图形。
+  if (svg) svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+  var safe = tb.classList.contains('dshwv-textsafe')
+  // 经典椭圆的内接文字区比旧文字层小，给四角及描边留白。
+  var rw = safe ? parseFloat(tb.style.width) / 100 : 0.50
+  var rh = safe ? parseFloat(tb.style.height) / 100 : 0.42
+  if (!(rw > 0) || !(rh > 0)) return
+  bubbleWrapAmounts(tb, baseW)
+  var pad = Math.max(2, baseW / 1026 * 12)
+  function extent() {
+    var box = tb.getBoundingClientRect()
+    var cx = box.left + box.width / 2, cy = box.top + box.height / 2
+    var w = 0, h = 0, corners = []
+    function include(r) {
+      if (!r || !(r.width > 0) || !(r.height > 0)) return
+      w = Math.max(w, Math.abs(r.left - cx) * 2, Math.abs(r.right - cx) * 2)
+      h = Math.max(h, Math.abs(r.top - cy) * 2, Math.abs(r.bottom - cy) * 2)
+      corners.push([r.left - pad, r.top - pad], [r.right + pad, r.top - pad],
+        [r.left - pad, r.bottom + pad], [r.right + pad, r.bottom + pad])
+    }
+    var walker = document.createTreeWalker(tb, NodeFilter.SHOW_TEXT)
+    var node
+    while ((node = walker.nextNode())) {
+      if (!node.textContent.trim()) continue
+      var range = document.createRange()
+      range.selectNodeContents(node)
+      var rects = range.getClientRects()
+      for (var j = 0; j < rects.length; j++) include(rects[j])
+    }
+    // 带底色的块和图片也必须包住，不能只检查文字笔画。
+    var elements = tb.querySelectorAll('*')
+    for (var i = 0; i < elements.length; i++) {
+      var el = elements[i]
+      var style = window.getComputedStyle(el)
+      if (el.tagName === 'IMG' || style.backgroundImage !== 'none' ||
+        (style.backgroundColor !== 'transparent' && style.backgroundColor !== 'rgba(0, 0, 0, 0)')) {
+        var boxes = el.getClientRects()
+        for (var b = 0; b < boxes.length; b++) include(boxes[b])
+      }
+    }
+    return { w: w + pad * 2, h: h + pad * 2, cx: cx, cy: cy, corners: corners }
+  }
+  var shape = svg && svg.querySelector('.dshwv-bshape')
+  // 经典轮廓直接检查 SVG 填充区和描边；自定义框尊重用户指定的安全区。
+  // 使用 SVG 的矩阵，不含主体开场 scale(.7) 动画，避免动画期间误算尺寸。
+  var exact = !safe && shape && shape.parentNode === svg &&
+    shape.getAttribute('d') === FRAME_CLASSIC_BIG_D && typeof shape.isPointInFill === 'function'
+  function requiredGrow(current) {
+    var content = extent()
+    var fallback = Math.max(1, content.w / (baseW * rw), content.h / (baseH * rh))
+    if (!exact || !content.corners.length) return fallback
+    var matrix = svg.getScreenCTM()
+    if (!matrix || Math.abs(matrix.a * matrix.d - matrix.b * matrix.c) < 0.00000001) return fallback
+    var inverse = matrix.inverse()
+    var center = new DOMPoint(content.cx, content.cy).matrixTransform(inverse)
+    if (!shape.isPointInFill(center) || shape.isPointInStroke(center)) return fallback
+    var points = content.corners.map(function (p) {
+      return new DOMPoint(p[0], p[1]).matrixTransform(inverse)
+    })
+    function fits(grow) {
+      for (var i = 0; i < points.length; i++) {
+        var p = new DOMPoint(center.x + (points[i].x - center.x) * current / grow,
+          center.y + (points[i].y - center.y) * current / grow)
+        if (!shape.isPointInFill(p) || shape.isPointInStroke(p)) return false
+      }
+      return true
+    }
+    if (fits(1)) return 1
+    var low = 1, high = fallback
+    for (var n = 0; n < 8 && !fits(high); n++) high *= 2
+    if (!fits(high)) return fallback
+    for (var step = 0; step < 12; step++) {
+      var mid = (low + high) / 2
+      if (fits(mid)) high = mid
+      else low = mid
+    }
+    return high
+  }
+  // 手动轮（normal/random/custom）内锁定第 1 泡量到的外框尺寸：切内容只重排文字，不再让框大小跟着变。
+  // preview（自定义框预览）和 cost/alert/wait 系统泡泡保持原行为。
+  var lockSize = !preview && bubbleRoundOn && bubbleScene &&
+    (bubbleScene.kind === 'normal' || bubbleScene.kind === 'random' || bubbleScene.kind === 'custom')
+  var cached = lockSize ? bubbleRoundSize : null
+  // 根宽度变化（窗口缩放）⇒ 缓存的像素尺寸作废，本轮重新量一次。
+  if (cached && cached.baseW !== baseW) cached = null
+  var w, h
+  if (cached) {
+    // 命中缓存：直接套用本轮首泡尺寸，跳过 requiredGrow 扩框循环；下方换行与视口位置调整照常执行。
+    w = cached.w
+    h = cached.h
+    pop.style.width = w + 'px'
+    pop.style.height = h + 'px'
+    pop.style.left = (baseW - w) + 'px'
+    pop.style.top = (baseH - h) + 'px'
+  } else {
+    var grow = 1
+    // 扩展后普通文字可能重排，再校正一次。数字断点已按整体椭圆轮廓确定。
+    for (var pass = 0; pass < 2; pass++) {
+      grow = requiredGrow(grow)
+      w = baseW * grow
+      h = baseH * grow
+      pop.style.width = w + 'px'
+      pop.style.height = h + 'px'
+      if (!preview) {
+        pop.style.left = (baseW - w) + 'px'
+        pop.style.top = (baseH - h) + 'px'
+      }
+    }
+    // 首次数值测量完成 ⇒ 记下本轮外框尺寸，供后续气泡直接复用。
+    if (lockSize) bubbleRoundSize = { baseW: baseW, w: w, h: h }
+  }
+  if (!preview) {
+    // 允许边框覆盖界面；只调整位置，让文字尽量留在视口里，不限制放大倍数。
+    var content = extent()
+    var vp = viewport()
+    var topMin = widgetTopMin() + 8
+    var minX = 8 + content.w / 2, maxX = vp.w - 8 - content.w / 2
+    var minY = topMin + content.h / 2, maxY = vp.h - 8 - content.h / 2
+    var cx = minX <= maxX ? Math.max(minX, Math.min(content.cx, maxX)) : vp.w / 2
+    var cy = minY <= maxY ? Math.max(minY, Math.min(content.cy, maxY)) : (topMin + vp.h - 8) / 2
+    pop.style.left = (baseW - w + (state && state.flip ? content.cx - cx : cx - content.cx)) + 'px'
+    pop.style.top = (baseH - h + cy - content.cy) + 'px'
+  }
+  // 清掉本次分行生成 span 的记录，避免布局自身触发无限重排。
+  if (tb === textBox && bubbleContentObserver) bubbleContentObserver.takeRecords()
+}
+var bubbleFitPending = false
+function scheduleBubbleFit() {
+  if (bubbleFitPending) return
+  bubbleFitPending = true
+  requestAnimationFrame(function () {
+    bubbleFitPending = false
+    if (!bubbleShown) return
+    bubbleFitContent(bubbleBox, textBox, root.clientWidth, false)
+  })
+}
+// 覆盖接口刷新、自定义余额应用/取消、数字滚动及异步图片加载；同帧多次变化只测一次。
+try {
+  var bubbleContentObserver = new MutationObserver(scheduleBubbleFit)
+  bubbleContentObserver.observe(textBox, { childList: true, characterData: true, subtree: true })
+  bubbleBox.addEventListener('load', scheduleBubbleFit, true)
+  new ResizeObserver(scheduleBubbleFit).observe(root)
+  root.addEventListener('transitionend', function (e) {
+    if (e.target === root && (e.propertyName === 'transform' || e.propertyName === 'left' || e.propertyName === 'top')) scheduleBubbleFit()
+  })
+  if (document.fonts) document.fonts.ready.then(scheduleBubbleFit)
+} catch (err) {}
 bubbleBox.addEventListener('click', function (e) {
   e.stopPropagation()
   if (!bubbleShown) return
@@ -14312,6 +14683,8 @@ var bubbleScene = null // { kind:'normal'|'random'|'cost', ttlMs }
 var bubbleSeq = bubbleDefaultQueue() // 默认序列 = 与开发者线上生效一致(首次=余额,再次=随机语句);有配置后由 applyBubbleCfgSeq 覆盖
 var bubbleSeqIdx = 0 // 下一项下标(手动轮内推进)
 var bubbleRoundOn = false // 手动轮是否进行中(被消耗顶掉时保留, 结束后归零)
+// 同一手动轮沿用首泡尺寸；关闭或开始新一轮时清空。
+var bubbleRoundSize = null
 var bubbleCfg = null // 服务端自定义配置 {v:1, items:[...], lib:[...], tapAdvance:bool}; null=未配置
 var bubbleLib = [] // 可选模块库(当前会话编辑用,随配置保存):[{id,name,module}]
 // v727「点按角色推进泡泡队列」（仅「自定义泡泡」菜单可设，存在泡泡配置里）：
@@ -14784,6 +15157,7 @@ function applyBubbleFrame(frame, override) {
       if (textBox) textBox.style.color = (frame && frame.textColor) ? String(frame.textColor) : ''
     } catch (err) {}
     applyBubbleTextFrame(frame)
+    scheduleBubbleFit()
     return true
   } catch (err) { return false }
 }
@@ -17248,6 +17622,7 @@ function bubbleCloseVisual() {
   // 但"整泡关闭"（hideBubble/hideCostBubble/hideWaitBubble…）不走渲染 ⇒ 不复位就会残留成 true，
   // 之后 showWaitBubble 会误判"已经在显示等待泡泡"（历史上正是这类不同步把等待泡泡卡死的）。
   waitShown = false
+  bubbleRoundSize = null
   try { bubbleBox.classList.remove('dshwv-pop-open') } catch (err) {}
   try { textBox.style.transition = ''; textBox.style.opacity = '' } catch (err) {}
   try { hintEl.style.transition = ''; hintEl.style.opacity = '' } catch (err) {}
@@ -17293,6 +17668,7 @@ function sceneOpen(kind, renderFn, ttlMs) {
   lastHintText = null // 内容整体重置,提示行走“首次直写”,避免半途淡出残留
   function finish() {
     try { renderFn() } catch (err) {}
+    try { bubbleFitContent(bubbleBox, textBox, root.clientWidth, false) } catch (err) {}
     try { bubbleBox.classList.add('dshwv-pop-open') } catch (err) {}
     // 内容替换(泡泡已开着)时淡入新文字;首次打开不加内联透明度,
     // 文字显隐交给 CSS(.dshwv-pop-open 才显示,带 .36s 延时跟随泡泡成形)
@@ -17392,6 +17768,7 @@ function bubblePickChoiceStep(step) {
 function bubbleShowSeqNext() {
   var step = bubbleSeq[bubbleSeqIdx]
   if (!step) { hideBubble(); return }
+  if (bubbleSeqIdx === 0) bubbleRoundSize = null
   bubbleSeqIdx++
   var item = bubbleIsChoice(step) ? bubblePickChoiceStep(step) : step
   if (!item) { hideBubble(); return }
@@ -18359,8 +18736,10 @@ function bubbleRowsTo(parentEl, mods) {
       row.appendChild(tx)
     }
     tx.textContent = String(rowContent.txt)
+    var money = m.type === 'balance' || m.type === 'bonus' || m.type === 'recharge' || m.type === 'today'
+    if (m.type === 'balance' || m.type === 'bonus' || m.type === 'recharge') row.classList.add('dshwv-money')
     // 峰谷/时段倒计时块不受自动换行影响:保持单行显示
-    if (m.type === 'peak' || m.type === 'nextpeak') {
+    if (money || m.type === 'peak' || m.type === 'nextpeak') {
       row.style.whiteSpace = 'nowrap'
       row.style.maxWidth = 'none'
     }
@@ -18410,12 +18789,12 @@ function bubbleRowsTo(parentEl, mods) {
         row.style.background = effBg
       }
     }
-    return { el: row, tx: tx, fSize: fSize, mod: m, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak }
+    return { el: row, tx: tx, fSize: fSize, mod: m, money: money, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak }
   }
   // 超宽判定(与旧版一致):先单行渲染,测量实际超出泡泡内宽(560u)才允许该块内折行——
   // 预览与真实共用此逻辑,保证两者一致
   function maybeWrap(blk) {
-    if (!blk || blk.peak) return
+    if (!blk || blk.peak || blk.money) return
     try {
       var compFs = window.getComputedStyle ? parseFloat(window.getComputedStyle(blk.el).fontSize) : 0
       var multNow = bubbleModuleFontU(blk.fSize)
@@ -18563,7 +18942,7 @@ function bubbleRowsTo(parentEl, mods) {
           pe.style.boxDecorationBreak = 'clone'
           pe.style.webkitBoxDecorationBreak = 'clone'
         }
-        if (!pr.peak) {
+        if (!pr.peak && !pr.money) {
           pe.style.whiteSpace = 'normal'
           pe.style.overflowWrap = 'anywhere'
           pe.style.wordBreak = 'break-word'
@@ -18643,6 +19022,7 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
     stage.style.top = cropTop + 'px'
     stage.style.width = '100%'
     stage.style.height = Math.round(W * 700 / 1026) + 'px'
+    stage.style.setProperty('--dshw-u', (B / 1026) + 'px')
     try {
       if (o.frame) stage.innerHTML = frameSvgMarkup(o.frame, o.override || null)
       else {
@@ -18694,6 +19074,19 @@ function bubblePreviewInto(container, mods, widthPx, opts) {
     pop.appendChild(stage)
     container.appendChild(pop)
     bubbleRowsTo(tb, mods || [])
+    function fitPreview() {
+      if (!pop.isConnected) return
+      stage.style.transform = 'none'
+      bubbleFitContent(stage, tb, B, true)
+      // 先按实际角色尺寸排版，再将扩展后的整个气泡缩入预览卡片。
+      var scale = W / parseFloat(stage.style.width)
+      stage.style.transformOrigin = '0 0'
+      stage.style.transform = 'scale(' + scale + ')'
+      pop.style.height = (parseFloat(stage.style.height) * scale * 0.8 + cropTop) + 'px'
+    }
+    fitPreview()
+    stage.addEventListener('load', fitPreview, true)
+    if (document.fonts) document.fonts.ready.then(fitPreview)
   } catch (err) {}
 }
 // 点击鲸鱼:
@@ -19094,6 +19487,7 @@ function express() {
   state.top = clampWidgetTop(state.top)
   root.style.top = state.top + 'px'
   root.classList.toggle('dshwv-left', !!state.flip)
+  scheduleBubbleFit()
 }
 function settle() {
   var vp = viewport()
