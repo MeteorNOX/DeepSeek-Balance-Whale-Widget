@@ -15,6 +15,7 @@
   "files": [
     "lib",
     "assets",
+    "native",
     "icon.png",
     "cordis.patch.yml",
     "README.md",

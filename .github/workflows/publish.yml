@@ -38,7 +38,18 @@ permissions:
   id-token: write   # npm Trusted Publishing (OIDC) 换取临时凭证
 
 jobs:
+  native-window:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native region and Windows PowerShell regression
+        shell: powershell
+        run: ./tools/window-region-test.ps1
+
   publish:
+    needs: native-window
     runs-on: ubuntu-latest
     steps:
       # 安全闸：手动触发时 GitHub 允许选分支 —— 从非 main 的分支发版会把"那个分支的版本"发出去。
@@ -81,6 +92,9 @@ jobs:
       # 发版前门禁（与 ci.yml 同一项，这里再跑一次：**不允许在审计不通过时发布**）
       # 层级自检（issue #131 / #142）：候选表里出现未声明的名字、或 body 级 *Mask 浮层没登记，
       # 都会静默失效（下拉被盖住 / 两个窗口互相盖）。让它在 CI 里硬失败，别等用户报「点了没反应」。
+      - name: Native window DOM region regression
+        run: node tools/window-region-test.mjs
+
       - name: Layer audit (z-index invariants)
         run: node tools/z-layer-audit.mjs assets/whale-widget.js
 

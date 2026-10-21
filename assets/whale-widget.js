@@ -117,6 +117,9 @@ function dshwvAudioIdleArm() {
 // 那些沙箱里不一定声明了 soundOn —— typeof 对未声明的标识符是安全的，裸引用会直接抛
 // ReferenceError 把整段沙箱打断。真机上 soundOn 一定存在，行为不受影响。
 function dshwvSoundOff() {
+  // 独立窗口开着时，DSH 页内这一份挂件会让位（隐藏 + 静音，见 dshwvSyncNativeWindow）：
+  // 两份挂件跑的是同一套 1 秒轮询，不让位就会同一件事响两遍、屏幕上出现两只鲸鱼。
+  try { if (window.__dshwNativeYield === true) return true } catch (err) {}
   try { return typeof soundOn !== 'undefined' && soundOn === false } catch (err) { return false }
 }
 function dshwvAudio() {
@@ -2196,6 +2199,36 @@ var rowHide = menuRow()
 rowHide.appendChild(menuLabel('隐藏菜单按钮'))
 rowHide.appendChild(menuHideToggle)
 menuBox.appendChild(rowHide)
+
+// ===== 独立窗口（原生桌面覆盖层）=====
+// 这一行只负责开关 + 显示状态；真正的窗口进程由宿主插件拉起
+// （native/window/whale-window.ps1 + WebView2，见 README「独立窗口」一节）。
+// 独立窗口里那一份挂件也跑这段代码，所以两个地方都能开关与置顶。
+var NATIVE_WINDOW_URL = '/dsh-whale/window.json'
+var dshwInNativeWindow = false
+try { dshwInNativeWindow = window.__dshwNativeWindow === true } catch (err) {}
+var nativeWindowToggle = document.createElement('input')
+nativeWindowToggle.type = 'checkbox'
+nativeWindowToggle.className = 'dshwv-check'
+nativeWindowToggle.checked = false
+nativeWindowToggle.title = '开一个独立的桌面小鲸鱼（原生透明覆盖层）：DSH 最小化/被遮挡时余额与提醒仍然可见、可拖动贴边'
+nativeWindowToggle.addEventListener('change', function () { setNativeWindowOn(nativeWindowToggle.checked) })
+var rowNative = menuRow()
+rowNative.appendChild(menuLabel('独立窗口'))
+rowNative.appendChild(nativeWindowToggle)
+menuBox.appendChild(rowNative)
+
+var nativeTopmostToggle = document.createElement('input')
+nativeTopmostToggle.type = 'checkbox'
+nativeTopmostToggle.className = 'dshwv-check'
+nativeTopmostToggle.checked = false
+nativeTopmostToggle.disabled = true
+nativeTopmostToggle.title = '把独立窗口钉在所有窗口最上层（Windows 原生置顶，不需要额外插件）'
+nativeTopmostToggle.addEventListener('change', function () { setNativeWindowTopmost(nativeTopmostToggle.checked) })
+var rowNativeTop = menuRow()
+rowNativeTop.appendChild(menuLabel('独立窗口置顶'))
+rowNativeTop.appendChild(nativeTopmostToggle)
+menuBox.appendChild(rowNativeTop)
 // —— Codex 本机统计开关（issue #116）：v748 起**从主菜单挪进「Codex 模型的设置子菜单」** ——
 // 主菜单不再有这一项（它对没配 Codex 模型的用户没有意义）。宿主侧同样按"有没有 Codex 模型"兜底：
 // 没配 → 默认关闭、完全不扫 ~/.codex/sessions。这里只保留一个"当前挂载的那个复选框"的引用，
@@ -21709,6 +21742,8 @@ function onDocPointerDown(e) {
   var vp = viewport()
   var rect = root.getBoundingClientRect()
   drag = { active: true, startX: e.clientX, startY: e.clientY, origLeft: rect.left, origTop: rect.top, w: rect.width, h: rect.height, moved: false, vp: vp }
+  dshwvNativeLastPointer(e)
+  dshwvNativeDragSignal(true)
   root.classList.add('dshwv-dragging')
   pressDown()
   setWidgetCursor('grabbing')
@@ -21947,6 +21982,7 @@ try { applyMenuBtnHideUI() } catch (err) {}
 
 function endDrag(e, clickAllowed, cancelled) {
   if (!drag || !drag.active) return
+  dshwvNativeDragSignal(false)
   drag.active = false
   document.removeEventListener('pointermove', onDocPointerMove, true)
   document.removeEventListener('pointerup', onDocPointerUp, true)
@@ -22313,7 +22349,128 @@ function pollLastTurn() {
       .catch(function () {})
   } catch (err) {}
 }
+// ===== 独立窗口（原生桌面覆盖层）状态同步 =====
+// 宿主是唯一事实来源：开关状态、窗口是否真的开着、置顶位都在 /dsh-whale/window.json。
+// 这里只做两件事：① 把状态回填到菜单控件；② 独立窗口开着时，DSH 页内这一份挂件
+// 隐藏并静音（于是屏幕上只有一只鲸鱼、同一件事只响一次）。
+var nativeWindowOpen = false
+// 独立窗口里，按住鼠标要让原生窗口把鼠标「抓」过去（SetCapture）。
+// 原因：分层窗口只有不透明像素算实体，快速拖动时鲸鱼被甩在光标后面、光标落在透明像素上，
+// 鼠标消息就漏给了下层窗口 —— 页面收不到 pointermove（拖不动）也收不到 pointerup
+// （一直保持按下态）。抓过去之后与像素、形状无关，全都归我们。
+// 顺带在按住期间关掉 root 的 left/top 过渡（.16s ease），否则快速拖动会被缓动抹平、明显不跟手。
+// 记最后一次指针位置：强制收尾时要补在那个位置上（决定这次算不算"点了一下"）。
+var dshwvNativeLast = { x: 0, y: 0 }
+function dshwvNativeLastPointer(e) {
+  try { dshwvNativeLast.x = e.clientX; dshwvNativeLast.y = e.clientY } catch (err) {}
+}
+function dshwvNativeDragSignal(on) {
+  if (!dshwInNativeWindow) return
+  try {
+    if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+      window.chrome.webview.postMessage(on ? 'drag:1' : 'drag:0')
+    }
+  } catch (err) {}
+  try { root.style.transition = on ? 'none' : '' } catch (err) {}
+}
+if (dshwInNativeWindow) {
+  try {
+    document.addEventListener('pointermove', function (e) { dshwvNativeLastPointer(e) }, true)
+    window.addEventListener('blur', function () {
+      if (drag && drag.active) endDrag(null, false, true)
+      else dshwvNativeDragSignal(false)
+    })
+  } catch (err) {}
+  // 原生侧的兜底钩子：拖动期间捕获被别的窗口抢走（拖到任务栏上松手最典型）时，mouseup 会送给
+  // 对方，我们这边永远等不到 pointerup，挂件就停在"按下"态。原生发现"左键已经松了"会调这里，
+  // 在最后一次指针位置上补一个合成 pointerup，让挂件走它原本的 endDrag 路径收尾（不另写一套）。
+  try {
+    window.__dshwForceEndDrag = function () {
+      try {
+        if (!drag || !drag.active) return
+        var ev = new PointerEvent('pointerup', {
+          clientX: dshwvNativeLast.x, clientY: dshwvNativeLast.y, buttons: 0, button: 0,
+          pointerId: 1, pointerType: 'mouse', bubbles: true, cancelable: true,
+        })
+        document.dispatchEvent(ev)
+      } catch (err) {
+        try { if (drag && drag.active) endDrag({ clientX: dshwvNativeLast.x, clientY: dshwvNativeLast.y, buttons: 0 }, true) } catch (err2) {}
+      }
+    }
+  } catch (err) {}
+}
+function dshwvApplyNativeYield() {
+  var yieldToWindow = nativeWindowOpen && !dshwInNativeWindow
+  try { window.__dshwNativeYield = yieldToWindow } catch (err) {}
+  try { root.style.display = yieldToWindow ? 'none' : '' } catch (err) {}
+  if (yieldToWindow) { try { closeMenu() } catch (err) {} }
+}
+function dshwvRenderNativeWindowState(st) {
+  nativeWindowOpen = !!(st && st.open)
+  try { nativeWindowToggle.checked = nativeWindowOpen } catch (err) {}
+  try {
+    nativeTopmostToggle.disabled = !nativeWindowOpen
+    nativeTopmostToggle.checked = !!(st && st.topmostWanted)
+  } catch (err) {}
+  try {
+    var baseTitle = '开一个独立的桌面小鲸鱼（原生透明覆盖层）：DSH 最小化/被遮挡时余额与提醒仍然可见、可拖动贴边'
+    if (st && st.supported === false) {
+      nativeWindowToggle.disabled = true
+      nativeWindowToggle.title = '独立窗口适用于 x64 Windows 电脑系统，需要安装 WebView2 Evergreen Runtime'
+    } else if (st && st.error) {
+      // 宿主把失败原因（例如页面没能起来，窗口已被自动收掉）带出来，鼠标停在开关上就能看到
+      nativeWindowToggle.title = baseTitle + '\n最近一次失败：' + st.error + (st.log ? '\n日志：' + st.log : '')
+    } else {
+      nativeWindowToggle.title = baseTitle
+    }
+  } catch (err) {}
+  dshwvApplyNativeYield()
+}
+function dshwvNativePost(payload) {
+  return fetch(NATIVE_WINDOW_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  })
+    .then(function (r) { return r.json().catch(function () { return null }) })
+    .catch(function () { return null })
+}
+function dshwvSyncNativeWindow() {
+  try {
+    fetch(NATIVE_WINDOW_URL, { cache: 'no-store' })
+      .then(function (r) { return r.json() })
+      .then(function (d) { if (d && d.ok) dshwvRenderNativeWindowState(d) })
+      .catch(function () {})
+  } catch (err) {}
+}
+function setNativeWindowOn(on) {
+  if (!on) {
+    dshwvNativePost({ action: 'close' }).then(function (d) {
+      if (d && typeof d.open === 'boolean') dshwvRenderNativeWindowState(d)
+      else dshwvSyncNativeWindow()
+    })
+    return
+  }
+  // 开窗是异步的（宿主先起 PowerShell/WebView2，窗口再连上来）：先勾上，等状态回填纠偏
+  try { nativeWindowToggle.checked = true } catch (err) {}
+  dshwvNativePost({ action: 'open' }).then(function (d) {
+    if (d && d.status && typeof d.status.open === 'boolean') dshwvRenderNativeWindowState(d.status)
+    else dshwvSyncNativeWindow()
+  })
+}
+function setNativeWindowTopmost(on) {
+  dshwvNativePost({ action: 'topmost', on: !!on }).then(function (d) {
+    if (d && d.ok) dshwvRenderNativeWindowState(d)
+  })
+}
 setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
+// 独立窗口状态搭既有的 1s 心跳：每 3 拍拉一次（本地回环请求，开销可忽略）
+var dshwvNativeTick = 0
+setInterval(function () {
+  if ((dshwvNativeTick++ % 3) !== 0) return
+  dshwvSyncNativeWindow()
+}, 1000)
+try { dshwvSyncNativeWindow() } catch (err) {}
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshwTryStart(true) } catch (err) {}

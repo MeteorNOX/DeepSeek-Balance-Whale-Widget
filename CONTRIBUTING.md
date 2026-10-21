@@ -91,3 +91,13 @@ dsh-whale-widget/
 ### 关于那两个超大文件
 
 `assets/whale-widget.js`（16,853 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+
+
+### Optional Windows native window
+
+`native/window/` contains the WPF/WebView2 host, bounded HWND region helper and
+SDK redistribution notices. `assets/window.html` is the authenticated standalone
+page; host/frontend changes stay in the existing bundle. `tools/window-region-test.mjs`
+and `tools/window-region-test.ps1` cover DOM/native geometry in normal CI and the
+manual publication workflow; `tools/window-host-test.mjs` covers the window
+lifecycle. See `native/window/README.md` for implementation and maintenance details.

@@ -35,3 +35,12 @@
 ## 四、权利主张 / Takedown
 
 如果你认为 `assets/` 中有素材侵犯了你的权利，请在本仓库开一条 issue，说明**文件名**与**依据**，我们会在核实后**立即替换或移除**，不附加其它条件。我们也欢迎直接提供可自由再分发的替代素材。
+
+
+## WebView2 SDK redistribution
+
+`native/window/sdk/*.dll` are unmodified Microsoft WebView2 SDK 1.0.4258.31
+components under the accompanying `native/window/sdk/LICENSE.txt`, not this
+repository's MIT license. Sources and package paths are recorded in
+`native/window/sdk/NOTICE.md`. The native host scripts and region helper are
+project code under MIT. No WebView2 Runtime installer is redistributed.

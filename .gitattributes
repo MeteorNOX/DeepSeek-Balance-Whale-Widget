@@ -12,3 +12,8 @@
 *.mp3 binary
 *.ico binary
 *.zip binary
+*.dll binary
+*.ps1 text eol=lf
+
+# Preserve the upstream Microsoft SDK license byte for byte.
+native/window/sdk/LICENSE.txt -text -whitespace

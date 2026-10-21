@@ -23,6 +23,16 @@ permissions:
   contents: read
 
 jobs:
+  native-window:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Native region and Windows PowerShell regression
+        shell: powershell
+        run: ./tools/window-region-test.ps1
+
   audit:
     runs-on: ubuntu-latest
     steps:
@@ -36,6 +46,9 @@ jobs:
       # 层级自检（issue #131 / #142）：候选表里出现未声明的名字、或 body 级 *Mask 浮层没登记，
       # 都会静默失效（自绘下拉被父窗口盖住 / 两个窗口互相盖）。这类问题只能靠这条拦住。
       # 脚本 0 依赖（只用 node:fs），所以不需要 npm install。
+      - name: Native window DOM region regression
+        run: node tools/window-region-test.mjs
+
       - name: Layer audit (z-index invariants)
         run: node tools/z-layer-audit.mjs assets/whale-widget.js
 

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSH 小鲸鱼</title>
+<style>
+  /* 独立窗口页面：整页只放挂件本身，背景必须透明（原生窗口靠它实现无边框透明覆盖）。 */
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  #root { position: fixed; left: 0; top: 0; width: 100%; height: 100%; }
+  /* 挂件只在识别到"主聊天界面"时才启动（dshwIsChatRoot 认 data-composer-input）。
+     独立窗口里没有 composer，所以放一个不可见、不可聚焦的占位，让同一份 widget.js
+     原样跑起来 —— 这也是"不做第二套 UI"的关键。 */
+  .dshw-window-stub { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+  /* An invisible menu button must not remain a clickable desktop hotspot. */
+  html body .dshwv-menu-btn { pointer-events: none; }
+  html body .dshwv-menu-btn.dshwv-menu-btn-visible { pointer-events: auto; }
+</style>
+</head>
+<body>
+<div id="root"><div class="dshw-window-stub" data-composer-input="true" role="textbox" aria-multiline="true" tabindex="-1"></div></div>
+<script>
+// 页面标记：widget.js 据此知道"这一份跑在原生独立窗口里"（DSH 页内那一份会隐藏并让出声音）。
+window.__dshwNativeWindow = true
+// Native HWND clipping uses visible widget surfaces, never the fullscreen root or
+// modal backdrops. Return CSS coordinates; the host maps them to physical pixels.
+window.__dshwGetWindowRegion = function () {
+  var width = window.innerWidth, height = window.innerHeight
+  var rects = []
+  var nodes = document.querySelectorAll('[class*="dshwv-"]')
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i]
+    // These nodes provide layout only; their descendants supply the actual paint.
+    if (Array.from(node.classList).some(function (name) {
+      return name === 'dshwv-root' || name === 'dshwv-body' || name === 'dshwv-pop' || name === 'dshwv-shapewrap'
+    })) continue
+    var style = getComputedStyle(node)
+    if (style.display === 'none' || style.visibility !== 'visible') continue
+    var visible = true
+    var box = node.getBoundingClientRect()
+    var rect = [Math.max(0, box.left), Math.max(0, box.top), Math.min(width, box.right), Math.min(height, box.bottom)]
+    for (var parent = node; parent && parent !== document.documentElement; parent = parent.parentElement) {
+      var ps = getComputedStyle(parent)
+      if (ps.display === 'none' || Number(ps.opacity) === 0) { visible = false; break }
+      if (parent !== node) {
+        var pb = parent.getBoundingClientRect()
+        if (ps.overflowX !== 'visible') { rect[0] = Math.max(rect[0], pb.left); rect[2] = Math.min(rect[2], pb.right) }
+        if (ps.overflowY !== 'visible') { rect[1] = Math.max(rect[1], pb.top); rect[3] = Math.min(rect[3], pb.bottom) }
+      }
+    }
+    if (!visible || rect[2] <= rect[0] || rect[3] <= rect[1]) continue
+    // Backdrops cover the whole browser intentionally in page mode. In desktop
+    // mode only their cards belong to this native window; desktop clicks stay free.
+    if ((rect[0] === 0 && rect[1] === 0 && rect[2] === width && rect[3] === height) ||
+        Array.from(node.classList).some(function (name) { return /^dshwv-.*mask$/.test(name) })) continue
+    // Keep only outer rectangles, including children that overflow the whale root.
+    if (rects.some(function (r) { return r[0] <= rect[0] && r[1] <= rect[1] && r[2] >= rect[2] && r[3] >= rect[3] })) continue
+    rects = rects.filter(function (r) { return !(rect[0] <= r[0] && rect[1] <= r[1] && rect[2] >= r[2] && rect[3] >= r[3]) })
+    rects.push(rect)
+  }
+  // Bound host parsing/GDI work; an invalid snapshot makes the host release input.
+  if (rects.length > 256) return ''
+  return [width + ',' + height].concat(rects.map(function (r) { return r.join(',') })).join(';')
+}
+// 诊断：把页面里的未捕获错误记到一个全局变量，宿主可以读出来写进自己的日志
+// （原生窗口没有控制台可看；出问题时这是唯一能看到"页面里到底炸了什么"的地方）。
+window.__dshwLastError = ''
+window.addEventListener('error', function (e) {
+  try { window.__dshwLastError = String((e && (e.message || (e.error && e.error.message))) || 'error') } catch (err) {}
+})
+window.addEventListener('unhandledrejection', function (e) {
+  try { window.__dshwLastError = 'promise: ' + String((e && e.reason && e.reason.message) || (e && e.reason) || 'rejection') } catch (err) {}
+})
+</script>
+<script src="/dsh-whale/widget.js"></script>
+<script>
+// 挂件挂载完成后向原生窗口报一次「ready」：窗口那边会把它写进自己的日志。
+// 原生窗口没有控制台可看，这一条是"页面真的跑起来了"的唯一确证（排障用）。
+;(function () {
+  var tries = 0
+  var timer = setInterval(function () {
+    tries++
+    var mounted = !!window.__dshWhaleRoot
+    var failed = !!window.__dshwLastError
+    if (mounted || failed || tries > 100) {
+      clearInterval(timer)
+      try {
+        var msg = mounted ? 'ready' : (failed ? 'error: ' + window.__dshwLastError : 'timeout')
+        if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(msg)
+      } catch (err) {}
+    }
+  }, 200)
+})()
+</script>
+</body>
+</html>
