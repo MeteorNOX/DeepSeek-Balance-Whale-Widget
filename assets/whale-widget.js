@@ -349,6 +349,10 @@ var MAX_SCALE = 2.5
 var STEP = 0.1
 var CLICK_SQ = 9
 var REFRESH_MS = 60000
+// 构建信标：本本地改造版的标记。原版没有这个键 —— 读 localStorage['dshw-build'] 即可确认
+// 「浏览器实际加载的前端是哪一版」（用于验证改动是否真的生效，不参与任何业务逻辑）
+var DSHW_BUILD = 'planbar-2026-10-21'
+try { if (typeof localStorage !== 'undefined') localStorage.setItem('dshw-build', DSHW_BUILD) } catch (err) {}
 var CHANGE_MS = 900
 var ANIM_MS = 700
 var BUBBLE_MS = 5000
@@ -1272,7 +1276,18 @@ var css = [
   '.dshwv-resplay:hover{background:rgba(47,122,66,.08)}',
   '.dshwv-resimp{flex:0 0 auto;border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.08);color:#203170;font-size:11px;padding:1px 9px;cursor:pointer}',
   '.dshwv-resimp:hover{background:rgba(32,49,112,.16)}',
-  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}'
+  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}',
+  // —— 泡泡内「订阅额度进度条」模块（type='plan' + planStyle='bar'，独占整行）——
+  // 所有尺寸走 --dshw-u（泡泡宽度/1026），与泡泡文字同比例缩放；进度条颜色由 JS 按用量分档内联
+  // margin-bottom 不是留白，而是「配重」：泡泡文字层是 flex 居中，给这块加底部占位会让整组内容
+  // （标题 + 三条进度条）在居中计算里整体上移 margin/2 —— 用来把最容易压到边框的最后一行抬回框内。
+  '.dshwv-planbar{display:flex;flex-direction:column;gap:calc(var(--dshw-u) * 7);width:100%;box-sizing:border-box;padding:calc(var(--dshw-u) * 2) 0;margin-bottom:calc(var(--dshw-u) * 60);font-size:calc(var(--dshw-u) * 48);line-height:1.2}',
+  '.dshwv-planbar-row{display:flex;align-items:center;gap:calc(var(--dshw-u) * 8);width:100%;box-sizing:border-box}',
+  '.dshwv-planbar-label{flex:0 0 auto;min-width:calc(var(--dshw-u) * 40);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}',
+  '.dshwv-planbar-track{flex:1 1 auto;min-width:calc(var(--dshw-u) * 40);height:calc(var(--dshw-u) * 18);border-radius:calc(var(--dshw-u) * 9);background:rgba(32,49,112,.16);overflow:hidden}',
+  '.dshwv-planbar-fill{display:block;height:100%;border-radius:calc(var(--dshw-u) * 9)}',
+  '.dshwv-planbar-pct{flex:0 0 auto;min-width:calc(var(--dshw-u) * 62);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}',
+  '.dshwv-planbar-reset{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8;font-size:.75em;font-weight:400}'
 ].join('\n')
 
 var styleEl = document.createElement('style')
@@ -10288,6 +10303,23 @@ function openQuickModuleEditor(m, anchorBtn) {
   if (m.type === 'session') box.appendChild(sessionLenRowBuild(qRow, qLabel, m, changed))
   // 订阅额度模块的「显示样式」= 选时间窗口（多窗口厂商，如 OpenCode Go 的 5h / 周 / 月）
   if (m.type === 'plan' && (apiPlanMultiWin(m.modelId) || apiPlanWinList(m.modelId))) {
+    // 显示形态：文本（默认，与旧版逐像素一致）/ 进度条（独占整行，逐窗口画进度条）
+    var planStyleRow = qRow()
+    planStyleRow.appendChild(qLabel('显示形态'))
+    var planStyleSel = document.createElement('select')
+    for (var planStyleIdx = 0; planStyleIdx < BUBBLE_PLAN_STYLE_OPTS.length; planStyleIdx++) {
+      var planStyleOpt = document.createElement('option')
+      planStyleOpt.value = BUBBLE_PLAN_STYLE_OPTS[planStyleIdx][0]
+      planStyleOpt.textContent = BUBBLE_PLAN_STYLE_OPTS[planStyleIdx][1]
+      planStyleSel.appendChild(planStyleOpt)
+    }
+    planStyleSel.value = bubblePlanStyleOf(m)
+    planStyleSel.style.flex = '1'
+    planStyleSel.style.minWidth = '0'
+    planStyleRow.appendChild(planStyleSel)
+    box.appendChild(planStyleRow)
+    dshwCustSel(planStyleSel)
+    planStyleSel.addEventListener('change', function () { m.planStyle = planStyleSel.value || 'text'; changed() })
     var wrow = qRow()
     wrow.appendChild(qLabel('显示样式'))
     var wsel = document.createElement('select')
@@ -10527,6 +10559,23 @@ function renderBubblePal() {
           bubbleDragKey = key4
         })
         bubblePalEl.appendChild(chip4)
+        // 进度条形态：一键添加（点击/拖拽得到的都是进度条模块），省去再进编辑器把「显示形态」切过来
+        var key5 = 'pqb:' + am.id
+        var chip5 = document.createElement('div')
+        chip5.className = 'dshwv-palchip'
+        chip5.setAttribute('data-pal', key5)
+        chip5.textContent = '额度进度条·' + am.name
+        chip5.title = '同上，但以进度条形态显示：每行 = 标签 + 进度条 + 已用% + 刷新时间；「显示样式」可选全部三窗口 / 只 5h / 只周 / 只月'
+        chip5.draggable = true
+        chip5.addEventListener('click', function (e) {
+          e.stopPropagation()
+          bubbleModuleAdd({ type: 'plan', modelId: am.id, size: 8, planStyle: 'bar', planWin: 'all' })
+        })
+        chip5.addEventListener('dragstart', function (e) {
+          try { e.dataTransfer.setData('text/plain', key5) } catch (err) {}
+          bubbleDragKey = key5
+        })
+        bubblePalEl.appendChild(chip5)
         return
       }
       var key = 'bal:' + am.id
@@ -10816,6 +10865,12 @@ function bubblePaletteModule(key) {
     var am1 = apiModelById(key.slice(3))
     if (!am1) return null
     return { type: 'quota', modelId: am1.id, size: 8, tpl: '已用 {quota} · 剩 {quota_left}' }
+  }
+  // 厂商订阅额度模块·进度条形态（palette key = pqb:<modelId>）：一键添加进度条，省去再进编辑器切「显示形态」
+  if (typeof key === 'string' && key.indexOf('pqb:') === 0) {
+    var am2b = apiModelById(key.slice(4))
+    if (!am2b) return null
+    return { type: 'plan', modelId: am2b.id, size: 8, planStyle: 'bar', planWin: 'all' }
   }
   // 厂商订阅额度模块（palette key = pq:<modelId>）：时间窗口由模块里的「显示样式」决定
   if (typeof key === 'string' && key.indexOf('pq:') === 0) {
@@ -17192,6 +17247,12 @@ function bubbleRowsOf(mods) {
       cur = null
       continue
     }
+    if (bubbleIsPlanBarMod(m)) {
+      // 额度进度条同样独占一整行,并打断前后合并（与图片模块同一套语义）
+      out.push([m])
+      cur = null
+      continue
+    }
     if (cur && cur.key !== null && bubbleRowKeyOf(m) === cur.key) {
       cur.row.push(m)
       continue
@@ -17262,7 +17323,7 @@ function bubbleCloseVisual() {
 // 清掉 textBox 里遗留的模块行(自定义场景切走/关闭时,防止叠到默认/消耗内容上)
 function bubbleClearModuleRows() {
   try {
-    var els = textBox.querySelectorAll('.dshwv-trow, .dshwv-mimg')
+    var els = textBox.querySelectorAll('.dshwv-trow, .dshwv-mimg, .dshwv-planbar')
     for (var i = 0; i < els.length; i++) { try { textBox.removeChild(els[i]) } catch (err) {} }
   } catch (err) {}
 }
@@ -17631,6 +17692,11 @@ function apiPlanPctText(v) {
 // —— 多窗口订阅额度（如 OpenCode Go 的 rolling / weekly / monthly）——
 // 模块的「显示样式」= 选哪个时间窗口：all 全部三窗口 / rolling 5h / weekly 周 / monthly 月。
 // 选中具体窗口时输出会带上窗口标签（如 `5h 2%`），避免看不出是哪个时间段。
+// 订阅额度模块的「显示形态」：text = 旧版文本（逐像素一致）；bar = 独占整行的多窗口进度条
+var BUBBLE_PLAN_STYLE_OPTS = [
+  ['text', '文本'],
+  ['bar', '进度条'],
+]
 var BUBBLE_PLAN_WIN_OPTS = [
   ['all', '全部（5h / 周 / 月）'],
   ['rolling', '5h'],
@@ -17646,6 +17712,15 @@ function bubblePlanWinOf(m) {
 function bubblePlanWinLabel(w) {
   for (var i = 0; i < BUBBLE_PLAN_WIN_OPTS.length; i++) { if (BUBBLE_PLAN_WIN_OPTS[i][0] === w) return BUBBLE_PLAN_WIN_OPTS[i][1] }
   return BUBBLE_PLAN_WIN_OPTS[0][1]
+}
+// 显示形态：缺省 text（老配置行为不变）；只有显式设了 'bar' 才走进度条
+function bubblePlanStyleOf(m) {
+  m = m || {}
+  return String(m.planStyle || '') === 'bar' ? 'bar' : 'text'
+}
+// 进度条形态的额度模块：在 bubbleRowsOf / bubbleRowsTo 里按「独占整行」处理（与图片模块同一套机制）
+function bubbleIsPlanBarMod(m) {
+  return !!m && m.type === 'plan' && bubblePlanStyleOf(m) === 'bar'
 }
 // 订阅额度模块在编辑列表 / 模块库里的名字（带所选窗口，便于区分同一个模型的多个模块）
 function bubblePlanModuleLabel(m) {
@@ -18294,12 +18369,108 @@ function bubbleRowContentOf(mod) {
   }
   return { txt: mod.text || '', line: null }
 }
+// —— 订阅额度进度条（泡泡内独占整行，planStyle='bar'）——
+// 把厂商接口返回的多窗口（如 OpenCode Go 的 5h / 周 / 月）逐窗口画成「标签 + 进度条 + 已用% + 刷新时间」。
+// 颜色按已用百分比分档：<50 绿 / 50–79 橙 / ≥80 红；取不到数时条留空、百分比显示 --。
+function bubblePlanBarFillColor(pct) {
+  // ⚠️ Number(null) === 0：必须显式挡掉「读不到数」，否则会被当成 0% 画成绿色
+  if (pct === null || pct === undefined || pct === '') return '#9fb0d9'
+  var p = Number(pct)
+  if (!isFinite(p)) return '#9fb0d9'
+  if (p >= 80) return '#e0433f'
+  if (p >= 50) return '#e8a33d'
+  return '#3aa76d'
+}
+// 绝对刷新时刻：同一天只给 HH:MM，跨天给 MM-DD HH:MM（按本机时区）
+function bubblePlanResetAbsText(ms) {
+  var d = new Date(ms)
+  if (!isFinite(d.getTime())) return ''
+  function p2(n) { return (n < 10 ? '0' : '') + n }
+  var hm = p2(d.getHours()) + ':' + p2(d.getMinutes())
+  var now = new Date()
+  var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+  return sameDay ? hm : (p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + hm)
+}
+// 刷新时间文案 = 倒计时 + 绝对时刻：`3h11m 后刷新（21:30）`；跨天如 `4d21h 后刷新（10-26 08:00）`
+// ⚠️ rolling 是**滑动 5 小时**窗口：刷新时刻随调用往后滑，这里给的是本次观测到的重置时刻，不是固定钟点
+function bubblePlanBarResetText(resetAt) {
+  var ms = apiPlanResetMs(resetAt)
+  if (ms === null) return ''
+  var abs = bubblePlanResetAbsText(ms)
+  var cd = apiPlanCountdownShortText(ms)
+  if (cd === '即将重置') return '即将重置'
+  if (cd === '0m') cd = '<1m'
+  if (!abs) return cd || ''
+  if (!cd) return abs + ' 刷新'
+  return cd + ' 后刷新（' + abs + '）'
+}
+// 该模块要显示的窗口：planWin='all' 全部；否则只取匹配那一个（匹配不到则回退全部）
+function bubblePlanBarWins(m) {
+  var list = apiPlanWinList(m.modelId)
+  if (!list || !list.length) return null
+  var win = bubblePlanWinOf(m)
+  if (win === 'all') return list
+  var out = []
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].key === win) out.push(list[i])
+  return out.length ? out : list
+}
+function bubblePlanBarBuild(m) {
+  try {
+    var use = bubblePlanBarWins(m)
+    if (!use || !use.length) return null
+    var box = document.createElement('div')
+    box.className = 'dshwv-planbar'
+    // 字号跟随模块的「字号」设置（与泡泡其它模块同一套档位），再收窄到一个放得下的区间：
+    // 太小看不清、太大就挤掉刷新时间。默认 size=8 ⇒ 约 48u；嫌小可在编辑器里把「字号」调大。
+    try {
+      var lvl = Math.max(1, Math.min(50, Math.round(Number(m.size) || 8)))
+      var fu = Math.max(38, Math.min(62, Math.round(bubbleModuleFontU(lvl) * 0.7)))
+      box.style.fontSize = 'calc(var(--dshw-u) * ' + fu + ')'
+    } catch (err) {}
+    for (var j = 0; j < use.length; j++) {
+      var w = use[j] || {}
+      var row = document.createElement('div')
+      row.className = 'dshwv-planbar-row'
+      var lab = document.createElement('span')
+      lab.className = 'dshwv-planbar-label'
+      lab.textContent = String(w.label || w.key || '')
+      row.appendChild(lab)
+      // ⚠️ Number(null) === 0：必须显式区分「读不到数」与「真的是 0%」
+      var hasPct = w.usedPct !== null && w.usedPct !== undefined && w.usedPct !== '' && isFinite(Number(w.usedPct))
+      var pct = hasPct ? Number(w.usedPct) : NaN
+      var ok = hasPct
+      var track = document.createElement('span')
+      track.className = 'dshwv-planbar-track'
+      var fill = document.createElement('span')
+      fill.className = 'dshwv-planbar-fill'
+      fill.style.width = (ok ? Math.max(0, Math.min(100, pct)) : 0) + '%'
+      fill.style.background = bubblePlanBarFillColor(pct)
+      track.appendChild(fill)
+      row.appendChild(track)
+      var pt = document.createElement('span')
+      pt.className = 'dshwv-planbar-pct'
+      pt.textContent = ok ? (Math.round(pct * 10) / 10 + '%') : '--'
+      row.appendChild(pt)
+      // 刷新时间只给列表里的第一个窗口（多窗口时通常是 5h / rolling）：
+      // 周、月的重置时刻不那么关键，省下的宽度留给进度条和更大的字号；
+      // 用户若把「显示样式」选成只显示某一个窗口，那它就是第一个 ⇒ 照样显示刷新时间。
+      if (j === 0) {
+        var rt = document.createElement('span')
+        rt.className = 'dshwv-planbar-reset'
+        rt.textContent = bubblePlanBarResetText(w.resetAt)
+        row.appendChild(rt)
+      }
+      box.appendChild(row)
+    }
+    return box
+  } catch (err) { return null }
+}
 // 渲染一组模块为泡泡内容(F2 渲染层:按行分组 → 行内 flex 并排(≤6 模块/行)→ 超宽自动折行;
 // 图片单独一整行;泡泡行数上限维持 6)
 // 把模块追加为行到指定父容器(真实泡泡 textBox 与编辑器预览共用;旧配置每模块一行 → 与旧版逐像素一致)
 function bubbleRowsTo(parentEl, mods) {
   if (!parentEl || !Array.isArray(mods)) return
-  var old = parentEl.querySelectorAll('.dshwv-trow, .dshwv-mimg')
+  var old = parentEl.querySelectorAll('.dshwv-trow, .dshwv-mimg, .dshwv-planbar')
   for (var i = 0; i < old.length; i++) { try { parentEl.removeChild(old[i]) } catch (err) {} }
   var ROW_MAX = 6 // 泡泡行数上限(维持旧版)
   var MOD_MAX = 6 // 每行模块数上限(F2)
@@ -18512,6 +18683,14 @@ function bubbleRowsTo(parentEl, mods) {
       im.draggable = false
       parentEl.appendChild(im)
       imgDone = true
+      continue
+    }
+    if (bubbleIsPlanBarMod(grp[0])) {
+      // 订阅额度进度条：独占整行（不参与每行 6 模块的文字流式排版），与图片模块同一套机制
+      if (rows < ROW_MAX) {
+        var barEl = bubblePlanBarBuild(grp[0])
+        if (barEl) { parentEl.appendChild(barEl); rows++ }
+      }
       continue
     }
     // 一行超过 MOD_MAX 个模块时拆成多行(F2 每行至多 6;数据由编辑器保证,此处仅防御)
@@ -22079,6 +22258,25 @@ loadUsageSettings(function () {
   } catch (err) {}
 })
 loadBubbleCfg()
+// 泡泡配置的同类补读：`loadBubbleCfg()` 原本只在页面加载时跑这一次 ⇒ 直接改 .dshw-bubble.json
+// **不刷新页面就不生效**。这里按 v865 给 size 配置的同一套做法补一次低频重读
+// （回到标签页时触发、2 秒去抖），且**只在没有泡泡正在显示时**才重载，
+// 避免打断用户正在看的内容或在编辑器里改到一半的草稿。
+var bubbleCfgAt = 0
+function resyncBubbleCfg() {
+  try {
+    if (bubbleShown) return
+    var now = Date.now()
+    if (now - (Number(bubbleCfgAt) || 0) < 2000) return
+    bubbleCfgAt = now
+    loadBubbleCfg()
+  } catch (err) {}
+}
+try {
+  document.addEventListener('visibilitychange', function () {
+    try { if (!document.hidden) resyncBubbleCfg() } catch (err) {}
+  })
+} catch (err) {}
 // v865（issue #237 后半："size 配置仅在页面加载时读一次 ⇒ 改了不生效"）——
 //   把"读 size 配置并应用"抽成可重入函数：启动读一次，之后**回到标签页 / 打开菜单**时各补一次
 //   （低频 + 2 秒去抖，不做轮询）。应用体与原启动链**完全同一份代码**，所以面板控件
