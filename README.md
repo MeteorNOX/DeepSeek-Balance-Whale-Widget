@@ -134,6 +134,8 @@ dsh-whale-widget/
 │   ├── task-end-a.wav        # 任务结束音内置预设（A）
 │   ├── bubble-petpet.gif     # 内置泡泡图：petpet
 │   └── bubble-money1.gif     # 内置泡泡图：money1（余额预警默认内容的配图）
+├── tools/
+│   └── audio-output-lifecycle.test.mjs  # 无声卡环境下的音频输出生命周期回归测试
 └── whale-widget-prompt.md    # 完整规格/维护提示词（面向二次开发）
 ```
 

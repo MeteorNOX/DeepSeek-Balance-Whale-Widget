@@ -46,6 +46,10 @@ jobs:
           node --check assets/whale-widget.js
           echo "两个文件的语法都通过"
 
+      # 音频输出生命周期回归：用假 AudioContext 覆盖播放/释放路径，无声卡环境即可跑。
+      - name: Audio output lifecycle regression
+        run: node --test tools/audio-output-lifecycle.test.mjs
+
       # 核心不变量自检（tools/ci-audit.mjs）。这里只跑静态四项，不跑「打包后能不能运行」那一项：
       # 日常 push/PR 关心的是「源码对不对」，没必要每次打一个 npm 包。
       # 四项都是"错了不会报错、只会静默失效"的事：

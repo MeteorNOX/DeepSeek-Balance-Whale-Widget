@@ -93,24 +93,53 @@ window.__dshWhaleInit = true
 // 衔接时机由 RELEASE_LEAD_MS 决定（0 = 正好接上；30/50 = 轻微交叠）—— 改这个数字即可按耳朵微调，
 // 不用动任何逻辑。
 var dshwvAudioCtx = null
-// v753（issue #135）：**running 状态的 AudioContext 会让系统一直挂着 PreventUserIdleSystemSleep** ——
-// macOS 上表现为"只要页面开着就不会空闲睡眠"，而且与**有没有出声无关**（context 一 running 就持有播放流）。
-// 所以空闲 DSHW_AUDIO_IDLE_MS 之后主动 suspend()；下次出声前 dshwvAudio() 里的 resume() 会自动恢复。
-// 为什么用 suspend() 而不是 close()：close() 会把 context 彻底销毁，而**任务结束音不是手势触发的**，
-// 销毁后它再也响不出来（被手势解锁过的 context 再 resume 不需要新手势，挂起是安全的）。
-var DSHW_AUDIO_IDLE_MS = 60000 // 静默多久交还系统睡眠（用户选定：1 分钟）
+var dshwvAudioDecoder = null
+var dshwvAudioActive = new Set()
+var dshwvAudioPending = new Set()
+var dshwvAudioClosing = null
+// 预热/恢复设置只做离线解码。实时输出仅在确实有声音要播时获取，播放完即释放，
+// 避免 macOS Space 返回时重新连接一条无声的输出流。
+var DSHW_AUDIO_IDLE_MS = 250
 var dshwvAudioSuspendT = null
-function dshwvAudioSuspendNow() {
+function dshwvAudioClose() {
+  if (dshwvAudioSuspendT) { clearTimeout(dshwvAudioSuspendT); dshwvAudioSuspendT = null }
+  var c = dshwvAudioCtx
+  dshwvAudioCtx = null
+  if (!c) return
   try {
-    if (dshwvAudioSuspendT) { clearTimeout(dshwvAudioSuspendT); dshwvAudioSuspendT = null }
-    if (dshwvAudioCtx && dshwvAudioCtx.state === 'running') dshwvAudioCtx.suspend()
+    var previous = dshwvAudioClosing
+    var closing = Promise.all([previous, c.close()]).catch(function () {}).then(function () {
+      if (dshwvAudioClosing === closing) dshwvAudioClosing = null
+    })
+    dshwvAudioClosing = closing
   } catch (err) {}
+}
+function dshwvAudioSuspendNow() {
+  // 关闭/隐藏必须同时取消解码中、resume 中和已排期的声音，返回时不能补播。
+  Array.from(dshwvAudioPending).concat(Array.from(dshwvAudioActive)).forEach(dshwvSoundStop)
+  dshwvAudioClose()
 }
 function dshwvAudioIdleArm() {
   try {
-    if (dshwvAudioSuspendT) clearTimeout(dshwvAudioSuspendT)
-    dshwvAudioSuspendT = setTimeout(function () { dshwvAudioSuspendT = null; dshwvAudioSuspendNow() }, DSHW_AUDIO_IDLE_MS)
+    if (dshwvAudioSuspendT) { clearTimeout(dshwvAudioSuspendT); dshwvAudioSuspendT = null }
+    if (!dshwvAudioCtx || dshwvAudioActive.size || dshwvAudioStarting(dshwvAudioCtx)) return
+    var c = dshwvAudioCtx
+    dshwvAudioSuspendT = setTimeout(function () {
+      dshwvAudioSuspendT = null
+      if (c === dshwvAudioCtx && !dshwvAudioActive.size && !dshwvAudioStarting(c)) dshwvAudioClose()
+    }, DSHW_AUDIO_IDLE_MS)
   } catch (err) {}
+}
+function dshwvAudioStarting(c) {
+  return Array.from(dshwvAudioPending).some(function (el) { return el._openingContext === c })
+}
+function dshwvAudioDecodeContext() {
+  if (!dshwvAudioDecoder) {
+    var Offline = window.OfflineAudioContext || window.webkitOfflineAudioContext
+    if (!Offline) return null
+    dshwvAudioDecoder = new Offline(1, 1, 44100)
+  }
+  return dshwvAudioDecoder
 }
 // 音效是否被**显式**关掉（v753 的显式开关）。这里刻意用 typeof 保护：
 // 本文件经常被离线自检按片段切出来单独 eval（例如只切「音频垫片 + applySoundSet」那段），
@@ -121,13 +150,12 @@ function dshwvSoundOff() {
 }
 function dshwvAudio() {
   try {
-    if (!dshwvAudioCtx) {
+    if (!dshwvAudioCtx || dshwvAudioCtx.state === 'closed') {
       var AC = window.AudioContext || window.webkitAudioContext
       // 显式用 'interactive'（该 API 的最低延迟档），起播尽量贴手
       dshwvAudioCtx = new AC({ latencyHint: 'interactive' })
     }
-    if (dshwvAudioCtx.state === 'suspended') { try { dshwvAudioCtx.resume() } catch (err) {} }
-    dshwvAudioIdleArm() // 每次（重新）进入 running 都重新计时：静默满 1 分钟就挂起
+    if (dshwvAudioSuspendT) { clearTimeout(dshwvAudioSuspendT); dshwvAudioSuspendT = null }
     return dshwvAudioCtx
   } catch (err) { return null }
 }
@@ -162,8 +190,8 @@ function dshwvAudioBuffer(url) {
       })
       .then(function (raw) {
         if (!raw || raw.byteLength < 100) throw new Error('音频响应只有 ' + (raw ? raw.byteLength : 0) + ' 字节（不是有效音频）')
-        var c = dshwvAudio()
-        if (!c) throw new Error('no audio context')
+        var c = dshwvAudioDecodeContext()
+        if (!c) throw new Error('no offline audio context')
         return new Promise(function (res, rej) { c.decodeAudioData(raw, res, rej) })
       })
       .then(function (buf) { dshwvAudioDecoded[url] = buf; return buf })
@@ -175,10 +203,8 @@ function dshwvAudioBuffer(url) {
 // 不预热 → 第一次点按要现 fetch+decodeAudioData，表现就是"按下音慢半拍、中间衔接发飘"。
 // URL 级缓存保证同一片段只解一次；失败静默吞掉（真正播放时还会自己重试一次）。
 function dshwvWarm(urls) {
-  // v753（issue #135）：音效关掉时**连预热都不做** —— 只跳过下面那句 dshwvAudio() 是不够的，
-  // 因为预解码走到 dshwvAudioBuffer() 里还会再调一次 dshwvAudio()，context 照样被建起来。
+  // 预热不创建、不恢复实时 AudioContext；可安全用于初始化和切屏后的设置补读。
   if (dshwvSoundOff()) return
-  try { dshwvAudio() } catch (err) {}
   for (var i = 0; i < (urls || []).length; i++) {
     var u = urls[i]
     if (!u) continue
@@ -187,13 +213,21 @@ function dshwvWarm(urls) {
 }
 function dshwvSoundStop(el) {
   el._token = (el._token || 0) + 1
+  if (el._startT) { clearTimeout(el._startT); el._startT = null }
+  dshwvAudioPending.delete(el)
+  el._openingContext = null
+  dshwvAudioActive.delete(el)
   var node = el._node
   el._node = null
   el._playingSince = 0
   if (node) {
     try { node.onended = null } catch (err) {}
     try { node.stop() } catch (err) {}
+    try { node.disconnect() } catch (err) {}
   }
+  if (el._gain) { try { el._gain.disconnect() } catch (err) {} }
+  el._gain = null
+  dshwvAudioIdleArm()
 }
 // v766：**试听名单** —— 供"停止试听"用。为什么要它：`dshwvSound()` 每次都返回一个全新元素，
 // 而任务结束音 / 片段 / 音效组三条试听路径都是**匿名调用**（外面拿不到句柄），播起来之后就停不掉了。
@@ -225,7 +259,7 @@ function dshwvSound(url) {
   var el = { preload: 'auto', volume: 1, onended: null, loop: false, _url: String(url || ''), _node: null, _gain: null, _offset: 0, _token: 0, _playingSince: 0 }
   Object.defineProperty(el, 'src', {
     get: function () { return el._url },
-    set: function (v) { dshwvSoundStop(el); el._url = String(v || ''); el._offset = 0 },
+    set: function (v) { dshwvSoundStop(el); el._url = String(v || ''); el._buffer = null; el._offset = 0 },
   })
   Object.defineProperty(el, 'currentTime', {
     // 播放中真实前进：pressUp 靠它算"按压音还剩多久"，据此把松开音排到按压音结束（或提前 lead）那一刻
@@ -260,36 +294,70 @@ function dshwvSound(url) {
         if (el._node !== src) return
         el._node = null
         el._playingSince = 0
+        dshwvAudioActive.delete(el)
+        try { src.disconnect() } catch (err) {}
+        if (el._gain) { try { el._gain.disconnect() } catch (err) {}; el._gain = null }
         if (typeof el.onended === 'function') { try { el.onended() } catch (err) {} }
+        dshwvAudioIdleArm()
       }
       el._node = src
+      dshwvAudioActive.add(el)
       el._playingSince = nowMs() + delay * 1000
       var dur = Math.max(0.001, buf.duration)
       src.start(delay > 0 ? c.currentTime + delay : 0, Math.max(0, el._offset) % dur)
     } catch (err) {
       // v749：起播抛异常（例如 AudioContext 已关闭、offset 越界）以前被完全吞掉 → 表现为"没声音但无任何报错"
       dshwvAudioWarn(el && el._url, err)
+      dshwvSoundStop(el)
     }
   }
   function startSound(delaySec) {
     // v753（issue #135）：音效开关关掉 = 全静音（含编辑器里的试听），也**不碰** AudioContext ——
     // 否则一次试听就会把 context 转成 running、系统断言照挂。
-    if (dshwvSoundOff()) return Promise.resolve()
-    var c = dshwvAudio()
-    if (!c || !el._url) return Promise.resolve()
-    var token = (el._token = (el._token || 0) + 1)
+    dshwvSoundStop(el)
+    if (dshwvSoundOff() || document.hidden || !(Number(el.volume) > 0) || !isFinite(Number(el.volume)) || (!el._url && !el._buffer)) return Promise.resolve()
+    var token = el._token
     var delay = Math.max(0, Number(delaySec) || 0)
+    dshwvAudioPending.add(el)
+    function valid() { return token === el._token && !dshwvSoundOff() && !document.hidden && Number(el.volume) > 0 && isFinite(Number(el.volume)) }
+    function discard() { if (token === el._token) dshwvSoundStop(el) }
+    function playDecoded(buf) {
+      if (!valid()) { discard(); return }
+      function acquire() {
+        if (!valid()) { discard(); return }
+        var c = dshwvAudio()
+        if (!c) { dshwvSoundStop(el); return }
+        el._openingContext = c
+        // autoplay 拒绝或设备恢复卡住时不能留下待播声音等下次切回/点击再响。
+        el._startT = setTimeout(function () { if (token === el._token) dshwvSoundStop(el) }, 1000)
+        function begin() {
+          if (!valid() || c !== dshwvAudioCtx) { discard(); return }
+          if (el._startT) { clearTimeout(el._startT); el._startT = null }
+          dshwvAudioPending.delete(el)
+          el._openingContext = null
+          beginWithBuffer(c, buf, delay)
+        }
+        if (c.state === 'running') { begin(); return }
+        var resumption
+        try { resumption = c.resume() } catch (err) { dshwvAudioWarn(el._url, err); dshwvSoundStop(el); return }
+        Promise.resolve(resumption).then(begin).catch(function (err) {
+          if (valid()) { dshwvAudioWarn(el._url, err); dshwvSoundStop(el) }
+        }).finally(dshwvAudioIdleArm)
+      }
+      if (dshwvAudioClosing) dshwvAudioClosing.then(acquire)
+      else acquire()
+    }
     // ④ 同步起播：缓冲区已预热（dshwvWarm）过 → 直接在当前任务里 start()，不再等 Promise
-    var cached = dshwvAudioDecoded[el._url]
-    if (cached) { beginWithBuffer(c, cached, delay); return Promise.resolve() }
+    var cached = el._buffer || dshwvAudioDecoded[el._url]
+    if (cached) { playDecoded(cached); return Promise.resolve() }
     var tryUrl = el._url
     dshwvAudioBuffer(tryUrl).then(function (buf) {
-      if (token !== el._token) return // 期间被重播/暂停/换源 → 丢弃这次
-      beginWithBuffer(c, buf, delay)
+      playDecoded(buf)
     }).catch(function () {
       // v752：首选路由取不到音频时，自动换另一条路由重试一次（两条互为备胎）。
       // 只在失败路径上跑，不影响正常点按的同步起播时序。
-      if (!el._alt || el._url !== tryUrl || token !== el._token) return
+      if (!valid()) { discard(); return }
+      if (!el._alt || el._url !== tryUrl) { dshwvSoundStop(el); return }
       var alt = el._alt
       el._alt = ''            // 只回退一次，避免两条路由来回打转
       el._url = alt
@@ -307,12 +375,11 @@ function dshwvSound(url) {
   return el
 }
 
-// 自动播放策略：AudioContext 初始是 suspended，要有一次用户手势才能出声；任务结束音不是手势触发的，
-// 所以挂一次性解锁（首次点击/按键后移除）。
+// Chromium 按页面已有的用户激活状态允许后续通知音；普通点击/按键无需提前打开输出。
 // v789（issue #179）：**输入法组字期间一律不做事**。用户实测"装了插件后微软拼音打字会自动上屏、
 //   光标跳到最前端"（0.3.16/0.3.17 均复现，卸载即恢复）。我们能做的、也是最有把握的一条，是
 //   让挂件在 composition 期间**完全不碰 DOM、不做重活**：往 document.body 挂节点会触发布局，
-//   而首次按键同步创建/预热 AudioContext 也会让组字被打断。所以：
+//   普通按键已不再做音频预解锁；组字状态仍用于下面的 DOM 写入保护：
 //   ① 记录 composition 状态，组字中的 keydown 不解锁音频；
 //   ② 组字期间所有 body 增删一律排队，等 compositionend 之后再补（见 dshwBodyAppend）。
 var dshwvComposing = false
@@ -326,22 +393,11 @@ try {
   }, true)
 } catch (err) {}
 try {
-  var dshwvAudioUnlock = function (ev) {
-    // v789（issue #179）：组字中的按键不做音频解锁（isComposing / keyCode 229 = IME 处理中）
-    try { if (dshwvComposing || (ev && (ev.isComposing === true || ev.keyCode === 229))) return } catch (err) {}
-    // v753（issue #135）：音效关掉时**不预解锁** —— 否则一次普通点击就会把 context 转成 running，
-    // 断言照挂。注意这里**不摘监听**：之后重新打开开关，下一次点击仍能完成解锁。
-    if (dshwvSoundOff()) return
-    dshwvAudio()
-    try { document.removeEventListener('pointerdown', dshwvAudioUnlock, true) } catch (err) {}
-    try { document.removeEventListener('keydown', dshwvAudioUnlock, true) } catch (err) {}
-  }
-  document.addEventListener('pointerdown', dshwvAudioUnlock, true)
-  document.addEventListener('keydown', dshwvAudioUnlock, true)
-  // v753（issue #135）：页面被隐藏（切标签 / 最小化）时立刻挂起，直接覆盖"开着过夜"这个场景
   document.addEventListener('visibilitychange', function () {
     try { if (document.hidden) dshwvAudioSuspendNow() } catch (err) {}
   })
+  window.addEventListener('pagehide', dshwvAudioSuspendNow)
+  window.addEventListener('beforeunload', dshwvAudioSuspendNow)
 } catch (err) {}
 
 var MIN_SCALE = 0.6
@@ -19588,8 +19644,7 @@ function setVol(v) {
   saveConfig()
 }
 // v753（issue #135）：显式音效总开关（菜单「音量」右边那个勾选框）。
-// 它同时管三件事：① 出声与否（播放路径都看 soundOn）；② 关掉时**立刻挂起** AudioContext，
-// 把系统睡眠交还给用户，而不是等 1 分钟空闲；③ 重新打开时立刻预热，恢复"点按即响"的跟手度。
+// 它同时管三件事：① 出声与否；② 关掉时取消待播声音并关闭实时输出；③ 重新打开时离线预热。
 // v869（用户报"点全部音效前面那个框无法取消勾选"）：根因是**派生逻辑反向覆盖** ——
 //   顶行 [✓] 显示的是 soundOn，而 soundOn 由 refreshSoundMaster() 算，那里读的是**已持久化**的
 //   usageSet.taskEnd.on（面板正在改的是缓冲 bufTaskEndOn）⇒ 三个事件通道仍被判成"开" ⇒ soundOn 又变 true ⇒ 勾回去。
@@ -21009,7 +21064,8 @@ audioCropFileInput.accept = 'audio/*'
 audioCropFileInput.style.display = 'none'
 dshwBodyAppend(audioCropFileInput)
 var audioCropTarget = null // 'press' | 'release'
-var audioCropCtx = null // AudioContext
+var audioCropCtx = null // OfflineAudioContext：导入/裁剪不打开输出设备
+var audioCropGeneration = 0
 var audioCropBuffer = null // AudioBuffer
 var audioCropFileBase = '' // 源文件名（作为片段名）
 var audioCropZoom = 1 // 波形水平缩放倍数
@@ -21034,16 +21090,18 @@ audioCropFileInput.addEventListener('change', function () {
 })
 function openAudioCrop(arrayBuf, fileName) {
   try {
+    var generation = ++audioCropGeneration
     audioCropFileBase = (fileName || '音频片段').replace(/.[^.]+$/, '')
     audioCropZoom = 1
     audioCropOffset = 0
     // 重新导入新音频时立即停止旧试听，避免旧片段继续响
     stopAudioCropPreview()
     if (!audioCropCtx) {
-      try { audioCropCtx = new (window.AudioContext || window.webkitAudioContext)() } catch (err) { audioCropCtx = null }
+      try { audioCropCtx = dshwvAudioDecodeContext() } catch (err) { audioCropCtx = null }
     }
     if (!audioCropCtx) { alert('当前浏览器不支持音频解码'); return }
     audioCropCtx.decodeAudioData(arrayBuf, function (buf) {
+      if (generation !== audioCropGeneration || document.hidden) return
       audioCropBuffer = buf
       audioCropStart.value = '0'
       audioCropEnd.value = '100'
@@ -21056,7 +21114,7 @@ function openAudioCrop(arrayBuf, fileName) {
       updateAudioCropOkState()
       dshwLayerUp(audioCropMask, 20500) // v744：音频裁剪也可能从资源管理(20300)里打开
       audioCropMask.style.display = 'flex'
-    }, function () { alert('音频解码失败') })
+    }, function () { if (generation === audioCropGeneration) alert('音频解码失败') })
   } catch (err) {}
 }
 function audioCropRange() {
@@ -21332,28 +21390,23 @@ function onAudioCropDualUp() {
   audioCropDualDrag = null
 }
 function hideAudioCrop() {
+  audioCropGeneration++
   stopAudioCropPreview()
   audioCropMask.style.display = 'none'
   audioCropBuffer = null
   audioCropTarget = null
   audioCropFileBase = ''
-  // v753（issue #135）：裁剪面板自己的 AudioContext 关闭面板就销毁 —— 它不复用，
-  // 留着同样是"一条一直开着的系统音频流"（重新打开面板时导入音频会重新创建，见上面的 if (!audioCropCtx)）。
-  try {
-    if (audioCropCtx) audioCropCtx.close()
-  } catch (err) {}
+  // 离线解码器无需 close；试听走统一的按需输出生命周期。
   audioCropCtx = null
   try { audioCropName.value = '' } catch (err) {}
   updateAudioCropOkState()
 }
 var audioCropPreviewNode = null
 function stopAudioCropPreview() {
+  var preview = audioCropPreviewNode
+  audioCropPreviewNode = null
   try {
-    if (audioCropPreviewNode) {
-      audioCropPreviewNode.stop()
-      audioCropPreviewNode.disconnect()
-      audioCropPreviewNode = null
-    }
+    if (preview) preview.pause()
   } catch (err) {}
 }
 function previewAudioCrop() {
@@ -21371,14 +21424,22 @@ function previewAudioCrop() {
       var off = Math.floor(r.start * audioCropBuffer.sampleRate)
       for (var i = 0; i < len; i++) dst[i] = src[off + i] || 0
     }
-    var srcNode = audioCropCtx.createBufferSource()
-    srcNode.buffer = slice
-    srcNode.connect(audioCropCtx.destination)
-    audioCropPreviewNode = srcNode
-    srcNode.onended = function () { if (audioCropPreviewNode === srcNode) audioCropPreviewNode = null }
-    srcNode.start()
+    var preview = dshwvSound('')
+    preview._buffer = slice
+    preview.volume = 1
+    audioCropPreviewNode = preview
+    preview.onended = function () { if (audioCropPreviewNode === preview) audioCropPreviewNode = null }
+    preview.play()
   } catch (err) {}
 }
+function cancelAudioCropWork() {
+  audioCropGeneration++
+  stopAudioCropPreview()
+}
+window.addEventListener('blur', cancelAudioCropWork)
+window.addEventListener('pagehide', cancelAudioCropWork)
+window.addEventListener('beforeunload', cancelAudioCropWork)
+document.addEventListener('visibilitychange', function () { if (document.hidden) cancelAudioCropWork() })
 // 编码 WAV（16-bit PCM，支持多声道）——纯手写，零依赖
 function encodeWav(buffer) {
   var numCh = buffer.numberOfChannels

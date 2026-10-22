@@ -50,7 +50,8 @@ dsh-whale-widget/
 │   └── minecraft-exp-orb.wav / task-end-a.wav
 │
 ├── tools/
-│   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   ├── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
+│   └── audio-output-lifecycle.test.mjs   213 行   无声卡的音频输出生命周期回归（node --test）
 │
 └── .github/workflows/
     ├── ci.yml                       68 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
