@@ -15330,7 +15330,7 @@ function frameSafeEstimateFromCanvas(frame) {
     var cv = document.createElement('canvas')
     cv.width = FRAME_SAFE_SW
     cv.height = FRAME_SAFE_SH
-    var ctx = cv.getContext ? cv.getContext('2d') : null
+    var ctx = cv.getContext ? cv.getContext('2d', { willReadFrequently: true }) : null
     if (!ctx) return { safe: null, why: '取不到画布（无法测量）' }
     var t0 = now()
     var sx = FRAME_SAFE_SW / FRAME_W
@@ -15529,7 +15529,7 @@ function frameEditImageOpaqueRaw(id, cb) {
         var cv = document.createElement('canvas')
         cv.width = cw
         cv.height = ch
-        var cx = cv.getContext('2d')
+        var cx = cv.getContext('2d', { willReadFrequently: true })
         cx.drawImage(im, 0, 0, cw, ch)
         var data = cx.getImageData(0, 0, cw, ch).data
         var minX = cw, minY = ch, maxX = -1, maxY = -1
@@ -20404,7 +20404,7 @@ function positionCrop() {
 function drawCrop() {
   try {
     if (!cropState) return
-    var ctx = cropCanvas.getContext('2d')
+    var ctx = cropCanvas.getContext('2d', { willReadFrequently: true })
     var s = cropState.baseScale * cropState.zoom
     var rad = cropState.rotation * Math.PI / 180
     var w = cropState.img.width * s
@@ -20500,7 +20500,7 @@ function confirmCrop() {
     var out = document.createElement('canvas')
     out.width = 610
     out.height = 610
-    var octx = out.getContext('2d')
+    var octx = out.getContext('2d', { willReadFrequently: true })
     octx.translate(305 + cropState.ox * k, 305 + cropState.oy * k)
     octx.rotate(rad)
     // 与预览一致的翻转（旋转后应用）
@@ -21542,7 +21542,7 @@ function setupHitTest(url) {
     var probe = new Image()
     probe.onload = function () {
       try {
-        var ctx = hitCanvas.getContext('2d')
+        var ctx = hitCanvas.getContext('2d', { willReadFrequently: true })
         // 按 object-fit:contain + object-position:right bottom 的实际几何绘制，
         // 使非正方形（如 GIF 动图）的命中区域与显示一致
         var iw = probe.width || 610
@@ -21623,7 +21623,7 @@ function convexHull(pts) {
 }
 function buildHitClipPath() {
   try {
-    var c = hitCanvas && hitCanvas.getContext ? hitCanvas.getContext('2d') : null
+    var c = hitCanvas && hitCanvas.getContext ? hitCanvas.getContext('2d', { willReadFrequently: true }) : null
     if (!c) return ''
     var data = c.getImageData(0, 0, 610, 610).data // 只读一次（1.5MB），别逐行读
     var pts = []
@@ -21663,7 +21663,7 @@ function isWhaleHit(e) {
     if (state.flip) lx = 610 - lx
     var data
     try {
-      data = hitCanvas.getContext('2d').getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
+      data = hitCanvas.getContext('2d', { willReadFrequently: true }).getImageData(Math.floor(lx), Math.floor(ly), 1, 1).data
     } catch (err) {
       // v756（issue #144）：画布读不出来（隐私保护/跨域污染）→ 立刻降级为矩形判定，
       // 并且**记住**这个状态，后续调用直接走矩形，不再每次抛错。
