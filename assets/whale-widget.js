@@ -1,82 +1,142 @@
 (function () {
+// Resources belong to this script instance, never to the host page. In particular,
+// stop must dominate the SPA guard that otherwise reattaches removed widget nodes.
+var dshwMount = document.currentScript && document.currentScript.__dshWhaleMount
+if (dshwMount && !dshwMount.active) return
 if (window.__dshWhaleWidget) return
+var dshwActive = true
+var dshwTimeouts = new Set()
+var dshwIntervals = new Set()
+var dshwFrames = new Set()
+var dshwObservers = new Set()
+var dshwNodes = new Set()
+var dshwContexts = new Set()
+var dshwListeners = []
+var dshwCleanups = []
+var dshwRequests = new AbortController()
+var dshwNative = {
+  setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
+  setInterval: window.setInterval.bind(window), clearInterval: window.clearInterval.bind(window),
+  requestAnimationFrame: window.requestAnimationFrame.bind(window),
+  cancelAnimationFrame: window.cancelAnimationFrame.bind(window), fetch: window.fetch.bind(window)
+}
+function setTimeout(fn, delay) {
+  if (!dshwActive) return 0
+  var args = Array.prototype.slice.call(arguments, 2)
+  var id = dshwNative.setTimeout(function () {
+    dshwTimeouts.delete(id)
+    if (dshwActive) fn.apply(this, args)
+  }, delay)
+  dshwTimeouts.add(id)
+  return id
+}
+function clearTimeout(id) { dshwTimeouts.delete(id); dshwIntervals.delete(id); dshwNative.clearTimeout(id) }
+function setInterval(fn, delay) {
+  if (!dshwActive) return 0
+  var args = Array.prototype.slice.call(arguments, 2)
+  var id = dshwNative.setInterval(function () { if (dshwActive) fn.apply(this, args) }, delay)
+  dshwIntervals.add(id)
+  return id
+}
+function clearInterval(id) { dshwIntervals.delete(id); dshwTimeouts.delete(id); dshwNative.clearInterval(id) }
+function requestAnimationFrame(fn) {
+  if (!dshwActive) return 0
+  var id = dshwNative.requestAnimationFrame(function (time) {
+    dshwFrames.delete(id)
+    if (dshwActive) fn(time)
+  })
+  dshwFrames.add(id)
+  return id
+}
+function cancelAnimationFrame(id) { dshwFrames.delete(id); dshwNative.cancelAnimationFrame(id) }
+function dshwObserve(observer) { dshwObservers.add(observer); return observer }
+function dshwAudioContext(context) {
+  if (dshwActive) dshwContexts.add(context)
+  else Promise.resolve(context.close()).catch(function () {})
+  return context
+}
+function dshwOn(target, type, listener, options) {
+  if (!dshwActive) return
+  target.addEventListener(type, listener, options)
+  var capture = typeof options === 'boolean' ? options : !!(options && options.capture)
+  if (!dshwListeners.some(function (x) { return x.target === target && x.type === type && x.listener === listener && x.capture === capture })) {
+    dshwListeners.push({ target: target, type: type, listener: listener, capture: capture })
+  }
+}
+function dshwOff(target, type, listener, options) {
+  target.removeEventListener(type, listener, options)
+  var capture = typeof options === 'boolean' ? options : !!(options && options.capture)
+  dshwListeners = dshwListeners.filter(function (x) { return !(x.target === target && x.type === type && x.listener === listener && x.capture === capture) })
+}
+function dshwOnDocument(type, listener, options) { dshwOn(document, type, listener, options) }
+function dshwOnWindow(type, listener, options) { dshwOn(window, type, listener, options) }
+function dshwOffDocument(type, listener, options) { dshwOff(document, type, listener, options) }
+function dshwOffWindow(type, listener, options) { dshwOff(window, type, listener, options) }
+function fetch(input, init) {
+  if (!dshwActive) return Promise.reject(new Error('whale client stopped'))
+  var options = Object.assign({}, init)
+  // Keep cancellation alive through response body reads, not just response headers.
+  options.signal = options.signal ? AbortSignal.any([options.signal, dshwRequests.signal]) : dshwRequests.signal
+  return dshwNative.fetch(input, options).then(function (response) {
+    if (!dshwActive) throw new Error('whale client stopped')
+    return response
+  })
+}
+function dshwHeadAppend(node) {
+  if (!dshwActive) return node
+  dshwNodes.add(node)
+  document.head.appendChild(node)
+  return node
+}
+function dshwStop(reason) {
+  if (!dshwActive) return false
+  dshwActive = false
+  dshwLifecycle.active = false
+  dshwLifecycle.reason = reason || 'client-stop'
+  dshwTimeouts.forEach(dshwNative.clearTimeout); dshwTimeouts.clear()
+  dshwIntervals.forEach(dshwNative.clearInterval); dshwIntervals.clear()
+  dshwFrames.forEach(dshwNative.cancelAnimationFrame); dshwFrames.clear()
+  dshwObservers.forEach(function (x) { x.disconnect() }); dshwObservers.clear()
+  dshwRequests.abort()
+  dshwListeners.forEach(function (x) { x.target.removeEventListener(x.type, x.listener, x.capture) })
+  dshwListeners.length = 0
+  dshwContexts.forEach(function (x) { try { Promise.resolve(x.close()).catch(function () {}) } catch (err) {} })
+  dshwContexts.clear()
+  dshwCleanups.forEach(function (fn) { try { fn() } catch (err) {} }); dshwCleanups.length = 0
+  dshwNodes.forEach(function (x) { if (x.parentNode) x.parentNode.removeChild(x) }); dshwNodes.clear()
+  if (window.__dshWhaleLifecycle === dshwLifecycle) {
+    delete window.__dshWhaleWidget
+    delete window.__dshWhaleInit
+    delete window.__dshWhaleRoot
+    delete window.dshwRegisterMask
+    ;['Cust', 'Qedit', 'Color', 'RgbDoc', 'FontDoc', 'FrameMenu'].forEach(function (name) { delete window['__dshw' + name + 'Bound'] })
+    delete window.__dshwRemindMask
+  }
+  return true
+}
+var dshwLifecycle = {
+  owner: dshwMount, active: true, reason: null, stop: dshwStop, hostFetch: fetch,
+  resources: function () { return { timers: dshwTimeouts.size + dshwIntervals.size + dshwFrames.size, observers: dshwObservers.size, listeners: dshwListeners.length, nodes: dshwNodes.size, audioContexts: dshwContexts.size } }
+}
+window.__dshWhaleLifecycle = dshwLifecycle
 window.__dshWhaleWidget = true
 
-// —— 页面自检：只在 DSH 主聊天界面挂载挂件 ——
-// 挂件脚本通过 tapIndex 注入 DSH 的每一个 index 页面（含插件市场等 SPA 视图）。
-// 市场页用 ReactDOM.createPortal 渲染到 document.body，若挂件在此初始化，
-// 会在 body 插入节点并注册全局捕获拦截，干扰 React 渲染树（removeChild 报错、页面空白）。
-// 主聊天界面的特征：composer 输入区。三种形态都算主界面：
-//   (a) 旧版 textarea
-//   (b) 旧版 contenteditable 可编辑 div
-//   (c) **DSH 0.1.6-alpha.1 起的新版**：<div contenteditable="false" role="textbox"
-//       aria-multiline="true" data-composer-input="true">（编辑由 Lexical 接管，所以
-//       contenteditable 反而是 false —— 只认前两种会让挂件在新版 DSH 上**完全不初始化**，
-//       见 issue #123）。检测到才继续，否则不碰 DOM、不注册监听。
-function dshwIsChatRoot(r) {
-  if (!r || !r.querySelector) return false
-  return !!(
-    r.querySelector('textarea') ||
-    r.querySelector('[contenteditable="true"]') ||
-    // DSH 0.1.6-alpha.1 起的新版 composer：data-composer-input 在整个 DSH 前端产物里
-    // **只出现在对话组件**（v742 时实测：1515 个前端文件里仅 dsh-client-ui-conversation 命中），
-    // 所以它是最精确的判据。
-    r.querySelector('[data-composer-input]') ||
-    // 同一层的 composer 容器属性（data-composer-seat / -card 也各只有一个出处），
-    // 万一将来输入框本身的属性改名，容器还在就仍能识别。
-    r.querySelector('[data-composer-seat],[data-composer-card]') ||
-    // 通用兜底：多行 textbox。注意**不要**用裸的 [role="textbox"] —— pdf.js 的批注编辑器
-    // （dsh-client-ui-sidebar-documentpreview）也会设 role=textbox，用它会把判定放宽到
-    // 非输入框的元素；加上 aria-multiline 至少排除掉单行输入框。
-    r.querySelector('[role="textbox"][aria-multiline="true"]')
-  )
-}
+// The client module is already scoped to the DSH application. Mount the
+// app-level widget on every view; waiting for a chat composer breaks enable in
+// Plugins, Settings and fresh workspaces.
 var dshwStarted = false
 function dshwStartOnce() {
-  if (dshwStarted) return
+  if (!dshwActive || dshwStarted) return
   dshwStarted = true
-  try { dshwInit() } catch (err) {}
-}
-// 是否已到主聊天界面；是则启动（只启动一次，之后由 dshwInit 内部标记去重）
-var dshwLastCheck = 0
-function dshwTryStart(force) {
-  if (dshwStarted) return true
-  var now = Date.now()
-  // 连续 DOM 变化时合并检查，避免每次 mutation 都 querySelector
-  if (!force && now - dshwLastCheck < 200) return false
-  dshwLastCheck = now
   try {
-    if (dshwIsChatRoot(document.getElementById('root'))) { dshwStartOnce(); return true }
-  } catch (err) {}
-  return false
-}
-try {
-  if (!dshwIsChatRoot(document.getElementById('root'))) {
-    // 尚未渲染：MutationObserver 无限等待（v739 去掉原来的「5 秒死线」）。
-    // 原来 500ms × 10 次就永久放弃，而 window.__dshWhaleWidget 是一次性闸门 ——
-    // 慢启动机器、或页面最小化时定时器被浏览器节流，都会让"第一次没赶上"变成
-    // "这次会话永远不出现"（用户反馈 / issue #102 第 2 条）。
-    // 约束不变：检测到 composer 之前一行 DOM 都不碰、不注册任何全局监听。
-    var dshwObserver = null
-    try {
-      if (typeof MutationObserver === 'function') {
-        dshwObserver = new MutationObserver(function () {
-          if (dshwTryStart()) { try { dshwObserver.disconnect() } catch (err) {} }
-        })
-        dshwObserver.observe(document.documentElement || document.body, { childList: true, subtree: true })
-      }
-    } catch (err) {}
-    // 兜底：observer 不可用时低频轮询继续等（不设上限，找到即停）
-    var dshwFallbackPoll = setInterval(function () {
-      if (dshwTryStart(true)) {
-        clearInterval(dshwFallbackPoll)
-        try { if (dshwObserver) dshwObserver.disconnect() } catch (err) {}
-      }
-    }, 2000)
+    dshwInit()
+  } catch (err) {
+    console.error('dsh-whale-widget: initialization failed', err)
+    dshwStop('initialization-failed')
   }
-} catch (err) {}
+}
 function dshwInit() {
-if (window.__dshWhaleInit) return
+if (!dshwActive || window.__dshWhaleInit) return
 window.__dshWhaleInit = true
 
 // ===== 音效播放（v745：Web Audio + 预解码 + 同步起播 + 可调衔接）=====
@@ -120,11 +180,12 @@ function dshwvSoundOff() {
   try { return typeof soundOn !== 'undefined' && soundOn === false } catch (err) { return false }
 }
 function dshwvAudio() {
+  if (!dshwActive) return null
   try {
     if (!dshwvAudioCtx) {
       var AC = window.AudioContext || window.webkitAudioContext
       // 显式用 'interactive'（该 API 的最低延迟档），起播尽量贴手
-      dshwvAudioCtx = new AC({ latencyHint: 'interactive' })
+      dshwvAudioCtx = dshwAudioContext(new AC({ latencyHint: 'interactive' }))
     }
     if (dshwvAudioCtx.state === 'suspended') { try { dshwvAudioCtx.resume() } catch (err) {} }
     dshwvAudioIdleArm() // 每次（重新）进入 running 都重新计时：静默满 1 分钟就挂起
@@ -319,8 +380,8 @@ var dshwvComposing = false
 var dshwvDeferredBody = []
 function dshwvComposingNow() { return dshwvComposing === true }
 try {
-  document.addEventListener('compositionstart', function () { dshwvComposing = true }, true)
-  document.addEventListener('compositionend', function () {
+  dshwOnDocument('compositionstart', function () { dshwvComposing = true }, true)
+  dshwOnDocument('compositionend', function () {
     dshwvComposing = false
     setTimeout(function () { try { dshwvFlushDeferredBody() } catch (err) {} }, 0)
   }, true)
@@ -333,13 +394,13 @@ try {
     // 断言照挂。注意这里**不摘监听**：之后重新打开开关，下一次点击仍能完成解锁。
     if (dshwvSoundOff()) return
     dshwvAudio()
-    try { document.removeEventListener('pointerdown', dshwvAudioUnlock, true) } catch (err) {}
-    try { document.removeEventListener('keydown', dshwvAudioUnlock, true) } catch (err) {}
+    try { dshwOffDocument('pointerdown', dshwvAudioUnlock, true) } catch (err) {}
+    try { dshwOffDocument('keydown', dshwvAudioUnlock, true) } catch (err) {}
   }
-  document.addEventListener('pointerdown', dshwvAudioUnlock, true)
-  document.addEventListener('keydown', dshwvAudioUnlock, true)
+  dshwOnDocument('pointerdown', dshwvAudioUnlock, true)
+  dshwOnDocument('keydown', dshwvAudioUnlock, true)
   // v753（issue #135）：页面被隐藏（切标签 / 最小化）时立刻挂起，直接覆盖"开着过夜"这个场景
-  document.addEventListener('visibilitychange', function () {
+  dshwOnDocument('visibilitychange', function () {
     try { if (document.hidden) dshwvAudioSuspendNow() } catch (err) {}
   })
 } catch (err) {}
@@ -1282,7 +1343,7 @@ var styleEl = document.createElement('style')
 // 页面底部（页面被撑到几千像素高）。打上自己的名字后就不会被任何人认领/删除。
 styleEl.setAttribute('data-plugin', 'dsh-whale-widget')
 styleEl.textContent = css
-document.head.appendChild(styleEl)
+dshwHeadAppend(styleEl)
 
 // ===== v743：body 挂载登记器（DOM 守护的基础设施，见下面 dshwReattachRoot）=====
 // 挂件会把 30 多个节点挂到 document.body 上（主节点、菜单、各种遮罩/面板、隐藏的 file input…）。
@@ -1291,6 +1352,14 @@ document.head.appendChild(styleEl)
 // 所以这里统一登记：所有挂到 body 的节点都走 dshwBodyAppend()，守护时逐个补挂；
 // 主动移除（目前只有一处）走 dshwBodyDetach()，避免被守护逻辑"复活"。
 var dshwBodyNodes = []
+dshwCleanups.push(function () {
+  dshwBodyNodes.length = 0
+  dshwvDeferredBody.length = 0
+  dshwExtraMasks.length = 0
+  // Release handlers held by the old Web Audio shim and detached image elements.
+  if (pressAudio) { pressAudio.onended = null; pressAudio.pause() }
+  if (releaseAudio) { releaseAudio.onended = null; releaseAudio.pause() }
+})
 // v789（issue #179）：输入法组字期间把"往 body 挂节点"的请求排队 —— 改 document.body 的子节点会触发布局，
 //   在 composition 期间做这件事会让浏览器/输入法重置组字（用户实测：打字自动上屏、光标跳到最前端）。
 //   排队到 compositionend 之后再补挂（正常输入时行为完全不变：非组字状态下一律立即挂）。
@@ -1306,7 +1375,8 @@ function dshwvFlushDeferredBody() {
 }
 function dshwBodyAppend(el) {
   try {
-    if (!el) return el
+    if (!el || !dshwActive) return el
+    dshwNodes.add(el)
     if (dshwvComposing && dshwvDeferredBody.indexOf(el) < 0) { dshwvDeferredBody.push(el); return el }
     // 注意：这里必须是**原始**的 document.body.appendChild —— 不能走 dshwBodyAppend 自己
     // （v743 批量改写时曾误替换成自我递归，被 try/catch 吞掉后表现为"登记了但从未挂上"）
@@ -1321,6 +1391,7 @@ function dshwBodyDetach(el) {
     if (dshwvComposing) { dshwvDeferredBody.push({ __detach: true, el: el }); return }
     var i = dshwBodyNodes.indexOf(el)
     if (i >= 0) dshwBodyNodes.splice(i, 1)
+    dshwNodes.delete(el)
     if (el && el.parentNode) el.parentNode.removeChild(el)
   } catch (err) {}
 }
@@ -1459,7 +1530,7 @@ function dshwCustSelClose() {
 }
 if (!window.__dshwCustBound) {
   window.__dshwCustBound = true
-  document.addEventListener('pointerdown', function (e) {
+  dshwOnDocument('pointerdown', function (e) {
     var o = dshwCustSelOpen
     if (!o) return
     try {
@@ -1473,12 +1544,12 @@ if (!window.__dshwCustBound) {
     } catch (err) {}
     dshwCustSelClose()
   }, true)
-  document.addEventListener('keydown', function (e) {
+  dshwOnDocument('keydown', function (e) {
     // v789（issue #179）：组字中按 Esc 是输入法的「取消组字」，别抢
     if (dshwvComposingNow()) return
     if (e.key === 'Escape') dshwCustCloseNow()
   }, true)
-  window.addEventListener('resize', function () { dshwCustCloseNow() })
+  dshwOnWindow('resize', function () { dshwCustCloseNow() })
 }
 function dshwCustCloseNow() {
   dshwCustSelClose()
@@ -3838,7 +3909,7 @@ function openSoundSettingsPanel() {
     // ③ 点文档任意处也刷新一次（覆盖「音效组」这种从 body 级子面板里改、不发卡内事件的路径），
     //    该监听在 cleanup 里摘掉。摘要只写 textContent，成本很低。
     function sndDocRefresh() { refreshSummaries() }
-    try { document.addEventListener('click', sndDocRefresh, true) } catch (err) {}
+    try { dshwOnDocument('click', sndDocRefresh, true) } catch (err) {}
     try { card.addEventListener('input', refreshSummaries) } catch (err) {}
     try { card.addEventListener('change', refreshSummaries) } catch (err) {}
     // v867：卡内任何改动也同步「全部音效」那四行（两个视图看同一个值）
@@ -3851,8 +3922,8 @@ function openSoundSettingsPanel() {
     //   改成**冒泡阶段**：目标元素先写状态，冒泡到 document 时再同步 ⇒ 读到的就是新值。
     //   （目标自己的处理器都在冒泡路径上更早执行；面板内部没有人对 change 调 stopPropagation。）
     var sndSyncDoc = function () { try { syncSoundChannelRows() } catch (err) {} }
-    try { document.addEventListener('input', sndSyncDoc, false) } catch (err) {}
-    try { document.addEventListener('change', sndSyncDoc, false) } catch (err) {}
+    try { dshwOnDocument('input', sndSyncDoc, false) } catch (err) {}
+    try { dshwOnDocument('change', sndSyncDoc, false) } catch (err) {}
     refreshSummaries()
     // —— 底部按钮 ——
     var closed = false
@@ -3882,9 +3953,9 @@ function openSoundSettingsPanel() {
       }
       try { audioGroupPanel.style.zIndex = '' } catch (err) {}
       try { audioEditMask.style.zIndex = '' } catch (err) {}
-      try { document.removeEventListener('click', sndDocRefresh, true) } catch (err) {}
-      try { document.removeEventListener('input', sndSyncDoc, false) } catch (err) {}
-      try { document.removeEventListener('change', sndSyncDoc, false) } catch (err) {}
+      try { dshwOffDocument('click', sndDocRefresh, true) } catch (err) {}
+      try { dshwOffDocument('input', sndSyncDoc, false) } catch (err) {}
+      try { dshwOffDocument('change', sndSyncDoc, false) } catch (err) {}
       try { sndSyncHook = null } catch (err) {}
       try { if (unregMask) unregMask() } catch (err) {}
       dshwBodyDetach(mask) // 走 detach 注销登记，否则 DOM 守护会把这个刚关掉的面板补挂回来
@@ -4530,7 +4601,7 @@ function usageAlertBudgetEditor(key, onSave) {
     // 注意:不要把 .dshwv-usage-mask 放进来——「模型子菜单/模型设置」用的是这个类(29000),
     // 一提权就会反盖到提醒编辑器(30000)上面。
     remindZStyle.textContent = '.dshwv-confirmmask,.dshwv-cropmask,.dshwv-audiomask,.dshwv-snapmask{z-index:32000!important}'
-    document.head.appendChild(remindZStyle)
+    dshwHeadAppend(remindZStyle)
     // 悬浮编辑窗 qedit(默认 z=26000)与本窗口同层:窗口打开期间把它置顶,避免被遮罩盖住(点模块 ✎ 无反应)
     var qeditEnsureSuper = bkQeditEnsure
     qeditEnsure = function () {
@@ -5998,7 +6069,7 @@ function openBalanceAdjustment(modelId) {
   var busy = false
   function close() {
     if (busy) return
-    document.removeEventListener('keydown', keyHandler)
+    dshwOffDocument('keydown', keyHandler)
     // v743：主动移除要走 dshwBodyDetach —— 否则它已被登记，DOM 守护会把这个刚关掉的窗口"复活"
     dshwBodyDetach(mask)
     accountingMask = null
@@ -6035,7 +6106,7 @@ function openBalanceAdjustment(modelId) {
   mask.addEventListener('click', function (e) { if (e.target === mask) close() })
   dshwBodyAppend(mask)
   accountingMask = mask
-  document.addEventListener('keydown', keyHandler)
+  dshwOnDocument('keydown', keyHandler)
   var rows = []
   var selected = null
   function renderSelection() {
@@ -7731,9 +7802,9 @@ function startSnapLineDrag(e, key, horizontal) {
       factor: domain / (horizontal ? Math.max(1, snapPvH) : Math.max(1, snapPvW)),
       orig: set[key]
     }
-    document.addEventListener('pointermove', onSnapLineMove, true)
-    document.addEventListener('pointerup', onSnapLineUp, true)
-    document.addEventListener('pointercancel', onSnapLineUp, true)
+    dshwOnDocument('pointermove', onSnapLineMove, true)
+    dshwOnDocument('pointerup', onSnapLineUp, true)
+    dshwOnDocument('pointercancel', onSnapLineUp, true)
   } catch (err) {}
 }
 function onSnapLineMove(e) {
@@ -7752,9 +7823,9 @@ function onSnapLineMove(e) {
 function onSnapLineUp() {
   try {
     snapLineDrag = null
-    document.removeEventListener('pointermove', onSnapLineMove, true)
-    document.removeEventListener('pointerup', onSnapLineUp, true)
-    document.removeEventListener('pointercancel', onSnapLineUp, true)
+    dshwOffDocument('pointermove', onSnapLineMove, true)
+    dshwOffDocument('pointerup', onSnapLineUp, true)
+    dshwOffDocument('pointercancel', onSnapLineUp, true)
   } catch (err) {}
 }
 function onSnapNumInput(key) {
@@ -9174,10 +9245,10 @@ function renderBubbleFirst() {
 // 因此只对"触摸手势"取消原生拖拽(按 pointerType=touch 的时间窗判定),不再用 (pointer: coarse)
 // 媒体查询——触屏笔记本/设备模式下它可能为真,会把电脑端的鼠标拖拽也一起废掉。
 var lastTouchAt = 0
-document.addEventListener('pointerdown', function (e) { try { if (e && e.pointerType === 'touch') lastTouchAt = Date.now() } catch (err) {} }, true)
+dshwOnDocument('pointerdown', function (e) { try { if (e && e.pointerType === 'touch') lastTouchAt = Date.now() } catch (err) {} }, true)
 function bubbleNativeDragBlocked() { return lastTouchAt > 0 && Date.now() - lastTouchAt < 1500 }
 // 兜底:触摸手势期间,挂件内任何元素(行/手柄/A-B chip/图片/文本选区)发起的原生拖拽一律取消
-document.addEventListener('dragstart', function (e) {
+dshwOnDocument('dragstart', function (e) {
   try {
     if (!bubbleNativeDragBlocked()) return
     var t = e.target
@@ -9187,7 +9258,7 @@ document.addEventListener('dragstart', function (e) {
 }, true)
 // 长按拖拽成立后,抑制随之而来的那次 click(否则会顺带打开编辑窗/误触删除)
 var rowDragSuppressAt = 0
-document.addEventListener('click', function (e) {
+dshwOnDocument('click', function (e) {
   try {
     if (Date.now() >= rowDragSuppressAt) return
     if (!bubbleMoreListEl || !e.target || !e.target.closest) return
@@ -9517,9 +9588,9 @@ function rowTouchArmCancel() {
 }
 function rowTouchDetach() {
   try {
-    document.removeEventListener('touchmove', rowTouchMove, true)
-    document.removeEventListener('touchend', rowTouchEnd, true)
-    document.removeEventListener('touchcancel', rowTouchEnd, true)
+    dshwOffDocument('touchmove', rowTouchMove, true)
+    dshwOffDocument('touchend', rowTouchEnd, true)
+    dshwOffDocument('touchcancel', rowTouchEnd, true)
   } catch (err) {}
 }
 function rowTouchEnter() {
@@ -9545,9 +9616,9 @@ function rowTouchStart(e) {
     rowTouchSetDraggable(row, idx, false)
     var t = e.touches[0]
     rowTouchArm = { row: row, idx: idx, x: t.clientX, y: t.clientY, timer: setTimeout(rowTouchEnter, ROW_TOUCH_HOLD_MS) }
-    document.addEventListener('touchmove', rowTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', rowTouchEnd, true)
-    document.addEventListener('touchcancel', rowTouchEnd, true)
+    dshwOnDocument('touchmove', rowTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', rowTouchEnd, true)
+    dshwOnDocument('touchcancel', rowTouchEnd, true)
   } catch (err) {}
 }
 function rowTouchMove(e) {
@@ -9625,7 +9696,7 @@ function rowTouchEnd(e) {
   try { if (e && e.touches && e.touches.length > 0) return } catch (err) {}
   rowTouchFinish(true)
 }
-document.addEventListener('touchstart', rowTouchStart, { passive: true })
+dshwOnDocument('touchstart', rowTouchStart, { passive: true })
 function bubbleUnpairStep(idx) {
   try {
     var arr = bubbleEditItems
@@ -9931,7 +10002,7 @@ function qeditEnsure() {
   dshwBodyAppend(qeditEl)
   if (!window.__dshwQeditBound) {
     window.__dshwQeditBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!qeditEl || qeditEl.style.display === 'none') return
       // 点击悬浮窗内部,或悬浮窗唤起的自绘下拉(菜单/触发钮/字体/取色)都不关闭
       if (e.target && e.target.closest && (e.target.closest('.dshwv-qedit') ||
@@ -9945,7 +10016,7 @@ function qeditEnsure() {
       } catch (err) {}
       qeditClose()
     }, true)
-    document.addEventListener('keydown', function (e) {
+    dshwOnDocument('keydown', function (e) {
       // v789（issue #179）：组字中按 Esc 是输入法的事，别抢
       if (dshwvComposingNow()) return
       if (e.key === 'Escape') qeditClose()
@@ -10082,7 +10153,7 @@ function qColorSelectBuild(current, onPick, opts) {
   })
   if (!window.__dshwColorBound) {
     window.__dshwColorBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleColorOpenMenu) return
       try { if (e.target && e.target.closest && (e.target.closest('.dshwv-qcolwrap') || e.target.closest('.dshwv-rgbmenu'))) return } catch (err) {}
       bubbleColorOpenMenu.classList.remove('dshwv-rgbopen')
@@ -10859,9 +10930,9 @@ function pvTouchArmCancel() {
 }
 function pvTouchDetach() {
   try {
-    document.removeEventListener('touchmove', pvTouchMove, true)
-    document.removeEventListener('touchend', pvTouchEnd, true)
-    document.removeEventListener('touchcancel', pvTouchEnd, true)
+    dshwOffDocument('touchmove', pvTouchMove, true)
+    dshwOffDocument('touchend', pvTouchEnd, true)
+    dshwOffDocument('touchcancel', pvTouchEnd, true)
   } catch (err) {}
 }
 function pvTouchEnter() {
@@ -10902,9 +10973,9 @@ function pvTouchStart(e) {
     // 本次手势内关掉该元素的原生可拖(document 级 dragstart 还有一层兜底)
     try { el.draggable = false } catch (err) {}
     pvTouchArm = { kind: kind, el: el, ri: ri, mi: mi, key: key, x: t.clientX, y: t.clientY, timer: setTimeout(pvTouchEnter, PV_TOUCH_HOLD_MS) }
-    document.addEventListener('touchmove', pvTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', pvTouchEnd, true)
-    document.addEventListener('touchcancel', pvTouchEnd, true)
+    dshwOnDocument('touchmove', pvTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', pvTouchEnd, true)
+    dshwOnDocument('touchcancel', pvTouchEnd, true)
   } catch (err) {}
 }
 function pvTouchMove(e) {
@@ -10991,9 +11062,9 @@ function pvTouchEnd(e) {
   try { if (e && e.touches && e.touches.length > 0) return } catch (err) {}
   pvTouchFinish(true)
 }
-document.addEventListener('touchstart', pvTouchStart, { passive: true })
+dshwOnDocument('touchstart', pvTouchStart, { passive: true })
 // 长按拖拽成立后,抑制随之而来的那次 click(否则会顺带打开模块编辑窗/误删/重复新增)
-document.addEventListener('click', function (e) {
+dshwOnDocument('click', function (e) {
   try {
     if (Date.now() >= pvTouchSuppressAt) return
     if (!e.target || !e.target.closest) return
@@ -11371,7 +11442,7 @@ try {
   if (!window.__dshwFrameMenuBound) {
     window.__dshwFrameMenuBound = true
     // 点别处 ⇒ 收（豁免菜单自身与两个锚点按钮）
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!frameMenuOpenEl) return
       try {
         // v838（用户报"删框的二次确认一弹出来，下拉就自己收了，想继续编辑还得再点开"）：
@@ -11382,9 +11453,9 @@ try {
       } catch (err) {}
       frameMenuCloseAll()
     }, true)
-    window.addEventListener('resize', frameMenuCloseAll)
+    dshwOnWindow('resize', frameMenuCloseAll)
     // 浮层是 fixed：滚动任何容器时它不会跟着走 ⇒ 直接收掉（比"飘在原处"干净）
-    document.addEventListener('scroll', frameMenuCloseAll, true)
+    dshwOnDocument('scroll', frameMenuCloseAll, true)
   }
 } catch (err) {}
 // 下拉项里的 4 个图标按钮（内联 SVG，避免字体/emoji 差异；颜色跟面板走）
@@ -12299,7 +12370,7 @@ function bubbleRgbSelect(current, cb) {
   // 外点关闭(仅绑定一次)
   if (!window.__dshwRgbDocBound) {
     window.__dshwRgbDocBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleRgbOpenMenu) return
       try {
         if (e.target && e.target.closest && e.target.closest('.dshwv-rgbwrap')) return
@@ -12413,7 +12484,7 @@ function bubbleFontEditRow(getVal, setVal) {
   })
   if (!window.__dshwFontDocBound) {
     window.__dshwFontDocBound = true
-    document.addEventListener('pointerdown', function (e) {
+    dshwOnDocument('pointerdown', function (e) {
       if (!bubbleFontOpenMenu) return
       try { if (e.target && e.target.closest && (e.target.closest('.dshwv-fontwrap') || e.target.closest('.dshwv-rgbmenu'))) return } catch (err) {}
       bubbleFontOpenMenu.classList.remove('dshwv-rgbopen')
@@ -13946,6 +14017,7 @@ dshwBodyAppend(menuBox)
 // 另外 root 还在、只有个别节点被摘掉的"局部移除"也要能自愈，所以做了节流的全量核对。
 try { window.__dshWhaleRoot = root } catch (err) {}
 function dshwReattachRoot() {
+  if (!dshwActive) return
   try {
     for (var i = 0; i < dshwBodyNodes.length; i++) {
       var el = dshwBodyNodes[i]
@@ -13956,7 +14028,7 @@ function dshwReattachRoot() {
 try {
   if (typeof MutationObserver === 'function') {
     var dshwGuardLastFull = 0
-    var dshwRootGuard = new MutationObserver(function () {
+    var dshwRootGuard = dshwObserve(new MutationObserver(function () {
       try {
         if (!root) return
         if (!dshwConnected(root)) { dshwReattachRoot(); dshwGuardLastFull = Date.now(); return }
@@ -13964,7 +14036,7 @@ try {
         var now = Date.now()
         if (now - dshwGuardLastFull > 1500) { dshwGuardLastFull = now; dshwReattachRoot() }
       } catch (err) {}
-    })
+    }))
     dshwRootGuard.observe(document.documentElement, { childList: true, subtree: true })
   }
 } catch (err) {}
@@ -14008,7 +14080,7 @@ try {
 } catch (err) {}
 setTimeout(measureBubbleCenter, 120)
 try {
-  window.addEventListener('load', function () { measureBubbleCenter() })
+  dshwOnWindow('load', function () { measureBubbleCenter() })
 } catch (err) {}
 
 // Position model: the widget is ALWAYS expressed in left/top px (so edge snaps
@@ -14303,9 +14375,9 @@ function bubbleTtlSweep() {
 // 三条触发路径：页面重新可见（切标签回来）、窗口重新拿到焦点（最小化还原）、以及每秒一次的兜底巡检。
 // 正常前台运行时计时器按时收敛，巡检永远提前返回（不会误收下一个泡泡）。
 try {
-  document.addEventListener('visibilitychange', function () { try { if (!document.hidden) bubbleTtlSweep() } catch (err) {} })
-  window.addEventListener('focus', function () { bubbleTtlSweep() })
-  window.addEventListener('pageshow', function () { bubbleTtlSweep() })
+  dshwOnDocument('visibilitychange', function () { try { if (!document.hidden) bubbleTtlSweep() } catch (err) {} })
+  dshwOnWindow('focus', function () { bubbleTtlSweep() })
+  dshwOnWindow('pageshow', function () { bubbleTtlSweep() })
   setInterval(bubbleTtlSweep, 1000)
 } catch (err) {}
 var bubbleScene = null // { kind:'normal'|'random'|'cost', ttlMs }
@@ -17005,10 +17077,10 @@ try {
   frameEditCard.appendChild(frameEditBtnsEl)
   frameEditMask.appendChild(frameEditCard)
   dshwBodyAppend(frameEditMask)
-  document.addEventListener('pointermove', frameEditStageMove, true)
-  document.addEventListener('pointerup', frameEditStageUp, true)
-  document.addEventListener('pointercancel', frameEditStageUp, true)
-  window.addEventListener('resize', function () {
+  dshwOnDocument('pointermove', frameEditStageMove, true)
+  dshwOnDocument('pointerup', frameEditStageUp, true)
+  dshwOnDocument('pointercancel', frameEditStageUp, true)
+  dshwOnWindow('resize', function () {
     try { if (frameEditMask && frameEditMask.style.display !== 'none') frameEditPreviewRefresh() } catch (err) {}
   })
 } catch (err) {}
@@ -17877,14 +17949,14 @@ function bubbleTplHelpToggle(m, anchor) {
       dshwvTplHelpEl = document.createElement('div')
       dshwvTplHelpEl.className = 'dshwv-tplhelp'
       dshwBodyAppend(dshwvTplHelpEl)
-      document.addEventListener('pointerdown', function (e) {
+      dshwOnDocument('pointerdown', function (e) {
         if (!dshwvTplHelpEl || dshwvTplHelpEl.style.display === 'none') return
         try {
           if (e.target && e.target.closest && (e.target.closest('.dshwv-tplq') || e.target.closest('.dshwv-tplhelp'))) return
         } catch (err) {}
         dshwvTplHelpEl.style.display = 'none'
       }, true)
-      document.addEventListener('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvTplHelpEl.style.display = 'none' })
+      dshwOnDocument('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvTplHelpEl.style.display = 'none' })
     }
     if (dshwvTplHelpEl.style.display === 'block') { dshwvTplHelpEl.style.display = 'none'; return }
     var items = bubbleTplHelpItems(m)
@@ -17921,14 +17993,14 @@ function dshwvHintEnsure() {
   dshwvHintEl.className = 'dshwv-tplhelp dshwv-hintbox'
   dshwvHintEl.style.display = 'none'
   dshwBodyAppend(dshwvHintEl)
-  document.addEventListener('pointerdown', function (e) {
+  dshwOnDocument('pointerdown', function (e) {
     if (!dshwvHintEl || dshwvHintEl.style.display === 'none') return
     try {
       if (e.target && e.target.closest && (e.target.closest('.dshwv-askq') || e.target.closest('.dshwv-hintbox'))) return
     } catch (err) {}
     dshwvHintHide()
   }, true)
-  document.addEventListener('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvHintHide() })
+  dshwOnDocument('keydown', function (e) { if (dshwvComposingNow()) return; if (e.key === 'Escape') dshwvHintHide() })
   return dshwvHintEl
 }
 function dshwvHintShow(html, anchor, pinned) {
@@ -21008,6 +21080,12 @@ audioCropFileInput.type = 'file'
 audioCropFileInput.accept = 'audio/*'
 audioCropFileInput.style.display = 'none'
 dshwBodyAppend(audioCropFileInput)
+var audioCropReaders = new Set()
+dshwCleanups.push(function () {
+  audioCropReaders.forEach(function (reader) { if (reader.readyState === 1) reader.abort() })
+  audioCropReaders.clear()
+  audioCropBuffer = null
+})
 var audioCropTarget = null // 'press' | 'release'
 var audioCropCtx = null // AudioContext
 var audioCropBuffer = null // AudioBuffer
@@ -21023,16 +21101,20 @@ audioEditReleaseImport.addEventListener('click', function () {
   audioCropFileInput.click()
 })
 audioCropFileInput.addEventListener('change', function () {
+  if (!dshwActive) return
   var f = audioCropFileInput.files && audioCropFileInput.files[0]
   audioCropFileInput.value = ''
   if (!f) return
   var reader = new FileReader()
+  audioCropReaders.add(reader)
+  reader.onloadend = function () { audioCropReaders.delete(reader) }
   reader.onload = function () {
-    openAudioCrop(reader.result, f.name)
+    if (dshwActive) openAudioCrop(reader.result, f.name)
   }
   reader.readAsArrayBuffer(f)
 })
 function openAudioCrop(arrayBuf, fileName) {
+  if (!dshwActive) return
   try {
     audioCropFileBase = (fileName || '音频片段').replace(/.[^.]+$/, '')
     audioCropZoom = 1
@@ -21040,10 +21122,11 @@ function openAudioCrop(arrayBuf, fileName) {
     // 重新导入新音频时立即停止旧试听，避免旧片段继续响
     stopAudioCropPreview()
     if (!audioCropCtx) {
-      try { audioCropCtx = new (window.AudioContext || window.webkitAudioContext)() } catch (err) { audioCropCtx = null }
+      try { audioCropCtx = dshwAudioContext(new (window.AudioContext || window.webkitAudioContext)()) } catch (err) { audioCropCtx = null }
     }
     if (!audioCropCtx) { alert('当前浏览器不支持音频解码'); return }
-    audioCropCtx.decodeAudioData(arrayBuf, function (buf) {
+    var decoding = audioCropCtx.decodeAudioData(arrayBuf, function (buf) {
+      if (!dshwActive) return
       audioCropBuffer = buf
       audioCropStart.value = '0'
       audioCropEnd.value = '100'
@@ -21056,7 +21139,9 @@ function openAudioCrop(arrayBuf, fileName) {
       updateAudioCropOkState()
       dshwLayerUp(audioCropMask, 20500) // v744：音频裁剪也可能从资源管理(20300)里打开
       audioCropMask.style.display = 'flex'
-    }, function () { alert('音频解码失败') })
+    }, function () { if (dshwActive) alert('音频解码失败') })
+    // Modern implementations return a rejecting Promise even with callbacks.
+    if (decoding && decoding.catch) decoding.catch(function () {})
   } catch (err) {}
 }
 function audioCropRange() {
@@ -21712,9 +21797,9 @@ function onDocPointerDown(e) {
   root.classList.add('dshwv-dragging')
   pressDown()
   setWidgetCursor('grabbing')
-  document.addEventListener('pointermove', onDocPointerMove, true)
-  document.addEventListener('pointerup', onDocPointerUp, true)
-  document.addEventListener('pointercancel', onDocPointerCancel, true)
+  dshwOnDocument('pointermove', onDocPointerMove, true)
+  dshwOnDocument('pointerup', onDocPointerUp, true)
+  dshwOnDocument('pointercancel', onDocPointerCancel, true)
 }
 function onDocPointerMove(e) {
   if (!drag || !drag.active) return
@@ -21776,9 +21861,9 @@ function onDocContextMenu(e) {
     toggleMenu()
   } catch (err) {}
 }
-document.addEventListener('pointerdown', onDocPointerDown, true)
-document.addEventListener('click', onDocClickStopper, true)
-document.addEventListener('contextmenu', onDocContextMenu, true)
+dshwOnDocument('pointerdown', onDocPointerDown, true)
+dshwOnDocument('click', onDocClickStopper, true)
+dshwOnDocument('contextmenu', onDocContextMenu, true)
 
 // ===== 移动端触摸支持(v631) =====
 // 鲸鱼是 pointer-events:none 的穿透层,手指真正按到的其实是下层页面元素(通常是可滚动区),
@@ -21835,9 +21920,9 @@ function onDocTouchStart(e) {
       touchLongPressTimer = setTimeout(fireTouchLongPressMenu, TOUCH_LONG_PRESS_MS)
     }
     try { e.preventDefault() } catch (err) {}
-    document.addEventListener('touchmove', onDocTouchMove, { capture: true, passive: false })
-    document.addEventListener('touchend', onDocTouchEnd, true)
-    document.addEventListener('touchcancel', onDocTouchEnd, true)
+    dshwOnDocument('touchmove', onDocTouchMove, { capture: true, passive: false })
+    dshwOnDocument('touchend', onDocTouchEnd, true)
+    dshwOnDocument('touchcancel', onDocTouchEnd, true)
   } catch (err) {}
 }
 function onDocTouchMove(e) {
@@ -21862,11 +21947,11 @@ function onDocTouchEnd() {
   touchDrag = null
   touchStartPt = null
   touchNowPt = null
-  document.removeEventListener('touchmove', onDocTouchMove, true)
-  document.removeEventListener('touchend', onDocTouchEnd, true)
-  document.removeEventListener('touchcancel', onDocTouchEnd, true)
+  dshwOffDocument('touchmove', onDocTouchMove, true)
+  dshwOffDocument('touchend', onDocTouchEnd, true)
+  dshwOffDocument('touchcancel', onDocTouchEnd, true)
 }
-document.addEventListener('touchstart', onDocTouchStart, { capture: true, passive: false })
+dshwOnDocument('touchstart', onDocTouchStart, { capture: true, passive: false })
 
 var widgetCursor = ''
 function setWidgetCursor(v) {
@@ -21940,7 +22025,7 @@ function onDocPointerMoveCursor(e) {
   // 否则这一次 toggle 会把常显状态撤掉（issue #91 缺陷2 修完又被自己抹掉）。
   if (!menuBtnHide) menuBtn.classList.toggle('dshwv-menu-btn-visible', over || menuOpen || dshwvTouchUI())
 }
-document.addEventListener('pointermove', onDocPointerMoveCursor, true)
+dshwOnDocument('pointermove', onDocPointerMoveCursor, true)
 // 启动即应用一次菜单按钮可见性：触屏上 ☰ 常显（issue #91 缺陷2）。
 // 配置读回来之后还会再应用一次，这里是配置请求失败时的兜底。
 try { applyMenuBtnHideUI() } catch (err) {}
@@ -21948,9 +22033,9 @@ try { applyMenuBtnHideUI() } catch (err) {}
 function endDrag(e, clickAllowed, cancelled) {
   if (!drag || !drag.active) return
   drag.active = false
-  document.removeEventListener('pointermove', onDocPointerMove, true)
-  document.removeEventListener('pointerup', onDocPointerUp, true)
-  document.removeEventListener('pointercancel', onDocPointerCancel, true)
+  dshwOffDocument('pointermove', onDocPointerMove, true)
+  dshwOffDocument('pointerup', onDocPointerUp, true)
+  dshwOffDocument('pointercancel', onDocPointerCancel, true)
   pressUp()
   root.classList.remove('dshwv-dragging')
   // issue #79 缺陷2：pointercancel（Android 把手势判成页面滚动、或系统抢走手势时派发）的
@@ -22048,7 +22133,7 @@ function applyAnchorPos() {
     return true
   } catch (err) { return false }
 }
-window.addEventListener('resize', function () {
+dshwOnWindow('resize', function () {
   if (state.h === null && state.v === null && applyAnchorPos()) return
   settle()
 })
@@ -22203,7 +22288,7 @@ function resyncSizeCfg() {
   } catch (err) {}
 }
 try {
-  document.addEventListener('visibilitychange', function () {
+  dshwOnDocument('visibilitychange', function () {
     try { if (!document.hidden) resyncSizeCfg() } catch (err) {}
   })
 } catch (err) {}
@@ -22315,6 +22400,8 @@ function pollLastTurn() {
 }
 setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
 }
-// 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
-try { dshwTryStart(true) } catch (err) {}
+// Body readiness is the only startup prerequisite. Disposal also removes this
+// listener, so disable before DOMContentLoaded cannot mount a late widget.
+if (document.body) dshwStartOnce()
+else dshwOnDocument('DOMContentLoaded', dshwStartOnce, { once: true })
 })()

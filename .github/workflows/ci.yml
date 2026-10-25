@@ -43,8 +43,9 @@ jobs:
       - name: Syntax check
         run: |
           node --check lib/index.js
+          node --check lib/client.js
           node --check assets/whale-widget.js
-          echo "两个文件的语法都通过"
+          echo "三个文件的语法都通过"
 
       # 核心不变量自检（tools/ci-audit.mjs）。这里只跑静态四项，不跑「打包后能不能运行」那一项：
       # 日常 push/PR 关心的是「源码对不对」，没必要每次打一个 npm 包。
@@ -63,6 +64,9 @@ jobs:
       #      innerHTML 右侧若是静态字面量直接放行；接了变量就必须登记在 tools/ci-audit.allowlist.json 并写明数据来源。
       #      为什么：这就是 issue #143 那一类注入。
       # 通过标准：这四项合计一条报错都没有（退出码 0）。
+      - name: Client lifecycle regression tests
+        run: node --test tests/*.test.*
+
       - name: Core invariants audit
         run: node tools/ci-audit.mjs --no-pack
 
@@ -79,7 +83,7 @@ jobs:
       # （本机用泛化的 C:/Users 试过，会被它骗到）。
       - name: Dev-path audit (must be stripped)
         run: |
-          if grep -n "TestBox" lib/index.js lib/accounting.mjs assets/whale-widget.js; then
+          if grep -n "TestBox" lib/index.js lib/client.js lib/accounting.mjs assets/whale-widget.js; then
             echo "::error::发布文件里出现了开发机路径 —— 宿主发布副本必须先跑 _strip-dev-paths.mjs --apply 再提交"
             exit 1
           fi

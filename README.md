@@ -115,12 +115,13 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 ```text
 dsh-whale-widget/
-├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
+├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch + dsh.client；顶层 icon 指向 icon.png）
 ├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
 ├── README.md                 # 本文件
 ├── cordis.patch.yml          # 插件挂载声明
 ├── lib/
 │   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务）
+│   ├── client.js             # 客户端半区：dsh.client 生命周期 + 挂载 whale-widget.js
 │   └── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
 ├── assets/
 │   ├── whale-widget.js       # 前端挂件本体（由宿主按 mtime 热读取）
@@ -454,7 +455,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - **换了 / 删了 API key 之后，更早的记账天变成「本地估算 ¥0.00」**：记账按**密钥指纹分本**（一把 key 一本账），换 key 等于换了一本 —— 数据**没丢**，都在 `.dshw-usage.json` 的 `accounting.books` 里。当前版本已让界面把历史本里的日期正常显示（标注「已观测消费 · 历史账户」），并在「小鲸鱼记账」面板顶部提示「检测到 N 个记账本」；**两个本不会被相加**（插件无法判断两次是不是同一个账户），但同一天的明细可以在该面板的「每日与逐条明细」里逐日查看。
 - **手机上拖不动鲸鱼**：本版本已用触摸事件接管拖拽，请硬刷新页面拿到最新 `whale-widget.js`；仍不行请反馈浏览器型号。
 - **隐藏了菜单按钮怎么进菜单**：电脑端右键鲸鱼，手机端长按鲸鱼约 1.5 秒。
-- **改了前端代码不生效**：前端 `assets/whale-widget.js` 由宿主按 mtime 热读取，**硬刷新**（Ctrl+F5）即可；改了宿主 `lib/index.js` 必须**重启 `dsh web`**。
+- **改了前端代码不生效**：前端 `assets/whale-widget.js` 由宿主按 mtime 热读取，**硬刷新**（Ctrl+F5）即可；改了宿主 `lib/index.js` 必须**重启 `dsh web`**。**关闭/开启插件**由 `lib/client.js` 的 `dsh.client` 生命周期接管：关闭会直接回收挂件 DOM、全局监听、定时器、Observer、请求和音频资源，不刷新页面；重新开启在 Plugins、设置和聊天页面均即时出现，不再等待聊天输入框（桌面端首次安装仍需重开客户端）。
 - **模型名看不懂**：账本记录的是 API 模型 id；`deepseek-flash` 即 DeepSeek-V4.1-Flash，旧名 `deepseek-v4-flash` / `-vision-exp` 现在也由同一颗 V4.1-Flash 提供并按 Flash 计价（面板里已加标注）。
 
 ## 定价表
@@ -470,7 +471,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 开发与维护
 
-- 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
+- 仓库里 `lib/index.js` 是宿主本体、`lib/client.js` 是客户端生命周期壳、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
 

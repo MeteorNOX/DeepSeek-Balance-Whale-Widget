@@ -40,6 +40,7 @@ dsh-whale-widget/
 │
 ├── lib/
 │   ├── index.js                  3,953 行   宿主侧本体：23 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── client.js                            客户端半区：dsh.client 生命周期 + 挂载/卸载 whale-widget.js
 │   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
@@ -48,6 +49,8 @@ dsh-whale-widget/
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
 │   └── minecraft-exp-orb.wav / task-end-a.wav
+│
+├── tests/                           客户端生命周期回归测试与桌面 E2E 记录
 │
 ├── tools/
 │   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
