@@ -33,6 +33,8 @@
 ```
 dsh-whale-widget/
 ├── package.json                     35 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
+├── package-lock.json                 npm 依赖锁文件（proper-lockfile：跨进程账本事务锁）
+├── assessment/                       账本并发、崩溃恢复、保存失败回归测试
 ├── cordis.patch.yml                 15 行   插件挂载声明
 ├── README.md                       471 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
 ├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
@@ -91,3 +93,8 @@ dsh-whale-widget/
 ### 关于那两个超大文件
 
 `assets/whale-widget.js`（16,853 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+
+
+### 账本回归测试
+
+先运行 `npm ci`，再运行 `node --test assessment/*.test.cjs` 和 `node assessment/ledger-race.cjs`。测试使用临时目录和独立进程，不读取真实用户账本，也不需要 API key。账本的所有修改都必须经 `updateUsageLedger()`，在同一把锁内重新读盘；不要把锁放到写回函数里，也不要把锁内快照带到异步任务完成后再写回。

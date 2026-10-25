@@ -116,6 +116,8 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 ```text
 dsh-whale-widget/
 ├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
+├── package-lock.json         # 固定账本锁依赖版本
+├── assessment/               # 账本并发与异常恢复回归测试
 ├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
 ├── README.md                 # 本文件
 ├── cordis.patch.yml          # 插件挂载声明
@@ -498,3 +500,15 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 本项目**代码**基于 **MIT License** 开源，详见 [LICENSE](LICENSE)。
 
 ⚠️ **`assets/` 下的美术素材（图片 / 动图 / 音效）不在 MIT 覆盖范围内**：它们由维护者提供或使用 AI 工具生成，按「原样（as-is）」随插件分发、仅供运行本插件使用，不授予再许可、也不声明为原创作品。逐项来源、元数据清理说明与权利主张（takedown）方式见 **[PROVENANCE.md](PROVENANCE.md)**。
+
+
+### 账本并发与开发验证
+
+账本通过 `proper-lockfile` 保护整个读取、修改、写回过程，避免重启时新旧宿主互相覆盖事件。锁争用最多同步等待 2 秒，超时返回错误并记录日志，不改写账本、不切到备用路径。进程被强制终止后，锁超过 30 秒未更新可被后续写入回收。
+
+源码开发先运行 `npm ci` 安装依赖；回归检查：
+
+```sh
+node --test assessment/*.test.cjs
+node assessment/ledger-race.cjs
+```
