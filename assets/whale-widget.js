@@ -22229,7 +22229,7 @@ var waitSeenId = ''
 function waitEventCfg(kind) {
   try { return ((usageSet || {}).events || {})[kind] || {} } catch (err) { return {} }
 }
-function pollWaitState() {
+function pollWaitState(done) {
   try {
     fetch(WAIT_URL, { cache: 'no-store' })
       .then(function (r) { return r.json() })
@@ -22276,9 +22276,10 @@ function pollWaitState() {
         if (on && sel && ev.soundOn !== false) playBindingSound({ on: true, sel: sel }, ev)
       })
       .catch(function () {})
-  } catch (err) {}
+      .finally(function () { if (typeof done === 'function') done() })
+  } catch (err) { if (typeof done === 'function') done() }
 }
-function pollLastTurn() {
+function pollLastTurn(done) {
   try {
     fetch(LAST_TURN_URL, { cache: 'no-store' })
       .then(function (r) { return r.json() })
@@ -22311,9 +22312,41 @@ function pollLastTurn() {
         }
       })
       .catch(function () {})
+      .finally(function () { if (typeof done === 'function') done() })
+  } catch (err) { if (typeof done === 'function') done() }
+}
+// 可见时 1 秒一次，隐藏时 5 秒一次：隐藏的窗口仍然要发现新的挂起（否则"等你回来才响"就废了），
+// 但没必要维持每秒两个请求。上一对请求还没回来就跳过这一拍，慢网络下不会越堆越多。
+var POLL_MS_VISIBLE = 1000
+var POLL_MS_HIDDEN = 5000
+var POLL_STALE_MS = 15000
+var pollInFlight = 0
+var pollStartedAt = 0
+var pollTimer = 0
+function pollTick() {
+  try {
+    // 上一对请求还挂着就跳过这一拍；超过 15 秒还没回来则视为卡死，照常发（否则一次挂住的请求会让轮询永久停摆）
+    if (pollInFlight > 0 && Date.now() - pollStartedAt < POLL_STALE_MS) return
+    pollInFlight = 2
+    pollStartedAt = Date.now()
+    var done = function () { if (pollInFlight > 0) pollInFlight -= 1 }
+    try { pollLastTurn(done) } catch (err) { done() }
+    try { pollWaitState(done) } catch (err) { done() }
   } catch (err) {}
 }
-setInterval(function () { pollLastTurn(); pollWaitState() }, 1000)
+function pollSchedule() {
+  var ms = POLL_MS_VISIBLE
+  try { if (typeof document !== 'undefined' && document.hidden === true) ms = POLL_MS_HIDDEN } catch (err) {}
+  clearTimeout(pollTimer)
+  pollTimer = setTimeout(function () { pollTick(); pollSchedule() }, ms)
+}
+try {
+  document.addEventListener('visibilitychange', function () {
+    try { if (document.hidden !== true) pollTick() } catch (err) {}
+    pollSchedule()
+  })
+} catch (err) {}
+pollSchedule()
 }
 // 主界面检测通过（或稍后由 MutationObserver 检测到）后执行挂件初始化；非主界面不启动
 try { dshwTryStart(true) } catch (err) {}
