@@ -17,6 +17,7 @@
   - 小鲸鱼记账（默认，免令牌）：观测余额差值自动记账，持久化到 `.dshw-usage.json`，跨天归零归档。
   - 实时·令牌：读 `DEEPSEEK_PLATFORM_TOKEN`，调平台用量接口按峰谷定价换算。
 - **每轮对话消耗统计**：宿主插件监听 `session/event`，捕获 `assistant/message` 的真实 usage（input/cache/output/reasoning tokens），按 `turn` 聚合；`turn/end` 时结算本轮金额（复用峰谷定价表）写入 `/dsh-whale/last-turn.json`（seq 递增）。前端每秒轮询，出现新 seq 且「每轮对话后自动显示消耗金额」开启时弹出消耗金额泡泡（居中两行：A 样式「上一轮对话消耗:」+ 红色 B 样式「¥X.XX」）；自动关闭时间可设秒数（0=不自动关闭）；消耗泡泡显示期间余额变动不弹普通泡泡。
+- **今日 Token（全渠道）**：泡泡模块 `tokens` 把 `dsh` / `codex` / `opencode` / `claude` 四个渠道当天的 token 汇总成一个数字 + 一个按价目表折算的人民币值（数据来自 `/dsh-whale/token-stats.json`，只读、不发外部请求）；多窗口订阅额度（OpenCode Go 的 5h / 周 / 月）在气泡里默认画成「三窗小仪表」，可用 `planStyle:'text'` 退回一行文本。
 - 支持：拖拽、四分之一区域吸附（上下左右四边）、左吸附整体水平翻转（文字同步）、汉堡菜单（大小/音效/音量/用量模式/峰谷文案/气泡开关/每轮消耗开关与自动关闭时间）、按压 Q 弹 + 音效、余额数字滚动动画、60 秒自动刷新 + 点击手动刷新、随机台词气泡（点击切换/关闭）、**每次打开界面自动启用（常驻自启）**。
 
 ## 二、架构（务必先读）
@@ -29,7 +30,8 @@
 4. **安装/更新**：`dsh plugin --profile web add dsh-whale-widget`；本地开发在**仓库根目录**（即 `package.json` 所在目录）用 `dsh plugin --profile web add link:.`（注意：根目录就是插件包，**不要**写成 `link:.\dsh-whale-widget` 这种带子目录的路径，否则会被 pnpm 装成普通依赖而非 bundle 层）。安装后重启 `dsh web`。
 5. **可迁移路径**：`lib/index.js` 顶部用 `fileURLToPath(import.meta.url)` 推得 `PACKAGE_ROOT`，图片/音效优先 `path.join(PACKAGE_ROOT, 'assets', ...)`；尺寸/账本写 `$DSH_HOME`（`process.env.DSH_HOME || ~/.dsh`）下。本机旧绝对路径仅作 fallback，方便旧手动安装平滑升级。
 6. **宿主上下文**：宿主插件运行在宿主进程（非动态沙箱），可直接使用全局 `fetch`（可带自定义请求头）、`node:fs`、`AbortSignal.timeout` 等 Node API。
-7. **生命周期**：把所有 `webServer.register` / `tapIndex` 返回的 disposer 收集进数组，挂到 `ctx.effect(() => () => { for (const d of disposers) try { d() } catch {} })`，HMR 重载时自动清理。
+7. **纯取数逻辑单拆成文件**：`lib/index.js` 已经很大，`lib/token-stats.mjs` 单独承载「今日 Token」的四渠道取数——导出 `createTokenStats({ todayKey, readUsageLedger, addMoney, readSizeConfig, codexHome, version })`，依赖全部由宿主注入，所以它不碰 `ctx`、不注册路由、能直接 `node -e` 单测；路由本身仍由 `lib/index.js` 注册并把 `payload()` 包成 JSON。新增这类「只读扫描本机」的功能请照这个形状放，不要再往 `index.js` 里堆。
+8. **生命周期**：把所有 `webServer.register` / `tapIndex` 返回的 disposer 收集进数组，挂到 `ctx.effect(() => () => { for (const d of disposers) try { d() } catch {} })`，HMR 重载时自动清理。
 
 > 兼容提示：若环境中存在旧版动态插件占用同名路由，先 `cordis_stop`/`cordis_undefine` 释放，否则注册会因路径重复抛错。
 
@@ -40,9 +42,10 @@
 | `/dsh-whale/image.png` | GET | 读取插件包内 `assets/DSniang1.png`（回退本机旧绝对路径，内存缓存字节），`Content-Type: image/png`、`Cache-Control: no-store`；读取失败返回 404。 |
 | `/dsh-whale/balance.json` | GET | 返回余额 JSON：`{ok:true, totalBalance, currency, updatedAt, todayUsage, isPeak, usageMode}` 或 `{ok:false, code, error, transient?}`。**任何情况下都返回 200 + JSON**，绝不悬挂/空响应。 |
 | `/dsh-whale/last-turn.json` | GET | 返回最近一轮已完成的对话消耗：`{ok, seq, turn, amount, tokens, ts}`；无记录时 `turn:null`。`seq` 每次结算 +1，前端据此判断「新的一轮」。 |
+| `/dsh-whale/token-stats.json` | GET | 今日 Token（全渠道）汇总：`{ok, version, day, at, tokens, cost, costEstimated, currency:'CNY', usdRate, byModel:[{model,tokens,cost}], channels:[…]}`；`channels` 固定四条（`dsh` / `codex` / `opencode` / `claude`），每条含 `{key, name, ok, tokens, cost, costEstimated, currency, byModel, records, files, lastActivity}`，`codex` / `claude` 的 `cost` 固定 `null`（订阅制不计价）。**只读、不发任何外部请求**，宿主侧 20 秒缓存 + in-flight 去重；出错也返回 200 + `{ok:false, error}`。 |
 | `/dsh-whale/rua.gif` | GET | 读取插件包内 `assets/rua.gif`（回退本机旧绝对路径，内存缓存），`Content-Type: image/gif`、`Cache-Control: no-store`。 |
 | `/dsh-whale/size.json` | GET / PUT | 挂件配置持久化：GET 返回 `{scale, sound, vol, soundSet, usageMode, peakMode, bubbleOn, turnCostOn, turnCostCloseMs}`；PUT 读 body 写盘（优先 `$DSH_HOME/.dshw-size.json`，回退 `$DSH_HOME/profiles/web/` 与本机旧路径），带 CORS 头。`usageMode` 变化时清除余额缓存。 |
-| `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
+| `/dsh-whale/sound/press.mp3` | GET | 按 `?set=duck\|fx1` 返回对应按压音效（`Ya1.mp3` / `D1.mp3`），每请求读盘、`no-store`。 |
 | `/dsh-whale/sound/release.mp3` | GET | 同上，松手音效（`Ya2.mp3` / `D2.mp3`）。 |
 | `/dsh-whale/widget.js` | GET | 返回页面挂件源码（原生 JS），`Content-Type: application/javascript; charset=utf-8`、`Cache-Control: no-store`。 |
 | `tapIndex` | — | 对每次 index.html 注入 `<script defer src="/dsh-whale/widget.js"></script>`（置于 `</body>` 前，幂等判断 `html.indexOf('/dsh-whale/widget.js') !== -1` 则跳过）。 |
@@ -81,6 +84,23 @@
 - 前端 `/dsh-whale/last-turn.json` 每秒轮询：首次拿到数据只对齐 seq（不弹旧轮次），此后 `seq` 变大即「新的一轮」→ 弹消耗金额泡泡。
 - 消耗金额泡泡显示期间：`render()` / `animateAmount()` 均被 `costBubbleActive` 保护跳过（余额渲染/滚动不覆盖金额行）；余额变动也不弹普通泡泡（`showBubble()` 内 `if (costBubbleActive) return`）。
 - 关闭方式：点击泡泡确认关闭，或按 `turnCostCloseMs`（秒×1000）自动关闭；填 0 表示不自动关闭。
+
+### 今日 Token（全渠道）汇总（`/dsh-whale/token-stats.json`）
+
+宿主这边只做一件事：按北京自然日把四条渠道当天的 token 汇总成一个数字，并给一个「按价目表折算」的人民币值。四条渠道并行取，只累加 `ok` 的渠道；`cost` 只有渠道给出数值才加，并置 `costEstimated:true`（订阅制渠道没有按 token 扣钱，硬折出来的金额只能算参考）。
+
+| 渠道 `key` | 名字 | 数据源 | token 口径 | 计价 |
+|---|---|---|---|---|
+| `dsh` | DSH 会话 | 挂件账本 `$DSH_HOME/.dshw-usage.json` 的 `events`（按事件里的 `day` 过滤） | 直接累加每条事件的 `tokens`，按 `model` 聚合 | 内置价目表估算（CNY） |
+| `codex` | Codex | `$CODEX_HOME`（默认 `~/.codex`）下 `sessions` / `archived_sessions` 里的 `rollout-*.jsonl[.zst]` | `event_msg.payload.info.total_token_usage` 的**累计量差值**，`total = input + output` | 不计价（订阅制，`cost:null`） |
+| `opencode` | OpenCode | 只读 `~/.local/share/opencode/opencode.db`（WAL）的 `message` 表 | `data.tokens` 的 input / output / reasoning / cache.read / cache.write | 用会话自报的 USD `cost` × 汇率 |
+| `claude` | Claude Code | `~/.claude/projects/**/*.jsonl`（`CLAUDE_PROJECTS_DIR` 可覆盖） | 只认 `type:"assistant"` + `message.usage`，input 含 cache_creation / cache_read | 不计价（订阅制，`cost:null`） |
+
+- 汇率：`$DSH_HOME/.dshw-size.json` 的 `usdRate`（默认 `7.1`，合法区间 0.5–20，越界按默认值）。
+- `.zst` 用 `node:zlib` 的 `createZstdDecompress()` 流式解压，不落临时文件；`cachedInput ⊂ input`、`reasoning ⊂ output`，聚合时不要再加一遍。
+- OpenCode 优先 `node:sqlite` 的 `DatabaseSync(readOnly)`，拿不到就回退 `sqlite3 -readonly -json`，依次试 `/usr/bin`、`/opt/homebrew/bin`、`/usr/local/bin`、`/opt/anaconda3/bin`、`PATH`（桌面端的 PATH 常常没有 `sqlite3`）。
+- 缓存：整包 20 秒（`TOKEN_STATS_TTL`）+ in-flight 去重；Codex / OpenCode / Claude 各自另有 60 秒渠道级缓存。Codex 冷启动要扫历史，最多等 4 秒，超时先返回 `{ok:false, pending:true}` 的空态，下一轮补。
+- ⚠️ 口径：这里的 `cost` 是「这些 token 按价目表值多少钱」，**不是实际扣费**；「今日已用」才是余额扣减口径。两个数字本来就会不一样，界面上不要拿它们互相校验。
 
 ## 四、页面挂件（widget.js，原生 JS）
 
@@ -157,6 +177,57 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 - 样式档：A=label（66u 600）、B=amount（128u 800）、P=period（104u 800）、C=hint（56u 灰 #9fb0d9）；`--dshw-u = var(--dshw-base)/1026`。
 - 随机段切换用**淡出淡入**（内联 opacity 过渡 190ms 出 / 220ms 入），与开合动画分离。
 
+### 泡泡模块：订阅额度「三窗小仪表」
+
+多窗口额度（目前只有 OpenCode Go：5h / 周 / 月）的模块存两个字段：
+
+- `planWin`：`'all'`（默认，全部窗口）/ `'rolling'` / `'weekly'` / `'monthly'`；不是 `all` 时只取那一个窗口，走单行文本。
+- `planStyle`：`'gauge'`（默认，三窗仪表）/ `'text'`（退回一行文本，配合 `tpl`）。
+
+渲染条件在 `bubbleRowContentOf()` 的 `plan` 分支：`planWin === 'all'` 且 `planStyle !== 'text'` 且 `planCardEl()` 返回非空（窗口数 ≥ 2）才画仪表，否则回落到 `额度 <apiPlanSummary()>` 的单行文本；单窗口订阅永远走文本。原来的文本长这样（`|` 分窗口、`·` 分百分比与倒计时）：
+
+```
+5h 2% · 4h19m | 周 1% · 2d0h | 月 0% · 29d19h
+```
+
+仪表 DOM（**无背景、无边框、无阴影**，颜色直接沿用气泡墨色，这样放进手绘气泡里不会像贴了一张表格）：
+
+```
+div.dshwv-plan.dshwv-plan--gauge
+└─ div.dshwv-plan-g[data-win][data-lvl=ok|mid|high|crit] × N（flex:1，竖排居中）
+   ├─ span.dshwv-plan-glab   窗口名（如 5h / 周 / 月）
+   ├─ span.dshwv-plan-gpct   大号百分比（数字 + i%）
+   ├─ span.dshwv-plan-gtrk > i.dshwv-plan-fil   独立小轨道 + 填充
+   └─ span.dshwv-plan-grst   重置倒计时
+```
+
+尺寸全部相对 `--dshw-u`（= 挂件宽度 / 1026）：容器 `font-size: calc(var(--dshw-u) * 108)`、`line-height: 1.04`、`gap: .22em`、`align-items: flex-end`；窗口名 `.44em/700`（`#7e8fb8`，字距 `.08em`）；百分比 `.9em/750`（`#3d4f8c`，`tabular-nums`），`i` 是 `.4em/650` + `opacity:.45`；轨道宽 86% / 高 `.11em`（`min-height: 2.5px`）/ 圆角 `99em` / 底 `rgba(83,107,169,.16)`；倒计时 `.44em`（`#9fb0d9`）。外层 `.dshwv-planrow .dshwv-plan--gauge` 再收 86% 宽度、左右居中。
+
+配色与档位：填充 `linear-gradient(90deg, var(--pl-a), var(--pl-b))`，按已用百分比分三档（issue #156 的约定）——`ok`（<70%）绿 `#2fa24c → #6bc98a`；`mid`（70–89%）橙 `#e08a2e → #f6b455`（百分比 `#a9611b`）；`crit`（≥90%）红 `#d63a35 → #ef7060`（百分比 `#c9342f`、倒计时 `#c98680`）。档位判定在 `planCardLvl(pct)`：`>=90 crit`、`>=70 mid`、其余 `ok`；未在档位里时用默认靛蓝 `#3f5cc4 → #7c93e2`。
+
+倒计时走 `planCardCountdown(ms)`：`d >= 10` 只给 `Nd`，否则 `NdNh` / `NhNm` / `Nm`，`<= 0` 写「即将重置」——仪表里空间小，不能用 `apiPlanCountdownText()` 那种「2天3小时后重置」的长写法。每个窗口的 `title` 是「<窗口名> 已用 x%，<倒计时>后重置」。
+
+记账面板（菜单 → 模型 → 「厂商额度」）里的多窗口用同一个 `planCardEl(modelId, 'panel')`：卡片 `font-size: 11.5px`、`padding: 9px 11px 10px`、`border-radius: 9px`、底 `rgba(255,255,255,.7)` + `1px rgba(32,49,112,.14)` 边框 + 内高光；标题行是「圆点 + 模型名 + 右「已用」」，每个窗口一行「窗口名（10.5px，宽 22px）/ 轨道（5px）/ 百分比（13.5px/750，宽 34px）/ 倒计时（10px，宽 42px，带 ↻）」。单窗口仍是一行文本。
+
+### 泡泡模块：今日 Token（全渠道）
+
+模块类型 `tokens`，快捷添加里叫「今日 Token」。**`tpl` 为空才是图形卡片，写了 `tpl` 就退回一行文本**（老用户的自定义模板不会被新卡片顶掉）。
+
+图形版左右两栏并排：`div.dshwv-tok`（`display: flex`、宽 92%、`gap: .55em`、`font-size: calc(var(--dshw-u) * 108)`、`color: #536ba9`）→ 左列 `[data-k=tokens]`、`1px` 竖分隔（`rgba(83,107,169,.16)`）、右列 `[data-k=cost]`。每列三行：标签（`今日 token` / `折合`，`.33em/700`，字距 `.1em`，`#8b9cc4`）、数值（`.74em/780`，`#3d4f8c`，单位 `i` 是 `.44em/650` + `opacity:.5`）、副标题（`.28em/600`，`#9fb0d9`：左列是渠道名 / 「N 渠道」/ 「暂无会话」，右列固定「估算」）。整个节点的 `title` 是逐渠道明细，首行「今日 N tokens，折合 ¥x.xx」，末行固定写「（折合 = token 按价目表折算的价值，非实际扣费；「今日已用」是实际扣费口径）」。
+
+数字格式（`fmtTokenParts`）：`≥1e8` 用「亿」、`≥1e6` 用 `M`（`≥1e7` 留 1 位小数，否则 2 位）、`≥1e3` 用 `K`（1 位）、其余整数，一律去尾零；金额 `¥` 后 `<10` 两位、`<100` 一位、其余取整。
+
+占位符（只在写了 `tpl` 时生效）：
+
+| 占位符 | 含义 |
+|---|---|
+| `{tokens}` | 人类可读总量，如 `1.77亿`、`12.4M` |
+| `{tokens_raw}` | 原始整数，如 `12400000`（不做 K/M 缩写，也不加千分位） |
+| `{tokens_cost}` | 折合人民币，如 `¥4.62` |
+| `{tokens_channels}` | 有数据的渠道名，` · ` 连接，如 `DSH 会话 · Codex` |
+
+刷新节奏：随余额的 60 秒轮询一起拉（`loadTokenStats()`，`AbortSignal` 20 秒超时、`no-store`），首屏 2.5 秒后补拉一次，每次打开气泡时 30 秒内不重复请求；只接受 `ok:true` 的响应，失败保留上一次的数字，不把卡片清空。
+
 ## 五、视觉与几何参数（精确值）
 
 | 项 | 值 |
@@ -178,6 +249,9 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 | 峰值判定 | 北京时间：工作日高峰 9–12 与 14–18 点；2026-08-23 起周末全天谷价 |
 | 音效 | press=Ya1/D1、release=Ya2/D2；按请求读盘，no-store |
 | z-index | 9999，`position: fixed`；菜单 10000 |
+| 三窗仪表（泡泡内） | 容器 `font-size: calc(var(--dshw-u) * 108)`、`gap:.22em`；窗口名 `.44em/700`、百分比 `.9em/750`（`i`% `.4em/650` + `opacity:.45`）、轨道 86% 宽 / `.11em` 高、倒计时 `.44em`；三档：<70% 绿 `#2fa24c→#6bc98a`，70–89% 橙 `#e08a2e→#f6b455`，≥90% 红 `#d63a35→#ef7060` |
+| 今日 Token 卡片（泡泡内） | 左右两栏 `flex`、宽 92%、`gap:.55em`、`font-size: calc(var(--dshw-u) * 108)`；标签 `.33em/700`（`#8b9cc4`）、数值 `.74em/780`（`#3d4f8c`）、副标题 `.28em/600`（`#9fb0d9`）、竖分隔 `1px rgba(83,107,169,.16)` |
+| 额度卡片（记账面板） | `font-size: 11.5px`、`padding: 9px 11px 10px`、圆角 `9px`、底 `rgba(255,255,255,.7)` + `1px rgba(32,49,112,.14)` 边框；窗口名 `10.5px`、轨道 `5px`、百分比 `13.5px/750`、倒计时 `10px` |
 
 ## 六、关键技术结论（踩坑记录，供复用）
 
@@ -193,10 +267,13 @@ div.dshwv-root（position:fixed，承载定位与翻转）
 10. **记账模式误差说明**：靠"观测到的余额下降"累计，DSH 关闭期间的消耗会漏记（从下次观测的新基准开始）；精确数字只有令牌模式能给。
 11. **tapIndex 幂等**：注入脚本标签前先检查是否已存在，disposer 挂 ctx.effect，避免 HMR 后重复注入。
 12. **音效缓存**：音频文件每次请求读盘 + no-store，避免更换 mp3 后浏览器缓存旧字节。
+13. **Codex 的累计量必须做差**：同一个 `rollout-*.jsonl` 里 `total_token_usage` 会重复落盘（同一轮的多条记录都写同一个累计值），直接相加会把一轮算成好几轮；按「本次累计 − 上次累计」增量累加，第一条用 `last_token_usage` 兜底。
+14. **OpenCode 的 SQLite 只能只读打开**：库是 WAL 模式，用读写方式打开会和正在运行的 OpenCode 抢锁；优先 `node:sqlite` 的 `DatabaseSync(readOnly)`，拿不到就回退 `sqlite3 -readonly -json`，并且要逐个试固定目录 —— 桌面端从 GUI 启动时 PATH 里常常没有 `sqlite3`。
+15. **Claude Code 的 usage 会重复**：`assistant` 消息按流式分片落多行，每行都带同一份 `message.usage`，必须按 `message.id`（回退 `message_id` / `uuid` / `requestId`）去重，否则一条回复按分片数翻几倍。
 
 ## 七、部署与验证
 
 1. 将 `dsh-whale-widget` 作为本地包安装：在仓库根目录 `dsh plugin --profile web add link:.`（或发布后 `dsh plugin --profile web add dsh-whale-widget`），然后重启 `dsh web`。
-2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
+2. 验证：`curl http://127.0.0.1:3080/dsh-whale/image.png`（200 image/png）、`/dsh-whale/balance.json`（200 JSON，含真实余额与 todayUsage）、`/dsh-whale/token-stats.json`（200 JSON：四渠道 token 汇总 + 折合金额，`codex` / `claude` 的 `cost` 为 `null`）、`/dsh-whale/size.json`（GET/PUT 读写回路）、`/dsh-whale/widget.js`（200 JS）、`/dsh-whale/sound/press.mp3?set=duck`（200 audio/mpeg）、`curl http://127.0.0.1:3080/`（index 含 widget.js 脚本标签）。
 3. 浏览器 **F5 刷新页面**后出现挂件。
 4. 交互自测：拖拽 + 四边四分之一吸附（含角落组合）、左吸附镜像翻转、菜单（大小/音效/音量/用量）、按压 Q 弹 + 音效、点击鲸鱼弹气泡 → 首次点击切台词 → 再点关闭、5 秒自动收起、60s 自动刷新、余额变化数字滚动、记账模式跨天归档。

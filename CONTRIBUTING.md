@@ -32,18 +32,19 @@
 
 ```
 dsh-whale-widget/
-├── package.json                     35 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
+├── package.json                     37 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml                 15 行   插件挂载声明
-├── README.md                       471 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
-├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
-├── whale-widget-prompt.md          202 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
+├── README.md                       509 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
+├── PROVENANCE.md                    37 行   素材来源与许可范围（动 assets/ 前必读）
+├── whale-widget-prompt.md          279 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
 │
 ├── lib/
-│   ├── index.js                  3,953 行   宿主侧本体：23 条路由 + 记账接线 + 音效/图片/角色服务
-│   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
+│   ├── index.js                  4,955 行   宿主侧本体：27 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── token-stats.mjs             448 行   「今日 Token」四渠道取数（dsh / codex / opencode / claude，纯本地只读 + 20 秒缓存）
+│   └── accounting.mjs              289 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
-│   ├── whale-widget.js          16,853 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
+│   ├── whale-widget.js          22,743 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
 │   ├── DSH2.png / DSniang1.png / DSniang02.png   角色图与 README 展示图
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
@@ -53,8 +54,8 @@ dsh-whale-widget/
 │   └── z-layer-audit.mjs            59 行   浮层 z 层级自检（CI 与发布流程都会跑）
 │
 └── .github/workflows/
-    ├── ci.yml                       68 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
-    └── publish.yml                 186 行   **手动触发**：发布 npm + 建 GitHub Release
+    ├── ci.yml                      104 行   push / PR 到 main：图层审计 + 语法 + 开发机路径扫描
+    └── publish.yml                 199 行   **手动触发**：发布 npm + 建 GitHub Release
 ```
 
 > 上面的行数会随代码变化，不是硬约束。想核对或更新，用 `git ls-tree -r --long main` 看文件清单，用 `git show main:<路径>` 自行统计行数即可；改完请顺手更新本节和 README 里对应的数字。
@@ -90,4 +91,6 @@ dsh-whale-widget/
 
 ### 关于那两个超大文件
 
-`assets/whale-widget.js`（16,853 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+`assets/whale-widget.js`（22,743 行）和 `lib/index.js`（4,955 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合。
+
+已经拆出去的第一块是 `lib/token-stats.mjs`（「今日 Token」的四渠道取数）：它是纯函数式的一坨读取逻辑，依赖全部由 `lib/index.js` 注入，所以拆的时候一行调用方都没改。往后按同样的办法拆：**先确认这段逻辑不依赖 `ctx`/路由**，再把依赖写成参数传进去，别在拆文件的同时顺手改行为——那样 review 时分不清是"搬家"还是"改逻辑"。
