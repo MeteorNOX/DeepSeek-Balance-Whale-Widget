@@ -1272,7 +1272,47 @@ var css = [
   '.dshwv-resplay:hover{background:rgba(47,122,66,.08)}',
   '.dshwv-resimp{flex:0 0 auto;border:1px solid rgba(32,49,112,.4);border-radius:5px;background:rgba(32,49,112,.08);color:#203170;font-size:11px;padding:1px 9px;cursor:pointer}',
   '.dshwv-resimp:hover{background:rgba(32,49,112,.16)}',
-  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}'
+  '.dshwv-resempty{color:#9fb0d9;font-size:12px;padding:2px 6px}',
+  // v0.4.3-quota：厂商订阅额度的卡片式展示（多窗口，如 OpenCode Go 的 5h / 周 / 月）
+  // 原来是一行纯文本 `5h 2% · 2h24m | 周 1% · 2d0h | 月 0% · 30d`，挤、层级弱；改成卡片：
+  // 标题行（品牌点 + 模型名 + 右「已用」）+ 每个时间窗口一行（窗口标签 / 进度条 / 百分比 / 重置倒计时）
+  // 额度组件：泡泡内用「三窗小仪表」（字号能放大），面板内用「列表行」（信息更全）
+  '.dshwv-plan{--pl-a:#3f5cc4;--pl-b:#7c93e2;--pl-glow:rgba(63,92,196,.26);box-sizing:border-box;width:100%;max-width:100%;color:#536ba9;text-shadow:none;white-space:normal}',
+  // —— 泡泡内：三窗并排仪表
+  '.dshwv-plan.dshwv-plan--gauge{display:flex;align-items:flex-end;justify-content:space-between;gap:.22em;font-size:calc(var(--dshw-u) * 108);line-height:1.04;background:none;border:0;border-radius:0;box-shadow:none;padding:0}',
+  '.dshwv-planrow .dshwv-plan--gauge{width:86%;margin:0 auto}',
+  '.dshwv-plan-g{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.04em}',
+  '.dshwv-plan-glab{font-size:.44em;font-weight:700;letter-spacing:.08em;color:#7e8fb8;line-height:1.1}',
+  '.dshwv-plan-gpct{font-size:.9em;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.03em;color:#3d4f8c;line-height:1}',
+  '.dshwv-plan-gpct i{font-style:normal;font-size:.4em;font-weight:650;opacity:.45;margin-left:.02em}',
+  '.dshwv-plan-gtrk{position:relative;display:block;width:86%;height:.11em;min-height:2.5px;border-radius:99em;background:rgba(83,107,169,.16);overflow:hidden;margin:.05em 0}',
+  '.dshwv-plan-fil{position:absolute;left:0;top:0;bottom:0;min-width:.22em;border-radius:99em;background:linear-gradient(90deg,var(--pl-a),var(--pl-b));box-shadow:0 0 .14em var(--pl-glow)}',
+  '.dshwv-plan-grst{font-size:.44em;font-variant-numeric:tabular-nums;color:#9fb0d9;line-height:1.1;white-space:nowrap}',
+  '.dshwv-plan-g[data-lvl="high"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.32)}',
+  '.dshwv-plan-g[data-lvl="crit"]{--pl-a:#d63a35;--pl-b:#ef7060;--pl-glow:rgba(214,58,53,.34)}',
+  '.dshwv-plan-g[data-lvl="high"] .dshwv-plan-gpct{color:#a9611b}',
+  '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-gpct{color:#c9342f}',
+  '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-grst{color:#c98680}',
+  '.dshwv-trow.dshwv-planrow{width:100%;max-width:none;white-space:normal;padding:0;text-align:center}',
+  // —— 面板内：卡片 + 列表行
+  '.dshwv-plan.dshwv-plan--panel{display:flex;flex-direction:column;gap:6px;font-size:11.5px;line-height:1.2;padding:9px 11px 10px;border-radius:9px;background:rgba(255,255,255,.7);border:1px solid rgba(32,49,112,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}',
+  '.dshwv-plan-hd{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-bottom:5px;border-bottom:1px solid rgba(83,107,169,.15)}',
+  '.dshwv-plan-nm{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;font-weight:700;color:#4a5f9e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  '.dshwv-plan-nm b{flex:0 0 auto;width:5px;height:5px;border-radius:50%;background:#9fb0d9}',
+  '.dshwv-plan-tag{flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:1.5px;color:#9fb0d9}',
+  '.dshwv-plan-wins{display:flex;flex-direction:column;gap:5px}',
+  '.dshwv-plan-win{display:flex;align-items:center;gap:7px}',
+  '.dshwv-plan-lab{flex:0 0 auto;width:22px;font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#7e8fb8}',
+  '.dshwv-plan-trk{position:relative;flex:1 1 auto;min-width:1.2em;height:5px;border-radius:99em;background:rgba(83,107,169,.14);overflow:hidden}',
+  '.dshwv-plan-pct{flex:0 0 auto;width:34px;text-align:right;font-size:13.5px;font-weight:750;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#3d4f8c}',
+  '.dshwv-plan-pct i{font-style:normal;font-size:.5em;font-weight:650;opacity:.42;margin-left:.04em}',
+  '.dshwv-plan-rst{flex:0 0 auto;width:42px;text-align:right;font-size:10px;font-variant-numeric:tabular-nums;color:#9fb0d9}',
+  '.dshwv-plan-rst em{font-style:normal;margin-right:.08em;opacity:.7}',
+  '.dshwv-plan-win[data-lvl="high"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.3)}',
+  '.dshwv-plan-win[data-lvl="crit"]{--pl-a:#d63a35;--pl-b:#ef7060;--pl-glow:rgba(214,58,53,.32)}',
+  '.dshwv-plan-win[data-lvl="high"] .dshwv-plan-pct{color:#a9611b}',
+  '.dshwv-plan-win[data-lvl="crit"] .dshwv-plan-pct{color:#c9342f}',
+  '.dshwv-plan-win[data-lvl="crit"] .dshwv-plan-rst{color:#c98680}',
 ].join('\n')
 
 var styleEl = document.createElement('style')
@@ -5739,24 +5779,40 @@ function openApiModelMenu(modelId) {
     }
     // 厂商订阅额度（kind='quota'）：只读展示，来自厂商接口
     if (apiPlanSupport(modelId)) {
-      var pr = document.createElement('div')
-      pr.className = 'dshwv-audiorow'
-      var pl = document.createElement('span')
-      pl.textContent = '厂商额度'
-      pl.style.flex = '0 0 auto'
-      pr.appendChild(pl)
-      var pi = document.createElement('span')
-      pi.className = 'dshwv-usage-hint'
-      pi.style.flex = '1'
-      pi.style.textAlign = 'right'
-      pi.style.paddingRight = '6px'
-      pi.style.whiteSpace = 'nowrap'
-      pi.style.overflow = 'hidden'
-      pi.style.textOverflow = 'ellipsis'
-      pi.textContent = apiPlanSummary(modelId)
-      pi.title = pi.textContent
-      pr.appendChild(pi)
-      card.appendChild(pr)
+      // 多窗口额度（5h / 周 / 月）：详情区放额度卡片，比一行省略号文本直观
+      var planCard2 = planCardEl(modelId, 'panel')
+      if (planCard2) {
+        var prh = document.createElement('div')
+        prh.className = 'dshwv-audiorow'
+        var plh = document.createElement('span')
+        plh.textContent = '厂商额度'
+        plh.style.flex = '0 0 auto'
+        prh.appendChild(plh)
+        card.appendChild(prh)
+        var pcw = document.createElement('div')
+        pcw.style.margin = '4px 0 6px'
+        pcw.appendChild(planCard2)
+        card.appendChild(pcw)
+      } else {
+        var pr = document.createElement('div')
+        pr.className = 'dshwv-audiorow'
+        var pl = document.createElement('span')
+        pl.textContent = '厂商额度'
+        pl.style.flex = '0 0 auto'
+        pr.appendChild(pl)
+        var pi = document.createElement('span')
+        pi.className = 'dshwv-usage-hint'
+        pi.style.flex = '1'
+        pi.style.textAlign = 'right'
+        pi.style.paddingRight = '6px'
+        pi.style.whiteSpace = 'nowrap'
+        pi.style.overflow = 'hidden'
+        pi.style.textOverflow = 'ellipsis'
+        pi.textContent = apiPlanSummary(modelId)
+        pi.title = pi.textContent
+        pr.appendChild(pi)
+        card.appendChild(pr)
+      }
     }
     // 只读行（复用现有 .dshwv-audiorow / .dshwv-usage-hint，不引入新颜色与字体）
     function readonlyRow(label, text, hintHtml) {
@@ -10304,6 +10360,23 @@ function openQuickModuleEditor(m, anchorBtn) {
     box.appendChild(wrow)
     dshwCustSel(wsel)
     wsel.addEventListener('change', function () { m.planWin = wsel.value || 'all'; changed() })
+    // 额度样式：仪表（默认，多窗口时三列）/ 单行文本（用上面的模板，即老行为）
+    var srow2 = qRow()
+    srow2.appendChild(qLabel('额度样式'))
+    var ssel = document.createElement('select')
+    for (var pi = 0; pi < BUBBLE_PLAN_STYLE_OPTS.length; pi++) {
+      var po = document.createElement('option')
+      po.value = BUBBLE_PLAN_STYLE_OPTS[pi][0]
+      po.textContent = BUBBLE_PLAN_STYLE_OPTS[pi][1]
+      ssel.appendChild(po)
+    }
+    ssel.value = bubblePlanStyleOf(m)
+    ssel.style.flex = '1'
+    ssel.style.minWidth = '0'
+    srow2.appendChild(ssel)
+    box.appendChild(srow2)
+    dshwCustSel(ssel)
+    ssel.addEventListener('change', function () { m.planStyle = ssel.value || 'gauge'; changed() })
   }
   if (m.type === 'peak' || m.type === 'nextpeak') {
     // 显示样式(与编辑窗口一致)
@@ -10515,7 +10588,7 @@ function renderBubblePal() {
         chip4.className = 'dshwv-palchip'
         chip4.setAttribute('data-pal', key4)
         chip4.textContent = '额度·' + am.name
-        var planWinHint = apiPlanMultiWin(am.id) ? '；「显示样式」可选时间窗口（全部 / 5h / 周 / 月）' : ''
+        var planWinHint = apiPlanMultiWin(am.id) ? '；「显示样式」可选时间窗口（全部 / 5h / 周 / 月），「额度样式」可选三窗仪表 / 单行文本' : ''
         chip4.title = '该厂商的订阅额度（由厂商接口读取，非手动）；模板变量 {plan} 额度 / {plan_reset} 刷新时间 / {plan_left} 剩余' + planWinHint
         chip4.draggable = true
         chip4.addEventListener('click', function (e) {
@@ -17637,6 +17710,17 @@ var BUBBLE_PLAN_WIN_OPTS = [
   ['weekly', '周'],
   ['monthly', '月'],
 ]
+// 模块的「额度样式」：gauge 三窗仪表（多窗口时）/ text 单行文本（走 tpl，老行为）
+var BUBBLE_PLAN_STYLE_OPTS = [
+  ['gauge', '三窗仪表'],
+  ['text', '单行文本'],
+]
+function bubblePlanStyleOf(m) {
+  m = m || {}
+  var v = String(m.planStyle || 'gauge')
+  for (var i = 0; i < BUBBLE_PLAN_STYLE_OPTS.length; i++) { if (BUBBLE_PLAN_STYLE_OPTS[i][0] === v) return v }
+  return 'gauge'
+}
 function bubblePlanWinOf(m) {
   m = m || {}
   var w = String(m.planWin || 'all')
@@ -17787,6 +17871,148 @@ function apiPlanSummary(modelId) {
   if (p.level) s += ' · ' + p.level
   return s
 }
+// —— 多窗口额度的卡片式渲染（泡泡 / 记账面板共用，v0.4.3-quota）——
+// 数据：apiPlanOf(modelId).windows = [{key,label,usedPct,resetAt}, ...]（host 归一化后下发）
+// 卡片结构：标题行（品牌点 + 模型名 + 右「已用」）+ 每个窗口一行（标签 / 进度条 / 百分比 / 重置倒计时）
+function apiPlanWinRows(modelId) {
+  var p = apiPlanOf(modelId)
+  if (!p || !p.ok || !p.windows || !p.windows.length) return null
+  var out = []
+  for (var i = 0; i < p.windows.length; i++) {
+    var w = p.windows[i] || {}
+    var raw = w.usedPct
+    var pct = (raw === null || raw === undefined || raw === '') ? null : Number(raw)
+    if (pct !== null && !isFinite(pct)) pct = null
+    out.push({ key: String(w.key || ''), label: String(w.label || ''), pct: pct, ms: apiPlanResetMs(w.resetAt) })
+  }
+  return out.length ? out : null
+}
+// 卡片用的紧凑倒计时：≥10 天只给天数（29d），避免右侧被撑破
+function planCardCountdown(ms) {
+  var left = ms - Date.now()
+  if (!isFinite(left)) return ''
+  if (left <= 0) return '即将重置'
+  var m = Math.floor(left / 60000)
+  var h = Math.floor(m / 60)
+  var d = Math.floor(h / 24)
+  if (d > 0) return d >= 10 ? (d + 'd') : (d + 'd' + (h % 24) + 'h')
+  if (h > 0) return h + 'h' + (m % 60) + 'm'
+  return m + 'm'
+}
+// 用量档位：驱动进度条配色（<50 蓝紫 / ≥50 琥珀 / ≥75 橙红 / ≥90 红）
+function planCardLvl(pct) {
+  if (pct === null || pct === undefined) return ''
+  if (pct >= 90) return 'crit'
+  if (pct >= 75) return 'high'
+  if (pct >= 50) return 'mid'
+  return 'ok'
+}
+// variant：'bubble'（泡泡内，尺寸随 --dshw-u 缩放）/ 'panel'（记账面板，px 级字号）
+function planCardEl(modelId, variant) {
+  var rows = apiPlanWinRows(modelId)
+  if (!rows || rows.length < 2) return null
+  var am = apiModelById(modelId) || {}
+  var el = document.createElement('div')
+  var isGauge = variant !== 'panel'
+  el.className = 'dshwv-plan' + (isGauge ? ' dshwv-plan--gauge' : ' dshwv-plan--panel')
+  if (isGauge) {
+    // 泡泡内：三个窗口并排做成「小仪表」，字号能放大到看清（手绘气泡里塞表格永远会小）
+    for (var g = 0; g < rows.length; g++) {
+      var gr = rows[g]
+      var col = document.createElement('div')
+      col.className = 'dshwv-plan-g'
+      col.setAttribute('data-win', gr.key)
+      var glvl = planCardLvl(gr.pct)
+      if (glvl) col.setAttribute('data-lvl', glvl)
+      col.title = (gr.label || gr.key) + ' 已用 ' + (gr.pct === null ? '--' : apiPlanPctText(gr.pct)) + (gr.ms === null ? '' : '，' + planCardCountdown(gr.ms) + '后重置')
+      var glab = document.createElement('span')
+      glab.className = 'dshwv-plan-glab'
+      glab.textContent = gr.label || gr.key || '额度'
+      var gpct = document.createElement('span')
+      gpct.className = 'dshwv-plan-gpct'
+      gpct.appendChild(document.createTextNode(gr.pct === null ? '--' : apiPlanPctText(gr.pct).replace(/%$/, '')))
+      if (gr.pct !== null) {
+        var gunit = document.createElement('i')
+        gunit.textContent = '%'
+        gpct.appendChild(gunit)
+      }
+      var gtrk = document.createElement('span')
+      gtrk.className = 'dshwv-plan-gtrk'
+      var gfil = document.createElement('i')
+      gfil.className = 'dshwv-plan-fil'
+      gfil.style.width = (gr.pct === null ? 0 : Math.max(0, Math.min(100, gr.pct))) + '%'
+      gtrk.appendChild(gfil)
+      var grst = document.createElement('span')
+      grst.className = 'dshwv-plan-grst'
+      grst.textContent = gr.ms === null ? '--' : planCardCountdown(gr.ms)
+      col.appendChild(glab)
+      col.appendChild(gpct)
+      col.appendChild(gtrk)
+      col.appendChild(grst)
+      el.appendChild(col)
+    }
+    return el
+  }
+  var hd = document.createElement('div')
+  hd.className = 'dshwv-plan-hd'
+  var nm = document.createElement('span')
+  nm.className = 'dshwv-plan-nm'
+  nm.appendChild(document.createElement('b'))
+  nm.appendChild(document.createTextNode(String(am.name || '订阅额度')))
+  nm.title = apiPlanSummary(modelId)
+  var tag = document.createElement('span')
+  tag.className = 'dshwv-plan-tag'
+  tag.textContent = '已用'
+  hd.appendChild(nm)
+  hd.appendChild(tag)
+  el.appendChild(hd)
+  var wins = document.createElement('div')
+  wins.className = 'dshwv-plan-wins'
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i]
+    var row = document.createElement('div')
+    row.className = 'dshwv-plan-win'
+    row.setAttribute('data-win', r.key)
+    var lvl = planCardLvl(r.pct)
+    if (lvl) row.setAttribute('data-lvl', lvl)
+    var lab = document.createElement('span')
+    lab.className = 'dshwv-plan-lab'
+    lab.textContent = r.label || r.key || '额度'
+    var trk = document.createElement('span')
+    trk.className = 'dshwv-plan-trk'
+    var fil = document.createElement('i')
+    fil.className = 'dshwv-plan-fil'
+    fil.style.width = (r.pct === null ? 0 : Math.max(0, Math.min(100, r.pct))) + '%'
+    trk.appendChild(fil)
+    var pctEl = document.createElement('span')
+    pctEl.className = 'dshwv-plan-pct'
+    pctEl.appendChild(document.createTextNode(r.pct === null ? '--' : apiPlanPctText(r.pct).replace(/%$/, '')))
+    if (r.pct !== null) {
+      var unit = document.createElement('i')
+      unit.textContent = '%'
+      pctEl.appendChild(unit)
+    }
+    var rstEl = document.createElement('span')
+    rstEl.className = 'dshwv-plan-rst'
+    var rst = r.ms === null ? '' : planCardCountdown(r.ms)
+    if (rst) {
+      var arrow = document.createElement('em')
+      arrow.textContent = '↻'
+      rstEl.appendChild(arrow)
+      rstEl.appendChild(document.createTextNode(rst))
+    } else {
+      rstEl.textContent = '--'
+    }
+    row.appendChild(lab)
+    row.appendChild(trk)
+    row.appendChild(pctEl)
+    row.appendChild(rstEl)
+    wins.appendChild(row)
+  }
+  el.appendChild(wins)
+  return el
+}
+
 function bubbleIsModelMod(m) { return !!(m && m.modelId && m.modelId !== 'deepseek') }
 function bubbleContentTokenMap(m) {
   m = m || {}
@@ -18278,6 +18504,12 @@ function bubbleRowContentOf(mod) {
     return { txt: bubbleContentText(mod, qt), line: null }
   }
   if (mod.type === 'plan') {
+    // 多窗口额度（如 OpenCode Go 的 5h / 周 / 月）、显示窗口选「全部」、且额度样式为「三窗仪表」时，
+    // 用仪表代替一行纯文本；选「单行文本」则退回 tpl（老用户的自定义模板不受影响）
+    if (bubblePlanWinOf(mod) === 'all' && bubblePlanStyleOf(mod) !== 'text') {
+      var planCard = planCardEl(mod.modelId, 'bubble')
+      if (planCard) return { txt: '', node: planCard, line: null }
+    }
     return { txt: bubbleContentText(mod, '额度 ' + apiPlanSummary(mod.modelId)), line: null }
   }
   if (mod.type === 'peak') {
@@ -18358,7 +18590,14 @@ function bubbleRowsTo(parentEl, mods) {
       tx.className = 'dshwv-trowtx'
       row.appendChild(tx)
     }
-    tx.textContent = String(rowContent.txt)
+    if (rowContent.node) {
+      // 卡片类内容：占满文字区、行内不折行不做省略（自带排版），由 CSS .dshwv-planrow 兜住
+      row.classList.add('dshwv-planrow')
+      tx.textContent = ''
+      tx.appendChild(rowContent.node)
+    } else {
+      tx.textContent = String(rowContent.txt)
+    }
     // 峰谷/时段倒计时块不受自动换行影响:保持单行显示
     if (m.type === 'peak' || m.type === 'nextpeak') {
       row.style.whiteSpace = 'nowrap'
@@ -18410,12 +18649,12 @@ function bubbleRowsTo(parentEl, mods) {
         row.style.background = effBg
       }
     }
-    return { el: row, tx: tx, fSize: fSize, mod: m, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak }
+    return { el: row, tx: tx, fSize: fSize, mod: m, peak: (m.type === 'peak' || m.type === 'nextpeak'), bg: needBg, curPeak: curPeak, card: !!rowContent.node }
   }
   // 超宽判定(与旧版一致):先单行渲染,测量实际超出泡泡内宽(560u)才允许该块内折行——
   // 预览与真实共用此逻辑,保证两者一致
   function maybeWrap(blk) {
-    if (!blk || blk.peak) return
+    if (!blk || blk.peak || blk.card) return
     try {
       var compFs = window.getComputedStyle ? parseFloat(window.getComputedStyle(blk.el).fontSize) : 0
       var multNow = bubbleModuleFontU(blk.fSize)
@@ -18521,7 +18760,8 @@ function bubbleRowsTo(parentEl, mods) {
         var cm = grp[c] || {}
         // v209: 每行内容由独立函数一次算出(文本+随机选中行),不在行间复用状态
         var rowContent = bubbleRowContentOf(cm)
-        if (!rowContent || rowContent.txt === '' || rowContent.txt === undefined || rowContent.txt === null) continue
+        if (!rowContent) continue
+        if (!rowContent.node && (rowContent.txt === '' || rowContent.txt === undefined || rowContent.txt === null)) continue
         chunk.push(blockOf(cm, rowContent))
       }
       if (!chunk.length) continue
