@@ -354,6 +354,27 @@ var ANIM_MS = 700
 var BUBBLE_MS = 5000
 var FETCH_TIMEOUT_MS = 25000
 var BALANCE_URL = '/dsh-whale/balance.json'
+// v0.5 今日 Token（全渠道）：宿主把「DSH 会话里跑过的全部模型 + 本机 Codex」按北京自然日汇总，
+// 前端只负责展示。成本口径 = 人民币（DSH 侧由账本按峰谷/缓存价算出，Codex 侧暂无价格 ⇒ 只算 token）。
+var TOKEN_STATS_URL = '/dsh-whale/token-stats.json'
+var tokenStatsAt = 0
+var tokenStatsLoading = false
+function loadTokenStats(cb) {
+  if (tokenStatsLoading) { if (cb) cb(); return }
+  tokenStatsLoading = true
+  var opts = { cache: 'no-store' }
+  try { if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(20000) } catch (err) {}
+  fetch(TOKEN_STATS_URL, opts)
+    .then(function (r) { return r.json() })
+    .then(function (d) {
+      tokenStatsLoading = false
+      if (d && d.ok) { state.tokenStats = d; tokenStatsAt = Date.now() }
+      if (cb) cb()
+    })
+    .catch(function () { tokenStatsLoading = false; if (cb) cb() })
+}
+function tokenStatsFresh(ms) { return !!state.tokenStats && (Date.now() - tokenStatsAt) < (ms || 30000) }
+
 var SIZE_URL = '/dsh-whale/size.json'
 var IMG_URL = '/dsh-whale/image.png?v=2'
 var GIF_URL = '/dsh-whale/rua.gif'
@@ -1294,6 +1315,15 @@ var css = [
   '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-gpct{color:#c9342f}',
   '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-grst{color:#c98680}',
   '.dshwv-trow.dshwv-planrow{width:100%;max-width:none;white-space:normal;padding:0;text-align:center}',
+  // 今日 Token（全渠道）：两个并排数字（token 总量 / 折合人民币），无外壳，只用气泡墨色
+  // 与 plan 的「三窗小仪表」同一套排版语言：同字号基准(108u)、同 label 灰、同 tabular 数字
+  '.dshwv-tok{display:flex;align-items:stretch;justify-content:center;gap:.55em;width:92%;margin:0 auto;font-size:calc(var(--dshw-u) * 108);line-height:1.04;color:#536ba9;text-shadow:none;white-space:normal}',
+  '.dshwv-tok-c{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:.07em}',
+  '.dshwv-tok-lab{font-size:.33em;font-weight:700;letter-spacing:.1em;color:#8b9cc4;line-height:1.1}',
+  '.dshwv-tok-val{font-size:.74em;font-weight:780;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#3d4f8c;line-height:1;white-space:nowrap}',
+  '.dshwv-tok-val i{font-style:normal;font-size:.44em;font-weight:650;opacity:.5;margin:0 .03em}',
+  '.dshwv-tok-sub{font-size:.28em;font-weight:600;letter-spacing:.05em;color:#9fb0d9;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}',
+  '.dshwv-tok-div{flex:0 0 auto;width:1px;align-self:stretch;margin:.14em 0;background:rgba(83,107,169,.16)}',
   // —— 面板内：卡片 + 列表行
   '.dshwv-plan.dshwv-plan--panel{display:flex;flex-direction:column;gap:6px;font-size:11.5px;line-height:1.2;padding:9px 11px 10px;border-radius:9px;background:rgba(255,255,255,.7);border:1px solid rgba(32,49,112,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}',
   '.dshwv-plan-hd{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-bottom:5px;border-bottom:1px solid rgba(83,107,169,.15)}',
@@ -10547,6 +10577,8 @@ function renderBubblePal() {
     { key: 'bonus', label: '赠金', pin: true, cb: function () { bubbleModuleAdd({ type: 'bonus', size: 11, tpl: '{bonus_ds}' }) } },
     { key: 'recharge', label: '充值余额', pin: true, cb: function () { bubbleModuleAdd({ type: 'recharge', size: 11, tpl: '{recharge_ds}' }) } },
     { key: 'today', label: '今日已用', pin: true, cb: function () { bubbleModuleAdd({ type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }) } },
+    // v0.5：今日 Token（全渠道）—— 图形卡片（token 总量 + 折合人民币），留空 tpl 才会用图形
+    { key: 'tokens', label: '今日 Token', pin: true, cb: function () { bubbleModuleAdd({ type: 'tokens', size: 8 }); try { loadTokenStats() } catch (err) {} } },
     { key: 'peak', label: '峰谷时段', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }) } },
     { key: 'nextpeak', label: '时段倒计时', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }) } },
     // v768：对话名模块（内容 = 当前对话标题；「保留长度」可在模块编辑器里改）
@@ -10873,6 +10905,7 @@ function bubblePaletteModule(key) {
   if (key === 'bonus') return { type: 'bonus', size: 11, tpl: '{bonus_ds}' }
   if (key === 'recharge') return { type: 'recharge', size: 11, tpl: '{recharge_ds}' }
   if (key === 'today') return { type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }
+  if (key === 'tokens') return { type: 'tokens', size: 8 }
   if (key === 'peak') return { type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }
   if (key === 'nextpeak') return { type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }
   if (key === 'session') return { type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }
@@ -12504,6 +12537,7 @@ function moduleTypeName(t, m) {
   if (t === 'bonus') return '赠金'
   if (t === 'recharge') return '充值余额'
   if (t === 'today') return '今日已用'
+  if (t === 'tokens') return '今日 Token（全渠道）'
   if (t === 'session') return '对话名'
   if (t === 'peak' || t === 'nextpeak') {
     // 峰谷模块按显示样式给名(倒计时/简洁等);无模块对象时退回通用名
@@ -12552,6 +12586,7 @@ function renderModuleEditor() {
       if (m.type === 'balance') return '例: {balance_ds}'
       if (m.type === 'bonus') return '例: {bonus_ds} 或 赠金 {bonus_ds}'
       if (m.type === 'recharge') return '例: {recharge_ds} 或 余额 {recharge_ds}'
+      if (m.type === 'tokens') return '例: 今日 {tokens} tok · 折合 {tokens_cost}（留空 = 图形卡片）'
       if (m.type === 'today') return '例: 今日已用 {expense_ds}'
       if (m.type === 'session') return '例: {session} 或 当前对话 {session}'
       if (bubbleIsPeakCount(m)) return '例: 距空闲 {countdown}'
@@ -14105,6 +14140,8 @@ var state = {
   rechargeBalance: null,
   todayUsage: null,
   todayUsageCurrency: 'CNY',
+  // v0.5：今日 Token（全渠道）汇总快照 —— /dsh-whale/token-stats.json
+  tokenStats: null,
   usageLabel: '本地估算',
   isPeak: false,
   peakNextChangeAt: null,
@@ -17463,6 +17500,8 @@ function bubblePickChoiceStep(step) {
   return (last && last.item) || null
 }
 function bubbleShowSeqNext() {
+  // 今日 Token 模块：每次显示泡泡时按需刷新（30s 内不重复请求）
+  try { if (!tokenStatsFresh(30000)) loadTokenStats() } catch (err) {}
   var step = bubbleSeq[bubbleSeqIdx]
   if (!step) { hideBubble(); return }
   bubbleSeqIdx++
@@ -17908,6 +17947,125 @@ function planCardLvl(pct) {
   return 'ok'
 }
 // variant：'bubble'（泡泡内，尺寸随 --dshw-u 缩放）/ 'panel'（记账面板，px 级字号）
+// ===== 今日 Token（全渠道）模块 =====
+// 数据：state.tokenStats = {ok,tokens,cost,currency,costEstimated,channels:[{key,name,ok,tokens,cost,byModel}]}
+// 视觉：与「三窗小仪表」同一套语言 —— 无外壳、只用气泡墨色、两个并排大数字（token 总量 / 折合人民币）
+function fmtTokenNum(n) {
+  n = Math.max(0, Number(n) || 0)
+  if (n >= 1e8) return (n / 1e8).toFixed(2).replace(/\.?0+$/, '') + '亿'
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace(/\.?0+$/, '') + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'K'
+  return String(Math.round(n))
+}
+function fmtTokenParts(n) {
+  n = Math.max(0, Number(n) || 0)
+  if (n >= 1e8) return { num: (n / 1e8).toFixed(2).replace(/\.?0+$/, ''), unit: '亿' }
+  if (n >= 1e6) return { num: (n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace(/\.?0+$/, ''), unit: 'M' }
+  if (n >= 1e3) return { num: (n / 1e3).toFixed(1).replace(/\.0$/, ''), unit: 'K' }
+  return { num: String(Math.round(n)), unit: '' }
+}
+function tokenStatsOkChannels() {
+  var st = state.tokenStats
+  if (!st || !Array.isArray(st.channels)) return []
+  return st.channels.filter(function (c) { return c && c.ok && Number(c.tokens) > 0 })
+}
+function tokenStatsChannelText() {
+  var ok = tokenStatsOkChannels()
+  if (!ok.length) return ''
+  return ok.map(function (c) { return String(c.name || c.key || '') }).join(' · ')
+}
+function tokenStatsTokensText() {
+  var st = state.tokenStats
+  if (!st || !isFinite(Number(st.tokens))) return '--'
+  return fmtTokenNum(st.tokens)
+}
+function tokenStatsCostText() {
+  var st = state.tokenStats
+  if (!st || !isFinite(Number(st.cost)) || Number(st.cost) <= 0) return '--'
+  var c = Number(st.cost)
+  return '¥' + (c < 10 ? c.toFixed(2) : (c < 100 ? c.toFixed(1) : Math.round(c)))
+}
+function tokenStatsTitle() {
+  var st = state.tokenStats
+  if (!st || !st.ok) return '今日 Token：暂无数据（宿主未返回 token-stats）'
+  var lines = ['今日 ' + (isFinite(Number(st.tokens)) ? Number(st.tokens).toLocaleString('en-US') : '--') + ' tokens，折合 ' + tokenStatsCostText()]
+  var chs = Array.isArray(st.channels) ? st.channels : []
+  for (var i = 0; i < chs.length; i++) {
+    var c = chs[i] || {}
+    if (!c.ok) { if (c.error && !c.skipped) lines.push((c.name || c.key) + '：' + c.error); continue }
+    var hasCost = c.cost !== null && c.cost !== undefined
+    lines.push((c.name || c.key) + '：' + fmtTokenNum(c.tokens) + (hasCost ? ' / ¥' + Number(c.cost).toFixed(2) : ' / 不计价'))
+  }
+  lines.push('（折合 = token 按价目表折算的价值，非实际扣费；「今日已用」是实际扣费口径）')
+  return lines.join('\n')
+}
+function tokenStatsChannelSub() {
+  var st = state.tokenStats
+  if (!st) return '--'
+  var ok = tokenStatsOkChannels()
+  if (!ok.length) return '暂无会话'
+  if (ok.length === 1) return ok[0].name || ok[0].key || '1 渠道'
+  return ok.length + ' 渠道'
+}
+function tokenStatsEl() {
+  var st = state.tokenStats
+  var el = document.createElement('div')
+  el.className = 'dshwv-tok'
+  el.title = tokenStatsTitle()
+  var parts = fmtTokenParts(st ? st.tokens : 0)
+  var chan = tokenStatsChannelText()
+  // 左：今日 token 总量
+  var c1 = document.createElement('div')
+  c1.className = 'dshwv-tok-c'
+  c1.setAttribute('data-k', 'tokens')
+  var l1 = document.createElement('span')
+  l1.className = 'dshwv-tok-lab'
+  l1.textContent = '今日 token'
+  var v1 = document.createElement('span')
+  v1.className = 'dshwv-tok-val'
+  v1.appendChild(document.createTextNode(st ? parts.num : '--'))
+  if (st && parts.unit) {
+    var u1 = document.createElement('i')
+    u1.textContent = parts.unit
+    v1.appendChild(u1)
+  }
+  var s1 = document.createElement('span')
+  s1.className = 'dshwv-tok-sub'
+  s1.textContent = tokenStatsChannelSub()
+  c1.appendChild(l1)
+  c1.appendChild(v1)
+  c1.appendChild(s1)
+  // 右：折合人民币（订阅渠道按价目表折算，仅作参考）
+  var c2 = document.createElement('div')
+  c2.className = 'dshwv-tok-c'
+  c2.setAttribute('data-k', 'cost')
+  var l2 = document.createElement('span')
+  l2.className = 'dshwv-tok-lab'
+  l2.textContent = '折合'
+  var v2 = document.createElement('span')
+  v2.className = 'dshwv-tok-val'
+  var costTxt = tokenStatsCostText()
+  if (costTxt.indexOf('¥') === 0) {
+    var yu = document.createElement('i')
+    yu.textContent = '¥'
+    v2.appendChild(yu)
+    v2.appendChild(document.createTextNode(costTxt.slice(1)))
+  } else {
+    v2.appendChild(document.createTextNode(costTxt))
+  }
+  var s2 = document.createElement('span')
+  s2.className = 'dshwv-tok-sub'
+  s2.textContent = st ? '估算' : ''
+  c2.appendChild(l2)
+  c2.appendChild(v2)
+  c2.appendChild(s2)
+  var div = document.createElement('span')
+  div.className = 'dshwv-tok-div'
+  el.appendChild(c1)
+  el.appendChild(div)
+  el.appendChild(c2)
+  return el
+}
 function planCardEl(modelId, variant) {
   var rows = apiPlanWinRows(modelId)
   if (!rows || rows.length < 2) return null
@@ -18018,6 +18176,14 @@ function bubbleContentTokenMap(m) {
   m = m || {}
   var v = ''
   var map = {}
+  // v0.5：今日 Token（全渠道）模块的占位符
+  if (m.type === 'tokens') {
+    map['tokens'] = tokenStatsTokensText()
+    map['tokens_raw'] = String(Math.round(Number(state.tokenStats && state.tokenStats.tokens) || 0))
+    map['tokens_cost'] = tokenStatsCostText()
+    map['tokens_channels'] = tokenStatsChannelText()
+    return map
+  }
   // 自定义模型模块：{balance}/{today} 取该模型自己的数据，并兼容旧的 _ds 写法
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     map['balance'] = apiModelBalanceText(m.modelId)
@@ -18068,6 +18234,13 @@ function bubbleTplHelpItems(m) {
   m = m || {}
   var arr = []
   function add(k, d) { arr.push({ k: '{' + k + '}', d: d }) }
+  if (m.type === 'tokens') {
+    add('tokens', '今日全部渠道 token 总量（如 12.4M）')
+    add('tokens_raw', '原始数字（如 12400000）')
+    add('tokens_cost', '折合人民币（估算，如 ¥4.62）')
+    add('tokens_channels', '有数据的渠道名（如 DSH 会话 · Codex）')
+    return arr
+  }
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     if (m.type !== 'quota' && m.type !== 'plan') {
       add('balance', '该模型的余额')
@@ -18488,6 +18661,14 @@ function bubbleRowContentOf(mod) {
   // v782：赠金 / 充值余额两个数值模块（与「总余额(充值金额+赠金)」并列，取不到数时自动文案是 —）
   if (mod.type === 'bonus') return { txt: bubbleContentText(mod, bubbleBonusText()), line: null }
   if (mod.type === 'recharge') return { txt: bubbleContentText(mod, bubbleRechargeText()), line: null }
+  if (mod.type === 'tokens') {
+    // 留空 tpl = 图形卡片（两个并排大数字）；写了 tpl = 退回一行文本（占位符见 ?）
+    if (!mod.tpl) {
+      var tokEl = tokenStatsEl()
+      if (tokEl) return { txt: '', node: tokEl, line: null }
+    }
+    return { txt: bubbleContentText(mod, '今日 ' + tokenStatsTokensText() + ' tok'), line: null }
+  }
   if (mod.type === 'today') {
     var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
     return { txt: bubbleContentText(mod, '今日已用 ' + tv2), line: null }
@@ -22447,7 +22628,9 @@ try {
     try { if (!document.hidden) resyncSizeCfg() } catch (err) {}
   })
 } catch (err) {}
-setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS)
+setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {}; try { loadTokenStats() } catch (err) {} }, REFRESH_MS)
+// 首屏：稍等余额/模型加载完再拉一次今日 Token 汇总
+setTimeout(function () { try { loadTokenStats() } catch (err) {} }, 2500)
 
 // —— 每轮对话消耗检测：轮询 last-turn.json，出现新 seq 时弹消耗金额泡泡 ——
 var LAST_TURN_URL = '/dsh-whale/last-turn.json'
