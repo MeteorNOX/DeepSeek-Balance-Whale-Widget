@@ -203,7 +203,7 @@ div.dshwv-plan.dshwv-plan--gauge
 
 尺寸全部相对 `--dshw-u`（= 挂件宽度 / 1026）：容器 `font-size: calc(var(--dshw-u) * 108)`、`line-height: 1.04`、`gap: .22em`、`align-items: flex-end`；窗口名 `.44em/700`（`#7e8fb8`，字距 `.08em`）；百分比 `.9em/750`（`#3d4f8c`，`tabular-nums`），`i` 是 `.4em/650` + `opacity:.45`；轨道宽 86% / 高 `.11em`（`min-height: 2.5px`）/ 圆角 `99em` / 底 `rgba(83,107,169,.16)`；倒计时 `.44em`（`#9fb0d9`）。外层 `.dshwv-planrow .dshwv-plan--gauge` 再收 86% 宽度、左右居中。
 
-配色与档位：填充 `linear-gradient(90deg, var(--pl-a), var(--pl-b))`，默认 `#3f5cc4 → #7c93e2`（加 `rgba(63,92,196,.26)` 光晕）；`≥75%` 转琥珀 `#e08a2e → #f6b455`（百分比 `#a9611b`）；`≥90%` 转红 `#d63a35 → #ef7060`（百分比 `#c9342f`、倒计时 `#c98680`）。档位判定在 `planCardLvl(pct)`：`>=90 crit`、`>=75 high`、`>=50 mid`、其余 `ok`（`mid` 只做语义标记，没有单独配色）。
+配色与档位：填充 `linear-gradient(90deg, var(--pl-a), var(--pl-b))`，按已用百分比分三档（issue #156 的约定）——`ok`（<70%）绿 `#2fa24c → #6bc98a`；`mid`（70–89%）橙 `#e08a2e → #f6b455`（百分比 `#a9611b`）；`crit`（≥90%）红 `#d63a35 → #ef7060`（百分比 `#c9342f`、倒计时 `#c98680`）。档位判定在 `planCardLvl(pct)`：`>=90 crit`、`>=70 mid`、其余 `ok`；未在档位里时用默认靛蓝 `#3f5cc4 → #7c93e2`。
 
 倒计时走 `planCardCountdown(ms)`：`d >= 10` 只给 `Nd`，否则 `NdNh` / `NhNm` / `Nm`，`<= 0` 写「即将重置」——仪表里空间小，不能用 `apiPlanCountdownText()` 那种「2天3小时后重置」的长写法。每个窗口的 `title` 是「<窗口名> 已用 x%，<倒计时>后重置」。
 
@@ -249,7 +249,7 @@ div.dshwv-plan.dshwv-plan--gauge
 | 峰值判定 | 北京时间：工作日高峰 9–12 与 14–18 点；2026-08-23 起周末全天谷价 |
 | 音效 | press=Ya1/D1、release=Ya2/D2；按请求读盘，no-store |
 | z-index | 9999，`position: fixed`；菜单 10000 |
-| 三窗仪表（泡泡内） | 容器 `font-size: calc(var(--dshw-u) * 108)`、`gap:.22em`；窗口名 `.44em/700`、百分比 `.9em/750`（`i`% `.4em/650` + `opacity:.45`）、轨道 86% 宽 / `.11em` 高、倒计时 `.44em`；默认 `#3f5cc4→#7c93e2`，≥75% 琥珀 `#e08a2e→#f6b455`，≥90% 红 `#d63a35→#ef7060` |
+| 三窗仪表（泡泡内） | 容器 `font-size: calc(var(--dshw-u) * 108)`、`gap:.22em`；窗口名 `.44em/700`、百分比 `.9em/750`（`i`% `.4em/650` + `opacity:.45`）、轨道 86% 宽 / `.11em` 高、倒计时 `.44em`；三档：<70% 绿 `#2fa24c→#6bc98a`，70–89% 橙 `#e08a2e→#f6b455`，≥90% 红 `#d63a35→#ef7060` |
 | 今日 Token 卡片（泡泡内） | 左右两栏 `flex`、宽 92%、`gap:.55em`、`font-size: calc(var(--dshw-u) * 108)`；标签 `.33em/700`（`#8b9cc4`）、数值 `.74em/780`（`#3d4f8c`）、副标题 `.28em/600`（`#9fb0d9`）、竖分隔 `1px rgba(83,107,169,.16)` |
 | 额度卡片（记账面板） | `font-size: 11.5px`、`padding: 9px 11px 10px`、圆角 `9px`、底 `rgba(255,255,255,.7)` + `1px rgba(32,49,112,.14)` 边框；窗口名 `10.5px`、轨道 `5px`、百分比 `13.5px/750`、倒计时 `10px` |
 

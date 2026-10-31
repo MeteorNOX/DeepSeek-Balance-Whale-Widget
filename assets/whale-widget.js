@@ -1309,9 +1309,11 @@ var css = [
   '.dshwv-plan-gtrk{position:relative;display:block;width:86%;height:.11em;min-height:2.5px;border-radius:99em;background:rgba(83,107,169,.16);overflow:hidden;margin:.05em 0}',
   '.dshwv-plan-fil{position:absolute;left:0;top:0;bottom:0;min-width:.22em;border-radius:99em;background:linear-gradient(90deg,var(--pl-a),var(--pl-b));box-shadow:0 0 .14em var(--pl-glow)}',
   '.dshwv-plan-grst{font-size:.44em;font-variant-numeric:tabular-nums;color:#9fb0d9;line-height:1.1;white-space:nowrap}',
-  '.dshwv-plan-g[data-lvl="high"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.32)}',
+  // 进度条配色按已用百分比分三档（issue #156 的约定）：<70% 绿 / 70–89% 橙 / ≥90% 红
+  '.dshwv-plan-g[data-lvl="ok"]{--pl-a:#2fa24c;--pl-b:#6bc98a;--pl-glow:rgba(47,162,76,.26)}',
+  '.dshwv-plan-g[data-lvl="mid"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.32)}',
   '.dshwv-plan-g[data-lvl="crit"]{--pl-a:#d63a35;--pl-b:#ef7060;--pl-glow:rgba(214,58,53,.34)}',
-  '.dshwv-plan-g[data-lvl="high"] .dshwv-plan-gpct{color:#a9611b}',
+  '.dshwv-plan-g[data-lvl="mid"] .dshwv-plan-gpct{color:#a9611b}',
   '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-gpct{color:#c9342f}',
   '.dshwv-plan-g[data-lvl="crit"] .dshwv-plan-grst{color:#c98680}',
   '.dshwv-trow.dshwv-planrow{width:100%;max-width:none;white-space:normal;padding:0;text-align:center}',
@@ -1338,9 +1340,10 @@ var css = [
   '.dshwv-plan-pct i{font-style:normal;font-size:.5em;font-weight:650;opacity:.42;margin-left:.04em}',
   '.dshwv-plan-rst{flex:0 0 auto;width:42px;text-align:right;font-size:10px;font-variant-numeric:tabular-nums;color:#9fb0d9}',
   '.dshwv-plan-rst em{font-style:normal;margin-right:.08em;opacity:.7}',
-  '.dshwv-plan-win[data-lvl="high"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.3)}',
+  '.dshwv-plan-win[data-lvl="ok"]{--pl-a:#2fa24c;--pl-b:#6bc98a;--pl-glow:rgba(47,162,76,.24)}',
+  '.dshwv-plan-win[data-lvl="mid"]{--pl-a:#e08a2e;--pl-b:#f6b455;--pl-glow:rgba(224,138,46,.3)}',
   '.dshwv-plan-win[data-lvl="crit"]{--pl-a:#d63a35;--pl-b:#ef7060;--pl-glow:rgba(214,58,53,.32)}',
-  '.dshwv-plan-win[data-lvl="high"] .dshwv-plan-pct{color:#a9611b}',
+  '.dshwv-plan-win[data-lvl="mid"] .dshwv-plan-pct{color:#a9611b}',
   '.dshwv-plan-win[data-lvl="crit"] .dshwv-plan-pct{color:#c9342f}',
   '.dshwv-plan-win[data-lvl="crit"] .dshwv-plan-rst{color:#c98680}',
 ].join('\n')
@@ -17938,12 +17941,11 @@ function planCardCountdown(ms) {
   if (h > 0) return h + 'h' + (m % 60) + 'm'
   return m + 'm'
 }
-// 用量档位：驱动进度条配色（<50 蓝紫 / ≥50 琥珀 / ≥75 橙红 / ≥90 红）
+// 用量档位：驱动进度条配色（<70% 绿 / 70–89% 橙 / ≥90% 红，issue #156 约定的三档）
 function planCardLvl(pct) {
   if (pct === null || pct === undefined) return ''
   if (pct >= 90) return 'crit'
-  if (pct >= 75) return 'high'
-  if (pct >= 50) return 'mid'
+  if (pct >= 70) return 'mid'
   return 'ok'
 }
 // variant：'bubble'（泡泡内，尺寸随 --dshw-u 缩放）/ 'panel'（记账面板，px 级字号）
