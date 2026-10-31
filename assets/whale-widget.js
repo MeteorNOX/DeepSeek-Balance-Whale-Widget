@@ -4591,6 +4591,7 @@ function usageAlertBudgetEditor(key, onSave) {
               if (mm.text != null) txt += String(mm.text)
               else if (mm.type === 'image') txt += '[图片]'
               else if (mm.type === 'today') txt += String(mm.tpl || '今日已用 {expense_ds}')
+              else if (mm.type === 'todaydiff') txt += String(mm.tpl || '今日余额差值 {diff_ds}')
             }
             pvElRef.innerHTML = '<div class="dshwv-hint" style="white-space:pre-wrap">' + txt + '</div>'
           } catch (e3) {}
@@ -9104,6 +9105,7 @@ function bubbleModuleSummary(m) {
   if (m.type === 'bonus') return '赠金'
   if (m.type === 'recharge') return '充值余额'
   if (m.type === 'today') return bubbleIsModelMod(m) ? ('今日已用·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '今日已用'
+  if (m.type === 'todaydiff') return '今日余额差值'
   if (m.type === 'session') return '对话名' + (Number(m.len) > 0 ? '(保留 ' + Math.round(Number(m.len)) + ' 字)' : '(不截断)')
   if (m.type === 'quota') return '额度·' + ((apiModelById(m.modelId) || {}).name || m.modelId)
   if (m.type === 'plan') return bubblePlanModuleLabel(m)
@@ -9125,6 +9127,7 @@ function bubbleModuleListLabel(m) {
   if (m.type === 'bonus') return '赠金'
   if (m.type === 'recharge') return '充值余额'
   if (m.type === 'today') return bubbleIsModelMod(m) ? ('今日已用·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '今日已用'
+  if (m.type === 'todaydiff') return '今日余额差值'
   if (m.type === 'session') return '对话名' + (Number(m.len) > 0 ? '(保留 ' + Math.round(Number(m.len)) + ' 字)' : '(不截断)')
   if (m.type === 'quota') return '额度·' + ((apiModelById(m.modelId) || {}).name || m.modelId)
   if (m.type === 'plan') return bubblePlanModuleLabel(m)
@@ -10269,8 +10272,8 @@ function openQuickModuleEditor(m, anchorBtn) {
     var isModelBal = bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today')
     var isModelQuota = bubbleIsModelMod(m) && m.type === 'quota'
     var isModelPlan = bubbleIsModelMod(m) && m.type === 'plan'
-    inp.placeholder = isModelPlan ? '例: {plan} 额度 · {plan_reset} 刷新时间' : (isModelQuota ? '例: 额度 {quota} · 剩 {quota_left}' : (isModelBal ? '例: {balance} 或 今日 {today}' : (m.type === 'balance' ? '例: {balance_ds}' : (m.type === 'bonus' ? '例: {bonus_ds} 或 赠金 {bonus_ds}' : (m.type === 'recharge' ? '例: {recharge_ds} 或 余额 {recharge_ds}' : (m.type === 'today' ? '例: 今日已用 {expense_ds}' : (m.type === 'session' ? '例: {session} 或 当前对话 {session}' : (bubbleIsPeakCount(m) ? '例: 距空闲 {countdown}' : '例: 当前 {status}'))))))))
-    inp.title = '可用占位符(英文): ' + (isModelPlan ? '{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）' : (isModelQuota ? '{quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}' : (isModelBal ? '{balance} / {today}' : (m.type === 'peak' || m.type === 'nextpeak' ? '{status} / {countdown}' : (m.type === 'balance' ? '{balance_ds}' : (m.type === 'bonus' ? '{bonus_ds}' : (m.type === 'recharge' ? '{recharge_ds}' : (m.type === 'today' ? '{expense_ds}' : (m.type === 'session' ? '{session} 当前对话名（按「保留长度」截断）' : '{expense_ds}')))))))))
+    inp.placeholder = isModelPlan ? '例: {plan} 额度 · {plan_reset} 刷新时间' : (isModelQuota ? '例: 额度 {quota} · 剩 {quota_left}' : (isModelBal ? '例: {balance} 或 今日 {today}' : (m.type === 'todaydiff' ? '例: 今日余额差值 {diff_ds}' : (m.type === 'balance' ? '例: {balance_ds}' : (m.type === 'bonus' ? '例: {bonus_ds} 或 赠金 {bonus_ds}' : (m.type === 'recharge' ? '例: {recharge_ds} 或 余额 {recharge_ds}' : (m.type === 'today' ? '例: 今日已用 {expense_ds}' : (m.type === 'session' ? '例: {session} 或 当前对话 {session}' : (bubbleIsPeakCount(m) ? '例: 距空闲 {countdown}' : '例: 当前 {status}')))))))))
+    inp.title = '可用占位符(英文): ' + (isModelPlan ? '{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）' : (isModelQuota ? '{quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}' : (isModelBal ? '{balance} / {today}' : (m.type === 'todaydiff' ? '{diff_ds} 今日余额差值 / {diff_start_ds} 当日基准余额 / {diff_now_ds} 当前余额' : (m.type === 'peak' || m.type === 'nextpeak' ? '{status} / {countdown}' : (m.type === 'balance' ? '{balance_ds}' : (m.type === 'bonus' ? '{bonus_ds}' : (m.type === 'recharge' ? '{recharge_ds}' : (m.type === 'today' ? '{expense_ds}' : (m.type === 'session' ? '{session} 当前对话名（按「保留长度」截断）' : '{expense_ds}'))))))))))
     inp.addEventListener('input', function () { m.tpl = inp.value; changed() })
     r.appendChild(inp)
     var qb2 = document.createElement('button')
@@ -10474,6 +10477,9 @@ function renderBubblePal() {
     { key: 'bonus', label: '赠金', pin: true, cb: function () { bubbleModuleAdd({ type: 'bonus', size: 11, tpl: '{bonus_ds}' }) } },
     { key: 'recharge', label: '充值余额', pin: true, cb: function () { bubbleModuleAdd({ type: 'recharge', size: 11, tpl: '{recharge_ds}' }) } },
     { key: 'today', label: '今日已用', pin: true, cb: function () { bubbleModuleAdd({ type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }) } },
+    // 今日余额差值：不读宿主记账本、不读会话事件，只按「当日基准余额 - 当前余额」算，
+    // 因此在手机 / 网页端消耗的额度也能体现在这里（同一个账户的余额）。
+    { key: 'todaydiff', label: '今日余额差值', pin: true, cb: function () { bubbleModuleAdd({ type: 'todaydiff', size: 1, tpl: '今日余额差值 {diff_ds}' }) } },
     { key: 'peak', label: '峰谷时段', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }) } },
     { key: 'nextpeak', label: '时段倒计时', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }) } },
     // v768：对话名模块（内容 = 当前对话标题；「保留长度」可在模块编辑器里改）
@@ -10697,7 +10703,7 @@ function bubbleModuleEdit(m, anchorBtn) {
     if (m && (m.type === 'text' || m.type === 'link')) { openQuickTextEditor(m, anchorBtn); return }
     // v769：对话名也走悬浮编辑（像文本那样边改边看效果），不再开整窗编辑器
     // v782：赠金 / 充值余额同样是内置数值模块 ⇒ 也走悬浮编辑（内容锁定，只调字号/颜色/模板）
-    if (m && (m.type === 'balance' || m.type === 'bonus' || m.type === 'recharge' || m.type === 'today' || m.type === 'peak' || m.type === 'nextpeak' || m.type === 'session')) { openQuickModuleEditor(m, anchorBtn); return }
+    if (m && (m.type === 'balance' || m.type === 'bonus' || m.type === 'recharge' || m.type === 'today' || m.type === 'todaydiff' || m.type === 'peak' || m.type === 'nextpeak' || m.type === 'session')) { openQuickModuleEditor(m, anchorBtn); return }
     openModuleEditor(m, function (saved) { if (saved) renderBubblePv() })
   } catch (err) {}
 }
@@ -10800,6 +10806,7 @@ function bubblePaletteModule(key) {
   if (key === 'bonus') return { type: 'bonus', size: 11, tpl: '{bonus_ds}' }
   if (key === 'recharge') return { type: 'recharge', size: 11, tpl: '{recharge_ds}' }
   if (key === 'today') return { type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }
+  if (key === 'todaydiff') return { type: 'todaydiff', size: 1, tpl: '今日余额差值 {diff_ds}' }
   if (key === 'peak') return { type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }
   if (key === 'nextpeak') return { type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }
   if (key === 'session') return { type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }
@@ -12431,6 +12438,7 @@ function moduleTypeName(t, m) {
   if (t === 'bonus') return '赠金'
   if (t === 'recharge') return '充值余额'
   if (t === 'today') return '今日已用'
+  if (t === 'todaydiff') return '今日余额差值'
   if (t === 'session') return '对话名'
   if (t === 'peak' || t === 'nextpeak') {
     // 峰谷模块按显示样式给名(倒计时/简洁等);无模块对象时退回通用名
@@ -12480,6 +12488,7 @@ function renderModuleEditor() {
       if (m.type === 'bonus') return '例: {bonus_ds} 或 赠金 {bonus_ds}'
       if (m.type === 'recharge') return '例: {recharge_ds} 或 余额 {recharge_ds}'
       if (m.type === 'today') return '例: 今日已用 {expense_ds}'
+      if (m.type === 'todaydiff') return '例: 今日余额差值 {diff_ds}'
       if (m.type === 'session') return '例: {session} 或 当前对话 {session}'
       if (bubbleIsPeakCount(m)) return '例: 距空闲 {countdown}'
       return '例: 当前 {status}'
@@ -14032,6 +14041,10 @@ var state = {
   rechargeBalance: null,
   todayUsage: null,
   todayUsageCurrency: 'CNY',
+  // 今日余额差值：state.todayDiff 由 dshwDailyDiff.update() 在每次余额刷新后写入（null = 还没拿到有效余额）
+  todayDiff: null,
+  todayDiffStart: null,
+  todayDiffCurrency: 'CNY',
   usageLabel: '本地估算',
   isPeak: false,
   peakNextChangeAt: null,
@@ -17415,7 +17428,7 @@ function bubbleShowSeqNext() {
   }
 }
 // ===== 模块渲染引擎(B1) =====
-// 模块:{type:'text'|'balance'|'bonus'|'recharge'|'today'|'peak'|'session'|'image'|'random', text?, imgId?, color?, size?(1..8 档),
+// 模块:{type:'text'|'balance'|'bonus'|'recharge'|'today'|'todaydiff'|'peak'|'session'|'image'|'random', text?, imgId?, color?, size?(1..8 档),
 //        lines?:[{t,w}] (random 自带句子列表), tpl?(占位符模板), len?(session 的「保留长度」，0=不截断)}
 //   v782 新增 'bonus'（赠金）与 'recharge'（充值余额）：与 'balance' 并列的内置数值模块，
 //   分别用占位符 {bonus_ds} / {recharge_ds}；**'balance' / '{balance_ds}' 的名字与行为一律不动**
@@ -17433,6 +17446,20 @@ function bubbleAmountText() {
 }
 function bubbleTodayText() {
   return (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+}
+// v782+：今日余额差值模块（type='todaydiff'）的三个取数 —— 都是"账户余额差"口径，
+// 与上面「今日已用」（宿主记账本 / 会话事件）是**两套独立数据**，互不影响。
+function bubbleTodayDiffText() {
+  if (state.todayDiff === null || state.todayDiff === undefined) return '--'
+  return dshwFmtMoney(Math.max(0, state.todayDiff), state.todayDiffCurrency || state.currency || 'CNY')
+}
+function bubbleTodayDiffStartText() {
+  if (state.todayDiffStart === null || state.todayDiffStart === undefined) return '--'
+  return dshwFmtMoney(state.todayDiffStart, state.todayDiffCurrency || state.currency || 'CNY')
+}
+function bubbleTodayDiffNowText() {
+  if (state.balance === null || state.balance === undefined) return '--'
+  return dshwFmtMoney(state.balance, state.currency || state.todayDiffCurrency || 'CNY')
 }
 // v782：赠金 / 充值余额两个数值模块的取数（与「总余额(充值金额+赠金)」同源：宿主余额返回体）。
 //   ⚠️ 两个数字**可能拿不到**（厂商没有该字段、或未登录账号）⇒ 显示 `—`，**不显示 0**
@@ -17825,6 +17852,11 @@ function bubbleContentTokenMap(m) {
   } else if (m.type === 'today') {
     v = (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
     map['expense_ds'] = v
+  } else if (m.type === 'todaydiff') {
+    // 今日余额差值：{diff_ds} = 已用金额（¥0.00），{diff_start_ds} = 当日基准余额，{diff_now_ds} = 当前余额
+    map['diff_ds'] = bubbleTodayDiffText()
+    map['diff_start_ds'] = bubbleTodayDiffStartText()
+    map['diff_now_ds'] = bubbleTodayDiffNowText()
   } else if (m.type === 'session') {
     // v768：对话名模块 —— {session} = 当前对话标题（按模块的「保留长度」截断）
     map['session'] = bubbleSessionText(m)
@@ -17863,6 +17895,11 @@ function bubbleTplHelpItems(m) {
   if (m.type === 'bonus') add('bonus_ds', '赠金余额（未过期的赠送余额；取不到显示 —）')
   if (m.type === 'recharge') add('recharge_ds', '充值余额（不含赠金；取不到显示 —）')
   else if (m.type === 'today') add('expense_ds', '今日已用金额')
+  else if (m.type === 'todaydiff') {
+    add('diff_ds', '今日余额差值（当日基准余额 - 当前余额，保留两位小数）')
+    add('diff_start_ds', '当日基准余额（0 点 / 当天第一次观测到的余额）')
+    add('diff_now_ds', '当前余额')
+  }
   else if (m.type === 'session') add('session', '当前对话名（超过「保留长度」会截断为 前N字...）')
   else if (m.type === 'peak' || m.type === 'nextpeak') {
     if (bubbleIsPeakCount(m)) add('countdown', '距下一时段倒计时 (HH:MM:SS)')
@@ -18266,6 +18303,10 @@ function bubbleRowContentOf(mod) {
     var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
     return { txt: bubbleContentText(mod, '今日已用 ' + tv2), line: null }
   }
+  // 今日余额差值（账户余额口径，跨设备互通）：自动文案 = "今日余额差值 ¥0.00"
+  if (mod.type === 'todaydiff') {
+    return { txt: bubbleContentText(mod, '今日余额差值 ' + bubbleTodayDiffText()), line: null }
+  }
   if (mod.type === 'session') {
     // v768：对话名模块（自动内容 = 截断后的对话名；留空 tpl 时直接用自动内容）
     return { txt: bubbleContentText(mod, bubbleSessionText(mod)), line: null }
@@ -18346,7 +18387,7 @@ function bubbleRowsTo(parentEl, mods) {
     if (effBgRgb === 'true') effBgRgb = 'macaron' // 兼容旧布尔数据
     var needBg = !!(effBgRgb || effBg)
     var row = document.createElement('div')
-    row.className = 'dshwv-trow'
+    row.className = 'dshwv-trow' + (m.type === 'todaydiff' ? ' dshwv-todaydiff' : '')
     // 有底色时:文字放入内层 span,底色作为 row 的独立底层(纯色/跑马灯都在 row 上)——
     // 底色与文字(含文字跑马灯/颜色)不再互相占用 background,可共存,文字不必转白
     var tx = row
@@ -19029,6 +19070,95 @@ function fmt(balance, currency) {
   var fixed = isFinite(num) ? num.toFixed(2) : '--'
   return currency === 'CNY' ? '¥ ' + fixed : fixed + ' ' + currency
 }
+// ===== 今日余额差值（余额差口径，按天存 localStorage）=====
+// 口径：今日已用 = 当日基准余额(startBalance) - 当前余额(currentBalance)。
+//   · 基准余额 = 当天第一次拿到的余额（理想情况就是 0 点那次：页面开着时 60s 一轮轮询，
+//     00:00 后的第一轮即锁 0 点余额）；当天没开页面时 = 当天第一次打开/拿到余额的那一刻。
+//   · 为什么要单独算：手机 / 网页端花的是**同一个账户**的余额，只有"账户余额差"这一种口径
+//     能跨设备互通；本地会话 token 累加（老逻辑）只统计这台机器，手机上用的永远扣不到。
+//   · 只把「日期 + 基准 + 上次值 + 当天已确认消费」存 localStorage（键 dshw-today-baseline），
+//     不碰任何全局变量；所有读写都在 try/catch 里，localStorage 被禁用/写满也不影响挂件。
+// 记录形状：{ date:'YYYY-MM-DD', currency:'CNY', start:数值, last:数值, spent:数值 }
+//   start = 当天基准余额（充值后会被抬到充值后的余额）
+//   last  = 上一次观测到的余额（用于识别"余额上升"）
+//   spent = 当天已确认的下降额（充值不清零，所以充值当天的数字不会塌回 0）
+var DSHW_DAILY_DIFF_KEY = 'dshw-today-baseline'
+var dshwDailyDiff = (function () {
+  var KEY = DSHW_DAILY_DIFF_KEY
+
+  function dayKeyOf(d) {
+    var x = d || new Date()
+    var m = x.getMonth() + 1
+    var day = x.getDate()
+    return x.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day)
+  }
+  function numOf(v) {
+    if (v === null || v === undefined || v === '') return null
+    var n = Number(v)
+    return isFinite(n) ? n : null
+  }
+  // 读：任何异常 / 结构不对都当成"没有记录"（不要拿坏数据去算金额）
+  function read() {
+    try {
+      var raw = localStorage.getItem(KEY)
+      if (!raw) return null
+      var rec = JSON.parse(raw)
+      if (!rec || typeof rec.date !== 'string') return null
+      var start = numOf(rec.start)
+      var last = numOf(rec.last)
+      if (start === null || last === null) return null
+      var spent = numOf(rec.spent)
+      return {
+        date: rec.date,
+        currency: String(rec.currency || 'CNY').toUpperCase(),
+        start: start,
+        last: last,
+        // 老格式没有 spent：用 start-last 反推，保证升级后当天的数字不跳
+        spent: spent === null ? Math.max(0, start - last) : Math.max(0, spent),
+      }
+    } catch (err) { return null }
+  }
+  function write(rec) {
+    try { localStorage.setItem(KEY, JSON.stringify(rec)) } catch (err) {}
+  }
+  // 主入口：喂一次当前余额，返回 { used, start, current, day, reset }
+  //   used === null 表示这次拿不到有效余额（网络失败 / 字段异常）—— 调用方保留上一次的数字
+  function update(current, currency, now) {
+    var cur = numOf(current)
+    var day = dayKeyOf(now)
+    var cur0 = String(currency || 'CNY').toUpperCase()
+    if (cur === null) return { used: null, start: null, current: null, day: day }
+    var rec = read()
+    // ① 没有记录 / 跨天 / 币种变了 ⇒ 用当前余额重建基准，差值 0（首次安装即此分支）
+    if (!rec || rec.date !== day || rec.currency !== cur0) {
+      rec = { date: day, currency: cur0, start: cur, last: cur, spent: 0 }
+      write(rec)
+      return { used: 0, start: cur, current: cur, day: day, reset: true }
+    }
+    // ② 余额上升 = 充值 / 退款 / 赠金到账：把基准抬到当前余额，当天已确认的消费保留
+    //    （若直接 start = cur 又不保留 spent，充值当天的数字会塌成 0，白记）
+    if (cur > rec.last) {
+      rec.start = cur
+      rec.last = cur
+      write(rec)
+      return { used: rec.spent, start: rec.start, current: cur, day: day, reset: true }
+    }
+    // ③ 正常下降：累计下降额；数字永远 ≥ 0（负值一律夹到 0）
+    rec.spent = Math.max(0, rec.spent + (rec.last - cur))
+    rec.last = cur
+    write(rec)
+    return { used: rec.spent, start: rec.start, current: cur, day: day }
+  }
+  function clear() { try { localStorage.removeItem(KEY) } catch (err) {} }
+  return { update: update, read: read, clear: clear, dayKeyOf: dayKeyOf }
+})()
+// 金额格式化：保留两位小数（需求要求 ¥0.00 这种紧凑写法，与余额那行的 "¥ 1.00" 区分开）
+function dshwFmtMoney(n, currency) {
+  var v = Number(n)
+  if (n === null || n === undefined || !isFinite(v)) return '--'
+  var fixed = v.toFixed(2)
+  return String(currency || 'CNY').toUpperCase() === 'CNY' ? '¥' + fixed : fixed + ' ' + currency
+}
 function animateAmount(from, to, currency, duration) {
   // 消耗金额泡泡显示期间，余额数字滚动不触碰金额行
   if (costBubbleActive) return
@@ -19246,6 +19376,19 @@ function refresh(manual) {
         state.balance = nb
         state.currency = nc
         state.message = ''
+        // —— 今日余额差值（余额差口径）——
+        // 每次成功拿到余额就喂一次：跨天 / 首次 / 充值由 dshwDailyDiff 自己处理，
+        // 失败时用上一次的数字（不把 -- 闪一下），只有从来没拿到过余额才显示 --。
+        try {
+          var dd = dshwDailyDiff.update(nb, nc, new Date())
+          if (dd && dd.used !== null) {
+            state.todayDiff = dd.used
+            state.todayDiffStart = dd.start
+            state.todayDiffCurrency = nc
+          }
+        } catch (err) {
+          try { console.warn('[dsh-whale] 今日余额差值计算失败（已忽略，不影响挂件）', err) } catch (e2) {}
+        }
         balanceRetryLeft = 2
         state.todayUsage = data.todayUsage !== undefined ? data.todayUsage : null
         state.todayUsageCurrency = data.todayUsageCurrency || data.currency || 'CNY'
