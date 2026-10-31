@@ -2,7 +2,7 @@
 
 ![DSH 小鲸鱼记账挂件](assets/DSH2.png)
 
-DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
+DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗 + 今日 Token（全渠道），并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
 
 > ⚠️ **Codex 版小鲸鱼已迁至独立仓库** → <https://github.com/Yang-huai406/Codex-Whale-Public>（**已安装用户无需重装**；详见下方「两条分支怎么选」）
 <!-- 迁移横幅（v0.3.19 起）：迁移稳定后（约 2026-11，或发过 1–2 个版本）可只删这一行 blockquote，保留下方分支表与「致谢」——别让它长期占着第一屏 -->
@@ -29,6 +29,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 💰 **余额**：60 秒自动刷新 + 点击鲸鱼手动刷新；余额变化时数字**滚动动画**；瞬时网络抖动自动沿用最近余额不报错。**两种取数方式，API key 优先**：① DSH 凭据里的 `DEEPSEEK_API_KEY`；② **DSH 账号登录态** —— 通过「设置 → 账号与余额」登录了 DeepSeek 账号、又没配 API key 时自动使用（**不需要去 platform 建 key**）
 - 📊 **今日已用（小鲸鱼记账）**：不需要任何令牌。余额**下降**按观测累计为消费，余额**上升**（充值 / 赠金）单独记录、不会冲掉已有消费；检测到余额增加会提示「待核对余额调整」，可在「小鲸鱼记账 → **DeepSeek（内置）→ 设置 → 余额校正**」按实际累计到账金额与非调用扣减校正 —— **「已观测消费」与「余额校正」都是 DeepSeek 账户口径**（由该 API key 的余额观测得出，不含其它厂商；「本机模型费用」才是所有模型的本地估算）（逐轮明细保留 90 天或最多 2 万条、逐日归档保留 365 天，超期数据归档到 `.dshw-usage-archive.json`）；金额按 8 位小数记账、显示保留两位
 - 💬 **每轮对话消耗**：监听 DSH 本机会话事件，按模型**真实 usage**（input / cache / output / reasoning tokens）换算金额，每轮结束弹出消耗泡泡；可开关、自动关闭秒数可设（0 = 不自动关闭），**泡泡内容可自定义**（模块化，金额用 `{cost}` 引用），入口：菜单 → 「音效与提示」→ 「全局设置」→ 展开「每轮消耗提示」→「编辑提示内容」
+- 🧮 **今日 Token（全渠道）**：一个泡泡模块，把**本机所有渠道**当天的 token 汇总成一个数字 + 一个折合金额 —— `dsh`（挂件自己账本里当天的会话事件，按模型聚合）、`codex`（`$CODEX_HOME` 或 `~/.codex` 下 `sessions` / `archived_sessions` 里的 `rollout-*.jsonl[.zst]`）、`opencode`（只读 `~/.local/share/opencode/opencode.db` 的 `message` 表）、`claude`（`~/.claude/projects/**/*.jsonl`，可用 `CLAUDE_PROJECTS_DIR` 覆盖）。数据来自宿主新增的 `GET /dsh-whale/token-stats.json`（**只读、不发任何外部请求**，宿主侧 20 秒缓存），前端 60 秒随余额一起轮询、打开气泡时再按需刷一次。⚠️ 这里的「折合」是 token 按价目表折算的价值，**不等于**「今日已用」（后者是余额的实际扣费口径），口径见下方「常见问题」
 - ⛰️ **峰谷定价**：工作日高峰 9:00–12:00、14:00–18:00（北京时间），其余空闲；2026-08-23 起**周末全天谷价**。峰谷模块支持状态文字、倒计时、"梁文峰谷 / !?强强?! / 简洁"等多种样式
 - 📒 **用量记录窗口**：今日模型消费、近 7 天、全部记录；模型占比条；按日期展开逐条明细（含时间与金额）；支持按日期或**模型名搜索**；模型名带友好标注（`deepseek-flash` → `DeepSeek-V4.1-Flash`，旧名标注"同 V4.1 Flash"）
 
@@ -53,6 +54,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
   - **随机图片**（多张图带权重，抽 1 张且不连续重复，同样独占一行）
   - **总余额(充值金额+赠金)**、**赠金**、**充值余额**、今日已用、峰谷时段、**对话名**（内置数值，内容自动获取，可调占位符与样式；对话名可设「**保留长度**」，超出部分显示为 `...`，`0` = 不截断）
     - 三个余额类模块的分工：**总余额(充值金额+赠金)** = 充值余额 + 赠金（`{balance_ds}`，老配置里的模块照旧显示，无需重配）；**赠金**（`{bonus_ds}`）与**充值余额**（`{recharge_ds}`）是单独拆出来的两个模块，取不到数时显示 `—`（真的为 0 才显示 `0.00`）
+  - **今日 Token（全渠道）**（快捷添加里叫「今日 Token」）：左右两栏并排 —— 左「今日 token」自动换 K / M / 亿，右「折合 ¥x.xx」；副标题分别是渠道名（多通道时是「N 渠道」，一条数据都没有时是「暂无会话」）与「估算」，悬停有 `title` 明细（逐渠道 token 与金额）。**留空 `tpl` 才是图形卡片**，写了 `tpl` 就退回一行文本，可用占位符 `{tokens}` / `{tokens_raw}` / `{tokens_cost}` / `{tokens_channels}`
 - 🎨 **逐模块样式**：字体（含自定义字体）、字号、加粗/斜体/下划线、纯色或**跑马灯渐变**配色、底色；文本与随机语句支持悬浮快捷编辑
 - 🖐️ **拖拽排版**：桌面端原生拖拽、移动端长按拖拽；模块可并入某行首/尾、可拆行、整行可排序；**每行最多 6 个模块、泡泡最多 6 行**，图片类模块独占一行且一个泡泡只允许一个
 - 📚 **模块库**：把常用模块"另存"进库，之后在任意泡泡里点击或拖入复用
@@ -89,8 +91,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 📉 **今日已用**：有余额接口时记录观测到的**下降额**（当天首次观测为统计起点，充值等增加额不会冲掉消费），无余额接口的厂商显示本机会话**估算**
 - 🎯 **额度（订阅 / 资源包）**：填总量即可，已用**按 DSH 会话 token 自动累计**（口径 `input + cacheRead + output`，推理 token 已含在 output 内，跨天保留），也可切换手动填写；支持「不重置 / 每日 / 每月」
 - 🧾 **订阅额度接口（`kind:'quota'` 模板）**：直接读厂商官方接口的「窗口已用% + 重置时间」，与上面按会话统计的额度互补。**支持一个接口返回多个窗口**（目前 OpenCode Go 为 5h / 周 / 月三窗口），逐窗口展示已用百分比与各自的紧凑重置倒计时；模板用 `quota.json.windows` 描述各窗口的字段路径
+- 📐 **多窗口额度的显示（`planStyle`）**：窗口 ≥2 个（目前只有 OpenCode Go 的 5h / 周 / 月）时，泡泡里默认不再是一行纯文本，而是**三窗小仪表** —— 每个窗口一列竖排「窗口名 / 大号百分比 / 独立小轨道 / 重置倒计时」，**无背景、无边框、无阴影**，只用气泡墨色；用量 ≥75% 转琥珀、≥90% 转红。编辑器里「显示样式」下面新增「额度样式」：`gauge`（三窗仪表，默认）/ `text`（退回原来的一行文本，配合 `tpl` 使用）；「显示样式」选了具体窗口（5h / 周 / 月）时仍走单行文本。记账面板「模型 → 厂商额度」里多窗口同样改成卡片 + 列表行（px 级字号、浅底 + slate 边框），单窗口还是一行文本
 - 💱 **单价（可选）**：位置在「密钥 / 接口」面板 → 展开「接口与字段（高级）」→「单价（可选）」。每个模型可自填单价 —— **缓存命中 / 未命中输入 / 输出**，单位是「币种 / 百万 token」；币种支持人民币（CNY）与美元（USD），**选美元时必须填汇率（元/USD）**；记账与账本**统一按人民币结算**（美元单价会按汇率折算）；单价**不分峰谷**（两个时段同价）。留空则沿用内置价目表（DeepSeek flash / pro）。注意：**内置 DeepSeek 不支持自定义单价**（始终用内置峰谷价）；额度单位选「金额（元）」时，已用**只能手动填写**
-- 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`
+- 🫧 **泡泡模块**：每个模型自动获得「余额·<模型名>」与「额度·<模型名>」两个模块，占位符 `{balance}`、`{today}`、`{quota}`、`{quota_used}`、`{quota_left}`、`{quota_total}`、`{quota_reset}`，以及订阅额度的 `{plan}`、`{plan_left}`、`{plan_reset}`（多窗口时按「显示样式」选中的那个窗口取数）
 
 > 说明：并非所有厂商都提供「用 API key 查余额」的接口。**硅基流动**的余额接口已被官方下线（[2026-08-11 更新公告](https://api-docs.siliconflow.cn/docs/release-notes/overview)：`/user/info` 自 **2026-08-14** 起停止服务，「后续将适时提供替代 API」，截至发版仍未见替代接口），**火山方舟**的余额 / 用量与**阿里云百炼 / 百度千帆 / 腾讯混元**一样属于各家云平台 AK/SK 签名的 OpenAPI，**OpenAI / Anthropic / Gemini / xAI / Groq / Mistral / Together / Fireworks / DeepInfra / Cerebras** 则根本没有公开的余额查询接口 —— 这些模板统一是「无余额接口 + 探活验证 key」，今日已用按会话事件估算。厂商的**订阅额度**接口（智谱 / Kimi Coding / MiniMax Coding / OpenCode Go）只对订阅套餐账号有效：Token 资源包账号调用智谱接口会返回「当前用户不存在coding plan」，这种情况请用上面的「额度（订阅 / 资源包）」自动统计。
 >
@@ -121,6 +124,7 @@ dsh-whale-widget/
 ├── cordis.patch.yml          # 插件挂载声明
 ├── lib/
 │   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务）
+│   ├── token-stats.mjs       # 「今日 Token」四渠道取数（dsh / codex / opencode / claude；宿主注入账本与配置读取，纯本地只读 + 20 秒缓存）
 │   └── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
 ├── assets/
 │   ├── whale-widget.js       # 前端挂件本体（由宿主按 mtime 热读取）
@@ -141,11 +145,11 @@ dsh-whale-widget/
 
 | 文件 / 目录 | 用途 |
 |---|---|
-| `.dshw-size.json` | 挂件外观与开关（缩放、音量、音效组、峰值样式、吸附相关等） |
-| `.dshw-usage.json` | 记账账本 + 按日余额观测/校正摘要 + 用量设置（任务结束音、余额预警、今日预算、每轮消耗提示内容，以及 **`events`**：按压 / 每轮消耗 / 提问 / 授权四个事件的音效选择、独立音量、冒泡配置；**每轮消耗的自动关闭秒数存在 `.dshw-size.json` 的 `turnCostCloseMs`**） |
+| `.dshw-size.json` | 挂件外观与开关（缩放、音量、音效组、峰值样式、吸附相关等）；**`usdRate`** 是「今日 Token」把美元金额折算成人民币用的汇率（默认 `7.1`，取值 0.5–20；暂无界面入口，直接改这个文件） |
+| `.dshw-usage.json` | 记账账本 + 按日余额观测/校正摘要 + 用量设置（任务结束音、余额预警、今日预算、每轮消耗提示内容，以及 **`events`**：按压 / 每轮消耗 / 提问 / 授权四个事件的音效选择、独立音量、冒泡配置；**每轮消耗的自动关闭秒数存在 `.dshw-size.json` 的 `turnCostCloseMs`**）；「今日 Token」的 `dsh` 渠道就读这里的 `events`（按 `day` 过滤、累加 `tokens` / `cost`、按模型聚合） |
 | `.dshw-usage.json.before-recharge-fix.bak` | 旧格式账本备份（0.3.1 首次写入旧账本前自动创建；已存在则不覆盖） |
 | `.dshw-turn.json` | 每轮消耗的 seq（避免热重载后前端把新轮次当旧轮次） |
-| `.dshw-bubble.json` | 自定义泡泡配置（点击序列 + 模块库 + 点按角色推进队列开关） |
+| `.dshw-bubble.json` | 自定义泡泡配置（点击序列 + 模块库 + 点按角色推进队列开关）；订阅额度模块的 `planWin` / `planStyle`、今日 Token 模块的 `tpl` 都随模块一起存在这里 |
 | `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
@@ -398,6 +402,7 @@ Remove-Item "$web\DSniang02.png" -ErrorAction SilentlyContinue
 dsh --profile web --dump-config | Select-String -Pattern "whale"
 
 curl http://127.0.0.1:3080/dsh-whale/balance.json
+curl http://127.0.0.1:3080/dsh-whale/token-stats.json
 curl http://127.0.0.1:3080/dsh-whale/size.json
 curl http://127.0.0.1:3080/dsh-whale/widget.js
 curl http://127.0.0.1:3080/dsh-whale/image.png
@@ -406,6 +411,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 - `/dsh-whale/balance.json` → 200 JSON，含 `{ok:true, totalBalance, currency, todayUsage}`
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
+- `/dsh-whale/token-stats.json` → 200 JSON：**今日 Token（全渠道）**汇总，含 `{ok, version, day, at, tokens, cost, costEstimated, currency:'CNY', usdRate, byModel:[{model, tokens, cost}], channels:[{key, name, ok, tokens, cost, costEstimated, currency, byModel, records, files, lastActivity}]}`；`channels` 固定四条（`dsh` / `codex` / `opencode` / `claude`），`codex`、`claude` 的 `cost` 是 `null`（订阅制，不计价）。**只读、不发任何外部网络请求**，宿主侧 20 秒缓存（`cost` 是按价目表折算的价值，不是实际扣费）
 - `/dsh-whale/widget.js` → 200 JS（前端挂件本体）
 - `/dsh-whale/image.png` → 200 `image/png`
 - `/dsh-whale/audio.json` → 200，含 `groups` / `fragments`（其中内置片段 `exp_orb` = Minecraft·经验球、`end_a` = A）
@@ -416,7 +422,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/update-check.json` → 200 JSON：检查更新（`{ok, current, latest, hasUpdate, source}`）；**点了才联网**，镜像优先（npmmirror → jsdelivr → unpkg → npmjs）+ `npm view` 兜底，宿主侧 10 分钟缓存
 - 浏览器 F5 后右下角出现挂件
 
-> ⚠️ **关于上面这些 `curl`**：全部 **26 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
+> ⚠️ **关于上面这些 `curl`**：全部 **27 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
 > 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
@@ -444,6 +450,9 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - **提示「该地址不是 … 的内置端点，已拒绝把凭据发出去」**：这是 0.3.15 的安全策略 —— **自定义接口地址默认拿不到凭据**。确认那是你自己的网关（New API / 自托管等）后，在**本机**打开面板，对该模型勾选「允许把凭据发送到自定义地址」。
 - **今日已用显示 `--`**：先等一次成功的余额观测；统计从该观测时刻开始，起点之前的消费不在此区间内。
 - **今日已用与官网有差异**：先核对同一账户、同一币种与同一统计区间；若有充值或其它余额调整，用「小鲸鱼记账 → DeepSeek（内置）→ 设置 → 余额校正」填写实际到账金额。余额接口只返回余额快照、不提供充值流水，充值与消费发生在同一次刷新间隔时需要实际到账金额才能校正。
+- **「今日 Token」和「今日已用」为什么对不上（差很多）**：这两个数**本来就是两种口径**。「今日已用」是 DeepSeek 余额的实际扣费（只覆盖这颗 key / 这个账号，来自余额下降的观测）；「今日 Token → 折合」是把**所有渠道**（`dsh` + `codex` + `opencode` + `claude`）当天的 token 按价目表折算成人民币 —— 订阅制渠道（Codex、Claude Code）**本来就不按 token 扣钱**，那一侧只是"这些 token 值多少钱"，所以 `costEstimated` 才是 `true`。想看构成就把鼠标停在这个模块上，`title` 里逐渠道列了 token 与金额（不计价的渠道标「不计价」）。
+- **「订阅额度」只剩一行文字了 / 想回到原来的一行**：多窗口厂商（OpenCode Go）默认画三窗仪表。在泡泡编辑器里选中该「额度·<模型名>」模块 → 把「额度样式」选成「单行文本」，即退回 `tpl` 那套（`{plan}` / `{plan_left}` / `{plan_reset}` 仍可用）；「显示样式」选了具体窗口（5h / 周 / 月）时也是单行文本。单窗口订阅不受影响，一直是文本。
+- **「今日 Token」显示空 / 「暂无会话」**：说明四个渠道当天都没读到数据。逐个对：`dsh` 看挂件账本里当天有没有 `events`（当天没在 DSH 里跑过就没有）；`codex` 看 `$CODEX_HOME`（默认 `~/.codex`）当天的 `rollout-*.jsonl[.zst]`；`opencode` 看 `~/.local/share/opencode/opencode.db` 在不在（取数优先 `node:sqlite`，拿不到就回退 `sqlite3 -readonly -json`，桌面端 PATH 里没有 `sqlite3` 就读不到）；`claude` 看 `~/.claude/projects/**/*.jsonl`（可用 `CLAUDE_PROJECTS_DIR` 指到别处）。`codex` 冷启动要扫历史，最多等 4 秒，超时先给空态、下一轮补上。
 - **充值后消费数字没变**：这是预期行为——充值不会增加消费；数字上方会出现「待核对余额调整」，提示你补充本统计区间的累计到账金额。
 - **每轮消耗不显示**：确认「音效与提示 → 全局设置」里「每轮消耗提示」那一行**左边的 `[✓]`** 是勾上的（入口行右侧摘要会直接显示 `已关闭` 或当前配置）；一轮对话要完整结束（`turn/end`）才结算。余额变化泡泡与消耗泡泡抢层时，提醒会退化为居中卡片。
 - **每轮消耗泡泡的内容**：「音效与提示 → 全局设置」→ **展开「每轮消耗提示」** → 「编辑提示内容」（模块化，金额用 `{cost}`）；同一区里能设自动关闭秒数、提示音量与任务结束音效。
@@ -470,7 +479,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 开发与维护
 
-- 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
+- 仓库里 `lib/index.js` 是宿主本体、`lib/token-stats.mjs` 是「今日 Token」的多渠道取数（纯只读，宿主注入 `todayKey` / `readUsageLedger` 等依赖，所以它不碰 `ctx`、可以直接单测）、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
 
