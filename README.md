@@ -430,6 +430,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
   - **公开前先脱敏**：删除 API key、token、cookie、认证头、含凭据的 URL、个人目录用户名及无关会话内容；只保留定位所需的片段，不原样上传完整日志、凭据文件或整个 profile。没有足够证据时先保留当前安装和数据，不批量删除 `node_modules`、锁文件或修改全局 registry。相关issue由报告者验证效果后决定是否关闭。
 - **挂件不出现**：
   - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
+  - **反向代理子路径（`--public-url .../dsh/`）**：本版挂件会按页面所在目录加载 `dsh-whale/widget.js` 和 `/dsh-whale/*`；反向代理需要剥掉 `/dsh` 前缀，并把裸 `/dsh` 重定向到 `/dsh/`，否则相对路径的基目录不对。
   - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。**新装也建议重开一次客户端**（issue #162：热生效不一定够）。
 - **本插件所有接口（`/dsh-whale/*`）的访问校验**：默认只接受**回环地址**（`127.0.0.1` / `localhost` / `[::1]`）的请求，并拒绝跨站标记（`Sec-Fetch-Site: cross-site`）与 Origin 和 Host 不同源的请求 —— 这是防「恶意网页读写本机接口」的信任栅栏（issue #92 / #136）。如果你把 `dsh web` 放在**反向代理或局域网地址**后面，请用环境变量声明允许的 Host（逗号分隔，可带端口），否则会被 403：
   ```bash

@@ -2,6 +2,27 @@
 if (window.__dshWhaleWidget) return
 window.__dshWhaleWidget = true
 
+// —— 子路径部署（DSH `--public-url https://host/dsh/` + 反向代理剥前缀）——
+// 服务端路由始终是 `/dsh-whale/*`，但页面可能挂在 `/dsh/` 下。从本脚本自身的 URL
+// 推导挂载前缀：`/dsh/dsh-whale/widget.js` -> `/dsh`，根路径 -> `''`。
+// 所有客户端请求统一走 dshwUrl('/dsh-whale/...')，根路径部署行为不变。
+var dshwMountBase = (function () {
+  try {
+    var src = document.currentScript && document.currentScript.src
+    if (!src) return ''
+    var pathname = new URL(src, document.baseURI).pathname
+    var marker = '/dsh-whale/'
+    var at = pathname.lastIndexOf(marker)
+    return at > 0 ? pathname.slice(0, at) : ''
+  } catch (err) { return '' }
+})()
+function dshwUrl(path) {
+  try {
+    if (dshwMountBase && path.indexOf('/dsh-whale/') === 0) return dshwMountBase + path
+  } catch (err) {}
+  return path
+}
+
 // —— 页面自检：只在 DSH 主聊天界面挂载挂件 ——
 // 挂件脚本通过 tapIndex 注入 DSH 的每一个 index 页面（含插件市场等 SPA 视图）。
 // 市场页用 ReactDOM.createPortal 渲染到 document.body，若挂件在此初始化，
@@ -353,11 +374,11 @@ var CHANGE_MS = 900
 var ANIM_MS = 700
 var BUBBLE_MS = 5000
 var FETCH_TIMEOUT_MS = 25000
-var BALANCE_URL = '/dsh-whale/balance.json'
-var SIZE_URL = '/dsh-whale/size.json'
-var IMG_URL = '/dsh-whale/image.png?v=2'
-var GIF_URL = '/dsh-whale/rua.gif'
-var BUBBLE_URL = '/dsh-whale/bubble.json'
+var BALANCE_URL = dshwUrl('/dsh-whale/balance.json')
+var SIZE_URL = dshwUrl('/dsh-whale/size.json')
+var IMG_URL = dshwUrl('/dsh-whale/image.png?v=2')
+var GIF_URL = dshwUrl('/dsh-whale/rua.gif')
+var BUBBLE_URL = dshwUrl('/dsh-whale/bubble.json')
 
 // ===== v815：自定义泡泡框 —— 常量必须在**泡泡构建之前**就绪 =====
 // ⚠️ 血的教训（v815 首版把这些常量写在 13000 行附近，而泡泡在 12600 行就调渲染器了）：
@@ -1342,7 +1363,7 @@ img.className = 'dshwv-img'
 var initRoleUrl = IMG_URL
 try {
   var initRoleId = localStorage.getItem('dshw-role') || ''
-  if (initRoleId && initRoleId !== 'default') initRoleUrl = '/dsh-whale/role-image.png?id=' + encodeURIComponent(initRoleId)
+  if (initRoleId && initRoleId !== 'default') initRoleUrl = dshwUrl('/dsh-whale/role-image.png?id=') + encodeURIComponent(initRoleId)
 } catch (err) {}
 img.src = initRoleUrl
 img.alt = 'DeepSeek 余额'
@@ -1928,7 +1949,7 @@ function playTaskEndSound(opts) {
     var url = ''
     var altUrl = ''
     if (sel.indexOf('grp:') === 0) { playTaskEndGroupClick(sel.slice(4), o.vol); return }
-    if (sel.indexOf('frag:') === 0) url = '/dsh-whale/audio-fragment?id=' + encodeURIComponent(sel.slice(5))
+    if (sel.indexOf('frag:') === 0) url = dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(sel.slice(5))
     else if (sel.indexOf('preset:') === 0) {
       // v752：预设片段也改走片段路由（与本体按压同一套选择逻辑 + 备用路由）
       var parts = sel.split(':')
@@ -2227,9 +2248,9 @@ menuBox.appendChild(rowRes)
 // —— 用量记录:底部固定动作行由「用量记录 / ‹ 返回」共用(见下方 nav 行) ——
 
 // ===== 用量记录(主菜单内的子界面,不跳新页面)+ “更多消费记录”窗口 =====
-var USAGE_REC_URL = '/dsh-whale/usage-records.json'
+var USAGE_REC_URL = dshwUrl('/dsh-whale/usage-records.json')
 var usageSet = null // {taskEnd,alert,budget} 用量设置缓存
-var USAGE_SET_URL = '/dsh-whale/usage-settings.json'
+var USAGE_SET_URL = dshwUrl('/dsh-whale/usage-settings.json')
 function loadUsageSettings(cb) {
   try {
     fetch(USAGE_SET_URL, { cache: 'no-store' })
@@ -2509,7 +2530,7 @@ function aboutUpdateRow(label, text, cls) {
 // v805（用户要求）：只刷新"挂件已运行"这一行 —— 重新读一次 about.json，但**不重画整个面板**
 function aboutRefreshUptimeRow() {
   if (aboutRows['挂件已运行'] && aboutRows['挂件已运行'].val) aboutUpdateRow('挂件已运行', '刷新中…')
-  return fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+  return fetch(dshwUrl('/dsh-whale/about.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
     if (!d || !d.ok) { aboutUpdateRow('挂件已运行', '刷新失败'); return }
     aboutData = d
     aboutUpdateRow('挂件已运行', aboutFmtUptime(d.runtime && d.runtime.uptimeSec))
@@ -2905,7 +2926,7 @@ function aboutLoad(force) {
   if (!force && aboutData) { aboutRender(); aboutAutoProbe(); return }
   el.innerHTML = ''
   el.appendChild(aboutEl('div', 'dshwv-about-note', '读取中…'))
-  fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+  fetch(dshwUrl('/dsh-whale/about.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
     aboutData = d && d.ok ? d : null
     if (!aboutData) { el.innerHTML = ''; el.appendChild(aboutEl('div', 'dshwv-about-note', '读取失败：' + ((d && d.error) || '未知错误'))); return }
     aboutRender()
@@ -2925,7 +2946,7 @@ function aboutAutoProbe() {
   } catch (err) {}
 }
 function aboutSelfCheck() {
-  var targets = ['/dsh-whale/size.json', '/dsh-whale/wait.json']
+  var targets = [dshwUrl('/dsh-whale/size.json'), dshwUrl('/dsh-whale/wait.json')]
   aboutSelfResult = '检查中…'
   aboutSelfDetail = ''
   // v805：只更新「自检」这一行，不重画整个面板（重画会丢滚动位置、也会闪一下）
@@ -2958,7 +2979,7 @@ function aboutCheckUpdate() {
   aboutCheckAt = Date.now()
   // v805：只更新「检查更新」这一行（不重画整个面板）
   if (!aboutUpdateRow('检查更新', '检查中…')) aboutRender()
-  fetch('/dsh-whale/update-check.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+  fetch(dshwUrl('/dsh-whale/update-check.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
     // v805（用户要求）：来源**不显示在行里**，只留在 aboutUpdateSource 里，随「复制诊断信息」一起带出去
     aboutUpdateSource = (d && d.source) ? String(d.source) : ''
     if (!d || !d.ok) aboutLastUpdate = '检查失败：' + ((d && d.error) || '未知错误')
@@ -4721,7 +4742,7 @@ function apiModelsFetch(tries) {
   var opts = { cache: 'no-store' }
   // 兜底超时：host 要串行取各厂商余额，慢的时候不能把界面一直吊着
   try { if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(40000) } catch (err) {}
-  fetch('/dsh-whale/api-models.json', opts)
+  fetch(dshwUrl('/dsh-whale/api-models.json'), opts)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
     .then(function (d) {
       if (d && d.ok && Array.isArray(d.models)) {
@@ -4763,7 +4784,7 @@ function postApiModels(body, cb) {
   }
   // 与 apiModelsFetch 一致：补超时，避免后端卡住时请求永不落地（保存按钮一直"保存中…"）
   try { if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) opts.signal = AbortSignal.timeout(40000) } catch (err) {}
-  fetch('/dsh-whale/api-models.json', opts)
+  fetch(dshwUrl('/dsh-whale/api-models.json'), opts)
     .then(function (r) { return r.json() })
     .then(function (d) {
       if (d && Array.isArray(d.models)) apiModels = d.models
@@ -5924,7 +5945,7 @@ var accountingMask = null
 function openBalanceAdjustment(modelId) {
   // 只有固定的 DeepSeek（内置）能打开：入口由宿主下发的 canAdjustBalance 控制，这里再挡一次
   if (!apiCanAdjustBalance(apiModelById(modelId)) || accountingMask) return
-  var adjustmentUrl = '/dsh-whale/balance-adjustments.json?modelId=' + encodeURIComponent(modelId)
+  var adjustmentUrl = dshwUrl('/dsh-whale/balance-adjustments.json?modelId=') + encodeURIComponent(modelId)
   closeApiModelPanel()
   // 与「额度」「余额预警 / 今日预算」等窗口共用同一套骨架与样式：
   // dshwv-usage-mask + dshwv-usage-card + dshwv-bubtitle/bubhint + apiPanelRow/apiTextInput + dshwv-bubbtns
@@ -6456,7 +6477,7 @@ function resPlayFragment(fid) {
   try {
     if (!fid) return
     if (resAudEl) { try { resAudEl.pause() } catch (err) {} resAudEl = null }
-    var a = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(fid))
+    var a = dshwvSound(dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(fid))
     // v778：资源窗口的片段试听也走音量解析器（它是"这一条片段本身的试听"，与按压音量同源）
     try { a.volume = soundVolumeOf('press') } catch (err) {}
     a.onended = function () { resAudEl = null }
@@ -6505,13 +6526,13 @@ function resManagerRender() {
     }
     function fail() { fin() }
     try {
-      fetch('/dsh-whale/roles.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { if (d && d.ok && Array.isArray(d.roles)) roles = d.roles; fin() }).catch(fail)
+      fetch(dshwUrl('/dsh-whale/roles.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { if (d && d.ok && Array.isArray(d.roles)) roles = d.roles; fin() }).catch(fail)
     } catch (err) { fin() }
     try {
-      fetch('/dsh-whale/bubble-imgs.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { if (d && d.ok && Array.isArray(d.images)) bubbleImgs = d.images; fin() }).catch(fail)
+      fetch(dshwUrl('/dsh-whale/bubble-imgs.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { if (d && d.ok && Array.isArray(d.images)) bubbleImgs = d.images; fin() }).catch(fail)
     } catch (err) { fin() }
     try {
-      fetch('/dsh-whale/audio.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { audio = d; fin() }).catch(fail)
+      fetch(dshwUrl('/dsh-whale/audio.json'), { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) { audio = d; fin() }).catch(fail)
     } catch (err) { fin() }
   } catch (err) {}
 }
@@ -6520,7 +6541,7 @@ function resDelRole(id) {
   for (var i = 0; i < roleList.length; i++) if (roleList[i].id === id) { r = roleList[i]; break }
   showConfirm('确定删除角色「' + (r ? r.name : id) + '」吗？\n若该角色正被使用,将自动回退默认小鲸鱼。', function () {
     try {
-      fetch('/dsh-whale/role-delete.json', {
+      fetch(dshwUrl('/dsh-whale/role-delete.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id }),
@@ -6543,7 +6564,7 @@ function resDelBubbleImg(id) {
   for (var i = 0; i < bubbleImgList.length; i++) if (bubbleImgList[i].id === id) { im = bubbleImgList[i]; break }
   showConfirm('确定删除泡泡图「' + (im && im.name ? im.name : id) + '」吗？\n正在引用该图的泡泡行将无法显示。', function () {
     try {
-      fetch('/dsh-whale/bubble-img-upload.json', {
+      fetch(dshwUrl('/dsh-whale/bubble-img-upload.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete', id: id }),
@@ -6564,7 +6585,7 @@ function resDelAudioGroup(id) {
   for (var i = 0; i < (audioGroups || []).length; i++) if (audioGroups[i].id === id) { g = audioGroups[i]; break }
   showConfirm('确定删除音效组「' + (g && g.name ? g.name : id) + '」吗？', function () {
     try {
-      fetch('/dsh-whale/audio.json', {
+      fetch(dshwUrl('/dsh-whale/audio.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete-group', id: id }),
@@ -6588,7 +6609,7 @@ function resDelAudioFrag(id) {
   for (var i = 0; i < (audioFragments || []).length; i++) if (audioFragments[i].id === id) { f = audioFragments[i]; break }
   showConfirm('确定删除音频片段「' + (f && f.name ? f.name : id) + '」吗？\n引用该片段的音效组槽位会自动回退预设。', function () {
     try {
-      fetch('/dsh-whale/audio.json', {
+      fetch(dshwUrl('/dsh-whale/audio.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'delete-fragment', id: id }),
@@ -6642,7 +6663,7 @@ function resRenderData(wrap, roles, bubbleImgs, audio) {
     bubbleImgs.forEach(function (im) {
       anyImg = true
       var tag = resMkTag(im.builtin ? '内置图' : '泡泡图', !!im.builtin)
-      imgEnt.body.appendChild(resImgRow('/dsh-whale/bubble-img.png?id=' + encodeURIComponent(im.id), im.name || im.id, '', [tag, resMkDel('删除', !!im.builtin, function () { resDelBubbleImg(im.id) })]))
+      imgEnt.body.appendChild(resImgRow(dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(im.id), im.name || im.id, '', [tag, resMkDel('删除', !!im.builtin, function () { resDelBubbleImg(im.id) })]))
     })
     if (!anyImg) {
       var empty = document.createElement('div')
@@ -6803,7 +6824,7 @@ function usageAppendLine(body, m, below, amount) {
       var imEl2 = document.createElement('img')
       imEl2.alt = ''
       imEl2.draggable = false
-      imEl2.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(imgId2)
+      imEl2.src = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(imgId2)
       var sc3 = Number(m.imgScale)
       imEl2.style.maxWidth = (isFinite(sc3) && sc3 > 0 ? Math.max(24, Math.round(240 * Math.max(0.1, Math.min(1, sc3)))) : 240) + 'px'
       imEl2.style.maxHeight = '120px'
@@ -11957,7 +11978,7 @@ var moduleImgPreviewEl = null
 var bubbleImgList = []
 function loadBubbleImgs(cb) {
   try {
-    fetch('/dsh-whale/bubble-imgs.json', { cache: 'no-store' })
+    fetch(dshwUrl('/dsh-whale/bubble-imgs.json'), { cache: 'no-store' })
       .then(function (r) { return r.json() })
       .then(function (d) {
         if (d && d.ok && Array.isArray(d.images)) { bubbleImgList = d.images; if (cb) cb() }
@@ -11971,7 +11992,7 @@ function bubbleUploadImg(file, cb) {
     fr.onload = function () {
       var data = String(fr.result || '')
       if (data.indexOf('data:image/png;base64,') !== 0 && data.indexOf('data:image/gif;base64,') !== 0) { if (cb) cb(false); return }
-      fetch('/dsh-whale/bubble-img-upload.json', {
+      fetch(dshwUrl('/dsh-whale/bubble-img-upload.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'upload', name: file.name || '', data: data }),
@@ -12773,7 +12794,7 @@ function renderModuleEditor() {
     }
     moduleImgSelect.addEventListener('change', function () {
       m.imgId = moduleImgSelect.value
-      if (m.imgId) { moduleImgPreviewEl.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(m.imgId); moduleImgPreviewEl.style.display = 'block' }
+      if (m.imgId) { moduleImgPreviewEl.src = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(m.imgId); moduleImgPreviewEl.style.display = 'block' }
       else moduleImgPreviewEl.style.display = 'none'
     })
     var fileInput = document.createElement('input')
@@ -12899,7 +12920,7 @@ function renderModuleEditor() {
           function syncTh2() {
             try {
               // 未选图时保留空占位(带底色/边框),避免该行尾部宽度变化导致表头列错位
-              if (it2.imgId) th2.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(it2.imgId)
+              if (it2.imgId) th2.src = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(it2.imgId)
               else th2.removeAttribute('src')
               th2.style.display = 'block'
             } catch (err) {}
@@ -14645,7 +14666,7 @@ function frameImageGeom(box, dx, dy, sc, slot) {
     var h = b.h * s * sc2
     var x = b.x * s + (b.x + b.w / 2) * (1 - s) + ox + (b.w * s * (1 - sc2)) / 2
     var y = b.y * s + (b.y + b.h / 2) * (1 - s) + oy + (b.h * s * (1 - sc2)) / 2
-    var url = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(String(slot && slot.imgId ? slot.imgId : ''))
+    var url = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(String(slot && slot.imgId ? slot.imgId : ''))
     return ' href="' + url + '" x="' + frameNumStr(x) + '" y="' + frameNumStr(y) + '"' +
       ' width="' + frameNumStr(w) + '" height="' + frameNumStr(h) + '"' +
       ' preserveAspectRatio="xMidYMid meet"' + (op < 1 ? ' opacity="' + frameNumStr(op) + '"' : '')
@@ -15555,7 +15576,7 @@ function frameEditImageOpaqueRaw(id, cb) {
       } catch (err) { if (cb) cb(null) }
     }
     im.onerror = function () { if (cb) cb(null) }
-    im.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(id)
+    im.src = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(id)
   } catch (err) { if (cb) cb(null) }
 }
 // v850：内容包围盒在缺缓存时**自动补量**，量完刷新一下虚线框/叠加层（不动几何、不打断拖动）
@@ -18507,7 +18528,7 @@ function bubbleRowsTo(parentEl, mods) {
       // 显示大小:imgScale(0.1–1,相对最大宽 540u);未设置=满宽
       var scV2 = Number(md.imgScale)
       if (isFinite(scV2) && scV2 > 0) im.style.maxWidth = 'calc(var(--dshw-u) * ' + (540 * Math.max(0.1, Math.min(1, scV2))) + ')'
-      im.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(pickId)
+      im.src = dshwUrl('/dsh-whale/bubble-img.png?id=') + encodeURIComponent(pickId)
       im.alt = ''
       im.draggable = false
       parentEl.appendChild(im)
@@ -19731,10 +19752,10 @@ function soundSlotUrls(slot, groupId) {
     var g = audioGroups[i]
     if (g && g.id === gid) { frag = String(g[slot] || ''); break }
   }
-  var legacy = '/dsh-whale/sound/' + (slot === 'press' ? 'press' : 'release') + '.mp3?set=' + encodeURIComponent(gid)
+  var legacy = dshwUrl('/dsh-whale/sound/') + (slot === 'press' ? 'press' : 'release') + '.mp3?set=' + encodeURIComponent(gid)
   // 组信息还没到（audio.json 未返回）或找不到组 → 与旧行为完全一致，走老路由
   if (!frag) return { url: legacy, alt: '', empty: false }
-  return { url: '/dsh-whale/audio-fragment?id=' + encodeURIComponent(frag), alt: legacy, empty: false }
+  return { url: dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(frag), alt: legacy, empty: false }
 }
 function applySoundSet() {
   try {
@@ -19967,7 +19988,7 @@ function positionMenu() {
 }
 
 // —— 自定义角色：列表 / 选择 / 置顶 / 删除 / 导入裁剪 ——
-var ROLE_URL = '/dsh-whale/roles.json'
+var ROLE_URL = dshwUrl('/dsh-whale/roles.json')
 var currentRole = { id: 'default', name: '小鲸鱼', url: IMG_URL }
 var roleList = []
 function loadRoles() {
@@ -20098,7 +20119,7 @@ function applyRole(id, name, url) {
 }
 function roleUrl(id) {
   if (id === 'default') return IMG_URL
-  return '/dsh-whale/role-image.png?id=' + encodeURIComponent(id)
+  return dshwUrl('/dsh-whale/role-image.png?id=') + encodeURIComponent(id)
 }
 function toggleRolePanel() {
   if (rolePanel.classList.contains('dshwv-rolelist-open')) { closeRolePanel(); return }
@@ -20176,7 +20197,7 @@ function renderRolePanel() {
 }
 function togglePin(id, pinned) {
   try {
-    fetch('/dsh-whale/role-pin.json', {
+    fetch(dshwUrl('/dsh-whale/role-pin.json'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: id, pinned: pinned }),
@@ -20213,7 +20234,7 @@ function deleteRole(id) {
   for (var i = 0; i < roleList.length; i++) if (roleList[i].id === id) { r = roleList[i]; break }
   showConfirm('确定删除角色「' + (r ? r.name : id) + '」吗？', function () {
     try {
-      fetch('/dsh-whale/role-delete.json', {
+      fetch(dshwUrl('/dsh-whale/role-delete.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id }),
@@ -20510,7 +20531,7 @@ function confirmCrop() {
     var dataUrl = out.toDataURL('image/png')
     if (toBubbleImg) {
       // 同一个裁剪结果 → 泡泡图库（`bubbleImgList` / `/dsh-whale/bubble-img-upload.json`）
-      fetch('/dsh-whale/bubble-img-upload.json', {
+      fetch(dshwUrl('/dsh-whale/bubble-img-upload.json'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'upload', name: name, data: dataUrl }),
@@ -20562,7 +20583,7 @@ function hideCropModal() {
 }
 
 // —— 自定义音效组：列表 / 选择 / 置顶 / 删除 / 编辑 / 音频裁剪 ——
-var AUDIO_URL = '/dsh-whale/audio.json'
+var AUDIO_URL = dshwUrl('/dsh-whale/audio.json')
 var audioGroups = [] // [{id,name,press,release,preset,pinned}]
 var audioFragments = [] // [{id,name,preset}]
 var audioGroupPanelOpen = false
@@ -20866,19 +20887,19 @@ function audioEditPreviewEnsure(force) {
       if (audioEditPreviewRelease) { audioEditPreviewRelease.pause(); audioEditPreviewRelease = null }
     } catch (err) {}
     if (pressId) {
-      audioEditPreviewEl = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(pressId))
+      audioEditPreviewEl = dshwvSound(dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(pressId))
       audioEditPreviewEl.preload = 'auto'
       audioEditPreviewEl.volume = soundVol
     }
     if (releaseId) {
-      audioEditPreviewRelease = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(releaseId))
+      audioEditPreviewRelease = dshwvSound(dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(releaseId))
       audioEditPreviewRelease.preload = 'auto'
       audioEditPreviewRelease.volume = soundVol
     }
     // v745：试听也要预热（否则第一次点按试听同样是"按下音慢半拍"）
     dshwvWarm([
-      pressId ? '/dsh-whale/audio-fragment?id=' + encodeURIComponent(pressId) : '',
-      releaseId ? '/dsh-whale/audio-fragment?id=' + encodeURIComponent(releaseId) : '',
+      pressId ? dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(pressId) : '',
+      releaseId ? dshwUrl('/dsh-whale/audio-fragment?id=') + encodeURIComponent(releaseId) : '',
     ])
     audioEditPreviewReady = true
     return true
@@ -22210,7 +22231,7 @@ try {
 setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS)
 
 // —— 每轮对话消耗检测：轮询 last-turn.json，出现新 seq 时弹消耗金额泡泡 ——
-var LAST_TURN_URL = '/dsh-whale/last-turn.json'
+var LAST_TURN_URL = dshwUrl('/dsh-whale/last-turn.json')
 var lastCostSeq = 0
 var lastCostAligned = false
 // 用 localStorage 记忆已看过的 seq：刷新页面后不吞新轮次（配合 host 端 seq 持久化）
@@ -22223,7 +22244,7 @@ try {
 //   ① 记住对话名，供提示内容里的 {session} 占位符使用；
 //   ② 挂起**首次出现**时播对应音效（提问音 / 授权音），并在开启「冒泡提示」时弹泡泡；
 //   ③ 用 localStorage 记住已响过的挂起 id ⇒ **刷新页面不会为同一个未回答的提问重复响**。
-var WAIT_URL = '/dsh-whale/wait.json'
+var WAIT_URL = dshwUrl('/dsh-whale/wait.json')
 var WAIT_SOUND_KEY = 'dshw-wait-sound'
 var waitSeenId = ''
 function waitEventCfg(kind) {
