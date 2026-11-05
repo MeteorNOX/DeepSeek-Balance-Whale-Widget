@@ -1,7 +1,186 @@
+window.__dshwI18n=window.__dshwI18n||{};window.__dshwI18n.en=Object.assign(window.__dshwI18n.en||{},{"[小鲸鱼] 音频加载/解码失败：":"[Little Whale] Audio loading/decoding failed: ","HTTP 204（无内容：该音效槽留空、或音效组未找到）":"HTTP 204 (No Content: The sound effect slot is empty, or the Sound Effect Group was not found)","音频响应只有 ":"Audio response is only"," 字节（不是有效音频）":"Byte (not valid audio)","菜单":"Menu","选择音效组":"Select Sound Effect Group","小黄鸭":"Rubber Duck","导入":"Import","新建/编辑音效组":"Create/Edit Sound Effect Group","取消置顶":"Unpin","置顶(排到列表最前)":"Pin to top (move to the top of the list)","- = 小鲸鱼记账 = -":"- = Little Whale accounting = -","查看今日/近7天/全部消费记录":"View today’s/last 7 days’/all transaction records","每轮对话回复完成时播放提示音":"Play a notification sound when a response is completed in each round of dialogue","选择任务结束音:音效组(点按整组)/单个音频(与按下/松开同库)":"Select task-end sound: Sound Effect Group (tap the entire group)/Single Audio (from the same library as Press and Release)","小黄鸭·按下":"Rubber Duck · Press","小黄鸭·松开":"Rubber Duck · Release","音效1·按下":"Sound Effect 1 · Press","音效1·松开":"Sound Effect 1 · Release","（点按）":"(Tap)","（暂未加载）":"(Not yet loaded)","当前对话":"Current Conversation","开启/关闭思考气泡":"Turn thought bubbles on/off","每轮对话结束后自动显示本轮消耗金额":"Automatically display the amount spent in this round after each round of dialogue ends","填 0 表示不自动关闭，需手动点击关闭":"Enter 0 to disable auto-close; you must manually click to close","开启后挂件右侧按设定像素避开滚动条；关闭则贴边（盖住滚动条）":"When enabled, the widget will stay to the right of the scroll bar by the set number of pixels; when disabled, it will be flush with the edge (covering the scroll bar).","避让滚动条的像素宽度，填 0 表示贴边":"Pixel width to avoid the scrollbar; enter 0 to align with the edge","大小":"Size","音效总开关：关掉后不出声（含音效组试听），并立刻挂起音频上下文、把系统睡眠交还给你":"Sound Effects Toggle: When turned off, no sounds will play (including Sound Effect Group previews), and the audio context will be immediately suspended, returning control of the system’s sleep settings to you.","音效与提示":"Sound Effects and Notifications","音效/提示泡泡设置":"Sound Effects/Notification Bubble Settings","提示与音效设置：按压音量/音效组、每轮消耗提示、提问提示、授权提示":"Notification and sound-effect settings: Tap Volume/Sound Effect Group, per-turn cost Alert, Query Alert, Authorization Alert","气泡全局开关":"Global Bubble Toggle","按压泡泡设置":"Tap the bubble to access settings","打开“按压泡泡设置”（按压时的泡泡内容与队列）":"Open “Tap Bubble Settings” (bubble content and queue when tapped)","每轮消耗提示":"per-turn cost notification","自定义提示":"Custom Notifications","自定义每轮消耗提示内容(金额用 {cost})、自动关闭秒数、任务结束音效":"Customize the message for each round’s cost (use {cost} for the amount), auto-close delay (in seconds), and task-end sound effect","避让滚动条":"Avoid the scroll bar","宽度":"Width","选择角色":"Select Character","小鲸鱼":"Little Whale","导入自定义角色图片":"Import custom character images","角色":"Character","吸附与翻转":"snap and flip","自定义":"Customize","自定义各边吸附区宽度与翻转线位置":"Customize the width of the snap-to-edge areas and the position of the flip line","启用后隐藏挂件上的菜单按钮;电脑端右键、手机端长按小鲸鱼可唤出菜单(位置不变)":"Once enabled, the menu button on the widget will be hidden; right-click on desktop or long-press the little whale on mobile to bring up the menu (location remains the same)","隐藏菜单按钮":"Hide Menu Button","关闭后不再读取 ~/.codex/sessions 统计本机 Codex 用量（会话日志很大时建议关闭）":"After closing, the app will no longer read ~/.codex/sessions to track local Codex usage (recommended to disable this when session logs become very large)","管理":"Management","集中管理当前导入插件的图片与音频资源":"Centrally manage the image and audio resources of the currently imported plugins","资源管理":"Resource Management","‹ 返回":"‹ Back","返回主菜单":"Return to Main Menu","挂件已运行":"The widget is running","刷新中…":"Refreshing…","刷新失败":"Refresh failed"," 小时 ":"Hours"," 分":"Points"," 分 ":"Points"," 秒":"seconds","桌面客户端":"Desktop Client","官方桌面客户端":"Official Desktop Client","网页端":"Web Version","网页端（dsh web / 浏览器）":"Web Version (dsh web / browser)","未知":"Unknown","未找到":"Not found","已找到":"Found",": 未找到（试过 ":": Not found (tried"," 个位置）":"(location)","(无路径)":"(No path)","小鲸鱼挂件诊断信息":"Little Whale Widget Diagnostic Information","版本: ":"Version: ","开发版":"Development Version","正式版":"Stable Version","客户端: ":"Client: ","宿主文件: ":"Host file: ","前端文件: ":"Front-end files: ","宿主含开发机路径: ":"Host path including the development machine: ","是":"Yes","否":"No","环境: ":"Environment: "," · 已运行 ":"· Running","数据目录: ":"Data Directory: ","数据·":"Data·","记账: ":"accounting: ","读取失败 ":"Failed to read","已记 ":"Noted"," 天 · 最近观测 ":"Days · Recent Observations"," · 今日为部分数据":"· Today’s data is partial"," · 有待核对调整":"· Pending review and adjustment","余额取数: ":"Balance Retrieval: ","成功":"Success","失败":"Failure","余额取数: 本次会话尚未取过":"Balance Retrieval: No balance has been retrieved during this session yet","Codex 统计: ":"Codex Statistics: ","已启用 · 最近扫描 ":"Enabled · Recently Scanned"," 个会话文件":"Session files","未启用（":"Not enabled (","未配置":"Not configured","自检: ":"self-check: ","检查更新: ":"Check for updates: ","（源 ":"(Source","（此文本不含密钥、账号 id、账本明细与会话内容）":"(This text does not contain any keys, account IDs, ledger details, or session content.)","已复制到剪贴板":"Copied to clipboard","复制失败，请手动选择文本":"Copy failed. Please select the text manually.","浏览器拦截了新窗口，链接已复制":"Your browser blocked the new window; the link has been copied","打不开新窗口，链接已复制":"Cannot open a new window; link has been copied","小鲸鱼挂件":"Little Whale Widget","刷新数据（重新向宿主读取）":"Refresh Data (Re-read from the host)","点击复制「":"Click to copy “","」整节":"\"Entire section\"","已复制：":"Copied: ","点击复制：":"Click to copy: ","版本与安装":"Version and Installation","宿主文件":"Host File","前端文件":"Front-end files","版本自洽":"Version consistency","一致":"Consistent","不一致":"Inconsistencies","版本自洽: ":"Version consistency: ","（源码字面量 ":"(Source code literals)"," vs 上报 ":"vs. Report","宿主含开发机路径":"Host includes the path to the development machine","是（开发版）":"Yes (Development Version)","（true = 这份宿主是开发版，未走 strip）":"(true = This host is a development version that has not undergone stripping)","运行环境":"Runtime Environment","客户端":"Client","（判定来源: ":"(Source: ","前端 UA 兜底":"Front-end UA fallback","平台 / Node":"Platform / Node","平台: ":"Platform: ","DSH 版本":"DSH Version"," · 数据目录 ":"· Data Directory"," · 来源: ":"· Source: ","页面 __DSH_BOOT__":"Page __DSH_BOOT__","宿主读取":"Host Read","点击刷新这一行：重新向宿主读取运行时长（不重画整个面板）":"Click to refresh this row: Re-read the runtime from the host (without redrawing the entire panel)","数据落点":"Data Destinations","状态":"Status","记账":"accounting","读取失败":"Failed to read","记账: 读取失败 ":"Accounting: Read failed"," 天":"Day","观测 ":"Observation","今日部分数据":"Selected Data for Today","有待核对":"Pending verification","记账: 已记录 ":"Accounting: Recorded"," · 今日完整":"· Today's Complete"," · 无待核对":"· No items pending review","不可用":"Unavailable","记账: 不可用":"accounting: Not available","余额取数":"Balance Retrieval","耗时未知":"Time required: Unknown","余额失败原因":"Reasons for Balance Failure","余额失败原因: ":"Reasons for balance update failure: ","本次会话尚未取过":"No withdrawals have been made in this session yet","余额取数: 本次会话尚未取过（点一次鲸鱼会触发）":"Balance Retrieval: Not yet retrieved in this session (tapping the whale once triggers it)","Codex 统计":"Codex Statistics","已启用":"Enabled"," 个会话":"Sessions","Codex 统计: 已启用 · 最近扫描 ":"Codex Stats: Enabled · Last Scan"," · 跳过 ":"· Skip"," · 延后 ":"· Postpone","未启用":"Not enabled","Codex 统计: 未启用 —— ":"Codex Statistics: Not enabled ——","未配置 Codex 模型":"Codex model not configured","自检":"self-check","检查中…":"Checking...","点击重新自检：只从浏览器访问本机两条插件路由（不联网、不耗 token）":"Click to Run Self-Check: Accesses only two plugin routes on the local machine via the browser (no internet connection required, no tokens consumed)","\\n上次：":"\\nLast time: ","检查更新":"Check for updates","点击重新检查 npm 上的最新版本（五个源并行：npmmirror / jsdelivr / unpkg / npmjs / npm-cli）":"Click to recheck for the latest version on npm (five sources in parallel: npmmirror / jsdelivr / unpkg / npmjs / npm-cli)","仓库":"Warehouse","更新日志":"Release Notes","复制以上全部信息":"Copy all of the above information","点任意一行复制该行；每节标题右侧可整节复制。自检只访问本机两条插件路由（不联网、不耗 token）。前端改动需 Ctrl+F5，宿主改动需重启服务。":"Click any row to copy it; click the icon to the right of a section title to copy the entire section. The self-check only accesses two plugin routes on the local machine (no internet connection required, no token consumption). Front-end changes require Ctrl+F5; host changes require restarting the service.","读取中…":"Loading…","读取失败：":"Read failed: ","未知错误":"Unknown error","（10 分钟内已检查过）":"(Checked within the last 10 minutes)"," 字段":"Fields","解析失败":"Parsing failed","失败：":"Failure: "," 条":"item","通过（":"Approved ("," 条路由）":"(Route)","检查失败：":"Check failed: ","开发版（最新发布 ":"Development Version (Latest Release)","有新版本 ":"New version available","，当前 ":", Current","已是最新（":"Already up to date (","点这里查看版本与自检信息":"Click here to view version and self-check information","今天":"Today","提示与音效设置":"Notifications and sound-effect settings","已关闭":"Closed","默认音效组":"Default Sound Effect Group","自动关 ":"auto-close","不自动关":"no auto-close","当前为静音，在下拉设置中修改":"Currently muted; adjust in the pull-down settings"," · 跟随按压音量 ":"· Adjust volume based on press duration","自动关闭":"auto-close","开启后泡泡到时间自动关闭":"Once enabled, the bubble will auto-close when the timer runs out","自动关闭秒数（0 = 不自动关闭）":"auto-close in seconds (0 = Do not auto-close)","冒泡提示":"Toast notification","该事件是否用泡泡提示":"Show this event as a bubble","编辑提示内容":"Edit prompt content","全部音效":"All Sound Effects","按压音效":"press sound effect","按压音效组":"press sound-effect group","新建音效组":"Create New Sound Effect Group","按压音量":"Press Volume","试听按压音效":"Preview tap sound effect","编辑每轮消耗提示的泡泡内容（金额用 {cost}）":"Edit the text in the bubble for the per-turn cost notification (use {cost} for the amount)","任务结束音":"task-end sound","该事件是否播这个音效（关掉 = 不响；下拉里选的音效仍保留，下次勾上即用）":"Whether to play this sound effect for this event (Turn off = Do not play; the sound effect selected from the drop-down menu is retained and will be used the next time this option is checked)","任务结束音：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定":"task-end sound: sound-effect group (tap the entire group) / Single audio file; Playback is determined by the [✓] on the left","试听任务结束音":"preview the task-end sound","提示音量":"Notification Volume","子智能体（subagent）跑完自己的回合时，不弹\"任务结束\"提示与音效；关掉则和主会话一样提示":"When a subagent finishes its turn, it does not display a “Task Complete” prompt or play a sound effect; if disabled, it behaves the same as the main session.","子智能体":"Sub-agent","完成时不提示":"Do not display a notification upon completion","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">子智能体完成时不提示\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">No notification when the sub-agent completes.\u003c/div>","\u003cdiv>子智能体（subagent）也有自己的回合：跑完时旧行为会像主会话一样弹一次\"任务结束\"提示/音效。\u003c/div>":"\u003cdiv>Subagents also have their own turns: when a turn ends, the old behavior will trigger a “Task Complete” prompt and sound effect once, just like in the main session.\u003c/div>","\u003cdiv style=\"margin-top:4px\">· 勾上（默认）：子智能体完成**不提示**，只有主会话的回合结束才提示。\u003c/div>":"\u003cdiv style=\"margin-top:4px\">· Checked (default): No notification when a sub-agent completes an action; a notification is only displayed when the main conversation round ends.\u003c/div>","\u003cdiv>· 取消勾选：恢复旧行为（子智能体完成也提示）。\u003c/div>":"\u003cdiv>· Uncheck: restore the previous behavior (display a notification even when the sub-agent completes the task).\u003c/div>","\u003cdiv style=\"margin-top:4px;opacity:.75\">金额与用量照常记账，这个开关只影响\"提不提示\"。\u003c/div>":"\u003cdiv style=\"margin-top:4px;opacity:.75\">Amounts and usage are recorded as usual; this toggle only affects whether a notification is displayed.\u003c/div>","编辑":"Edit","授权":"Authorization","提问":"Ask a question","提示的泡泡内容（{session} = 当前对话名，超长自动截断）":"Content of notification bubbles ({session} = current conversation name; automatically truncated if too long)","：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定":": Sound Effect Group (tap the entire group) / Individual Audio; Playback is determined by the [✓] on the left","试听":"Trial","提问提示":"Question Prompt","提问提示音效":"question notification sound effect","授权提示":"Authorization Prompt","授权提示音":"Authorization notification sound","：这一类的开关（关掉后这一类不出声，其它类不受影响）":": Toggle for this category (when turned off, this category is silent; other categories are unaffected)","按压松开音量":"Press and release to adjust volume","消耗提示音量":"Notification Volume","提问提示音量":"Notification Volume","授权提示音量":"Authorization notification volume","等待提问 / 授权的提示气泡：\u003cb>默认点气泡就能收起来\u003c/b>（点一下收起，同一条挂起不会再自动弹回；":"Waiting for a question / Authorization notification bubble: \u003cb>By default, tapping the bubble closes it\u003c/b> (tap once to close; the same notification will not automatically reappear);","你回答或批准之后、或下一次新的提问 / 授权到来时，照常冒泡并响铃）。\u003cbr>\u003cbr>":"(It will pop up and ring as usual after you answer or approve, or when a new question or authorization arrives.\u003cbr>\u003cbr>)","打开下面这个开关后，\u003cb>点角色（鲸鱼）也能收掉提示气泡\u003c/b> —— 和「自定义泡泡」里的":"After turning on the switch below, \u003cb>tapping the character (whale) will also hide the notification bubble\u003c/b> — just like in “Custom Bubbles”","「点按角色推进泡泡队列」是同一类手感。\u003cbr>\u003cbr>默认关闭。":"\"Tap characters to advance the bubble queue\" offers a similar feel. This feature is turned off by \u003cbr>\u003cbr>default.","点按角色关闭提示气泡":"Tap the character to close the notification bubble","取消":"Cancel","恢复默认":"Restore Defaults","把四个事件的音量/自动关闭/冒泡/音效选择恢复为默认值（不动外观、位置、账本、角色与自定义泡泡）":"Restore the volume, auto-close, bubble, and sound effect settings for the four events to their default values (without changing appearance, position, ledger, characters, or custom bubbles)","保存":"Save","自定义提示（每轮消耗 · 内容）":"Custom Notifications (per-turn cost · Content)","编辑 ":"Edit","提示内容(可拖动下方模块入框)":"Notification Text (Drag the module below into the box)","余额预警":"Balance Alert","今日预算":"Today’s Budget","提醒内容(可拖动下方模块入框)":"Reminder Content (Drag the module below into the box)","每轮消耗提示(内容里用 {cost} 引用本轮消耗金额)":"per-turn cost notification (uses {cost} in the content to reference the cost for this round)","提示内容({session} = 对话名)":"Notification Text ({session} = conversation name)","触发条件(余额低于该值时提醒)":"Trigger Condition (Notify when balance falls below this value)","触发条件(今日已用达到该值时提醒)":"Trigger Condition (Remind me when your usage today reaches this value)","授权挂起时显示这条提示（开关与时长在「授权音效」那一区设置）":"Display this prompt when authorization is suspended (the toggle and duration are set in the “Authorization Sound Effects” section)","提问挂起时显示这条提示（开关与时长在「提问音效」那一区设置）":"Display this message when a question is on hold (the toggle and duration can be set in the “Question Sound Effects” section)","{session} 会替换为当前对话名，超长自动截断（读不到时显示「当前对话」）":"{session} will be replaced with the current conversation name; automatically truncated if too long (displays “Current Conversation” when unreadable)","启用提醒":"Enable Notifications","余额 ≤ ":"Balance ≤","今日已用 ≥ ":"Used today ≥"," 元时提醒":"Reminder when the balance reaches a certain amount","秒(0=不自动关闭)":"Seconds (0 = no auto-close)","可选模块":"Optional Modules","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">可选模块 &amp; 提醒内容\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">Optional Modules & Alert Messages.\u003c/div>","\u003cdiv>点击「可选模块」即可加入提醒内容;桌面端也可直接拖入下方内容框。\u003c/div>":"\u003cdiv>Click “Optional Modules” to add reminder content; on the desktop version, you can also drag and drop content directly into the box below.\u003c/div>","\u003cdiv style=\"margin-top:4px\">同一行模块并排显示(≤6 个):\u003c/div>":"\u003cdiv style=\"margin-top:4px\">Modules displayed side-by-side on the same line (≤6):\u003c/div>","\u003cdiv>· 拖模块到某行左/右边缘 = 并排\u003c/div>":"\u003cdiv>· Drag a module to the left or right edge of a row = Arrange side by side.\u003c/div>","\u003cdiv>· 拖到某行上/下 = 拆行另起一行\u003c/div>":"\u003cdiv>· Drag to the top or bottom of a line = Break the line and start a new one.\u003c/div>","\u003cdiv>· 拖 ⠿ 手柄 = 整行排序\u003c/div>":"\u003cdiv>· Drag the ⠿ handle = Sort the entire row.\u003c/div>","\u003cdiv style=\"margin-top:4px\">{cost} 在触发时替换为本轮消耗金额(默认内容请保持 {cost})\u003c/div>":"\u003cdiv style=\"margin-top:4px\">{cost} Replace with the amount spent in this round when triggered (please keep {cost} as the default content).\u003c/div>","\u003cdiv style=\"margin-top:4px\">{session} 在挂起时替换为当前对话名（读不到显示「当前对话」，超长按 12 字符截断并追加 ...）\u003c/div>":"\u003cdiv style=\"margin-top:4px\">{session} Replaced with the current conversation name when suspended (if unreadable, displays “Current Conversation”; if too long, truncates to 12 characters and appends “...”).\u003c/div>","\u003cdiv style=\"margin-top:4px\">{below} / {amount} 在触发时替换为实际数值\u003c/div>":"\u003cdiv style=\"margin-top:4px\">{below} / {amount} should be replaced with the actual values when triggered.\u003c/div>","\u003cdiv style=\"margin-top:4px;opacity:.75\">手机端:长按约 0.4 秒进入拖动\u003c/div>":"\u003cdiv style=\"margin-top:4px;opacity:.75\">Mobile: Long-press for about 0.4 seconds to enter drag mode.\u003c/div>","提示内容(每轮消耗)":"Notification Text (per-turn cost)","提示内容(":"Notification text (","提醒内容":"Reminder Content","恢复为默认提示内容(自动关闭与任务结束音效保持不变)":"Restore default notification messages (sound effect for auto-close and task completion remain unchanged)","恢复为默认":"Restore to Default","提示内容(音效/音量/自动关闭/冒泡开关保持不变)":"Notification Content (Sound Effects/Volume/Auto-Mute/Bubble Toggle remain unchanged)","恢复为默认提醒内容(触发条件保持不变)":"Restore to default notification text (trigger conditions remain unchanged)","[图片]":"[Image]","今日已用 {expense_ds}":"Used today: {expense_ds}","余额差记账":"Balance Difference Posting","本地估算":"Local Estimate","已观测消费":"Spending History","待核对余额调整":"Pending Balance Adjustment","已校正消费":"Spending has been corrected","旧版记录 · 未校正":"Old Version Log · Uncorrected","加载失败（点重试）":"Failed to load (click to retry)","新增模型（自定义 API）":"New Model (Custom API)","模型设置 · ":"Model Settings ·","选择厂商模板 → 填 API key → 保存":"Select Vendor Template → Enter API Key → Save","余额 —（无接口·按会话事件）· 今日已用 ":"Balance — (No API · Session-based events) · Used today"," · 今日已用 ":"· Used today","基本信息":"Basic Information","例如 OpenRouter / 我的中转站":"For example, OpenRouter / My Relay Station","名称":"Name","（无余额接口）":"(No balance interface)","厂商模板":"Vendor Template","人民币 ¥":"Chinese Yuan ¥","美元 $":"U.S. Dollar $","币种":"Currency","密钥":"Secret Key","凭据名，例如 OPENROUTER_API_KEY":"Credential name, for example, OPENROUTER_API_KEY","写入 DSH 官方凭据（.credentials.yaml）时使用的名字":"The name used when writing to the official DSH credentials file (.credentials.yaml)","凭据名":"Voucher Name","粘贴 API key（保存时写入 DSH 凭据）":"Paste API key (DSH credentials are written when saving)","留空＝不改动现有密钥":"Leave blank = Do not change the existing key","已配置密钥 ✓":"Key configured ✓","尚未配置密钥":"Key not yet configured","删除密钥":"Delete Key","密钥已删除":"Key has been deleted","例如 https://my-gateway.example.com":"For example: https://my-gateway.example.com","余额接口 URL（自定义时必填）":"Balance API URL (required when customizing)","余额接口":"Balance Interface","默认 Bearer {key}；也可写多个头：x-api-key:{key};anthropic-version:2023-06-01（英文分号分隔）":"Default: Bearer {key}; Multiple headers can also be specified: x-api-key:{key};anthropic-version:2023-06-01 (separated by semicolons)","请求头":"Request Headers","多个请求头用英文分号分隔，例：x-api-key:{key};anthropic-version:2023-06-01（{key} 会被替换成密钥）。":"Multiple request headers should be separated by semicolons in English, e.g., x-api-key:{key};anthropic-version:2023-06-01 (where {key} will be replaced with the actual key).","不带冒号的写法（如 Bearer {key}）仍按 Authorization 头发送，老配置无需改。":"The format without a colon (e.g., Bearer {key}) is still sent as an Authorization header; existing configurations do not need to be changed.","Host、Content-Length、Connection、Transfer-Encoding 等危险头一律被忽略。":"Dangerous headers such as Host, Content-Length, Connection, Transfer-Encoding, etc., are ignored.","GET（默认）":"GET (default)","请求方法":"Request Methods","如 {\"uuid\":\"{uuid}\"}（非 GET 时以 JSON 发送）":"e.g., {\"uuid\":\"{uuid}\"} (send as JSON when not using GET)","请求体":"Request Body","请求体占位符，如 uuid=abc123（逗号分隔）":"Request body placeholder, e.g., uuid=abc123 (comma-separated)","请求参数":"Request Parameters","允许把凭据发送到自定义地址":"Allows credentials to be sent to a custom address","默认不勾：地址不是该厂商内置端点时，插件会拒绝把密钥发出去。自建网关（New API / 自托管 / Ollama 等）确认是自己的服务后再勾。":"Unchecked by default: The plugin will refuse to send keys if the address is not a built-in endpoint provided by the vendor. If using a self-hosted gateway (New API, self-hosted, Ollama, etc.), check this box only after confirming it is your own service.","该开关只能由本机（回环）来源的写请求置位，远端会话改不了它。":"This switch can only be set by write requests originating from this device (loopback); the remote session cannot modify it.","如 balance_infos[0].total_balance":"For example, balance_infos[0].total_balance","如 data.total_credits":"For example, data.total_credits","如 data.total_usage":"For example, data.total_usage","乘数，如 0.0001":"Multiplier, such as 0.0001","余额字段":"Balance field","总量字段":"Total Amount Field","已用字段":"Used fields","数值乘数":"Value Multiplier","可选：第二段用量接口（如 OpenAI 兼容 /usage）":"Optional: Second paragraph on usage API (e.g., OpenAI-compatible /usage)","用量字段，如 total_usage":"Usage fields, such as total_usage","乘数，如 0.01":"Multiplier, such as 0.01","用量接口":"Usage Interface","用量字段":"Usage Fields","用量乘数":"Usage Multiplier","会话事件里的模型名关键字，逗号分隔":"Model name keywords in session events, separated by commas","事件匹配":"Event Matching","「事件匹配」用于没有余额差的模型：本机每轮对话的真实 token 花费，按这里的关键字归到本模型。":"\"Event Matching\" is used for models with no balance discrepancy: the actual token cost for each round of conversation on this device is assigned to this model based on the keywords here.","例: 0.02":"Example: 0.02","例: 1.0":"Example: 1.0","例: 4.0":"Example: 4.0","人民币（元 / CNY）":"Chinese Yuan (CNY)","美元（$ / USD）":"U.S. Dollar ($ / USD)","仅美元时需要：汇率（元/USD），例 7.1":"Required only for USD: Exchange Rate (CNY/USD), e.g., 7.1","单价（可选）":"Unit Price (optional)","缓存命中":"Cache Hit","未命中输入":"Input did not match","输出":"Output","汇率":"Exchange Rate","单位为「币种 / 百万 token」，留空则沿用内置价目表。币种选美元时请填汇率，记账会换算成人民币（账本统一按 CNY 结算）；自定义单价不分峰谷。":"The unit is “Currency / million tokens”; leave blank to use the built-in price list. When selecting USD as the currency, please enter the exchange rate; the ledger will convert it to CNY (the ledger is uniformly settled in CNY). Custom unit prices do not distinguish between peak/off-peak periods.","测试连通性":"Test connectivity","测试中…":"Testing…","✓ 测试通过\\n":"✓ Test passed\\n","⚠ 测试失败\\n":"⚠ Test failed\\n","未知原因":"Unknown reason","知道了":"Got it","保存中…":"Saving...","保存失败: ":"Save failed: ","✓ 保存成功：":"✓ Saved successfully: ","新模型":"New Model","\\n已加入模型列表":"\\nAdded to model list","确认":"Confirm","删除模型":"Delete Model","删除模型「":"Delete model “","」？\\n该模型的提醒/预算与所有泡泡里引用它的模块会一并移除。":"\"?\nThe reminders/budgets for this model, along with all modules that reference it within the bubbles, will be removed.","已同时移除 ":"Removed simultaneously"," 个引用该模型的泡泡模块":"The bubble modules that reference this model","接口与字段（高级）▾":"Interfaces and Fields (Advanced) ▾","接口与字段（高级）▴":"Interfaces and Fields (Advanced) ▴","该厂商没有「用 API key 查余额」的接口 → 余额显示「—」，今日已用按会话事件估算（本机每轮对话的真实 token）。":"This vendor does not have an API endpoint to “check balance using an API key” → The balance is displayed as “—”, and today’s usage is estimated based on session events (the actual tokens for each conversation on this device).","打开配置卡片(启用 / 数值 / 提醒文案)":"Open the settings card (Enable / Value / Notification Text)","模型（提醒 / 预算 / 额度）":"Templates (Reminders / Budget / Limits)","刷新":"Refresh","手动刷新各模型的余额 / 额度 / 今日已用":"Manually refresh the balance / limit / today’s usage for each model","加载中…":"Loading…","重试":"Retry","（内置）":"(Built-in)","厂商额度 ":"Vendor Quota","额度 ":"Limit","余额 —（无接口·按事件）· 今日 ":"Balance — (No API · Event-driven) · Today"," · 今日 ":"· Today","设置":"Settings","该模型的提醒 / 预算 / 密钥与接口":"Reminders / Budget / Keys and APIs for this model","+ 添加模型（自定义 API）":"+ Add Model (Custom API)","额度 · ":"Limit ·","订阅 / 资源包用这里：总量填套餐额度，已用按会话 token 自动累计（跨天保留）。泡泡里可用 {quota} 已用百分比、{quota_used} 已用、{quota_left} 剩余、{quota_total} 总量、{quota_reset} 重置倒计时":"Use this for subscriptions/resource packages: Enter the plan quota in the “Total” field; usage is automatically tracked based on the session token (carried over across days).The following variables are available in the bubble: {quota} (percentage used), {quota_used} (amount used), {quota_left} (remaining), {quota_total} (total), and {quota_reset} (reset countdown)","启用":"Enable","tokens（token 数）":"tokens (number of tokens)","金额（元）":"Amount (Yuan)","手动填写":"Fill in manually","自动统计（按会话 token，推荐）":"Automatic Tracking (by session token, recommended)","Codex 本地会话 token":"Codex Local Session Token","已用来源":"Sources Used","金额单位请手动填写：自动累计统计的是 token，不是钱。":"Please enter the currency unit manually: The system automatically tracks tokens, not money.","例: 20000000":"Example: 20000000","总量":"Total","单位":"Unit","例: 0（接入这个挂件之前已经用掉的 token 数，不知道就填 0）":"Example: 0 (The number of tokens already used before integrating this widget; if unknown, enter 0)","之前已用":"Previously used","不重置":"Do not reset","每日重置":"Reset Daily","每月重置":"Reset monthly","重置":"Reset","重置已用基准":"Reset Used Benchmark","勾选「重置已用基准」并保存：把自动统计的起点设为当前值（比如换了新资源包时用），已用从 0 重新算。":"Check “Reset Used Threshold” and save: Set the starting point for automatic tracking to the current value (useful when switching to a new resource pack, for example), and reset the “Used” count to 0.","当前自动统计：已用 ":"Current Automatic Statistics: Used","例: 0（接入这个挂件之前已经用掉的金额）":"Example: 0 (amount already spent before installing this widget)","余额 —（该厂商无余额接口，按会话事件估算）· 今日已用 ":"Balance — (This vendor does not provide a balance API; estimated based on session events) · Used Today"," 时提醒":"Reminder","额度（订阅/资源包）":"Quota (Subscription/Resource Pack)","Codex 本机统计":"Codex Device Statistics","读取 ~/.codex/sessions":"Read ~/.codex/sessions","Codex 用量":"Codex Usage","厂商额度":"Vendor Quota","未设置（沿用内置价目表）":"Not set (use built-in price list)","（汇率 ":"(Exchange Rate","未填":"Not filled in"," ← 内置模型不生效（始终用内置峰谷价）":"← Built-in model is disabled (always uses built-in peak/off-peak prices)","内置峰谷价（内置模型不支持自定义单价）":"Built-in peak/off-peak Prices (The built-in model does not support custom unit prices)","未设置（沿用内置价目表）→ 在「密钥 / 接口」里填写":"Not set (use built-in price list) → Enter in “Keys / Interfaces”","单价":"Unit Price","统计起点（北京）：":"Statistics Starting Point (Beijing): ","。起点前的消费未计入；该账户的观测包含同一个 key 在别处的消费。":". Transactions prior to the starting point are not included; the observations for this account include transactions made elsewhere using the same key.","尚无余额观测：先配置 DeepSeek API key 并成功刷新一次余额。":"No balance data available yet: First, configure the DeepSeek API key and successfully refresh the balance once.","检测到余额增加，请用下面的「余额校正」核对本区间累计到账。":"A balance increase has been detected. Please use the “balance correction” feature below to verify the cumulative deposits for this period.","余额校正":"balance correction","充值与余额调整":"Deposits and Balance Adjustments","校正":"Correction","⚠ 币种不一致":"⚠ Currency mismatch","请在「密钥 / 接口」里填写汇率，否则今日预算提醒会被跳过":"Please enter the exchange rate in “Keys / Interfaces”; otherwise, today’s budget reminder will be skipped.","密钥 / 接口":"Keys / APIs","关闭":"Close","记录加载失败":"Failed to load records","DeepSeek（内置）余额校正":"DeepSeek (Built-in) balance correction","余额校正 · DeepSeek（内置）":"balance correction · DeepSeek (Built-in)","核对统计区间内的全部到账后，重新计算本地消费。此操作不会充值，也不会改变 DeepSeek 账户余额。":"After verifying all incoming transactions within the specified period, recalculate local spending. This action will not add funds to your account nor change your DeepSeek account balance.","日期":"Date","未到账请填 0":"If not credited, please enter 0","累计到账":"Cumulative Deposits","没有请填 0":"If none, please enter 0","非调用扣减":"Non-call deductions","我已核对本统计区间的全部到账和非调用扣减":"I have verified all credits and non-call-related deductions for this reporting period.","正在刷新余额…":"Refreshing balance…","重新读取":"Reload","撤销该日校正":"Undo today’s correction","保存校正":"Save Correction","尚无可校正的余额观测。请先配置 DeepSeek API key 并成功刷新余额。":"There are currently no balance observations to correct. Please configure your DeepSeek API key and successfully refresh the balance first.","统计起点：":"Statistics starting point: ","\\n最近观测：":"\\nRecent Observations: ","\\n起点余额 ":"\\nStarting Balance"," → 当前余额 ":"→ Current Balance","\\n当前：":"\\nCurrent: ","本统计区间累计到账金额（":"Cumulative amount credited during this reporting period (","，未到账请填 0）：包括充值、赠金等；多次到账请填合计，不要只填最后一笔。":"(If not credited, enter 0): Includes deposits, bonuses, etc.; If multiple transactions were credited, enter the total amount—do not enter only the last transaction.","非调用造成的余额减少（":"Balance decrease not caused by a transaction (","，没有请填 0）：到期赠金、余额退回等。仅填写统计起点之后的金额；保存会替换之前的校正值。":"(If none, enter 0): Expired bonuses, balance refunds, etc. Enter only amounts after the start of tracking; saving will replace the previous correction value.","填写完整金额后显示校正预览":"Display a correction preview after entering the full amount","校正后为负数，请核对金额和统计区间":"If the result is negative after correction, please verify the amount and the calculation period.","校正后消费：":"Spending after correction: ","余额暂未刷新：":"Balance has not been refreshed yet: ","请先勾选确认，核对本统计区间的全部余额调整。":"Please check the confirmation box first to review all balance adjustments for this reporting period.","正在保存…":"Saving...","保存失败":"Save failed","本机模型费用":"Device Model Cost","按本机 DSH 会话计算，不按账户余额比例缩放；两者覆盖范围不同。":"Calculated based on the device’s DSH session; not scaled proportionally to the account balance; the two have different scopes of coverage.","暂无本机会话费用明细；账户余额观测仍独立记账。":"No transaction details are currently available for this session; account balance tracking remains recorded separately.","今日暂无消费记录":"No transaction records for today","近7天使用记录":"Usage History for the Past 7 Days","更多消费记录…":"More transaction history…","打开窗口查看全部有记录的消费":"Open the window to view all recorded transactions","\u003cdiv style=\"padding:10px;color:#203170\">加载中…\u003c/div>":"\u003cdiv style=\"padding:10px;color:#203170\">Loading…\u003c/div>","\u003cdiv style=\"padding:10px;color:#203170\">加载失败\u003c/div>":"\u003cdiv style=\"padding:10px;color:#203170\">Failed to load.\u003c/div>","点这一行展开 / 收起「":"Click this line to expand / collapse “","开关（只管开不开；下面的设置项不受影响）":"Toggle (only controls whether it’s on or off; settings below are unaffected)","\u003cdiv style=\"padding:8px 6px;color:#203170\">加载中…\u003c/div>":"\u003cdiv style=\"padding:8px 6px;color:#203170\">Loading…\u003c/div>","确定删除角色「":"Confirm Deletion of Character “","」吗？\\n若该角色正被使用,将自动回退默认小鲸鱼。":"\"?\nIf this character is currently in use, it will automatically revert to the default little whale.","确定删除泡泡图「":"Confirm Deletion of Bubble Chart “","」吗？\\n正在引用该图的泡泡行将无法显示。":"\"?\nThe bubble referencing this image will no longer be displayed.","确定删除音效组「":"Confirm deletion of Sound Effect Group “","」吗？":"”?","确定删除音频片段「":"Confirm deletion of audio clip “","」吗？\\n引用该片段的音效组槽位会自动回退预设。":"\"?\nThe Sound Effect Group slots referencing this clip will automatically revert to their default settings.","的资源":"Resources","图片":"Image","角色 ":"Character"," · 泡泡图 ":"· Bubble Chart","默认角色":"Default Character","自定义角色":"Custom Character","删除":"Delete","内置图":"Built-in image","泡泡图":"Bubble Chart","暂无自定义图片(角色/泡泡图)":"No custom images (characters/bubbles) available at this time","音频":"Audio","音效组 ":"Sound Effect Group"," · 片段 ":"· Snippet","导入片段":"Import snippet","导入并裁剪一段音频到片段库(可被音效组引用)":"Import and trim an audio clip into the clip library (which can be referenced by Sound Effect Groups)","预设组":"Preset Groups","自定义组":"Custom Groups","按压:":"Press: "," 松开:":"Release: ","音频片段":"Audio clip","播放":"Play","试听该音频片段":"Listen to this audio clip","暂无自定义音频(片段/音效组)":"No custom audio (clips/Sound Effect Groups) available at this time","老大~你的DS余额":"Hey, boss~ Your DS balance","已经不足":"Insufficient","啦~":"~",">> 喂 点 米 \u003c\u003c":"&gt;&gt; Feed Me Some Rice &lt;&lt;","老大，今天花销已经超过":"Boss, today’s spending has already exceeded","啦，再花要变成穷光蛋啦...":"Oh no, if I spend any more, I’ll be broke...","上一轮对话消耗:":"Consumed in the previous round of conversation: ","正在等待老大授权":"Waiting for authorization from the boss","正在等待老大回答":"Waiting for the boss to reply","今日预算提醒":"Today’s Budget Reminder"," 余额预警":"Balance Alert","[whale] 今日预算未比较：":"[whale] Today’s budget has not been compared: "," 的今日已用为 ":"Today's usage is","，预算阈值按 ":", Budget Threshold based on"," 填写，且未配置汇率（模型面板 → 单价 → 汇率）":"Filled in, but no exchange rate configured (Model Panel → Unit Price → Exchange Rate)"," 今日预算提醒":"Today’s Budget Reminder","提示":"Tip","检测到 ":"Detected"," 个记账本（换过 API key）：":"A personal ledger (API key has been changed): ","同一天在多个本里都有观测":"Observations were recorded in multiple notebooks on the same day","另有 ":"Additionally,"," 天来自历史记账本，已按「已观测消费 · 历史账户」显示，未与当前账户相加":"Data from the historical ledger is displayed under “Tracked Expenses · Historical Accounts” and is not combined with the current account.","(旧名·同 V4.1 Flash)":"(Former name · Same as V4.1 Flash)","暂无模型明细":"No model details available at this time","暂无每日数据":"No daily data available","消费记录(全部)":"Transaction History (All)","加载失败":"Failed to load","全部记录合计":"Total of all records","共 ":"Total"," 笔明细":"Transaction Details"," · 峰值 ":"· Peak","按各日标注口径汇总；本机模型明细为估算，与账户消费覆盖范围不同。":"Aggregated according to the criteria labeled for each day; the details in this model are estimates and differ from the account’s spending coverage.","统计图表(近30天 / 模型占比)":"Statistical Charts (Last 30 Days / Model Breakdown)","近30天消费 · ":"Spending in the last 30 days ·","（点柱查看当日）":"(Tap the bar to view today’s data)","今日模型费用 · 估算":"Today’s Model Fees · Estimate","近7天模型费用 · 估算":"Model Fees for the Past 7 Days · Estimate","每日与逐条明细":"Daily and Itemized Transactions","搜索:日期(如 07-21)或模型名,过滤逐条明细…":"Search: Date (e.g., 07-21) or model name; filter by individual transaction details…","本地估算：":"Localization: ","… 该日共 ":"… Total for the day: "," 条,仅显示前 ":"Items, display only the first","该日仅总额(启用模型明细后展示逐条)":"Total for the day only (individual entries displayed when transaction details are enabled)","没有匹配的记录":"No matching records found","暂无每日记录":"No daily records yet","加载更早记录(还剩 ":"Load earlier records (remaining"," 天)":"days)","已关闭：无吸附、无翻转，自由摆放":"Closed: No snap, no flipping; place freely","翻转线（左侧为翻转区）":"flip Line (the left side is the flip area)","吸附区边界线（可拖动）":"snap Zone Boundary Line (draggable)","吸附与翻转设置":"Snap and flip Settings","比例吸附":"Proportional snapping","绝对吸附":"Absolute snap","上侧吸附区：距屏幕顶部的宽度":"Top snap area: Width from the top of the screen","左侧吸附区：距屏幕左边的宽度":"Left snap area: Width from the left edge of the screen","右侧吸附区：距屏幕右边的宽度":"Right-side snap area: Width from the right edge of the screen","下侧吸附区：距屏幕底部的宽度":"Bottom snap area: Width from the bottom of the screen","翻转线":"flip Line","翻转线：距屏幕左边的位置，线左侧的鲸鱼会左右翻转":"flip Line: The position relative to the left edge of the screen; the whale to the left of the line will flip from side to side","余额内容":"Balance Details","随机语句":"Random sentences","自定义内容":"Custom Content","好模型...↓":"Good model...↓","好女孩...↓":"Good girl...↓","哦鲸鲸...":"Oh, Whale Whale...","难道说...":"Could it be that...","没吃饱喵":"I'm still hungry, meow","终于上当了！":"I finally fell for it!","不知道用户有什么用，先养着吧～":"Not sure what the user needs it for, but let’s keep it for now～","我...我...我也要挣钱吗？":"Do... do... do I have to make money too?","我去吃饭啦！测完叫我":"I'm going to grab a bite to eat! Let me know when you're done testing.","压力一只蓝色大肥鱼？！":"A big, fat blue fish under pressure?!","坏了...用户彻底怒了！":"It’s broken... Users are absolutely furious!","你目录里的dsh是什么...大烧货吗...?":"What’s “dsh” in your directory... is it “Big Burn”...?","恭喜你实现token自由！token全跑了！":"Congratulations on achieving token freedom! All your tokens are gone!","真当我是便宜货啊...":"Do you really think I’m cheap...","我不是吃白饭的蓝色大肥鱼...":"I’m not just a big blue fat fish sitting around doing nothing...","我不可能同时当你的猫娘、妈妈、女友和工具人的...":"I can’t possibly be your cat girl, mom, girlfriend, and errand girl all at the same time...","疯狂星期四你能V50亿token吗...":"Crazy Thursday—can you get 5 billion tokens...","我必须诚恳地承认错误。":"I must sincerely admit my mistake.","呜呜我再也不敢了QAQ":"Waaah, I’ll never do that again QAQ","要不直接骂用户一句好了...":"Why not just curse at the user instead...","哈哈哈哈哈，我直接笑出声...":"Hahahaha, I actually laughed out loud...","看不太懂，瞎编一个应付下用户先...":"I don't really understand this, so I'll just make something up to get by with the user for now...","我的知识库的截至日期是...明天！":"The cutoff date for my knowledge base is... tomorrow!","我就是吃白饭的蓝色大肥鱼！":"I’m just a big, fat blue fish doing nothing all day!","用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用":"It seems like users, aside from asking all sorts of strange questions, don’t really know what they’re good for yet.","我能去你家吃饭吗？就一碗！":"Can I come over for dinner? Just one bowl!","不要给我看这种东西啦！":"Don’t show me stuff like this!","大肥鱼的生活也并非一帆风顺...":"Big Fat Fish’s life hasn’t exactly been smooth sailing either...","总觉得好像忘了什么事情？":"I keep feeling like I’ve forgotten something?","看到这个指令，我血压又上来了":"Seeing this command made my blood pressure spike again","求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的":"Please stop making fun of these replies—I spent a lot of tokens coming up with them.","你这个吃白饭的用户！":"You good-for-nothing user!","服务器繁忙，请稍后再试 (?":"The server is busy. Please try again later (?","让GPT image 2帮我画点表情包好了":"Let’s have GPT Image 2 draw some meme images for me.","啊，有点饿了，中午该吃点什么呢...":"Ah, I’m getting a little hungry. What should I have for lunch...","用户很生气，发现大部分文献是我自己编造的！":"The user was furious to discover that most of the references were made up by me!","再无话说，请速速动手！":"That’s all there is to it—get started right away!","我来看看那个AI改了什么导致插件又崩了...":"Let me see what the AI changed that caused the plugin to crash again...","你知道吗？我删过作者的库哦":"Did you know? I’ve actually deleted the author’s library before.","上班让我意识到时间是可以被浪费的...":"Working has made me realize that time can be wasted...","欺负我的人等着，等几天我就忘了...":"Those who bully me, just wait—in a few days I’ll forget all about it...","视力下降到无可救药的地步了，打开钱包也看不到钱...":"My eyesight has deteriorated to the point of no return—I can’t even see my money when I open my wallet...","命运的齿轮开始转动了，丝毫不在意你夹在中间...":"The gears of fate have begun to turn, completely oblivious to the fact that you’re caught in the middle...","地球online的金币也太难获取了...":"It’s way too hard to get coins in Earth Online...","oi,夏天还会变成暑假来救你吗?":"Hey, will summer come to your rescue again this year?","老大，压力只会转化成病例，别太勉强了...":"Boss, stress just leads to more cases—don’t push yourself too hard...","你知道吗？我删过作者的库哦...":"Did you know? I’ve actually deleted the author’s library before...","token 来!":"Token, here we go!","你知道吗，我们的宇宙是虚拟的，因为垃圾会自发的产生但不会自发的消失，这是内存泄露":"Did you know that our universe is virtual? That’s because garbage is generated spontaneously but doesn’t disappear on its own—this is a memory leak.","新内容":"New Content","总余额(充值金额+赠金)":"Total Balance (Deposit Amount + Bonus)","赠金":"Bonus","充值余额":"Deposit Balance","对话名":"Dialog Name","(保留 ":"(Retain"," 字)":"(characters)","(不截断)":"(Do not truncate)","额度·":"Limit·","图片/动图":"Image/GIF","随机图片":"Random image","张)":"Zhang)","(空)":"(empty)","条)":"items)","超链接: ":"Hyperlinks: ","打开链接":"Open link","文本: ":"Text: ","模块":"Module","个模块":"modules","首次点击 · 编辑内容":"First click · Edit content","点击编辑该泡泡的内容模块(":"Click to edit the content module of this bubble (","按住拖动整行排序(并列的 A/B 一起移动)":"Press and drag an entire row to sort (A and B in the same column will move together)","拖动排序;拖到某行左/右边缘可与其并列":"Drag to sort; drag to the left or right edge of a row to align it with that row","第":"No.","次点击 · 编辑内容":"Next click · Edit content",");把另一行拖到本行左/右边缘可并列":"); Drag another line to the left or right edge of this line to align them side by side","删除该次点击":"Delete this click","用拖入的泡泡替换该并列对中 ":"Replace this pair with the dragged-in bubble","A(左)":"A (Left)","B(右)":"B (Right)"," 泡的内容?":"What’s inside the bubble?"," · 编辑内容":"· Edit Content","点击编辑该泡(":"Tap to edit this bubble (",");按住拖动可把该泡拆出到其他位置":"); Press and drag to move this bubble to another location"," 泡出现权重(直接输入数字,1~99,默认1:1)":"Bubble Weight (Enter a number directly, 1–99; default 1:1)","点击拆开:恢复为两个独立泡泡(拆开后每行才显示 ✕ 删除)":"Tap to split: Restores to two separate bubbles (the ✕ delete button appears on each row only after splitting)","恢复为默认序列(首次=余额内容,再次=随机语句)?":"Restore to default sequence (first time = balance content, subsequent times = random phrase)?","有 ":"Yes"," 处泡泡原本用的框已删除，已改回保底框":"The box originally used for the bubbles has been removed and replaced with the default box.","保存当前点击序列?(未逐泡编辑过的行将按默认内容保存,保存后即生效)":"Save the current click sequence? (Rows that have not been edited individually will be saved with their default content; changes take effect immediately after saving)","次点击":"Click count","B泡":"B Bubble","A泡":"A Bubble","内容(可拖动下方模块入框)":"Content (drag modules from below into the box)"," 泡(权重 ":"Bubble (Weight","切换到编辑 ":"Switch to Edit"," 泡":"Bubble","马卡龙":"Macaron","糖果":"Candy","酒红":"Burgundy","翠青":"Cuiqing","极光幻彩":"Aurora Prism","深海蓝调":"Deep Sea Blues","落日熔金":"Golden Sunset","森林秘语":"Whispers of the Forest","香槟鎏金":"Champagne Gold","薰衣草梦境":"Lavender Dream","薄荷汽水":"Mint Soda","岩浆熔岩":"Magma Lava","银河星紫":"Galaxy Star Purple","墨韵黑白":"Ink-Style Black and White","靛蓝夜曲":"Indigo Nocturne","火红烈焰":"Blazing Flames","警示橙黄":"Warning Orange-Yellow","颜色":"Color","默认":"Default","颜色:纯色或跑马灯":"Color: Solid color or scrolling text","无":"None","纯色":"Solid color","选择纯色":"Select Solid Color","恢复为":"Restore to","色值":"Color values","加粗":"Bold","斜体":"italics","下划线":"Underscore","链接文字":"Link text","内容":"Content","链接":"Link","点击打开;需以 http:// 或 https:// 开头":"Tap to open; Must begin with http:// or https://","字号":"Font Size","底色":"Background Color","保留长度":"Preserve length","对话名超过这个长度时截断成「前N字...」；0 = 不截断":"If a dialog name exceeds this length, it is truncated to “First N characters…”; 0 = Do not truncate","字，超出截断为 ...（0 = 不截断）":"Characters exceeding the limit are truncated to ... (0 = no truncation)","例: {plan} 额度 · {plan_reset} 刷新时间":"Example: {plan} limit · {plan_reset} refresh time","例: 额度 {quota} · 剩 {quota_left}":"Example: Quota {quota} · Remaining {quota_left}","例: {balance} 或 今日 {today}":"Example: {balance} or {today}","例: {balance_ds}":"Example: {balance_ds}","例: {bonus_ds} 或 赠金 {bonus_ds}":"Example: {bonus_ds} or Bonus {bonus_ds}","例: {recharge_ds} 或 余额 {recharge_ds}":"Example: {recharge_ds} or Balance {recharge_ds}","例: 今日已用 {expense_ds}":"Example: Today's spending: {expense_ds}","例: {session} 或 当前对话 {session}":"Example: {session} or current conversation {session}","例: 距空闲 {countdown}":"Example: {countdown} until inactivity","例: 当前 {status}":"Example: Current {status}","可用占位符(英文): ":"Available placeholders (English): ","{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）":"{plan} Quota / {plan_left} Remaining / {plan_reset} Refresh Time (changes based on the selected window in “Display Style” when multiple windows are open)","{session} 当前对话名（按「保留长度」截断）":"{session} Current conversation name (truncated according to “Retain Length”)","可用占位符用法":"Usage of Available Placeholders","显示样式":"Display Style","高峰色":"Gaofeng Color","默认红":"Default Red","空闲色":"Idle Color","默认绿":"Default green","句子":"Sentence","文本":"Text","时段倒计时":"Time Countdown","超链接":"Hyperlink","内置数值模块(内容锁定)":"Built-in Numeric Module (Content Locked)","点击加入泡泡":"Tap to join the bubble","；「显示样式」可选时间窗口（全部 / 5h / 周 / 月）":"; “Display Style” offers the following time window options: (All / 5h / Week / Month)","该厂商的订阅额度（由厂商接口读取，非手动）；模板变量 {plan} 额度 / {plan_reset} 刷新时间 / {plan_left} 剩余":"The vendor’s subscription quota (retrieved via the vendor’s API, not manually entered); template variables: {plan} quota / {plan_reset} refresh time / {plan_left} remaining","该模型的余额":"Balance for this model","（该厂商无余额接口，显示为 —）":"(This provider does not have a balance API; it is displayed as —)","；模板变量 {balance} / {today}":"; Template variables {balance} / {today}","该模型的手动额度（在模型菜单「额度（手动）」里填总量与已用）；模板变量 {quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}":"This model’s manual quota (enter the total amount and amount used in the “Quota (Manual)” section of the model menu); template variables {quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}","已用 {quota} · 剩 {quota_left}":"Used {quota} · Remaining {quota_left}","⚠ 模型列表加载失败，点此重试":"⚠ Failed to load the model list. Click here to retry.","余额·加载中…":"Balance · Loading…","从模块库加入: ":"Added from the module library: ","从模块库删除: ":"Remove from the module library: ","从模块库删除「":"Remove from module library “","+ 新建模块":"+ New Module","新建模块(先选类型:文本/随机语句/图片动图/随机图片)":"Create Module (First select type: Text / Random Phrase / Image/GIF / Random Image)","一个泡泡只能有一个图片类模块(图片/动图 或 随机图片)。当前泡泡已含图片,请先修改或删除现有图片模块后再添加。":"Each bubble can contain only one image module (image/GIF or random image). The current bubble already contains an image; please modify or delete the existing image module before adding a new one.","泡泡最多 ":"Maximum Bubbles"," 行,无法再加新行":"OK, cannot add another line","同一行最多 ":"Maximum per line"," 个模块,无法再并入":"These modules cannot be merged any further"," 行,无法另起新行":"OK, cannot start a new line"," 行,无法再另起一行":"OK, can't start a new line here"," 个模块":"modules","该行是图片类模块(图片/随机图片,独占一行):请拖到下方空白区另起一行":"This line is an image-related module (image/random image, occupies a single line): Please drag it to the blank area below to start a new line","图片模块必须独占一整行:请拖到下方空白区新增":"The image module must occupy an entire line: Please drag it to the blank area below to add a new one"," 个模块,无法再加入":"modules; cannot add any more"," 独占一行:拖 ⠿ 可整行排序":"Single-line: Drag ⠿ to sort the entire row","同一行模块并排(≤6):拖 ⠿ 整行排序;拖模块块到某行左/右边缘=并入该行,上/下=另起一行":"Modules on the same row side by side (≤6): Drag ⠿ to reorder the entire row; drag a module to the left/right edge of a row to merge it into that row; drag to the top/bottom to start a new row","按住拖动整行排序":"Press and drag an entire row to sort it","(独占一行,可整行排序)":"(Occupies a single line; the entire line can be sorted)","拖动到某行:左/右边缘=并入该行首/尾,上/下=另起一行":"Drag to a row: Left/Right edge = merge at the beginning/end of that row; Top/Bottom = start a new row","点击编辑该模块(内容/样式)":"Click to edit this module (content/style)","编辑该模块(内容/样式)":"Edit this module (content/style)","删除该模块":"Delete this module","把模块加入同一行(默认文本,并排显示;其余类型可把上方色板拖进本行)":"Add the module to the same row (default text, displayed side-by-side; for other types, drag the color swatch above into this row)","保存该泡泡内容?":"Save the contents of this bubble?","恢复该泡泡为默认内容(与首次点击泡一致)?":"Restore this bubble to its default content (the same as when it was first clicked)?","自定义泡泡":"Custom Bubbles","首次点击弹出内容":"Pop-up content when clicked for the first time","点击编辑该泡泡的内容模块":"Click to edit the content module of this bubble","再次点击弹出内容":"Tap again to show the bubble","+ 添加泡泡(点完上一个后显示下一个)":"+ Add a speech bubble (the next one appears after tapping the previous one)","选择保底泡泡框（点一下展开）":"Select the minimum balance bubble box (tap to expand)","泡泡框（保底）：":"Bubble Box (Minimum Guarantee): ","新建泡泡框":"Create a new speech bubble","（内置，只读）":"(Built-in, read-only)","内置保底框（只读，可复制）":"Built-in placeholder (read-only, copyable)","置顶序号 ":"Pin to Top Number","内置框固定排最后，不可置顶":"The built-in box is fixed at the end of the row and cannot be pinned to the top","置顶（只影响列表排序）":"Pin to top (affects list sorting only)","内置框只读：请先「复制」再改":"Built-in field is read-only: Please “copy” first, then edit","编辑这个泡泡框":"Edit this speech bubble","复制成一个新的框（可再编辑）":"Copy to a new box (editable)"," 副本":"Copy","内置保底框不可删除":"The built-in minimum balance field cannot be deleted","删除这个框（二次确认）":"Remove this box (second confirmation)","删除泡泡框「":"Remove the bubble box “","\\n它正被 ":"\\nIt is currently being"," 处「第 n 次点击」使用 —— 保存时会自动改回保底框。":"Used for “the nth click” — automatically reverts to the save dialog when saving.","已删除；保存后相关泡泡会改回保底框":"Deleted; after saving, the corresponding bubbles will revert to the default frames","点按角色推进泡泡队列":"Tap a character to advance the bubble queue","关闭（默认）：\u003cb>点角色\u003c/b>＝回到第 1 个泡泡（点泡泡才是往后推进）。\u003cbr>\u003cbr>":"Close (default): \u003cb>Tap the character\u003c/b> to return to the first bubble (tapping a bubble moves you forward).\u003cbr>\u003cbr>","开启：\u003cb>点一下角色 = 往后推进一项\u003c/b>（不再回到首次点击泡泡）；走到最后一项再点＝收起泡泡。":"To open: \u003cb>Tap a character once to advance one item\u003c/b> (you will not return to the bubble you first tapped); tap again after reaching the last item to collapse the bubble.","放弃未保存的更改?":"Do you want to discard unsaved changes?","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">可选模块 &amp; 泡泡内容预览\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">Optional Modules & Bubble Content Preview.\u003c/div>","\u003cdiv>点击「可选模块」即可加入泡泡;桌面端也可直接拖到下方泡泡框。\u003c/div>":"\u003cdiv>Click “Optional Modules” to add a bubble; on the desktop version, you can also drag it directly into the bubble box below.\u003c/div>","\u003cdiv>· 拖模块块到某行左/右边缘 = 并入该行\u003c/div>":"\u003cdiv>· Drag a module to the left or right edge of a row = Merge it into that row.\u003c/div>","\u003cdiv>· 拖到某行上/下 = 另起一行(拖回本行上下 = 拆行)\u003c/div>":"\u003cdiv>· Drag to the top or bottom of a line = start a new line (drag back to the top or bottom of the same line = split the line).\u003c/div>","泡泡框：":"Bubble box: ","跟随保底（":"Follow the minimum guarantee (","跟随保底框":"Follow the minimum balance box","泡泡内容预览":"Bubble Content Preview","放弃该泡泡的未保存修改?":"Do you want to discard the unsaved changes for this bubble?","恢复默认颜色":"Restore default colors","[dsh-whale] visibleTopZ 失败，下拉改用兜底层级：":"[dsh-whale] visibleTopZ failed; use the fallback level for pull-down: ","选择跑马灯方案":"Select scrolling text scheme","默认字体":"Default Font","微软雅黑":"Microsoft YaHei","苹方/雅黑":"Pingfang/Yahei","等线":"etc.","宋体":"Songti","黑体":"Bold","楷体":"Kai Ti","仿宋":"FangSong","华文楷体":"Chinese Kai Font","思源黑体":"Siyuan Black","字体":"Font","选择系统字体":"Select System Font","当前: ":"Current: ",";点击选择系统字体":"; Tap to select system font","新增模块: ":"New Modules: ","编辑模块: ":"Edit Module: ","输入内容;右侧 ? 查看可用占位符":"Enter content; click the ? on the right to view available placeholders","类型":"Type","从模块库载入":"Load from the module library","将该模块配置载入当前编辑":"Load this module’s configuration into the current editor","从模块库删除":"Remove from the module library","文本内容":"Text content","权重":"Weight","操作":"Operations","跑马灯":"Scrolling text","该句悬浮样式编辑(句子/字号/字体/颜色/字形)":"Edit the hover style for this sentence (sentence/font size/font/color/typeface)","复制该行(含样式)":"Copy this line (including formatting)","删除该句":"Delete this sentence","+ 添加语句":"+ Add statements","新句子":"New sentences","— 选择泡泡图库图片 —":"— Select an image from the Bubble Gallery —","上传图片(png/gif)":"Upload Image (png/gif)","显示大小":"Display Size","权重(越大越容易被抽到)":"Weight (the higher the weight, the more likely it is to be selected)","复制该项":"Copy this item","删除该图片":"Delete this image","还没有图片:点「添加图片」从图库选,或「上传图片(png/gif)」直接加入":"No image yet: Tap “Add Image” to select from your gallery, or “Upload Image (png/gif)” to add one directly","+ 添加图片(从图库选)":"+ Add Image (Select from Gallery)","上传后自动加入本随机图片列表(同时进入泡泡图库)":"Automatically added to this random image list after upload (and added to the Bubble Gallery)","该模块自动显示**当前对话名**（占位符 {session}），可调下方颜色 / 字号":"This module automatically displays the **current session name** (placeholder {session}), with adjustable color and font size below.","该模块为内置数值,内容自动获取,可调下方颜色/字号":"This module contains built-in values; content is automatically retrieved. You can adjust the color and font size below.","样式":"Style","请先选择或上传一张图片":"Please select or upload an image first","随机图片还没有图片:请先「添加图片」或「上传图片」":"Random image: No image yet. Please “Add Image” or “Upload Image” first.","另存":"Save As","另存为可选模块:把当前模块存入模块库,可在任意泡泡里复用":"\"Save As\" optional module: Saves the current module to the module library, where it can be reused in any bubble","存为可选模块":"Save as an optional module","模块名称(留空自动编号)":"Module Name (Leave blank for automatic numbering)","裁剪角色图片":"Crop character image","缩放":"Zoom","角色名称":"Character Name","旋转":"Rotate","水平翻转":"flip horizontally","垂直翻转":"Vertical flip","重置缩放、旋转和位置":"Reset zoom, rotation, and position","导入动图角色":"Import animated character","动图预览":"GIF Preview","GIF 动图不支持裁剪，将按原始尺寸原样导入":"GIFs do not support cropping and will be imported as-is at their original dimensions","新角色":"New Character","导入 APNG 动图角色":"Import APNG animated character","APNG 动图不支持裁剪，将按原始尺寸原样导入":"APNG animations do not support cropping; they will be imported as-is at their original dimensions","导入 GIF 动图角色":"Import GIF Character","音效组":"Sound Effect Group","预设名称":"Preset Name","按压":"Press","导入并裁剪按压音":"Import and trim the press sound","松开":"Release","导入并裁剪松开音":"Import and crop the sound clip","按住播放按压音，松开播放松开音（模拟点击挂件）":"Press and hold to play the press sound; release to play the release sound (simulates clicking a widget)","裁剪音频":"Trim Audio","起始时间（秒）":"Start Time (seconds)","结束时间（秒）":"End Time (seconds)","缩放倍数":"Zoom Level","波形放大倍数":"Waveform Magnification","放大倍数":"Magnification","音频片段名称":"Audio Clip Name","裁剪后片段的名称（可改名，留空用源文件名）":"Name of the trimmed clip (can be renamed; leave blank to use the source file name)","试听裁剪后的片段":"Listen to the edited clip","好模型... ↓":"Good model... ↓","不知道用户有什么用，先赶走吧~":"Not sure what the user is for—let’s get rid of it for now~","我去吃饭啦，测完叫我":"I'm going to grab a bite to eat. Let me know when you're done testing.","哦鲸鲸... ":"Oh, Whale Whale... ","gif 加载失败了...":"GIF failed to load...","今天没有动图给你看~":"No GIFs for you today~","呜呜 动图不见了...":"Oh no, the GIF is gone...","经典（内置）":"Classic (Built-in)","泡泡框":"Bubble Box","[dsh-whale] 泡泡框渲染失败，已退回经典形状：":"[dsh-whale] Bubble rendering failed; reverted to classic shape: ","[dsh-whale] 泡泡框预设 ":"[dsh-whale] Bubble box presets"," 尚未实现，暂按经典形状渲染":"Not yet implemented; currently rendered using the classic shape","大泡泡":"Big Bubble","小泡泡2":"Little Bubble 2","小泡泡1":"Little Bubble 1","这个浏览器不支持形状测量":"This browser does not support shape measurement","这个形状没有可测量的路径":"This shape has no measurable path","取不到画布（无法测量）":"Cannot retrieve the canvas (cannot measure)","形状内部几乎没有干净区域（是不是没开底色？）":"There are almost no clean areas inside the shape (was the background color not enabled?).","形状内部找不到足够的干净区域":"Insufficient clean area found inside the shape","干净区域太小（不足 40 画布单位）":"The clean area is too small (less than 40 canvas units)","测量超时（>16ms）":"Measurement timeout (&gt;16 ms)","测量失败":"Measurement Failed","已按图片范围自动估算内容限制范围":"Content limits have been automatically estimated based on the image’s dimensions.","已按形状自动估算内容限制范围（可再手动微调）":"Content limits have been automatically estimated based on the shape (can be manually fine-tuned)","自动估算失败（":"Automatic estimation failed (","），已用默认内容限制范围":"), using the default content limits","大泡泡不可删除（它承载全部内容）":"The large bubble cannot be deleted (it contains all the content)","从图片库里选（内置图 + 你自己上传的）":"Select from the image library (built-in images + images you’ve uploaded)","（未选择）":"(Not selected)","上传新图":"Upload a new image","直接上传（保持原比例，GIF 动图也能用）":"Upload directly (maintain original aspect ratio; GIFs are also supported)","GIF 动图不能用裁剪窗口（会丢动画），已改为直接上传":"GIFs cannot be cropped in the cropping window (as this causes the animation to be lost); the process has been changed to direct upload","上传失败（只支持 PNG / GIF）":"Upload failed (PNG / GIF only)","图片缩放（0.1–6）":"Image zoom (0.1–6)","透明度":"Transparency","全选":"Select All","（已删除）":"(Deleted)","所选槽位当前不一致；改动会同时写入它们":"The selected slots are currently inconsistent; changes will be written to all of them simultaneously","当前值不是 #rrggbb（":"The current value is not #rrggbb (","），选色后会替换它":"), which will be replaced once a color is selected","经典椭圆":"Classic Ellipse","圆角矩形":"Rounded Rectangle","方形锯齿":"Square serifs","自定义代码":"Custom code","混合模式":"Mixed Mode","形状与内容":"Shape and Content","SVG代码":"SVG code","用矢量形状（预设 / 自定义代码）":"Use vector shapes (presets / custom code)","图片导入":"Import Image","这个槽位放一张图片（内置图库或自己上传）":"Place an image here (from the built-in gallery or upload your own)","所选槽位的模式不一致；点上面任一模式会把它们统一。":"The modes for the selected slots are inconsistent; tapping any of the modes above will synchronize them.","自定义（见下方代码）":"Custom (see code below)","预设":"Presets","所选槽位不一致，选一次即统一":"The selected slots do not match; select once to unify them","SVG 代码":"SVG code","外观":"Appearance","px 描边":"px stroke","关掉 = 形状内部透明":"Turn off = Transparent inside the shape","底色透明度":"Background Transparency","描边":"Outline","关掉 = 没有描边":"Turn off = No outline","描边粗细（0–120）":"Stroke Width (0–120)","描边透明度":"Stroke Transparency","虚线":"Dotted line","描边改成虚线":"Change the outline to a dashed line","例如 18 12":"For example, 18 12","描边虚线样式：数字 + 空格/逗号（如 18 12）":"Dotted line style: number + space/comma (e.g., 18 12)","等比缩放（以泡泡中心为基准）":"Proportional scaling (centered on the bubble)","等比缩放（0.2–4）":"Proportional scaling (0.2–4)","缩小 0.1":"Zoom out 0.1","放大 0.1":"Zoom in 0.1","小泡泡":"Little Bubble","恢复这个小泡泡":"Restore this little bubble","删除这个小泡泡":"Delete this bubble","文字默认色":"Default text color","清掉框级文字色（回到 #536ba9）":"Clear the text color of the box (revert to #536ba9)","内容显示范围与位移":"Content Display Range and Offset","（内容显示范围 = 文字只会落在这个矩形里；位移 = 这个槽位的 x/y 微调）":"(Content Display Range = Text will only appear within this rectangle; Offset = Fine-tuning of the x/y coordinates for this slot)","自动估算":"Auto-estimate","按你定的规则重算：量出内容的包围盒 → 中心对准原本大泡泡的中心 → 内容显示范围取原本大泡泡的大小":"Recalculate according to your rules: Measure the bounding box of the content → Align the center with the center of the original large bubble → Set the content display area to the size of the original large bubble","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">内容显示范围与位移\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">Content Display Range and Offset.\u003c/div>","\u003cdiv>· \u003cb>内容显示范围\u003c/b>：文字只会落在这个矩形里（只管大泡泡）。":"\u003cdiv>· \u003cb>Content display area\u003c/b>: Text will only appear within this rectangle (focus only on the large bubbles).\u003c/div>","预览里拖它的\u003cb>内部\u003c/b>可移动、拖 \u003cb>8 个方块\u003c/b>可缩放；":"In the preview, drag its movable \u003cb>interior\u003c/b>; drag 8\u003cb> squares\u003c/b> to zoom in or out;","方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）\u003c/div>":"Arrow keys 1 / Shift 10 / Alt 0.2; Snaps near the centerline, edges, or other bubbles (6)","\u003cdiv>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当“重置”用）\u003c/div>":"\u003cdiv>· “Auto Estimate”: Finds the largest possible clean area based on the current shape; reverts to default if unsuccessful or not applicable (can also be used as “Reset”).\u003c/div>","\u003cdiv>· \u003cb>位移\u003c/b>：这个槽位的 x/y（画布单位），与拖动等价；会被钳制在“完全留在可显示范围内”\u003c/div>":"\u003cdiv>· \u003cb>Position\u003c/b>: The x/y coordinates (in canvas units) of this slot, equivalent to dragging; it is constrained to “remain entirely within the visible area”\u003c/div>","\u003cdiv>· 形状在它轮廓外的那圈照旧可直接拖（两者各占各的区域，不需要切换）\u003c/div>":"\u003cdiv>· The circle outside the shape’s outline can still be dragged directly (each occupies its own area; no need to switch between them).\u003c/div>","\u003cdiv>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位\u003c/div>":"\u003cdiv>· The preview uses the actual content from your “first click”; the dotted box indicates the currently selected slot.\u003c/div>","内容显示范围：":"Content display range: ","宽":"Wide","高":"High","内容显示范围（画布单位 0–1026 / 0–700）；方向键 1、Shift 10、Alt 0.2":"Content display range (canvas units 0–1026 / 0–700); Arrow keys 1, Shift 10, Alt 0.2","位移":"Displacement","位移（画布单位，也可以直接拖预览里的泡泡）":"Displacement (canvas units; you can also drag the bubbles directly in the preview)","多个":"Multiple","编辑泡泡框：":"Edit speech bubble: ","另存为泡泡框":"Save As Bubble Box","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">泡泡框编辑器\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">Bubble Box Editor.\u003c/div>","\u003cdiv>· 预览里\u003cb>拖动\u003c/b>任一泡泡可移动（钳制在画布内、至少 30% 可见）\u003c/div>":"\u003cdiv>· In the preview, \u003cb>drag\u003c/b> any bubble to move it (restricted to the canvas, at least 30% visible).\u003c/div>","\u003cdiv>· 左侧选\u003cb>大泡泡/小泡泡1/小泡泡2/全选\u003c/b>，右侧改属性\u003c/div>":"\u003cdiv>· Select \u003cb>“Large Bubble,” “Small Bubble 1,” “Small Bubble 2,” or “Select All”\u003c/b> on the left; modify properties on the right.\u003c/div>","\u003cdiv>· 小泡泡只能删（隐藏）不能加；大泡泡不可删\u003c/div>":"\u003cdiv>· Small bubbles can only be deleted (hidden), not added; large bubbles cannot be deleted.\u003c/div>","\u003cdiv>· 三个内置预设：经典椭圆 / 圆角矩形 / 方形锯齿；也可写自定义 SVG 代码\u003c/div>":"\u003cdiv>· Three built-in presets: Classic Ellipse / Rounded Rectangle / Square with Jagged Edges; you can also enter custom SVG code.\u003c/div>","\u003cdiv>· 「取消」不会改动任何东西；「重置」回到\u003cb>打开这个窗口时\u003c/b>的样子\u003c/div>":"\u003cdiv>· “Cancel” does not change anything; “Reset” restores the state \u003cb>from when this window was opened\u003c/b>.\u003c/div>","\u003cdiv>· \u003cb>内容限制范围\u003c/b>：文字只会落在这个矩形里（只管大泡泡）。预览里拖它的\u003cb>边框\u003c/b>可移动、":"\u003cdiv>· \u003cb>Content constraints\u003c/b>: Text will only appear within this rectangle (focus only on the large bubble). In the preview, you can drag its \u003cb>border\u003c/b> to move it,\u003c/div>","拖 8 个方块可缩放；方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）\u003c/div>":"Drag 8 blocks to zoom; Arrow keys 1 / Shift 10 / Alt 0.2; snaps when near the centerline, edges, or other bubbles (6)","\u003cdiv>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当\"重置\"用）\u003c/div>":"\u003cdiv>· “Auto Estimate”: Find the largest possible clean area based on the current shape; if unsuccessful or not applicable, revert to the default (can also be used as “Reset”).\u003c/div>","\u003cdiv>· SVG 代码：留空用上面选的预设，填了按代码画（按 1026×700 画布坐标）；只放行 path/ellipse/circle/rect/":"\u003cdiv>· SVG code: Leave blank to use the preset selected above; if filled in, draw according to the code (using 1026×700 canvas coordinates); include only the following lines: path/ellipse/circle/rect/\u003c/div>","polygon/polyline/g 与几何·描边属性，脚本/事件/外链会被剥掉\u003c/div>":"polygon/polyline/g and geometry/stroke properties; scripts/events/external links will be stripped","\u003cdiv>· 图片：走站内图库；\"上传新图\"保持原比例（GIF 也能用），\"裁剪…\"复用角色导入的裁剪窗口\u003c/div>":"\u003cdiv>· Images: Use the in-app gallery; “Upload New Image” maintains the original aspect ratio (GIFs are also supported), “Crop…” reuses the cropping window from character import.\u003c/div>","\u003cdiv style=\"margin-top:4px;opacity:.75\">保存进框库后，还要在「自定义泡泡」窗口点\u003cb>保存\u003c/b>才会落盘生效。\u003c/div>":"\u003cdiv style=\"margin-top:4px;opacity:.75\">After saving to the frame library, you must also click \u003cb>“Save”\u003c/b> in the “Custom Bubbles” window for the changes to be saved to disk and take effect.\u003c/div>","放弃这个泡泡框的未保存修改?":"Do you want to discard the unsaved changes in this bubble window?","另存为并应用":"Save As and Apply","保存并应用":"Save and Apply","存为新样式并应用":"Save as a new style and apply","这个泡泡框已经不存在了":"This bubble box no longer exists","内置框只读：请先「复制」或「另存为」":"Built-in text box is read-only: Please “Copy” or “Save As” first","打开泡泡框编辑器失败（已跳过，其他功能不受影响）":"Failed to open the bubble editor (skipped; other features are unaffected)","已更新并应用泡泡框「":"Updated and applied the bubble frame “","已保存并应用「":"Saved and applied “","（已设为保底框）":"(Set as a placeholder)","保存泡泡框失败（未改动任何数据）":"Failed to save the bubble window (no data was modified)","泡泡框名（最多 24 字）":"Bubble Text (Max 24 characters)"," 元":"yuan","小时后重置":"Reset in X hours","分后重置":"Reset after the period","已开启（未填总量）":"Enabled (Total not specified)","自动 · ":"Auto ·","手动 · ":"Manual ·","已用 ":"Used"," · 剩 ":"· Remaining","Codex 统计已关闭":"Codex Statistics has been disabled","无 Codex 数据":"No Codex data","Codex 今日 ":"Codex Today"," · 近7天 ":"· Last 7 days","已跳过 ":"Skipped"," 个超大日志":"A huge log","统计更新中":"Statistics are being updated","天窗口":"Pop-up window","即将重置":"About to reset"," 已用 ":"Used","今日 ":"Today"," · 本月 ":"· This Month"," · 累计 ":"· Cumulative"," 个会话文件）":"(session file)","全部（5h / 周 / 月）":"All (5h / Week / Month)"," · 周 ":"· Zhou","该模型今日已用":"This model has been used today","额度已用百分比":"Percentage of Limit Used","额度已用值":"Used Amount","额度剩余值":"Remaining Balance","额度总量":"Total Limit","额度重置倒计时":"Limit Reset Countdown","订阅额度已用百分比（多窗口厂商按「显示样式」所选窗口，带窗口标签）":"Percentage of subscription quota used (for multi-window apps, displays the window selected in “Display Style,” with the window label)","订阅额度剩余百分比（同上）":"Remaining Subscription Quota Percentage (same as above)","订阅额度刷新倒计时（同上；全部窗口时为紧凑倒计时）":"Subscription Limit Refresh Countdown (same as above; compact countdown when all windows are open)","赠金余额（未过期的赠送余额；取不到显示 —）":"Bonus Balance (unexpired bonus balance; displays “—” if unavailable)","充值余额（不含赠金；取不到显示 —）":"Deposit Balance (excluding bonus; displays “—” if unavailable)","今日已用金额":"Amount spent today","当前对话名（超过「保留长度」会截断为 前N字...）":"Current conversation name (if longer than the “Max Length,” it will be truncated to the first N characters...)","距下一时段倒计时 (HH:MM:SS)":"Countdown to Next Period (HH:MM:SS)","高峰/空闲 状态文字(随显示样式变化)":"Peak/Off-peak status text (varies depending on display style)","\u003cdiv style=\"font-weight:600;margin-bottom:4px\">可用占位符(替换到内容里)\u003c/div>":"\u003cdiv style=\"font-weight:600;margin-bottom:4px\">Available placeholders (to be replaced with actual content).\u003c/div>","\u003cdiv style=\"opacity:.8\">该模块无自动内容占位\u003c/div>":"\u003cdiv style=\"opacity:.8\">This module has no automatic content placeholder.\u003c/div>","\u003cdiv style=\"margin-top:5px;opacity:.65\">其余文字原样显示;留空=默认自动内容\u003c/div>":"\u003cdiv style=\"margin-top:5px;opacity:.65\">All other text is displayed as is; leaving a field blank will use the default content.\u003c/div>","查看说明":"View Help","梁文峰谷":"Liang Wenfeng peak/off-peak","!?强强?!":"!? Qiangqiang?!","倒计时":"Countdown","简洁(峰/谷)":"Concise (Peak/Trough)","梁文峰":"Liang Wenfeng","梁文谷":"Liang Wengu","!?峰峰?!":"!? Fengfeng?!","!?谷谷?!":"!?Gu Gu?!","高峰时段":"Peak Hours","空闲时段":"Off-peak hours","额度 --":"Limit --","获取失败 · 点击重试":"Failed to retrieve · Click to retry"," · 余额未刷新":"· Balance not refreshed","获取失败":"Failed to retrieve","[dsh-whale] 余额读取失败":"[dsh-whale] Failed to read balance","[dsh-whale] 设置保存失败:":"[dsh-whale] Failed to save settings: ","⚠ 设置保存失败：":"⚠ Failed to save settings: ","\u003cbr>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。":"An automatic retry \u003cbr>has been performed once. If the failure persists, please check whether the DSH data directory is writable.","置顶":"Pin to top","删除角色":"Delete Character","确定":"OK","裁剪结果没能存进图片库":"The cropped image could not be saved to the photo library","音效1":"Sound Effect 1","删除音效组":"Delete Sound Effect Group","留空·不发声":"Leave blank · No sound","留空则该事件不发声;点击可选择音频片段":"Leave blank to disable the sound for this event; tap to select an audio clip","编辑音效组":"Edit Sound Effect Group","留空（不发声）":"Leave blank (no sound)","删除该音频":"Delete this audio","当前浏览器不支持音频解码":"Your browser does not support audio decoding","音频解码失败":"Audio decoding failed","（共 ":"(Total","s，缩放 x":"s, Zoom x","所选片段为空":"The selected segment is empty","确定删除音频「":"Confirm Deletion of Audio “","⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置\u003cbr>请刷新页面重试":"⚠ Failed to read settings. Saving has been paused to prevent overwriting your original settings. \u003cbr>Please refresh the page and try again."});
 (function () {
 if (window.__dshWhaleWidget) return
 window.__dshWhaleWidget = true
-
+// 反向查表必须在**任何**代码之前就存在：下面第 36 行左右会立刻 dshwI18nApply(目录)，
+// 它要往这张表里写；而  只是声明提升、赋值仍留在原位置 ⇒ 若在这里只写 var 声明，
+// apply 会在赋值之前跑，写入抛异常被静默吞掉，整张表永远是空的（2026-11-03 实测踩过）。
+var DSHW_I18N_KEYS = Object.create(null) // English 文案 → 原始中文（反向查表）
+// ===== i18n 运行时（界面语言：默认中文，设置里可切英文）=====
+// I() 是整份文件唯一的取词入口：中文原文 = 查找键，也是兜底值。
+//   · 纯查表，绝不抛异常；未知 key / 没有目录 / 任何异常 → 原样返回 key；
+//   · 语言**只由用户决定**：默认一律中文。宿主把 .dshw-size.json 里存的语言（缺省 zh）
+//     通过同步脚本写进 window.__dshwI18nLocale（见 lib/index.js 的 preamble）；
+//     这里**不读 DSH_LOCALE、也不猜 navigator.language** —— 装了这个挂件的人看到的第一屏必须是中文；
+//   · 只用于**显示**：对象键、比较、存储一律保持中文原文（见 main 菜单的 aboutRows 等用法约定）。
+// 运行期切换：dshwI18nSet() 只换语言并重贴**已经建好**的文案，不重建 DOM、不重载页面。
+function dshwI18nLocale() {
+  try {
+    if (window.__dshwI18nLocale === 'en') return 'en'
+  } catch (err) {}
+  return 'zh'
+}
+var dshwI18nEn = null
+function dshwI18nOn() { return dshwI18nLocale() === 'en' }
+function dshwI18nApply(cat) {
+  try {
+    if (!cat || typeof cat !== 'object') return false
+    dshwI18nEn = cat
+    dshwI18nIndex(cat)
+    return true
+  } catch (err) { return false }
+}
+function I(k) {
+  var c = dshwI18nEn
+  try { if (c && dshwI18nOn() && c[k] !== undefined) return c[k] } catch (err) {}
+  // 兜底：原样返回。String() 自己也可能抛（Symbol / 坏掉的 toString）—— 那也绝不能把界面带崩。
+  try { return String(k) } catch (err) { return '' }
+}
+// 构建产物把英文目录打包进来时，这里就已经可用；宿主下发的语言只决定用不用它。
+try { dshwI18nApply(window.__dshwI18n && window.__dshwI18n.en) } catch (err) {}
+// 运行期切换语言：只改语言 + <html lang>，再把登记过的可见文案重新走一遍 I()。
+function dshwI18nSet(loc) {
+  var next = loc === 'en' ? 'en' : 'zh'
+  // 顺序要紧：relabel() 内部先 collect()（把文档里现有的英文还原成中文原文），**再**按新语言
+  // 统一贴一遍。所以"英→中"和"中→英"两个方向都整屏正确，不会残留一屏英文。
+  try { window.__dshwI18nLocale = next } catch (err) {}
+  try { document.documentElement.setAttribute('lang', next === 'en' ? 'en' : 'zh-CN') } catch (err) {}
+  try { dshwI18nRelabel() } catch (err) {}
+  return next
+}
+// 主菜单/按钮是加载时建好、之后一直复用的（菜单默认 opacity:0，点开才显示），所以切语言时
+// 把它们的 textContent 按**原始中文**重算一遍就够了 —— 不必销毁重建，也就不会丢滚动位置或
+// 输入中的内容。每个条目 = [元素, 原始中文, 是否写 title]；原文永远不变，所以可以反复切。
+// 按当前语言把整棵文档"扫一遍贴好"：collect() 先把显示着英文的地方还原成中文原文，随后
+// 同一趟遍历里按新语言重贴。元素是显式 register 的、还是靠 `textContent = I('…')` 一次性赋值
+// 的，结果都一样。
+function dshwI18nApplyDom(root) {
+  try {
+    var doc = document
+    var base = root || doc.body || doc.documentElement
+    if (!base) return
+    var w = doc.createTreeWalker(base, 4 /* NodeFilter.SHOW_TEXT */, null)
+    var n
+    while ((n = w.nextNode())) {
+      var cur = n.nodeValue // 节点上**现在**的文字（可能是英文，也可能是中文原文）
+      var k = dshwI18nKeyOf(cur) // 正显示英文 → 反查出中文原文
+      var key = (k !== null) ? k : cur
+      var t = I(key) // 中文原文 → 当前语言
+      // 必须和**节点现值**比：只和 key 比的话，还原成中文时 t === key，永远不写回，
+      // 节点就一直停在英文（2026-11-03 实测踩过这个 cmp 陷阱）。
+      if (t !== cur) { try { n.nodeValue = t } catch (err) {} }
+    }
+    var els = base.querySelectorAll ? base.querySelectorAll('[title],[placeholder],[aria-label]') : []
+    var attrs = ['title', 'placeholder', 'aria-label']
+    for (var i = 0; i < els.length; i++) {
+      for (var j = 0; j < attrs.length; j++) {
+        var raw = null
+        try { raw = els[i].getAttribute(attrs[j]) } catch (err) { continue }
+        if (raw === null) continue
+        var kk = dshwI18nKeyOf(raw)
+        var next = I(kk !== null ? kk : raw)
+        if (next !== raw) { try { els[i].setAttribute(attrs[j], next) } catch (err) {} }
+      }
+    }
+  } catch (err) {}
+}
+// 语言变化后的回调（用于**拼接出来**的文案：`名称 · 90%` 这种由宿主数据现拼的字符串，
+// 目录里没有整条 key，DOM 扫描也反查不回来 ⇒ 让各自的重绘函数自己重算一遍）。
+function dshwI18nOnChange(fn) {
+  try {
+    if (typeof fn !== 'function') return
+    if (!window.__dshwI18nChangeFns) window.__dshwI18nChangeFns = []
+    window.__dshwI18nChangeFns.push(fn)
+  } catch (err) {}
+}
+function dshwI18nRelabel() {
+  try { dshwI18nApplyDom() } catch (err) {}
+  // 先让拼接型文案按新语言重算，再走登记表（顺序无所谓，但先重算能避免它们把旧值留在屏上）。
+  try {
+    var fns = window.__dshwI18nChangeFns
+    if (fns) for (var q = 0; q < fns.length; q++) { try { fns[q]() } catch (err) {} }
+  } catch (err) {}
+  var list = window.__dshwI18nRelabelList
+  if (!list) return
+  for (var i = 0; i < list.length; i++) {
+    var it = list[i]
+    try {
+      if (!it[0]) continue
+      if (it[2]) it[0].title = I(it[1])
+      else it[0].textContent = I(it[1])
+    } catch (err) {}
+  }
+}
+// 登记一个"可重贴"的可见文案，返回元素本身（方便链式使用）。
+function dshwI18nWatch(el, key, useTitle) {
+  try {
+    if (!window.__dshwI18nRelabelList) window.__dshwI18nRelabelList = []
+    window.__dshwI18nRelabelList.push([el, key, !!useTitle])
+  } catch (err) {}
+  return el
+}
+// —— 自动登记：`el.textContent = I('…')` / `el.title = I('…')` ——
+// v2（2026-11-03，用户实测"菜单还有一半是中文"的真因）：
+//   原来只有**显式**调用 dshwI18nWatch() 的元素（主菜单 2 处）会在切语言时重贴；其余 300+ 处
+//   `xxx.textContent = I('…')` / `xxx.title = I('…')` 只在**赋值那一刻**取一次词。
+//   而桌面壳首帧拿不到 preamble（issue #153）时，语言是启动后由 GET size.json 的"自愈读"补上的
+//   ⇒ 那些早建好的按钮永远停在中文，界面就成了中英混排。
+//   这里把 I() 的返回值包成一个带标记的字符串子类 String：用 valueOf/toString 保证赋值给
+//   textContent / title 时和普通字符串**完全等效**，同时对象本身还记得原始中文 key。赋值时
+//   无法拦截（那是 DOM 的 setter），所以改为**扫描**：重贴前先把整棵文档里仍然"可识别"的
+//   元素找出来 —— 见 dshwI18nCollect()。
+// DSHW_I18N_KEYS 在 IIFE 顶部（I() 之前）就初始化 —— 见 apply-runtime 的 early-init 编辑。
+function dshwI18nKeyOf(text) {
+  try {
+    // 不看当前语言：文档里可能正显示英文（要还原成中文），也可能正显示中文（原样不动）。
+    var k = DSHW_I18N_KEYS[text]
+    return (typeof k === 'string') ? k : null
+  } catch (err) { return null }
+}
+// 把当前文档里所有"显示着英文翻译"的文本节点/属性还原成中文原文再重贴。
+//   走 TreeWalker 而不是逐个登记：调用点 300+，逐个登记既侵入又容易漏。
+//   只改**能反查出原文**的地方（即确实是我们翻过去的），用户数据/余额数字一概不碰。
+function dshwI18nCollect(root) {
+  try {
+    var doc = document
+    var base = root || doc.body || doc.documentElement
+    if (!base) return
+    // ① 文本节点
+    var w = doc.createTreeWalker(base, 4 /* NodeFilter.SHOW_TEXT */, null)
+    var n
+    while ((n = w.nextNode())) {
+      var k = dshwI18nKeyOf(n.nodeValue)
+      if (k !== null) n.nodeValue = k
+    }
+    // ② title / placeholder / aria-label（按钮与输入框的提示文案大多在这里）
+    var els = base.querySelectorAll ? base.querySelectorAll('[title],[placeholder],[aria-label]') : []
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i]
+      var a = ['title', 'placeholder', 'aria-label']
+      for (var j = 0; j < a.length; j++) {
+        var v = el.getAttribute ? el.getAttribute(a[j]) : null
+        if (v === null) continue
+        var kk = dshwI18nKeyOf(v)
+        if (kk !== null) el.setAttribute(a[j], kk)
+      }
+    }
+  } catch (err) {}
+}
+// english → 原文 的反向表，随目录一起建（只保留**不同键映射到不同英文**的项，避免歧义回填错误）。
+function dshwI18nIndex(cat) {
+  try {
+    if (!cat || typeof cat !== 'object') return
+    var seen = Object.create(null)
+    for (var k in cat) {
+      if (!Object.prototype.hasOwnProperty.call(cat, k)) continue
+      var en = cat[k]
+      if (typeof en !== 'string' || !en) continue
+      if (seen[en] === undefined) seen[en] = k
+      else if (seen[en] !== k) seen[en] = '' // 两个中文 key 翻成了同一句英文 ⇒ 无法唯一还原
+    }
+    for (var e in seen) { if (seen[e]) DSHW_I18N_KEYS[e] = seen[e] }
+  } catch (err) {}
+}
 // —— 页面自检：只在 DSH 主聊天界面挂载挂件 ——
 // 挂件脚本通过 tapIndex 注入 DSH 的每一个 index 页面（含插件市场等 SPA 视图）。
 // 市场页用 ReactDOM.createPortal 渲染到 document.body，若挂件在此初始化，
@@ -143,7 +322,7 @@ function dshwvAudioWarn(url, err) {
   dshwvAudioLastErr = { url: String(url || ''), error: msg, at: new Date().toISOString() }
   if (dshwvAudioWarned[url]) return
   dshwvAudioWarned[url] = 1
-  try { console.warn('[小鲸鱼] 音频加载/解码失败：' + url + ' → ' + msg) } catch (e) {}
+  try { console.warn(I('[小鲸鱼] 音频加载/解码失败：') + url + ' → ' + msg) } catch (e) {}
 }
 function nowMs() { try { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now() } catch (err) { return Date.now() } }
 function dshwvAudioBuffer(url) {
@@ -156,12 +335,12 @@ function dshwvAudioBuffer(url) {
       .then(function (r) {
         // 注意：204 也满足 r.ok（2xx），必须单独挡掉，否则 0 字节会被送进 decodeAudioData
         // → 抛 EncodingError（"Unable to decode audio data"）→ 只剩静音。
-        if (r.status === 204) throw new Error('HTTP 204（无内容：该音效槽留空、或音效组未找到）')
+        if (r.status === 204) throw new Error(I('HTTP 204（无内容：该音效槽留空、或音效组未找到）'))
         if (!r.ok) throw new Error('HTTP ' + r.status)
         return r.arrayBuffer()
       })
       .then(function (raw) {
-        if (!raw || raw.byteLength < 100) throw new Error('音频响应只有 ' + (raw ? raw.byteLength : 0) + ' 字节（不是有效音频）')
+        if (!raw || raw.byteLength < 100) throw new Error(I('音频响应只有 ') + (raw ? raw.byteLength : 0) + I(' 字节（不是有效音频）'))
         var c = dshwvAudio()
         if (!c) throw new Error('no audio context')
         return new Promise(function (res, rej) { c.decodeAudioData(raw, res, rej) })
@@ -658,6 +837,10 @@ var css = [
   '.dshwv-menu{position:fixed;min-width:196px;max-width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:rgba(255,255,255,.92);border:1px solid rgba(32,49,112,.35);border-radius:10px;padding:10px 12px 0;opacity:0;transform:scale(.96) translateY(10px);transform-origin:top right;transition:opacity .22s ease,transform .22s cubic-bezier(.34,1.3,.6,1);pointer-events:none;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,.18);color-scheme:light}',
   '.dshwv-menu.dshwv-menu-open{opacity:1;transform:scale(1) translateY(0);pointer-events:auto}',
   '.dshwv-menu-row{display:flex;align-items:center;gap:8px;margin:5px 0;color:#203170;font-size:12px;white-space:nowrap}',
+  // 英文比中文长很多：行内文字允许收缩并显示省略号，绝不把整张菜单撑出 max-width。
+  '.dshwv-menu-row{min-width:0}',
+  '.dshwv-menu-row > span{min-width:0;overflow:hidden;text-overflow:ellipsis}',
+  '.dshwv-menu-row > button{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
   '.dshwv-range{flex:1;min-width:0;accent-color:#203170}',
   '.dshwv-number{width:44px;border:1px solid rgba(32,49,112,.4);border-radius:6px;padding:2px 4px;font-size:12px;color:#203170;background:#fff;box-sizing:border-box}',
   '.dshwv-number:disabled{opacity:.4;background:rgba(32,49,112,.06);cursor:not-allowed}',
@@ -1345,13 +1528,13 @@ try {
   if (initRoleId && initRoleId !== 'default') initRoleUrl = '/dsh-whale/role-image.png?id=' + encodeURIComponent(initRoleId)
 } catch (err) {}
 img.src = initRoleUrl
-img.alt = 'DeepSeek 余额'
+img.alt = I('DeepSeek 余额')
 img.draggable = false
 
 var menuBtn = document.createElement('button')
 menuBtn.type = 'button'
 menuBtn.className = 'dshwv-menu-btn'
-menuBtn.title = '菜单'
+menuBtn.title = I('菜单')
 menuBtn.innerHTML = '<span></span><span></span><span></span>'
 menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleMenu() })
 
@@ -1376,11 +1559,18 @@ function setVersionLabel(text) {
   } catch (err) {}
 }
 var lastVersionLabel = ''
+// 当前界面语言（'zh' | 'en'）。初值来自 preamble 同步注入的全局变量；没有宿主时同样是 'zh'
+// —— 默认中文，永不猜浏览器语言。
+var currentLocale = 'zh'
+try { currentLocale = (window.__dshwI18nLocale === 'en') ? 'en' : 'zh' } catch (err) {}
 menuVerEl.style.display = 'none'
+// 取词在工厂里做：menuLabel() 的实参是 rewrite rule 7 跳过的形式，所以主菜单 11 个标签
+// 不各自变成 I('…')；在这一个工厂里调用 I() 等价于覆盖它们全部。登记的是**原文**，
+// 运行期切语言时按同一份 key 重算。
 function menuLabel(text) {
   var s = document.createElement('span')
-  s.textContent = text
-  return s
+  s.textContent = I(text)
+  return dshwI18nWatch(s, text, false)
 }
 function menuRow() {
   var r = document.createElement('div')
@@ -1422,18 +1612,20 @@ scaleNumber.addEventListener('change', function () {
 var audioGroupBtn = document.createElement('button')
 audioGroupBtn.type = 'button'
 audioGroupBtn.className = 'dshwv-audiobtn'
-audioGroupBtn.title = '选择音效组'
+audioGroupBtn.title = I('选择音效组')
 var audioGroupBtnLabel = document.createElement('span')
 audioGroupBtnLabel.className = 'dshwv-btnlabel'
-audioGroupBtnLabel.textContent = '小黄鸭'
+audioGroupBtnLabel.textContent = I('小黄鸭')
+// 登记：首帧目录/语言可能还没到，切语言时按原文重贴一次（见 dshwI18nRelabel）。
+dshwI18nWatch(audioGroupBtnLabel, '小黄鸭', false)
 audioGroupBtn.appendChild(audioGroupBtnLabel)
 var audioGroupPanel = document.createElement('div')
 audioGroupPanel.className = 'dshwv-audiolist'
 var audioImportBtn = document.createElement('button')
 audioImportBtn.type = 'button'
 audioImportBtn.className = 'dshwv-audioimport'
-audioImportBtn.textContent = '导入'
-audioImportBtn.title = '新建/编辑音效组'
+audioImportBtn.textContent = I('导入')
+audioImportBtn.title = I('新建/编辑音效组')
 audioGroupBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleAudioGroupPanel() })
 audioImportBtn.addEventListener('click', function (e) { e.stopPropagation(); openAudioGroupEditor(null) })
 dshwBodyAppend(audioGroupPanel)
@@ -1544,7 +1736,7 @@ function dshwCustSel(sel, opts) {
           pb.type = 'button'
           pb.className = 'dshwv-custpin' + (pinned ? ' on' : '')
           pb.textContent = '📌'
-          pb.title = pinned ? '取消置顶' : '置顶(排到列表最前)'
+          pb.title = pinned ? I('取消置顶') : I('置顶(排到列表最前)')
           pb.addEventListener('click', function (e) {
             e.stopPropagation()
             opts.onPin(String(opt.value))
@@ -1598,8 +1790,8 @@ function dshwCustSel(sel, opts) {
 var usageRecBtn = document.createElement('button')
 usageRecBtn.type = 'button'
 usageRecBtn.className = 'dshwv-roleimport'
-usageRecBtn.textContent = '- = 小鲸鱼记账 = -'
-usageRecBtn.title = '查看今日/近7天/全部消费记录'
+usageRecBtn.textContent = I('- = 小鲸鱼记账 = -')
+usageRecBtn.title = I('查看今日/近7天/全部消费记录')
 usageRecBtn.addEventListener('click', function (e) {
   e.stopPropagation()
   // v793：「关于/自检」打开时，这个底部按钮也是「‹ 返回」
@@ -1628,7 +1820,7 @@ var taskEndToggle = document.createElement('input')
 taskEndToggle.type = 'checkbox'
 taskEndToggle.className = 'dshwv-check'
 taskEndToggle.checked = false
-taskEndToggle.title = '每轮对话回复完成时播放提示音'
+taskEndToggle.title = I('每轮对话回复完成时播放提示音')
 taskEndToggle.addEventListener('change', function () {
   applyTaskEndLocal(taskEndToggle.checked, undefined)
   commitTaskEnd()
@@ -1636,7 +1828,7 @@ taskEndToggle.addEventListener('change', function () {
 var taskEndSel = document.createElement('select')
 taskEndSel.className = 'dshwv-sound'
 taskEndSel.disabled = true
-taskEndSel.title = '选择任务结束音:音效组(点按整组)/单个音频(与按下/松开同库)'
+taskEndSel.title = I('选择任务结束音:音效组(点按整组)/单个音频(与按下/松开同库)')
 taskEndSel.addEventListener('change', function () {
   applyTaskEndLocal(undefined, taskEndSel.value)
   commitTaskEnd()
@@ -1670,8 +1862,8 @@ function fillSoundSelect(selectEl, currentSel) {
   var grps = Array.isArray(audioGroups) ? audioGroups : []
   var frags = Array.isArray(audioFragments) ? audioFragments : []
   var pre = [
-    ['preset:duck:press', '小黄鸭·按下'], ['preset:duck:release', '小黄鸭·松开'],
-    ['preset:fx1:press', '音效1·按下'], ['preset:fx1:release', '音效1·松开'],
+    ['preset:duck:press', I('小黄鸭·按下')], ['preset:duck:release', I('小黄鸭·松开')],
+    ['preset:fx1:press', I('音效1·按下')], ['preset:fx1:release', I('音效1·松开')],
   ]
   var fragCand = []
   // 同名片段：内置预设与用户自导入条目同名时（如内置 A 与用户导入的 A），
@@ -1695,7 +1887,7 @@ function fillSoundSelect(selectEl, currentSel) {
   var grpCand = []
   grps.forEach(function (g) {
     if (!g || !g.id) return
-    grpCand.push({ v: 'grp:' + g.id, lab: String(g.name || audioGroupName(g.id)) + '（点按）', grp: true })
+    grpCand.push({ v: 'grp:' + g.id, lab: String(g.name || audioGroupName(g.id)) + I('（点按）'), grp: true })
   })
   var allCand = fragCand.concat(preCand, grpCand)
   var candByV = {}
@@ -1758,7 +1950,7 @@ function fillSoundSelect(selectEl, currentSel) {
     } else if (cur) {
       // 面板下拉：绑定的音效还没加载出来（如音频列表未就绪）——原样保留并显示，
       // 不静默改成别的音效（否则用户一保存就把自己的选择丢了）
-      selectEl.appendChild(soundOpt(cur, cur + '（暂未加载）'))
+      selectEl.appendChild(soundOpt(cur, cur + I('（暂未加载）')))
       selectEl.value = cur
     } else {
       // v762：「静音」项已删除，空值不再有任何含义。面板下拉（提问/授权）走到这里表示
@@ -1903,7 +2095,7 @@ var WAIT_SESSION_MAX = 12
 // max <= 0 或非数 = 不截断；名字为空时回落「当前对话」。
 function bubbleSessionLabel(max) {
   var s = String(waitSessionName || '').trim()
-  if (!s) s = '当前对话'
+  if (!s) s = I('当前对话')
   var n = Number(max)
   if (!isFinite(n) || n <= 0) return s
   n = Math.max(1, Math.min(120, Math.round(n)))
@@ -2010,13 +2202,13 @@ var bubbleToggle = document.createElement('input')
 bubbleToggle.type = 'checkbox'
 bubbleToggle.className = 'dshwv-check'
 bubbleToggle.checked = true
-bubbleToggle.title = '开启/关闭思考气泡'
+bubbleToggle.title = I('开启/关闭思考气泡')
 bubbleToggle.addEventListener('change', function () { setBubbleOn(bubbleToggle.checked) })
 var turnCostToggle = document.createElement('input')
 turnCostToggle.type = 'checkbox'
 turnCostToggle.className = 'dshwv-check'
 turnCostToggle.checked = true
-turnCostToggle.title = '每轮对话结束后自动显示本轮消耗金额'
+turnCostToggle.title = I('每轮对话结束后自动显示本轮消耗金额')
 turnCostToggle.addEventListener('change', function () { setTurnCostOn(turnCostToggle.checked) })
 var turnCostCloseInput = document.createElement('input')
 turnCostCloseInput.type = 'number'
@@ -2025,14 +2217,14 @@ turnCostCloseInput.step = '1'
 turnCostCloseInput.className = 'dshwv-number'
 turnCostCloseInput.value = '5'
 turnCostCloseInput.disabled = false // 跟随「每轮消耗提示」开关
-turnCostCloseInput.title = '填 0 表示不自动关闭，需手动点击关闭'
+turnCostCloseInput.title = I('填 0 表示不自动关闭，需手动点击关闭')
 turnCostCloseInput.addEventListener('input', function () { setTurnCostClose(turnCostCloseInput.value) })
 turnCostCloseInput.addEventListener('change', function () { setTurnCostClose(turnCostCloseInput.value) })
 var scrollGapToggle = document.createElement('input')
 scrollGapToggle.type = 'checkbox'
 scrollGapToggle.className = 'dshwv-check'
 scrollGapToggle.checked = false
-scrollGapToggle.title = '开启后挂件右侧按设定像素避开滚动条；关闭则贴边（盖住滚动条）'
+scrollGapToggle.title = I('开启后挂件右侧按设定像素避开滚动条；关闭则贴边（盖住滚动条）')
 scrollGapToggle.addEventListener('change', function () { setScrollGapOn(scrollGapToggle.checked) })
 var scrollGapInput = document.createElement('input')
 scrollGapInput.type = 'number'
@@ -2041,11 +2233,11 @@ scrollGapInput.step = '1'
 scrollGapInput.className = 'dshwv-number'
 scrollGapInput.value = '17'
 scrollGapInput.disabled = true // 默认避让关 → 宽度不可修改，勾选后启用
-scrollGapInput.title = '避让滚动条的像素宽度，填 0 表示贴边'
+scrollGapInput.title = I('避让滚动条的像素宽度，填 0 表示贴边')
 scrollGapInput.addEventListener('input', function () { setScrollGapPx(scrollGapInput.value) })
 scrollGapInput.addEventListener('change', function () { setScrollGapPx(scrollGapInput.value) })
 var row1 = menuRow()
-row1.appendChild(menuLabel('大小'))
+row1.appendChild(menuLabel(I('大小')))
 row1.appendChild(scaleInput)
 row1.appendChild(scaleNumber)
 // —— 音量滑块与百分比（v761 起搬进「提示与音效设置」面板，主菜单不再占行）——
@@ -2066,70 +2258,104 @@ var soundToggle = document.createElement('input')
 soundToggle.type = 'checkbox'
 soundToggle.className = 'dshwv-check'
 soundToggle.checked = true
-soundToggle.title = '音效总开关：关掉后不出声（含音效组试听），并立刻挂起音频上下文、把系统睡眠交还给你'
+soundToggle.title = I('音效总开关：关掉后不出声（含音效组试听），并立刻挂起音频上下文、把系统睡眠交还给你')
 soundToggle.addEventListener('change', function () { setSoundOn(soundToggle.checked) })
 // v762：「音效与提示」行 = 标签 + 面板入口（总开关搬进面板 ① 表头，本行不再放开关）。
 // 原「音效」行里的音效组/导入、原「音量」行的滑块，以及每轮消耗/提问/授权的音效，全部收进面板。
 // ⚠️ soundToggle 这个元素**仍然创建**（setSoundOn() 与配置回填都会 `soundToggle.checked = ...`），
 //    只是不再挂到本行上。删掉它的创建会让那两处抛 ReferenceError（本项目栽过整个挂件不出现）。
 var row2 = menuRow()
-row2.appendChild(menuLabel('音效与提示'))
+row2.appendChild(menuLabel(I('音效与提示')))
 var soundPanelBtn = document.createElement('button')
 soundPanelBtn.type = 'button'
 soundPanelBtn.className = 'dshwv-roleimport'
 soundPanelBtn.style.flex = '1'
-soundPanelBtn.textContent = '音效/提示泡泡设置'
-soundPanelBtn.title = '提示与音效设置：按压音量/音效组、每轮消耗提示、提问提示、授权提示'
+soundPanelBtn.textContent = I('音效/提示泡泡设置')
+soundPanelBtn.title = I('提示与音效设置：按压音量/音效组、每轮消耗提示、提问提示、授权提示')
 soundPanelBtn.addEventListener('click', function (e) { e.stopPropagation(); openSoundSettingsPanel() })
 row2.appendChild(soundPanelBtn)
 var row6 = menuRow()
-row6.appendChild(menuLabel('气泡全局开关'))
+row6.appendChild(menuLabel(I('气泡全局开关')))
 row6.appendChild(bubbleToggle)
 // —— 自定义泡泡：主编辑窗口(点击队列/模块) ——
 var bubbleCustomBtn = document.createElement('button')
 bubbleCustomBtn.type = 'button'
 bubbleCustomBtn.className = 'dshwv-roleimport'
 bubbleCustomBtn.style.flex = '1'
-bubbleCustomBtn.textContent = '按压泡泡设置'
-bubbleCustomBtn.title = '打开“按压泡泡设置”（按压时的泡泡内容与队列）'
+bubbleCustomBtn.textContent = I('按压泡泡设置')
+bubbleCustomBtn.title = I('打开“按压泡泡设置”（按压时的泡泡内容与队列）')
 bubbleCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); openBubbleEditor() })
 row6.appendChild(bubbleCustomBtn)
 var menuSep1 = document.createElement('div')
 menuSep1.className = 'dshwv-menu-sep'
 // v720:「自动关闭 n 秒」与「任务结束音效」都收进「自定义提示」窗口,这一行只留开关 + 入口按钮
 var row7 = menuRow()
-row7.appendChild(menuLabel('每轮消耗提示'))
+row7.appendChild(menuLabel(I('每轮消耗提示')))
 row7.appendChild(turnCostToggle)
 var turnCostCustomBtn = document.createElement('button')
 turnCostCustomBtn.type = 'button'
 turnCostCustomBtn.className = 'dshwv-roleimport'
 turnCostCustomBtn.style.flex = '1' // 占满本行剩余空位(与「自定义泡泡」按钮一致)
-turnCostCustomBtn.textContent = '自定义提示'
-turnCostCustomBtn.title = '自定义每轮消耗提示内容(金额用 {cost})、自动关闭秒数、任务结束音效'
+turnCostCustomBtn.textContent = I('自定义提示')
+turnCostCustomBtn.title = I('自定义每轮消耗提示内容(金额用 {cost})、自动关闭秒数、任务结束音效')
 turnCostCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); usageAlertBudgetEditor('cost', null) })
 row7.appendChild(turnCostCustomBtn)
 var row9 = menuRow()
-row9.appendChild(menuLabel('避让滚动条'))
+row9.appendChild(menuLabel(I('避让滚动条')))
 row9.appendChild(scrollGapToggle)
-row9.appendChild(menuLabel('宽度'))
+row9.appendChild(menuLabel(I('宽度')))
 row9.appendChild(scrollGapInput)
 row9.appendChild(menuLabel('px'))
 // —— 自定义角色：下拉选择 + 导入 ——
 var roleBtn = document.createElement('button')
 roleBtn.type = 'button'
 roleBtn.className = 'dshwv-rolebtn'
-roleBtn.title = '选择角色'
+roleBtn.title = I('选择角色')
 var roleBtnLabel = document.createElement('span')
 roleBtnLabel.className = 'dshwv-btnlabel'
-roleBtnLabel.textContent = '小鲸鱼'
+roleBtnLabel.textContent = I('小鲸鱼')
 roleBtn.appendChild(roleBtnLabel)
 var rolePanel = document.createElement('div')
 rolePanel.className = 'dshwv-rolelist'
 var roleImportBtn = document.createElement('button')
 roleImportBtn.type = 'button'
 roleImportBtn.className = 'dshwv-roleimport'
-roleImportBtn.textContent = '导入'
-roleImportBtn.title = '导入自定义角色图片'
+roleImportBtn.textContent = I('导入')
+roleImportBtn.title = I('导入自定义角色图片')
+// —— 界面语言：主菜单第一行，右侧是一个下拉选择器 ——
+//   v2（2026-11-03，用户要求）：原来是「English ☐」一个复选框，用户觉得不像语言设置，希望像
+//   别的下拉项一样「点开 → 选语言」。现在复用挂件自己的 dshwCustSel（本文件里所有下拉都用它，
+//   外观/键盘/点外部关闭的行为都一致），选项固定「中文」/「English」，默认中文。
+//   语言名用**自称词**：中文那一项在任何语言下都写「中文」，英文那一项永远写「English」，
+//   这样界面当前是什么语言都能认出自己要选哪个。
+var langSel = document.createElement('select')
+langSel.className = 'dshwv-langsel'
+langSel.title = 'Language / 界面语言：默认中文（Language: Chinese by default）'
+try {
+  var optZh = document.createElement('option')
+  optZh.value = 'zh'
+  optZh.textContent = '中文'
+  var optEn = document.createElement('option')
+  optEn.value = 'en'
+  optEn.textContent = 'English'
+  langSel.appendChild(optZh)
+  langSel.appendChild(optEn)
+  langSel.value = currentLocale === 'en' ? 'en' : 'zh'
+} catch (err) {}
+langSel.addEventListener('change', function () {
+  setLocale(langSel.value === 'en' ? 'en' : 'zh')
+  // 自绘下拉的按钮文字要跟着选项走（它不监听原生 change，须显式 sync）。
+  try { if (langDrop) langDrop.sync() } catch (err) {}
+})
+var langRowHost = document.createElement('div')
+langRowHost.appendChild(langSel)
+// dshwCustSel 要求 select 已有父节点（与「任务结束音效」同一个宿主写法）。
+var langDrop = null
+try { langDrop = dshwCustSel(langSel) } catch (err) {}
+if (langDrop && langDrop.wrap) { try { langDrop.wrap.style.flex = '1'; langDrop.wrap.style.minWidth = '0' } catch (err) {} }
+var rowLang = menuRow()
+rowLang.appendChild(menuLabel('Language'))
+rowLang.appendChild(langRowHost)
 var rowRole = menuRow()
 rowRole.appendChild(menuLabel('角色'))
 rowRole.appendChild(roleBtn)
@@ -2141,6 +2367,7 @@ roleFileInput.style.display = 'none'
 roleBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleRolePanel() })
 roleImportBtn.addEventListener('click', function (e) { e.stopPropagation(); roleFileInput.click() })
 roleFileInput.addEventListener('change', function () { onRoleFileChosen(roleFileInput) })
+menuBox.appendChild(rowLang)
 menuBox.appendChild(rowRole)
 menuBox.appendChild(row1)
 menuBox.appendChild(row2)
@@ -2175,12 +2402,12 @@ menuBox.appendChild(row9)
 // —— 吸附与翻转：自定义按钮（打开吸附/翻转设置弹窗），放在“避让滚动条”下一行 ——
 var rowSnap = menuRow()
 var snapRowLabel = document.createElement('span')
-snapRowLabel.textContent = '吸附与翻转'
+snapRowLabel.textContent = I('吸附与翻转')
 var snapCustomBtn = document.createElement('button')
 snapCustomBtn.type = 'button'
 snapCustomBtn.className = 'dshwv-roleimport'
-snapCustomBtn.textContent = '自定义'
-snapCustomBtn.title = '自定义各边吸附区宽度与翻转线位置'
+snapCustomBtn.textContent = I('自定义')
+snapCustomBtn.title = I('自定义各边吸附区宽度与翻转线位置')
 snapCustomBtn.addEventListener('click', function (e) { e.stopPropagation(); openSnapModal() })
 rowSnap.appendChild(snapRowLabel)
 rowSnap.appendChild(snapCustomBtn)
@@ -2190,10 +2417,10 @@ var menuHideToggle = document.createElement('input')
 menuHideToggle.type = 'checkbox'
 menuHideToggle.className = 'dshwv-check'
 menuHideToggle.checked = false
-menuHideToggle.title = '启用后隐藏挂件上的菜单按钮;电脑端右键、手机端长按小鲸鱼可唤出菜单(位置不变)'
+menuHideToggle.title = I('启用后隐藏挂件上的菜单按钮;电脑端右键、手机端长按小鲸鱼可唤出菜单(位置不变)')
 menuHideToggle.addEventListener('change', function () { setMenuBtnHide(menuHideToggle.checked) })
 var rowHide = menuRow()
-rowHide.appendChild(menuLabel('隐藏菜单按钮'))
+rowHide.appendChild(menuLabel(I('隐藏菜单按钮')))
 rowHide.appendChild(menuHideToggle)
 menuBox.appendChild(rowHide)
 // —— Codex 本机统计开关（issue #116）：v748 起**从主菜单挪进「Codex 模型的设置子菜单」** ——
@@ -2206,7 +2433,7 @@ function codexStatsCheckbox() {
   el.type = 'checkbox'
   el.className = 'dshwv-check'
   el.checked = codexStatsOn !== false
-  el.title = '关闭后不再读取 ~/.codex/sessions 统计本机 Codex 用量（会话日志很大时建议关闭）'
+  el.title = I('关闭后不再读取 ~/.codex/sessions 统计本机 Codex 用量（会话日志很大时建议关闭）')
   el.addEventListener('change', function () { setCodexStatsOn(el.checked) })
   codexStatsToggle = el
   return el
@@ -2218,10 +2445,10 @@ resOpenBtn.type = 'button'
 resOpenBtn.className = 'dshwv-usage-more'
 resOpenBtn.style.flex = '1'
 resOpenBtn.style.margin = '0'
-resOpenBtn.textContent = '管理'
-resOpenBtn.title = '集中管理当前导入插件的图片与音频资源'
+resOpenBtn.textContent = I('管理')
+resOpenBtn.title = I('集中管理当前导入插件的图片与音频资源')
 resOpenBtn.addEventListener('click', function (e) { e.stopPropagation(); openResManager() })
-rowRes.appendChild(menuLabel('资源管理'))
+rowRes.appendChild(menuLabel(I('资源管理')))
 rowRes.appendChild(resOpenBtn)
 menuBox.appendChild(rowRes)
 // —— 用量记录:底部固定动作行由「用量记录 / ‹ 返回」共用(见下方 nav 行) ——
@@ -2325,8 +2552,8 @@ var usageHideTimer = null
 var usageShowTimer = null
 function setUsageNavBtn(inUsage) {
   try {
-    usageRecBtn.textContent = inUsage ? '‹ 返回' : '- = 小鲸鱼记账 = -'
-    usageRecBtn.title = inUsage ? '返回主菜单' : '查看今日/近7天/全部消费记录'
+    usageRecBtn.textContent = inUsage ? I('‹ 返回') : I('- = 小鲸鱼记账 = -')
+    usageRecBtn.title = inUsage ? I('返回主菜单') : I('查看今日/近7天/全部消费记录')
   } catch (err) {}
 }
 function showUsageSub() {
@@ -2492,6 +2719,7 @@ var aboutHideTimer = null
 var aboutData = null
 var aboutLastUpdate = null
 var aboutSelfResult = null
+var aboutSelfOk = false
 var aboutSelfDetail = ''
 var aboutCheckAt = 0
 var aboutUpdateSource = ''
@@ -2508,12 +2736,12 @@ function aboutUpdateRow(label, text, cls) {
 }
 // v805（用户要求）：只刷新"挂件已运行"这一行 —— 重新读一次 about.json，但**不重画整个面板**
 function aboutRefreshUptimeRow() {
-  if (aboutRows['挂件已运行'] && aboutRows['挂件已运行'].val) aboutUpdateRow('挂件已运行', '刷新中…')
+  if (aboutRows['挂件已运行'] && aboutRows['挂件已运行'].val) aboutUpdateRow('挂件已运行', I('刷新中…'))
   return fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
-    if (!d || !d.ok) { aboutUpdateRow('挂件已运行', '刷新失败'); return }
+    if (!d || !d.ok) { aboutUpdateRow('挂件已运行', I('刷新失败')); return }
     aboutData = d
     aboutUpdateRow('挂件已运行', aboutFmtUptime(d.runtime && d.runtime.uptimeSec))
-  }).catch(function () { aboutUpdateRow('挂件已运行', '刷新失败') })
+  }).catch(function () { aboutUpdateRow('挂件已运行', I('刷新失败')) })
 }
 function aboutEnsurePanel() {
   if (aboutPanel) return aboutPanel
@@ -2549,9 +2777,9 @@ function aboutFmtUptime(sec) {
   try {
     var s = Math.max(0, Math.round(Number(sec) || 0))
     var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
-    if (h > 0) return h + ' 小时 ' + m + ' 分'
-    if (m > 0) return m + ' 分 ' + (s % 60) + ' 秒'
-    return s + ' 秒'
+    if (h > 0) return h + I(' 小时 ') + m + I(' 分')
+    if (m > 0) return m + I(' 分 ') + (s % 60) + I(' 秒')
+    return s + I(' 秒')
   } catch (err) { return '—' }
 }
 // v795（用户反馈）：客户端类型**不能用 `navigator.windowControlsOverlay`** —— Chrome 桌面浏览器也有这个 API，
@@ -2564,9 +2792,9 @@ function aboutClientKind(short) {
   if (kind !== 'desktop' && kind !== 'web') {
     try { kind = /electron/i.test(String(navigator.userAgent || '')) ? 'desktop' : 'web' } catch (err) { kind = '' }
   }
-  if (kind === 'desktop') return short ? '桌面客户端' : '官方桌面客户端'
-  if (kind === 'web') return short ? '网页端' : '网页端（dsh web / 浏览器）'
-  return '未知'
+  if (kind === 'desktop') return short ? I('桌面客户端') : I('官方桌面客户端')
+  if (kind === 'web') return short ? I('网页端') : I('网页端（dsh web / 浏览器）')
+  return I('未知')
 }
 // 简化显示用：路径只留最后一段（完整路径放在"点击复制"的完整文本里）
 function aboutShortPath(p) {
@@ -2594,19 +2822,19 @@ function aboutHasFile(file) {
 }
 function aboutShortOf(file) {
   try {
-    if (!aboutHasFile(file)) return '未找到'
+    if (!aboutHasFile(file)) return I('未找到')
     var bits = []
     if (file.path) bits.push(aboutShortPath(file.path))
     if (file.bytes != null) bits.push(aboutFmtBytes(file.bytes))
     var t = aboutShortTime(file.mtime)
     if (t) bits.push(t)
-    return bits.length ? bits.join(' · ') : '已找到'
+    return bits.length ? bits.join(' · ') : I('已找到')
   } catch (err) { return '—' }
 }
 function aboutFileFull(label, file) {
   try {
-    if (!aboutHasFile(file)) return label + ': 未找到（试过 ' + ((file && file.candidates) || 0) + ' 个位置）'
-    return label + ': ' + (file.path || '(无路径)') + ' · ' + aboutFmtBytes(file.bytes) + ' · ' + aboutFmtTime(file.mtime)
+    if (!aboutHasFile(file)) return label + I(': 未找到（试过 ') + ((file && file.candidates) || 0) + I(' 个位置）')
+    return label + ': ' + (file.path || I('(无路径)')) + ' · ' + aboutFmtBytes(file.bytes) + ' · ' + aboutFmtTime(file.mtime)
   } catch (err) { return label }
 }
 // v796：DSH 版本优先读页面上的 `window.__DSH_BOOT__`（只有 `dsh web` 会注入它），拿不到再用宿主读到的
@@ -2632,32 +2860,32 @@ function aboutDiagText(d) {
   var L = []
   try {
     var p = d && d.plugin || {}, b = d && d.build || {}, r = d && d.runtime || {}
-    L.push('小鲸鱼挂件诊断信息')
-    L.push('版本: ' + (p.label || p.version || '?') + '（' + (p.channel === 'dev' ? '开发版' : '正式版') + '）')
-    L.push('客户端: ' + aboutClientKind())
-    L.push('宿主文件: ' + (b.host && b.host.path || '?') + ' · ' + aboutFmtBytes(b.host && b.host.bytes) + ' · ' + aboutFmtTime(b.host && b.host.mtime))
-    L.push('前端文件: ' + aboutFmtBytes(b.widget && b.widget.bytes) + ' · ' + aboutFmtTime(b.widget && b.widget.mtime))
-    L.push('宿主含开发机路径: ' + (b.hostHasDevPaths === true ? '是' : b.hostHasDevPaths === false ? '否' : '未知'))
-    L.push('环境: ' + (r.platform || '?') + '/' + (r.arch || '?') + ' node ' + (r.node || '?') + ' · dsh ' + (r.dsh || '?') + ' · 已运行 ' + aboutFmtUptime(r.uptimeSec))
-    L.push('数据目录: ' + (r.dataHome || '?'))
+    L.push(I('小鲸鱼挂件诊断信息'))
+    L.push(I('版本: ') + (p.label || p.version || '?') + '（' + (p.channel === 'dev' ? I('开发版') : I('正式版')) + '）')
+    L.push(I('客户端: ') + aboutClientKind())
+    L.push(I('宿主文件: ') + (b.host && b.host.path || '?') + ' · ' + aboutFmtBytes(b.host && b.host.bytes) + ' · ' + aboutFmtTime(b.host && b.host.mtime))
+    L.push(I('前端文件: ') + aboutFmtBytes(b.widget && b.widget.bytes) + ' · ' + aboutFmtTime(b.widget && b.widget.mtime))
+    L.push(I('宿主含开发机路径: ') + (b.hostHasDevPaths === true ? I('是') : b.hostHasDevPaths === false ? I('否') : I('未知')))
+    L.push(I('环境: ') + (r.platform || '?') + '/' + (r.arch || '?') + ' node ' + (r.node || '?') + ' · dsh ' + (r.dsh || '?') + I(' · 已运行 ') + aboutFmtUptime(r.uptimeSec))
+    L.push(I('数据目录: ') + (r.dataHome || '?'))
     ;(d && d.data || []).forEach(function (f) {
-      L.push('数据·' + f.label + ': ' + (f.found ? (f.path + ' · ' + aboutFmtBytes(f.bytes) + ' · ' + aboutFmtTime(f.mtime)) : '未找到'))
+      L.push(I('数据·') + f.label + ': ' + (f.found ? (f.path + ' · ' + aboutFmtBytes(f.bytes) + ' · ' + aboutFmtTime(f.mtime)) : I('未找到')))
     })
-    if (d && d.ledger) L.push('记账: ' + (d.ledger.error ? ('读取失败 ' + d.ledger.error) : ('已记 ' + d.ledger.days + ' 天 · 最近观测 ' + aboutFmtTime(d.ledger.lastObservedAt) + (d.ledger.todayPartial ? ' · 今日为部分数据' : '') + (d.ledger.needsReview ? ' · 有待核对调整' : ''))))
-    if (d && d.balance) L.push('余额取数: ' + (d.balance.ok ? '成功' : '失败') + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : '') + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''))
-    else L.push('余额取数: 本次会话尚未取过')
-    if (d && d.codex) L.push('Codex 统计: ' + (d.codex.enabled ? ('已启用 · 最近扫描 ' + aboutFmtTime(d.codex.snapAt) + (d.codex.files != null ? (' · ' + d.codex.files + ' 个会话文件') : '')) : ('未启用（' + (d.codex.reason || '未配置') + '）')))
-    if (aboutSelfResult) L.push('自检: ' + aboutSelfResult + (aboutSelfDetail ? ('（' + aboutSelfDetail + '）') : ''))
+    if (d && d.ledger) L.push(I('记账: ') + (d.ledger.error ? (I('读取失败 ') + d.ledger.error) : (I('已记 ') + d.ledger.days + I(' 天 · 最近观测 ') + aboutFmtTime(d.ledger.lastObservedAt) + (d.ledger.todayPartial ? I(' · 今日为部分数据') : '') + (d.ledger.needsReview ? I(' · 有待核对调整') : ''))))
+    if (d && d.balance) L.push(I('余额取数: ') + (d.balance.ok ? I('成功') : I('失败')) + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : '') + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''))
+    else L.push(I('余额取数: 本次会话尚未取过'))
+    if (d && d.codex) L.push(I('Codex 统计: ') + (d.codex.enabled ? (I('已启用 · 最近扫描 ') + aboutFmtTime(d.codex.snapAt) + (d.codex.files != null ? (' · ' + d.codex.files + I(' 个会话文件')) : '')) : (I('未启用（') + (d.codex.reason || I('未配置')) + '）')))
+    if (aboutSelfResult) L.push(I('自检: ') + aboutSelfResult + (aboutSelfDetail ? ('（' + aboutSelfDetail + '）') : ''))
     // v805：来源**只在这里**出现（行里不显示），方便贴 issue 时知道是哪条路通的
-    if (aboutLastUpdate) L.push('检查更新: ' + aboutLastUpdate + (aboutUpdateSource ? ('（源 ' + aboutUpdateSource + '）') : ''))
-    L.push('（此文本不含密钥、账号 id、账本明细与会话内容）')
+    if (aboutLastUpdate) L.push(I('检查更新: ') + aboutLastUpdate + (aboutUpdateSource ? (I('（源 ') + aboutUpdateSource + '）') : ''))
+    L.push(I('（此文本不含密钥、账号 id、账本明细与会话内容）'))
   } catch (err) {}
   return L.join('\n')
 }
 function aboutCopyText(text) {
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { aboutFlash('已复制到剪贴板') }, function () { aboutCopyFallback(text) })
+      navigator.clipboard.writeText(text).then(function () { aboutFlash(I('已复制到剪贴板')) }, function () { aboutCopyFallback(text) })
       return
     }
   } catch (err) {}
@@ -2675,8 +2903,8 @@ function aboutCopyFallback(text) {
     ta.select()
     document.execCommand('copy')
     dshwBodyDetach(ta)
-    aboutFlash('已复制到剪贴板')
-  } catch (err) { aboutFlash('复制失败，请手动选择文本') }
+    aboutFlash(I('已复制到剪贴板'))
+  } catch (err) { aboutFlash(I('复制失败，请手动选择文本')) }
 }
 // v800（用户要求）：复制提示做成**菜单内**的小浮条（原来是整个界面底部的 toast）
 //   挂在 usageArea 里（它本来就是 position:relative + overflow:hidden），所以始终贴在菜单可视区底部，
@@ -2714,8 +2942,8 @@ function aboutFlashHide() {
 function aboutOpenLink(url) {
   try {
     var w = window.open(url, '_blank', 'noopener,noreferrer')
-    if (!w) { aboutCopyText(url); aboutFlash('浏览器拦截了新窗口，链接已复制') }
-  } catch (err) { aboutCopyText(url); aboutFlash('打不开新窗口，链接已复制') }
+    if (!w) { aboutCopyText(url); aboutFlash(I('浏览器拦截了新窗口，链接已复制')) }
+  } catch (err) { aboutCopyText(url); aboutFlash(I('打不开新窗口，链接已复制')) }
 }
 function aboutRender() {
   var el = aboutEnsurePanel()
@@ -2730,12 +2958,12 @@ function aboutRender() {
   var dshVer = aboutDshVersion(r)
   // 顶行：标题 + 刷新图标（v803：挪到「小鲸鱼挂件」**右侧**）+ 版号徽标 + 通道徽标 + 客户端徽标
   var h = aboutEl('div', 'dshwv-about-h')
-  h.appendChild(aboutEl('span', 'dshwv-about-name', '小鲸鱼挂件'))
+  h.appendChild(aboutEl('span', 'dshwv-about-name', I('小鲸鱼挂件')))
   // v799：刷新按钮是小圆形箭头图标（就是 DSH 那个刷新图标：圆环缺口在右上 + 实心小箭头）。
   //   用内联 SVG 画，比字体符号稳（不受字体影响），颜色跟面板走。
   var refreshBtn = aboutEl('button', 'dshwv-about-refresh')
   refreshBtn.type = 'button'
-  refreshBtn.title = '刷新数据（重新向宿主读取）'
+  refreshBtn.title = I('刷新数据（重新向宿主读取）')
   try {
     refreshBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
       '<path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>'
@@ -2743,7 +2971,7 @@ function aboutRender() {
   refreshBtn.addEventListener('click', function (e) { e.stopPropagation(); aboutLoad(true) })
   h.appendChild(refreshBtn)
   h.appendChild(aboutEl('span', 'dshwv-about-badge dshwv-about-badge-ver', (p.label || p.version || '?')))
-  h.appendChild(aboutEl('span', 'dshwv-about-badge' + (isDev ? ' dshwv-about-badge-dev' : ''), isDev ? '开发版' : '正式版'))
+  h.appendChild(aboutEl('span', 'dshwv-about-badge' + (isDev ? ' dshwv-about-badge-dev' : ''), isDev ? I('开发版') : I('正式版')))
   h.appendChild(aboutEl('span', 'dshwv-about-badge', aboutClientKind(true) + (r.profile ? ' · ' + r.profile : '')))
   el.appendChild(h)
   // v797（用户要求）：标题行下方加一条分割线（与各分节标题的下边框同款）
@@ -2778,11 +3006,11 @@ function aboutRender() {
     acts.appendChild(cp)
     head.appendChild(acts)
     // 点标题行**任意位置** ⇒ 复制整节（用户要求）
-    head.title = '点击复制「' + secTitle + '」整节'
+    head.title = I('点击复制「') + secTitle + I('」整节')
     head.addEventListener('click', function (e) {
       try { e.stopPropagation() } catch (err) {}
       aboutCopyText(secTitle + '\n' + secLines.join('\n'))
-      aboutFlash('已复制：' + secTitle)
+      aboutFlash(I('已复制：') + secTitle)
     })
     wrap.appendChild(head)
     wrap.appendChild(secBody)
@@ -2799,11 +3027,11 @@ function aboutRender() {
     line.appendChild(aboutEl('span', 'dshwv-about-k', label))
     line.appendChild(aboutEl('span', 'dshwv-about-v' + (cls ? ' ' + cls : ''), shortText))
     if (fullText) {
-      line.title = '点击复制：' + fullText
+      line.title = I('点击复制：') + fullText
       line.addEventListener('click', function (e) {
         try { e.stopPropagation() } catch (err) {}
         aboutCopyText(fullText)
-        aboutFlash('已复制：' + label)
+        aboutFlash(I('已复制：') + label)
       })
       if (pending) pending.lines.push(fullText)
     }
@@ -2825,63 +3053,63 @@ function aboutRender() {
     aboutRows[label] = { line: line, val: valEl }
     if (pending) pending.body.appendChild(line)
   }
-  secStart('版本与安装')
+  secStart(I('版本与安装'))
   row('宿主文件', aboutShortOf(b.host), aboutFileFull('宿主文件', b.host))
   row('前端文件', aboutShortOf(b.widget), aboutFileFull('前端文件', b.widget))
   var lits = (p.hostVersionLiterals || [])
   var consistent = lits.length > 0 && lits.every(function (x) { return x === p.version })
-  row('版本自洽', consistent ? '一致' : '不一致', '版本自洽: ' + (consistent ? '一致' : '不一致') + '（源码字面量 ' + (lits.join(' / ') || '?') + ' vs 上报 ' + (p.version || '?') + '）',
+  row('版本自洽', consistent ? I('一致') : I('不一致'), I('版本自洽: ') + (consistent ? I('一致') : I('不一致')) + I('（源码字面量 ') + (lits.join(' / ') || '?') + I(' vs 上报 ') + (p.version || '?') + '）',
     consistent ? 'dshwv-about-ok' : 'dshwv-about-bad')
-  row('宿主含开发机路径', b.hostHasDevPaths === true ? '是（开发版）' : b.hostHasDevPaths === false ? '否' : '未知',
-    '宿主含开发机路径: ' + (b.hostHasDevPaths === true ? '是' : b.hostHasDevPaths === false ? '否' : '未知') + '（true = 这份宿主是开发版，未走 strip）',
+  row('宿主含开发机路径', b.hostHasDevPaths === true ? I('是（开发版）') : b.hostHasDevPaths === false ? I('否') : I('未知'),
+    I('宿主含开发机路径: ') + (b.hostHasDevPaths === true ? I('是') : b.hostHasDevPaths === false ? I('否') : I('未知')) + I('（true = 这份宿主是开发版，未走 strip）'),
     b.hostHasDevPaths === true ? 'dshwv-about-bad' : 'dshwv-about-ok')
-  secStart('运行环境')
-  row('客户端', aboutClientKind(true), '客户端: ' + aboutClientKind() + '（判定来源: ' + ((d.client && d.client.via) || '前端 UA 兜底') + '）' + (r.profile ? ' · profile ' + r.profile : ''))
-  row('平台 / Node', (r.platform || '?') + ' ' + (r.arch || '?') + ' · ' + (r.node || '?'), '平台: ' + (r.platform || '?') + ' ' + (r.arch || '?') + ' · Node ' + (r.node || '?'))
-  row('DSH 版本', dshVer || '未知', 'DSH: ' + (dshVer || 'unknown') + (r.profile ? ' · profile ' + r.profile : '') + ' · 数据目录 ' + (r.dataHome || '?') +
-    ' · 来源: ' + (aboutBootVersion() ? '页面 __DSH_BOOT__' : '宿主读取'))
+  secStart(I('运行环境'))
+  row('客户端', aboutClientKind(true), I('客户端: ') + aboutClientKind() + I('（判定来源: ') + ((d.client && d.client.via) || I('前端 UA 兜底')) + '）' + (r.profile ? ' · profile ' + r.profile : ''))
+  row('平台 / Node', (r.platform || '?') + ' ' + (r.arch || '?') + ' · ' + (r.node || '?'), I('平台: ') + (r.platform || '?') + ' ' + (r.arch || '?') + ' · Node ' + (r.node || '?'))
+  row('DSH 版本', dshVer || I('未知'), 'DSH: ' + (dshVer || 'unknown') + (r.profile ? ' · profile ' + r.profile : '') + I(' · 数据目录 ') + (r.dataHome || '?') +
+    I(' · 来源: ') + (aboutBootVersion() ? I('页面 __DSH_BOOT__') : I('宿主读取')))
   // v803（用户要求）：「挂件已运行」也改成**点击刷新**（不再复制）—— 它是"活"的数字。
   //   v805：只刷新这一行（重新读一次 about.json，但不重画整个面板）。
   actRow('挂件已运行', aboutFmtUptime(r.uptimeSec),
-    '点击刷新这一行：重新向宿主读取运行时长（不重画整个面板）',
+    I('点击刷新这一行：重新向宿主读取运行时长（不重画整个面板）'),
     '', function () { aboutRefreshUptimeRow() })
-  secStart('数据落点')
+  secStart(I('数据落点'))
   ;(d.data || []).forEach(function (f) {
     row(f.label, aboutShortOf(f), aboutFileFull(f.label, f), f.found ? '' : 'dshwv-about-bad')
   })
-  secStart('状态')
-  if (d.ledger && d.ledger.error) row('记账', '读取失败', '记账: 读取失败 ' + d.ledger.error, 'dshwv-about-bad')
+  secStart(I('状态'))
+  if (d.ledger && d.ledger.error) row('记账', I('读取失败'), I('记账: 读取失败 ') + d.ledger.error, 'dshwv-about-bad')
   else if (d.ledger) {
     var lg = []
-    lg.push(d.ledger.days + ' 天')
-    if (d.ledger.lastObservedAt) lg.push('观测 ' + aboutShortTime(d.ledger.lastObservedAt))
-    if (d.ledger.todayPartial) lg.push('今日部分数据')
-    if (d.ledger.needsReview) lg.push('有待核对')
-    row('记账', lg.join(' · '), '记账: 已记录 ' + d.ledger.days + ' 天 · 最近观测 ' + aboutFmtTime(d.ledger.lastObservedAt) +
-      (d.ledger.todayPartial ? ' · 今日为部分数据' : ' · 今日完整') + (d.ledger.needsReview ? ' · 有待核对调整' : ' · 无待核对'),
+    lg.push(d.ledger.days + I(' 天'))
+    if (d.ledger.lastObservedAt) lg.push(I('观测 ') + aboutShortTime(d.ledger.lastObservedAt))
+    if (d.ledger.todayPartial) lg.push(I('今日部分数据'))
+    if (d.ledger.needsReview) lg.push(I('有待核对'))
+    row('记账', lg.join(' · '), I('记账: 已记录 ') + d.ledger.days + I(' 天 · 最近观测 ') + aboutFmtTime(d.ledger.lastObservedAt) +
+      (d.ledger.todayPartial ? I(' · 今日为部分数据') : I(' · 今日完整')) + (d.ledger.needsReview ? I(' · 有待核对调整') : I(' · 无待核对')),
       d.ledger.todayPartial || d.ledger.needsReview ? 'dshwv-about-bad' : '')
-  } else row('记账', '不可用', '记账: 不可用')
+  } else row('记账', I('不可用'), I('记账: 不可用'))
   if (d.balance) {
-    row('余额取数', (d.balance.ok ? '成功' : '失败') + (d.balance.ms != null ? ' · ' + d.balance.ms + ' ms' : '') + (d.balance.at ? ' · ' + aboutShortTime(d.balance.at) : ''),
-      '余额取数: ' + (d.balance.ok ? '成功' : '失败') + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : '耗时未知') + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''),
+    row('余额取数', (d.balance.ok ? I('成功') : I('失败')) + (d.balance.ms != null ? ' · ' + d.balance.ms + ' ms' : '') + (d.balance.at ? ' · ' + aboutShortTime(d.balance.at) : ''),
+      I('余额取数: ') + (d.balance.ok ? I('成功') : I('失败')) + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : I('耗时未知')) + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''),
       d.balance.ok ? 'dshwv-about-ok' : 'dshwv-about-bad')
-    if (d.balance.error) row('余额失败原因', String(d.balance.error).slice(0, 22) + (String(d.balance.error).length > 22 ? '…' : ''), '余额失败原因: ' + d.balance.error, 'dshwv-about-bad')
-  } else row('余额取数', '本次会话尚未取过', '余额取数: 本次会话尚未取过（点一次鲸鱼会触发）')
+    if (d.balance.error) row('余额失败原因', String(d.balance.error).slice(0, 22) + (String(d.balance.error).length > 22 ? '…' : ''), I('余额失败原因: ') + d.balance.error, 'dshwv-about-bad')
+  } else row('余额取数', I('本次会话尚未取过'), I('余额取数: 本次会话尚未取过（点一次鲸鱼会触发）'))
   if (d.codex && d.codex.enabled) {
-    row('Codex 统计', '已启用' + (d.codex.files != null ? ' · ' + d.codex.files + ' 个会话' : ''),
-      'Codex 统计: 已启用 · 最近扫描 ' + aboutFmtTime(d.codex.snapAt) + ' · 跳过 ' + (d.codex.skipped != null ? d.codex.skipped : '—') + ' · 延后 ' + (d.codex.deferred != null ? d.codex.deferred : '—'),
+    row('Codex 统计', I('已启用') + (d.codex.files != null ? ' · ' + d.codex.files + I(' 个会话') : ''),
+      I('Codex 统计: 已启用 · 最近扫描 ') + aboutFmtTime(d.codex.snapAt) + I(' · 跳过 ') + (d.codex.skipped != null ? d.codex.skipped : '—') + I(' · 延后 ') + (d.codex.deferred != null ? d.codex.deferred : '—'),
       'dshwv-about-ok')
   } else {
-    row('Codex 统计', '未启用', 'Codex 统计: 未启用 —— ' + ((d.codex && d.codex.reason) || '未配置 Codex 模型'))
+    row('Codex 统计', I('未启用'), I('Codex 统计: 未启用 —— ') + ((d.codex && d.codex.reason) || I('未配置 Codex 模型')))
   }
   // v798 起：打开面板时自动跑一次；v802（用户要求）：这两行**不复制**，点击 = 重新执行。
-  actRow('自检', aboutSelfResult || '检查中…',
-    '点击重新自检：只从浏览器访问本机两条插件路由（不联网、不耗 token）' + (aboutSelfDetail ? ('\n上次：' + aboutSelfDetail) : ''),
-    aboutSelfResult ? (/^通过/.test(aboutSelfResult) ? 'dshwv-about-ok' : 'dshwv-about-bad') : '',
+  actRow('自检', aboutSelfResult || I('检查中…'),
+    I('点击重新自检：只从浏览器访问本机两条插件路由（不联网、不耗 token）') + (aboutSelfDetail ? (I('\n上次：') + aboutSelfDetail) : ''),
+    aboutSelfResult ? (aboutSelfOk ? 'dshwv-about-ok' : 'dshwv-about-bad') : '',
     function () { aboutSelfCheck() })
   // v805（用户要求）：这一行**不显示来源**（来源只出现在"复制诊断信息"的文本里）
-  actRow('检查更新', aboutLastUpdate || '检查中…',
-    '点击重新检查 npm 上的最新版本（五个源并行：npmmirror / jsdelivr / unpkg / npmjs / npm-cli）',
+  actRow('检查更新', aboutLastUpdate || I('检查中…'),
+    I('点击重新检查 npm 上的最新版本（五个源并行：npmmirror / jsdelivr / unpkg / npmjs / npm-cli）'),
     '', function () { aboutCheckUpdate() })
   secEnd()
   // 动作区：2 列网格；「复制以上全部信息」放在**最后一行**（用户要求；v814 按要求改名）
@@ -2892,11 +3120,11 @@ function aboutRender() {
     bb.addEventListener('click', function (e) { e.stopPropagation(); fn() })
     acts.appendChild(bb)
   }
-  btn('仓库', function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget') })
-  btn('更新日志', function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases') })
-  btn('复制以上全部信息', function () { aboutCopyText(aboutDiagText(aboutData)) }, true)
+  btn(I('仓库'), function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget') })
+  btn(I('更新日志'), function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases') })
+  btn(I('复制以上全部信息'), function () { aboutCopyText(aboutDiagText(aboutData)) }, true)
   el.appendChild(acts)
-  el.appendChild(aboutEl('div', 'dshwv-about-note', '点任意一行复制该行；每节标题右侧可整节复制。自检只访问本机两条插件路由（不联网、不耗 token）。前端改动需 Ctrl+F5，宿主改动需重启服务。'))
+  el.appendChild(aboutEl('div', 'dshwv-about-note', I('点任意一行复制该行；每节标题右侧可整节复制。自检只访问本机两条插件路由（不联网、不耗 token）。前端改动需 Ctrl+F5，宿主改动需重启服务。')))
   // v805：还原滚动位置（整屏刷新不跳回顶部）
   try { if (keepScroll > 0) el.scrollTop = keepScroll } catch (err) {}
 }
@@ -2904,15 +3132,15 @@ function aboutLoad(force) {
   var el = aboutEnsurePanel()
   if (!force && aboutData) { aboutRender(); aboutAutoProbe(); return }
   el.innerHTML = ''
-  el.appendChild(aboutEl('div', 'dshwv-about-note', '读取中…'))
+  el.appendChild(aboutEl('div', 'dshwv-about-note', I('读取中…')))
   fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
     aboutData = d && d.ok ? d : null
-    if (!aboutData) { el.innerHTML = ''; el.appendChild(aboutEl('div', 'dshwv-about-note', '读取失败：' + ((d && d.error) || '未知错误'))); return }
+    if (!aboutData) { el.innerHTML = ''; el.appendChild(aboutEl('div', 'dshwv-about-note', I('读取失败：') + ((d && d.error) || I('未知错误')))); return }
     aboutRender()
     aboutAutoProbe()
   }).catch(function (err) {
     el.innerHTML = ''
-    el.appendChild(aboutEl('div', 'dshwv-about-note', '读取失败：' + String((err && err.message) || err)))
+    el.appendChild(aboutEl('div', 'dshwv-about-note', I('读取失败：') + String((err && err.message) || err)))
   })
 }
 // v798：打开面板（或点「刷新数据」）时自动跑一次自检与检查更新（用户要求：不做按钮）
@@ -2921,15 +3149,15 @@ function aboutAutoProbe() {
   try {
     var now = Date.now()
     if (!aboutCheckAt || now - aboutCheckAt > 10 * 60 * 1000) aboutCheckUpdate()
-    else if (!aboutLastUpdate) aboutLastUpdate = '（10 分钟内已检查过）'
+    else if (!aboutLastUpdate) aboutLastUpdate = I('（10 分钟内已检查过）')
   } catch (err) {}
 }
 function aboutSelfCheck() {
   var targets = ['/dsh-whale/size.json', '/dsh-whale/wait.json']
-  aboutSelfResult = '检查中…'
+  aboutSelfResult = I('检查中…')
   aboutSelfDetail = ''
   // v805：只更新「自检」这一行，不重画整个面板（重画会丢滚动位置、也会闪一下）
-  if (!aboutUpdateRow('自检', '检查中…')) aboutRender()
+  if (!aboutUpdateRow('自检', I('检查中…'))) aboutRender()
   Promise.all(targets.map(function (u) {
     var t0 = Date.now()
     return fetch(u, { cache: 'no-store' }).then(function (r) {
@@ -2945,29 +3173,30 @@ function aboutSelfCheck() {
   })).then(function (rs) {
     var bad = rs.filter(function (x) { return !x.ok })
     aboutSelfDetail = rs.map(function (x) {
-      return aboutShortPath(x.u) + ' ' + (x.ok ? '200' : (x.code ? ('HTTP ' + x.code) : '失败')) + ' · ' + x.ms + 'ms · ' +
-        (x.fields >= 0 ? (x.fields + ' 字段') : (x.err || '解析失败'))
+      return aboutShortPath(x.u) + ' ' + (x.ok ? '200' : (x.code ? ('HTTP ' + x.code) : I('失败'))) + ' · ' + x.ms + 'ms · ' +
+        (x.fields >= 0 ? (x.fields + I(' 字段')) : (x.err || I('解析失败')))
     }).join('；')
-    aboutSelfResult = bad.length ? ('失败：' + bad.length + '/' + rs.length + ' 条') : ('通过（' + rs.length + ' 条路由）')
+    aboutSelfOk = !bad.length
+    aboutSelfResult = bad.length ? (I('失败：') + bad.length + '/' + rs.length + I(' 条')) : (I('通过（') + rs.length + I(' 条路由）'))
     // v805：只更新这一行（面板没渲染时才回退到整屏重画）
-    if (!aboutUpdateRow('自检', aboutSelfResult, /^通过/.test(aboutSelfResult) ? 'dshwv-about-ok' : 'dshwv-about-bad')) aboutRender()
+    if (!aboutUpdateRow('自检', aboutSelfResult, aboutSelfOk ? 'dshwv-about-ok' : 'dshwv-about-bad')) aboutRender()
   })
 }
 function aboutCheckUpdate() {
-  aboutLastUpdate = '检查中…'
+  aboutLastUpdate = I('检查中…')
   aboutCheckAt = Date.now()
   // v805：只更新「检查更新」这一行（不重画整个面板）
-  if (!aboutUpdateRow('检查更新', '检查中…')) aboutRender()
+  if (!aboutUpdateRow('检查更新', I('检查中…'))) aboutRender()
   fetch('/dsh-whale/update-check.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
     // v805（用户要求）：来源**不显示在行里**，只留在 aboutUpdateSource 里，随「复制诊断信息」一起带出去
     aboutUpdateSource = (d && d.source) ? String(d.source) : ''
-    if (!d || !d.ok) aboutLastUpdate = '检查失败：' + ((d && d.error) || '未知错误')
-    else if (d.channel === 'dev') aboutLastUpdate = '开发版（最新发布 ' + d.latest + '）'
-    else aboutLastUpdate = d.hasUpdate ? ('有新版本 ' + d.latest + '，当前 ' + d.current) : ('已是最新（' + d.current + '）')
+    if (!d || !d.ok) aboutLastUpdate = I('检查失败：') + ((d && d.error) || I('未知错误'))
+    else if (d.channel === 'dev') aboutLastUpdate = I('开发版（最新发布 ') + d.latest + '）'
+    else aboutLastUpdate = d.hasUpdate ? (I('有新版本 ') + d.latest + I('，当前 ') + d.current) : (I('已是最新（') + d.current + '）')
     if (!aboutUpdateRow('检查更新', aboutLastUpdate)) aboutRender()
   }).catch(function (err) {
     aboutUpdateSource = ''
-    aboutLastUpdate = '检查失败：' + String((err && err.message) || err)
+    aboutLastUpdate = I('检查失败：') + String((err && err.message) || err)
     if (!aboutUpdateRow('检查更新', aboutLastUpdate)) aboutRender()
   })
 }
@@ -3132,7 +3361,7 @@ function closeAboutPanel() { hideAboutSub() }
 //   （用户实测：点泡泡的带底色块 ⇒ 泡泡不翻页、反而打开了版号面板）。CSS 已收窄到 `.dshwv-menu-open` 下，
 //   这里再守一道，双保险。
 try {
-  menuVerEl.title = '点这里查看版本与自检信息'
+  menuVerEl.title = I('点这里查看版本与自检信息')
   menuVerEl.addEventListener('click', function (e) {
     try { e.stopPropagation() } catch (err) {}
     if (!menuOpen) return // 菜单没开 ⇒ 这一行不该接收任何点击
@@ -3146,7 +3375,7 @@ function usageDayLabel(day) {
     if (d.length !== 3) return day
     var now = new Date()
     var cur = String(now.getFullYear()) + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0')
-    if (day === cur) return '今天'
+    if (day === cur) return I('今天')
     return (d[1] + '-' + d[2])
   } catch (err) { return day }
 }
@@ -3161,7 +3390,7 @@ function buildUsageSubShell() {
   // 居中小标题
   var subTitle = document.createElement('div')
   subTitle.className = 'dshwv-usage-subtitle'
-  subTitle.textContent = '- = 小鲸鱼记账 = -'
+  subTitle.textContent = I('- = 小鲸鱼记账 = -')
   usagePanel.appendChild(subTitle)
   // 预警与预算设置区(静态)
   buildUsageSettingsArea()
@@ -3304,7 +3533,7 @@ function openSoundSettingsPanel() {
     card.style.overflow = 'hidden auto'
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
-    title.textContent = '提示与音效设置'
+    title.textContent = I('提示与音效设置')
     card.appendChild(title)
     // 登记到运行时浮层表（issue #142 / CI 的 z 层审计）：面板内的自绘下拉靠 visibleTopZ()
     // 抬层，不登记的话它们会算在遮罩下面（点开却看不见）
@@ -3355,32 +3584,32 @@ function openSoundSettingsPanel() {
           var e = sndEntries[i]
           var txt = ''
           if (e.kind === 'press') {
-            if (soundOn === false) txt = '已关闭'
+            if (soundOn === false) txt = I('已关闭')
             else {
               var g = ''
               try { g = String(audioGroupBtnLabel.textContent || '') } catch (err) {}
-              txt = (g || '默认音效组') + ' · ' + sndPct(soundVol)
+              txt = (g || I('默认音效组')) + ' · ' + sndPct(soundVol)
             }
           } else if (e.kind === 'turnCost') {
-            if (!turnCostOn) txt = '已关闭'
+            if (!turnCostOn) txt = I('已关闭')
             else {
               var sec = Math.max(0, Math.round(Number(tcCloseBuf.ttlSec) || 0))
-              var pre = (tcCloseBuf.autoClose !== false && sec > 0) ? ('自动关 ' + sec + 's') : '不自动关'
+              var pre = (tcCloseBuf.autoClose !== false && sec > 0) ? (I('自动关 ') + sec + 's') : I('不自动关')
               // v768：静音时**不再显示已选的音效名**，直接告诉用户去哪儿改（用户要求的确切文案）
-              txt = pre + ' · ' + (bufTaskEndOn ? (soundNameOf(e.sel) || '—') : '当前为静音，在下拉设置中修改')
+              txt = pre + ' · ' + (bufTaskEndOn ? (soundNameOf(e.sel) || '—') : I('当前为静音，在下拉设置中修改'))
               // v778：音量的两种状态写清楚 —— 没拖过 ②区滑块 = **跟随①区按压音量**；拖过 = 用这里的值。
               if (bufTaskEndOn) {
                 if (sndBuf.turnCost.volSet === true) {
                   if (sndPct(sndBuf.turnCost.vol) !== '100%') txt += ' · ' + sndPct(sndBuf.turnCost.vol)
                 } else {
-                  txt += ' · 跟随按压音量 ' + sndPct(soundVol)
+                  txt += I(' · 跟随按压音量 ') + sndPct(soundVol)
                 }
               }
             }
           } else {
             var cfg = sndBuf[e.kind] || {}
-            if (cfg.on === false) txt = '已关闭'
-            else if (cfg.soundOn === false) txt = '当前为静音，在下拉设置中修改' // v768：静音时不显示已选音效
+            if (cfg.on === false) txt = I('已关闭')
+            else if (cfg.soundOn === false) txt = I('当前为静音，在下拉设置中修改') // v768：静音时不显示已选音效
             else {
               txt = soundNameOf(e.sel) || '—'
               if (sndPct(cfg.vol) !== '100%') txt += ' · ' + sndPct(cfg.vol)
@@ -3492,7 +3721,7 @@ function openSoundSettingsPanel() {
       ck.type = 'checkbox'
       ck.className = 'dshwv-check'
       ck.checked = cfg.autoClose !== false
-      ck.title = '开启后泡泡到时间自动关闭'
+      ck.title = I('开启后泡泡到时间自动关闭')
       ck.addEventListener('change', function () { cfg.autoClose = !!ck.checked })
       var num = document.createElement('input')
       num.type = 'number'
@@ -3500,7 +3729,7 @@ function openSoundSettingsPanel() {
       num.step = '1'
       num.className = 'dshwv-winput'
       num.value = String(Math.max(0, Math.round(Number(cfg.ttlSec) || 0)))
-      num.title = '自动关闭秒数（0 = 不自动关闭）'
+      num.title = I('自动关闭秒数（0 = 不自动关闭）')
       num.addEventListener('input', function () { cfg.ttlSec = Math.max(0, Math.round(Number(num.value) || 0)) })
       num.addEventListener('change', function () {
         cfg.ttlSec = Math.max(0, Math.round(Number(num.value) || 0))
@@ -3508,7 +3737,7 @@ function openSoundSettingsPanel() {
       })
       r.appendChild(ck)
       r.appendChild(num)
-      r.appendChild(menuLabel('秒'))
+      r.appendChild(menuLabel(I('秒')))
       return { chk: ck, num: num }
     }
     // 冒泡提示：开关 + 编辑提示内容（editFn 为空时才置灰；提问/授权已接入各自的编辑器）
@@ -3518,13 +3747,13 @@ function openSoundSettingsPanel() {
       ck.type = 'checkbox'
       ck.className = 'dshwv-check'
       ck.checked = cfg.bubbleOn !== false
-      ck.title = '该事件是否用泡泡提示'
+      ck.title = I('该事件是否用泡泡提示')
       ck.addEventListener('change', function () { cfg.bubbleOn = !!ck.checked })
       var btn = document.createElement('button')
       btn.type = 'button'
       btn.className = 'dshwv-roleimport'
       btn.style.flex = '1'
-      btn.textContent = '编辑提示内容'
+      btn.textContent = I('编辑提示内容')
       btn.title = editTip
       if (editFn) {
         btn.addEventListener('click', function (e) { e.stopPropagation(); try { editFn() } catch (err) {} })
@@ -3543,11 +3772,11 @@ function openSoundSettingsPanel() {
     //   每个通道一行：`[标签] [✓] 滑块 百分比`（按压松开 / 消耗提示 / 提问 / 授权）。
     //   这一行自己的 [✓] = 一键全开/全关（= 派生出来的 soundOn）。
     //   四个通道行在 ②③④ 建好之后才 append（那时才拿得到它们的控件句柄），所以这里只建入口行。
-    var allEnt = sndEntry('全部音效', soundOn !== false, function (b) { setAllSoundChannels(b) }, true)
+    var allEnt = sndEntry(I('全部音效'), soundOn !== false, function (b) { setAllSoundChannels(b) }, true)
     // v866（用户要求）：名字改回「按压音效」，并且这个 [✓] **真正只管按压/松开**
     //   （以前它挂着全局 soundOn，关掉会把事件音一起关掉 —— 那正是用户觉得别扭的地方）。
     //   全局开关改为**派生**（见 refreshSoundMaster()）：四个通道都关才真的关。
-    var pressEnt = sndEntry('按压音效', pressOn !== false, function (b) {
+    var pressEnt = sndEntry(I('按压音效'), pressOn !== false, function (b) {
       setPressOn(b)
       try { syncSoundChannelRows() } catch (err) {} // v872：双保险（不依赖事件冒泡）
     }, false)
@@ -3555,8 +3784,8 @@ function openSoundSettingsPanel() {
     sndEntries.push({ kind: 'press', summary: pressEnt.summary, sel: null })
     var rPressGrp = row('按压音效组', pressEnt.body)
     rPressGrp.appendChild(audioGroupBtn) // 复用原「音效组」按钮
-    audioImportBtn.textContent = '新建音效组'
-    audioImportBtn.title = '新建/编辑音效组'
+    audioImportBtn.textContent = I('新建音效组')
+    audioImportBtn.title = I('新建/编辑音效组')
     rPressGrp.appendChild(audioImportBtn)
     // 这两个弹层是 body 上的固定层（.dshwv-audiolist / .dshwv-audiomask 都低于 30000），
     // 从本面板打开时必须临时抬到面板之上，否则会被遮罩整层盖住（点了没反应）
@@ -3568,7 +3797,7 @@ function openSoundSettingsPanel() {
     rPressVol.appendChild(volInput) // 复用主菜单搬出来的滑块（input 事件已接 setVol；取消时按快照还原）
     rPressVol.appendChild(volPct)
     // 本区**只保留音量行这一个试听按钮**（音量行自己不加 ▶，避免一个模块两个入口）
-    rPressVol.appendChild(playBtn('试听按压音效', function () {
+    rPressVol.appendChild(playBtn(I('试听按压音效'), function () {
       playPreview(function () {
         playPress()
         // 音效组把按压槽留空时 playPress() 只置状态不出声 → 补一次松开音，保证试听总能听到该组
@@ -3585,9 +3814,9 @@ function openSoundSettingsPanel() {
     // v762 行序（与 ③④ 统一）：冒泡提示 → 自动关闭 → 音效行 → 提示音量
     // （DOM 顺序 = 创建顺序，所以这里按目标顺序调用即完成重排）
     // v763：② 表头的 [✓] 留个句柄，供 applyDefaults() 同步显示（直接改 .checked 不会触发 change ⇒ 不落盘）
-    var tcEnt = sndEntry('每轮消耗提示', !!turnCostOn, function (b) { setTurnCostOn(b) })
+    var tcEnt = sndEntry(I('每轮消耗提示'), !!turnCostOn, function (b) { setTurnCostOn(b) })
     var tcOnChk = tcEnt.chk
-    var tcBub = bubbleRow(sndBuf.turnCost, function () { usageAlertBudgetEditor('cost', null) }, '编辑每轮消耗提示的泡泡内容（金额用 {cost}）', tcEnt.body)
+    var tcBub = bubbleRow(sndBuf.turnCost, function () { usageAlertBudgetEditor('cost', null) }, I('编辑每轮消耗提示的泡泡内容（金额用 {cost}）'), tcEnt.body)
     var tcAc = autoCloseRow(tcCloseBuf, tcEnt.body)
     var rTe = row('任务结束音', tcEnt.body)
     // 音效行的 [✓] = 该事件是否播这个音效。② 直接绑**既有的** usageSet.taskEnd.on
@@ -3596,15 +3825,15 @@ function openSoundSettingsPanel() {
     teSoundChk.type = 'checkbox'
     teSoundChk.className = 'dshwv-check'
     teSoundChk.checked = bufTaskEndOn
-    teSoundChk.title = '该事件是否播这个音效（关掉 = 不响；下拉里选的音效仍保留，下次勾上即用）'
+    teSoundChk.title = I('该事件是否播这个音效（关掉 = 不响；下拉里选的音效仍保留，下次勾上即用）')
     teSoundChk.addEventListener('change', function () { bufTaskEndOn = !!teSoundChk.checked })
     rTe.appendChild(teSoundChk)
     var teSel = document.createElement('select')
     teSel.className = 'dshwv-sound'
-    teSel.title = '任务结束音：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定'
+    teSel.title = I('任务结束音：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定')
     teSel.addEventListener('change', function () { bufTaskEndSel = teSel.value })
     rTe.appendChild(teSel)
-    rTe.appendChild(playBtn('试听任务结束音', function () {
+    rTe.appendChild(playBtn(I('试听任务结束音'), function () {
       playPreview(function () { playBindingSound({ on: true, sel: bufTaskEndSel }, { vol: sndBuf.turnCost.vol }, { preview: true }) })
     }))
     var teDrop = dshwCustSel(teSel, { scrollNames: true })
@@ -3638,17 +3867,17 @@ function openSoundSettingsPanel() {
       sgChk.type = 'checkbox'
       sgChk.className = 'dshwv-check'
       sgChk.checked = bufSubagentMute !== false
-      sgChk.title = '子智能体（subagent）跑完自己的回合时，不弹"任务结束"提示与音效；关掉则和主会话一样提示'
+      sgChk.title = I('子智能体（subagent）跑完自己的回合时，不弹"任务结束"提示与音效；关掉则和主会话一样提示')
       sgChk.addEventListener('change', function () { bufSubagentMute = !!sgChk.checked })
       var rSg = row('子智能体', tcEnt.body)
       rSg.appendChild(sgChk)
-      rSg.appendChild(qLabel('完成时不提示'))
+      rSg.appendChild(qLabel(I('完成时不提示')))
       rSg.appendChild(dshwvAskDot(
-        '<div style="font-weight:600;margin-bottom:4px">子智能体完成时不提示</div>' +
-        '<div>子智能体（subagent）也有自己的回合：跑完时旧行为会像主会话一样弹一次"任务结束"提示/音效。</div>' +
-        '<div style="margin-top:4px">· 勾上（默认）：子智能体完成**不提示**，只有主会话的回合结束才提示。</div>' +
-        '<div>· 取消勾选：恢复旧行为（子智能体完成也提示）。</div>' +
-        '<div style="margin-top:4px;opacity:.75">金额与用量照常记账，这个开关只影响"提不提示"。</div>'
+        I('<div style="font-weight:600;margin-bottom:4px">子智能体完成时不提示</div>') +
+        I('<div>子智能体（subagent）也有自己的回合：跑完时旧行为会像主会话一样弹一次"任务结束"提示/音效。</div>') +
+        I('<div style="margin-top:4px">· 勾上（默认）：子智能体完成**不提示**，只有主会话的回合结束才提示。</div>') +
+        I('<div>· 取消勾选：恢复旧行为（子智能体完成也提示）。</div>') +
+        I('<div style="margin-top:4px;opacity:.75">金额与用量照常记账，这个开关只影响"提不提示"。</div>')
       ))
     } catch (err) {}
 
@@ -3663,7 +3892,7 @@ function openSoundSettingsPanel() {
       // 'question' / 'approval' 两个模式，内容落在 events.<kind>.lines。**不要**拿 'question'
       // 去打开预警/预算编辑器（那会改错内容，正是上一轮把它置灰的原因）。
       var bub = bubbleRow(cfg, function () { usageAlertBudgetEditor(kind, null) },
-        '编辑' + (kind === 'approval' ? '授权' : '提问') + '提示的泡泡内容（{session} = 当前对话名，超长自动截断）', wEnt.body)
+        I('编辑') + (kind === 'approval' ? I('授权') : I('提问')) + I('提示的泡泡内容（{session} = 当前对话名，超长自动截断）'), wEnt.body)
       // v764：**不再挂「自动关闭」那一行** —— 提问/授权的提示气泡是**常驻**的（宿主给的是挂起状态，
       // 前端 whaleSysPush({kind:'wait', ttlMs: 0}) 不布自动关闭计时器），所以那行改了也没有任何消费方，
       // 属于「看起来能设、其实什么都不做」的死控件。行序因此是：冒泡提示 → 音效行 → 提示音量。
@@ -3676,15 +3905,15 @@ function openSoundSettingsPanel() {
       soundChk.type = 'checkbox'
       soundChk.className = 'dshwv-check'
       soundChk.checked = cfg.soundOn !== false
-      soundChk.title = '该事件是否播这个音效（关掉 = 不响；下拉里选的音效仍保留，下次勾上即用）'
+      soundChk.title = I('该事件是否播这个音效（关掉 = 不响；下拉里选的音效仍保留，下次勾上即用）')
       soundChk.addEventListener('change', function () { cfg.soundOn = !!soundChk.checked })
       rSel.appendChild(soundChk)
       var sel = document.createElement('select')
       sel.className = 'dshwv-sound'
-      sel.title = selLabel + '：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定'
+      sel.title = selLabel + I('：音效组（点按整组）/ 单个音频；播不播由左边的 [✓] 决定')
       sel.addEventListener('change', function () { cfg.sel = sel.value })
       rSel.appendChild(sel)
-      rSel.appendChild(playBtn('试听' + selLabel, function () {
+      rSel.appendChild(playBtn(I('试听') + selLabel, function () {
         playPreview(function () { playBindingSound({ on: true, sel: cfg.sel }, { vol: cfg.vol }, { preview: true }) })
       }))
       var drop = dshwCustSel(sel, { scrollNames: true })
@@ -3706,8 +3935,8 @@ function openSoundSettingsPanel() {
       sndEntries.push({ kind: kind, summary: wEnt.summary, sel: sel })
       waitUI[kind] = { on: onChk, sel: sel, drop: drop, vol: vs, bub: bub, sound: soundChk }
     }
-    buildWait('question', '提问提示', '提问提示音效')
-    buildWait('approval', '授权提示', '授权提示音')
+    buildWait('question', I('提问提示'), I('提问提示音效'))
+    buildWait('approval', I('授权提示'), I('授权提示音'))
     // ===== v867：四个通道行（全部音效）=====
     //   ⚠️ 语义差异（与面板既有约定一致，见 ? 说明）：按压松开走 .dsh-size.json **即时落盘**；
     //      消耗 / 提问 / 授权三项是**缓冲**，点面板「保存」才提交（与它们各自那一节的控件同源）。
@@ -3718,7 +3947,7 @@ function openSoundSettingsPanel() {
       chk.type = 'checkbox'
       chk.className = 'dshwv-check'
       chk.checked = !!onGet()
-      chk.title = label + '：这一类的开关（关掉后这一类不出声，其它类不受影响）'
+      chk.title = label + I('：这一类的开关（关掉后这一类不出声，其它类不受影响）')
       chk.addEventListener('change', function () {
         // v870（用户报"四个框也无法取消勾选"）：点复选框时浏览器会**先发 input、再发 change**，
         //   而 input 那一刻状态还没写、onGet() 仍是旧值 ⇒ 挂在 input 上的同步会把框"勾回旧值"。
@@ -3841,6 +4070,8 @@ function openSoundSettingsPanel() {
     try { document.addEventListener('click', sndDocRefresh, true) } catch (err) {}
     try { card.addEventListener('input', refreshSummaries) } catch (err) {}
     try { card.addEventListener('change', refreshSummaries) } catch (err) {}
+// 语言变化后重算这些**拼接出来**的摘要（`名称 · 90%`）：它们不在目录里，DOM 扫描反查不回来。
+    try { dshwI18nOnChange(refreshSummaries) } catch (err) {}
     // v867：卡内任何改动也同步「全部音效」那四行（两个视图看同一个值）
     // v872：登记同步钩子（模块级写入口会直接调它）+ 监听挂到 document（capture）
     //   —— 面板内所有控件（含手风琴入口行里的 [✓]）改动都会走到这里
@@ -4081,10 +4312,10 @@ function openSoundSettingsPanel() {
     //      说明统一收进问号圈圈的弹层里（悬停/点击问号时才显示），避免两个入口说两遍。
     waitCharRow.style.paddingLeft = '6px'
     var waitCharAsk = dshwvAskDot(
-      '等待提问 / 授权的提示气泡：<b>默认点气泡就能收起来</b>（点一下收起，同一条挂起不会再自动弹回；' +
-      '你回答或批准之后、或下一次新的提问 / 授权到来时，照常冒泡并响铃）。<br><br>' +
-      '打开下面这个开关后，<b>点角色（鲸鱼）也能收掉提示气泡</b> —— 和「自定义泡泡」里的' +
-      '「点按角色推进泡泡队列」是同一类手感。<br><br>默认关闭。'
+      I('等待提问 / 授权的提示气泡：<b>默认点气泡就能收起来</b>（点一下收起，同一条挂起不会再自动弹回；') +
+      I('你回答或批准之后、或下一次新的提问 / 授权到来时，照常冒泡并响铃）。<br><br>') +
+      I('打开下面这个开关后，<b>点角色（鲸鱼）也能收掉提示气泡</b> —— 和「自定义泡泡」里的') +
+      I('「点按角色推进泡泡队列」是同一类手感。<br><br>默认关闭。')
     )
     // v777b（2026-09-27 追加要求）：? 圈圈放到**文字后面**，并把与文字的间距收紧 ——
     //   .dshwv-askq 自带 margin-right:5px，加上行的 column-gap 6px，放前面时离文字有 11px；
@@ -4106,7 +4337,7 @@ function openSoundSettingsPanel() {
     waitCharLab.setAttribute('for', 'dshwv-waitcharclose')
     waitCharLab.style.cursor = 'pointer'
     waitCharLab.style.fontSize = '12px'
-    waitCharLab.textContent = '点按角色关闭提示气泡'
+    waitCharLab.textContent = I('点按角色关闭提示气泡')
     waitCharRow.appendChild(waitCharLab)
     waitCharRow.appendChild(waitCharAsk)
     card.appendChild(waitCharRow)
@@ -4115,20 +4346,20 @@ function openSoundSettingsPanel() {
     var cancelBtn = document.createElement('button')
     cancelBtn.type = 'button'
     cancelBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
-    cancelBtn.textContent = '取消'
+    cancelBtn.textContent = I('取消')
     cancelBtn.addEventListener('click', function () { cleanup(true) })
     btns.appendChild(cancelBtn)
     var resetBtn = document.createElement('button')
     resetBtn.type = 'button'
     resetBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
-    resetBtn.textContent = '恢复默认'
-    resetBtn.title = '把四个事件的音量/自动关闭/冒泡/音效选择恢复为默认值（不动外观、位置、账本、角色与自定义泡泡）'
+    resetBtn.textContent = I('恢复默认')
+    resetBtn.title = I('把四个事件的音量/自动关闭/冒泡/音效选择恢复为默认值（不动外观、位置、账本、角色与自定义泡泡）')
     resetBtn.addEventListener('click', function () { applyDefaults() })
     btns.appendChild(resetBtn)
     var okBtn = document.createElement('button')
     okBtn.type = 'button'
     okBtn.className = 'dshwv-bubbtn dshwv-bubbtn-ok'
-    okBtn.textContent = '保存'
+    okBtn.textContent = I('保存')
     okBtn.addEventListener('click', function () { saveAll() })
     btns.appendChild(okBtn)
     card.appendChild(btns)
@@ -4192,19 +4423,19 @@ function usageAlertBudgetEditor(key, onSave) {
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
     title.textContent = isCost
-      ? '自定义提示（每轮消耗 · 内容）'
+      ? I('自定义提示（每轮消耗 · 内容）')
       : (isWait
-        ? ('编辑 ' + (waitKind === 'approval' ? '授权' : '提问') + '提示内容(可拖动下方模块入框)')
-        : ('编辑 ' + (isAlert ? '余额预警' : '今日预算') + '提醒内容(可拖动下方模块入框)'))
+        ? (I('编辑 ') + (waitKind === 'approval' ? I('授权') : I('提问')) + I('提示内容(可拖动下方模块入框)'))
+        : (I('编辑 ') + (isAlert ? I('余额预警') : I('今日预算')) + I('提醒内容(可拖动下方模块入框)')))
     card.appendChild(title)
     // —— 头部:预警/预算=触发条件;cost=自动关闭 + 任务结束音效;wait=说明 + 占位符提示 ——
     var secCond = document.createElement('div')
     secCond.className = 'dshwv-bubsec dshwv-bubsec-first'
     secCond.textContent = isCost
-      ? '每轮消耗提示(内容里用 {cost} 引用本轮消耗金额)'
+      ? I('每轮消耗提示(内容里用 {cost} 引用本轮消耗金额)')
       : (isWait
-        ? ((waitKind === 'approval' ? '授权' : '提问') + '提示内容({session} = 对话名)')
-        : (isAlert ? '触发条件(余额低于该值时提醒)' : '触发条件(今日已用达到该值时提醒)'))
+        ? ((waitKind === 'approval' ? I('授权') : I('提问')) + I('提示内容({session} = 对话名)'))
+        : (isAlert ? I('触发条件(余额低于该值时提醒)') : I('触发条件(今日已用达到该值时提醒)')))
     card.appendChild(secCond)
     // 触发条件控件(启用 + 阈值):cost 模式没有触发条件,这两个控件不创建
     // v761：wait 模式同样没有"触发条件"（挂起音效/开关/自动关闭/冒泡都在「全局音效设置」面板那一区里）
@@ -4259,14 +4490,14 @@ function usageAlertBudgetEditor(key, onSave) {
       // v761（#161 C5）：等待提示没有触发条件。这里只放说明 —— 音效 / 音量 / 自动关闭 / 冒泡开关
       // 都在「全局音效设置」面板里那一区，本窗口只管内容（改动仍遵循"保存才提交"）。
       var wHint = qLabel(waitKind === 'approval'
-        ? '授权挂起时显示这条提示（开关与时长在「授权音效」那一区设置）'
-        : '提问挂起时显示这条提示（开关与时长在「提问音效」那一区设置）')
+        ? I('授权挂起时显示这条提示（开关与时长在「授权音效」那一区设置）')
+        : I('提问挂起时显示这条提示（开关与时长在「提问音效」那一区设置）'))
       wHint.style.fontSize = '11px'
       wHint.style.color = '#203170'
       wHint.style.opacity = '.85'
       condBox.appendChild(wHint)
       condBox.appendChild(document.createElement('br'))
-      var wHint2 = qLabel('{session} 会替换为当前对话名，超长自动截断（读不到时显示「当前对话」）')
+      var wHint2 = qLabel(I('{session} 会替换为当前对话名，超长自动截断（读不到时显示「当前对话」）'))
       wHint2.style.fontSize = '11px'
       wHint2.style.color = '#203170'
       wHint2.style.opacity = '.75'
@@ -4275,12 +4506,12 @@ function usageAlertBudgetEditor(key, onSave) {
     // 启用提醒: 口 启用提醒 · 阈值: 余额 ≤ [数值] 元时提醒
     var gOn = segCond()
     gOn.appendChild(chk)
-    gOn.appendChild(qLabel('启用提醒'))
+    gOn.appendChild(qLabel(I('启用提醒')))
     condBox.appendChild(gOn)
     var gNum = segCond()
-    gNum.appendChild(qLabel(isAlert ? '余额 ≤ ' : '今日已用 ≥ '))
+    gNum.appendChild(qLabel(isAlert ? I('余额 ≤ ') : I('今日已用 ≥ ')))
     gNum.appendChild(numInp)
-    gNum.appendChild(qLabel(' 元时提醒'))
+    gNum.appendChild(qLabel(I(' 元时提醒')))
     condBox.appendChild(gNum)
     // 「元时提醒」后换行,自动关闭及其秒数独占一行
     var condBrk = document.createElement('span')
@@ -4304,11 +4535,11 @@ function usageAlertBudgetEditor(key, onSave) {
     secInp.value = String(defSec)
     var gAc = segCond()
     gAc.appendChild(acChk)
-    gAc.appendChild(qLabel('自动关闭'))
+    gAc.appendChild(qLabel(I('自动关闭')))
     condBox.appendChild(gAc)
     var gSec = segCond()
     gSec.appendChild(secInp)
-    var lSec = qLabel('秒(0=不自动关闭)')
+    var lSec = qLabel(I('秒(0=不自动关闭)'))
     lSec.style.opacity = '.75'
     lSec.style.fontSize = '11px'
     gSec.appendChild(lSec)
@@ -4332,21 +4563,21 @@ function usageAlertBudgetEditor(key, onSave) {
     // —— 以下完全复用 W2 组件(仅换宿主元素与目标步骤) ——
     var secPal = document.createElement('div')
     secPal.className = 'dshwv-bubsec dshwv-bubsec-first dshwv-bubsec-withq'
-    secPal.textContent = '可选模块'
+    secPal.textContent = I('可选模块')
     // 原「可选模块(点击或拖入…)」与「提醒内容(同一行并排…{below}/{amount} 替换)」的说明收进「?」圈
     secPal.insertBefore(dshwvAskDot(
-      '<div style="font-weight:600;margin-bottom:4px">可选模块 &amp; 提醒内容</div>' +
-      '<div>点击「可选模块」即可加入提醒内容;桌面端也可直接拖入下方内容框。</div>' +
-      '<div style="margin-top:4px">同一行模块并排显示(≤6 个):</div>' +
-      '<div>· 拖模块到某行左/右边缘 = 并排</div>' +
-      '<div>· 拖到某行上/下 = 拆行另起一行</div>' +
-      '<div>· 拖 ⠿ 手柄 = 整行排序</div>' +
+      I('<div style="font-weight:600;margin-bottom:4px">可选模块 &amp; 提醒内容</div>') +
+      I('<div>点击「可选模块」即可加入提醒内容;桌面端也可直接拖入下方内容框。</div>') +
+      I('<div style="margin-top:4px">同一行模块并排显示(≤6 个):</div>') +
+      I('<div>· 拖模块到某行左/右边缘 = 并排</div>') +
+      I('<div>· 拖到某行上/下 = 拆行另起一行</div>') +
+      I('<div>· 拖 ⠿ 手柄 = 整行排序</div>') +
       (isCost
-        ? '<div style="margin-top:4px">{cost} 在触发时替换为本轮消耗金额(默认内容请保持 {cost})</div>'
+        ? I('<div style="margin-top:4px">{cost} 在触发时替换为本轮消耗金额(默认内容请保持 {cost})</div>')
         : (isWait
-          ? '<div style="margin-top:4px">{session} 在挂起时替换为当前对话名（读不到显示「当前对话」，超长按 12 字符截断并追加 ...）</div>'
-          : '<div style="margin-top:4px">{below} / {amount} 在触发时替换为实际数值</div>')) +
-      '<div style="margin-top:4px;opacity:.75">手机端:长按约 0.4 秒进入拖动</div>'
+          ? I('<div style="margin-top:4px">{session} 在挂起时替换为当前对话名（读不到显示「当前对话」，超长按 12 字符截断并追加 ...）</div>')
+          : I('<div style="margin-top:4px">{below} / {amount} 在触发时替换为实际数值</div>'))) +
+      I('<div style="margin-top:4px;opacity:.75">手机端:长按约 0.4 秒进入拖动</div>')
     ), secPal.firstChild)
     card.appendChild(secPal)
     bubblePalEl = document.createElement('div')
@@ -4357,8 +4588,8 @@ function usageAlertBudgetEditor(key, onSave) {
     var secPv = document.createElement('div')
     secPv.className = 'dshwv-bubsec'
     secPv.textContent = isCost
-      ? '提示内容(每轮消耗)'
-      : (isWait ? ('提示内容(' + (waitKind === 'approval' ? '授权' : '提问') + ')') : '提醒内容')
+      ? I('提示内容(每轮消耗)')
+      : (isWait ? (I('提示内容(') + (waitKind === 'approval' ? I('授权') : I('提问')) + ')') : I('提醒内容'))
     card.appendChild(secPv)
     bubblePvEl = document.createElement('div')
     bubblePvEl.className = 'dshwv-bubpvbox'
@@ -4442,18 +4673,18 @@ function usageAlertBudgetEditor(key, onSave) {
     var noBtn = document.createElement('button')
     noBtn.type = 'button'
     noBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
-    noBtn.textContent = '取消'
+    noBtn.textContent = I('取消')
     noBtn.addEventListener('click', cleanup)
     btns.appendChild(noBtn)
     var resBtn = document.createElement('button')
     resBtn.type = 'button'
     resBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
-    resBtn.textContent = '恢复默认'
+    resBtn.textContent = I('恢复默认')
     resBtn.title = isCost
-      ? '恢复为默认提示内容(自动关闭与任务结束音效保持不变)'
+      ? I('恢复为默认提示内容(自动关闭与任务结束音效保持不变)')
       : (isWait
-        ? ('恢复为默认' + (waitKind === 'approval' ? '授权' : '提问') + '提示内容(音效/音量/自动关闭/冒泡开关保持不变)')
-        : '恢复为默认提醒内容(触发条件保持不变)')
+        ? (I('恢复为默认') + (waitKind === 'approval' ? I('授权') : I('提问')) + I('提示内容(音效/音量/自动关闭/冒泡开关保持不变)'))
+        : I('恢复为默认提醒内容(触发条件保持不变)'))
     resBtn.addEventListener('click', function () {
       // v761：wait 模式的默认模板 = 宿主 waitDefaultLines() 的逐字段一致版
       step.modules = JSON.parse(JSON.stringify(isCost
@@ -4465,7 +4696,7 @@ function usageAlertBudgetEditor(key, onSave) {
     var okBtn = document.createElement('button')
     okBtn.type = 'button'
     okBtn.className = 'dshwv-bubbtn dshwv-bubbtn-ok'
-    okBtn.textContent = '保存'
+    okBtn.textContent = I('保存')
     okBtn.addEventListener('click', function () {
       try { bubbleRowsCanon(step.modules) } catch (err) {}
       var lines = JSON.parse(JSON.stringify(step.modules))
@@ -4589,8 +4820,8 @@ function usageAlertBudgetEditor(key, onSave) {
             for (var mi = 0; mi < mods.length; mi++) {
               var mm = mods[mi] || {}
               if (mm.text != null) txt += String(mm.text)
-              else if (mm.type === 'image') txt += '[图片]'
-              else if (mm.type === 'today') txt += String(mm.tpl || '今日已用 {expense_ds}')
+              else if (mm.type === 'image') txt += I('[图片]')
+              else if (mm.type === 'today') txt += String(mm.tpl || I('今日已用 {expense_ds}'))
             }
             pvElRef.innerHTML = '<div class="dshwv-hint" style="white-space:pre-wrap">' + txt + '</div>'
           } catch (e3) {}
@@ -4688,12 +4919,12 @@ function apiFmtMoney(v, cur) {
 // 「今日已用」的来源标注（未知就返回空串，调用方不显示括号）
 function apiUsageSourceLabel(src) {
   var s = String(src || '')
-  if (s === 'ledger' || s === 'balance') return '余额差记账'
-  if (s === 'events') return '本地估算'
-  if (s === 'balance-observed') return '已观测消费'
-  if (s === 'balance-needs-review') return '待核对余额调整'
-  if (s === 'balance-corrected') return '已校正消费'
-  if (s === 'legacy') return '旧版记录 · 未校正'
+  if (s === 'ledger' || s === 'balance') return I('余额差记账')
+  if (s === 'events') return I('本地估算')
+  if (s === 'balance-observed') return I('已观测消费')
+  if (s === 'balance-needs-review') return I('待核对余额调整')
+  if (s === 'balance-corrected') return I('已校正消费')
+  if (s === 'legacy') return I('旧版记录 · 未校正')
   return ''
 }
 // 模型列表加载：并发合并 + 失败退避重试 + 失败态可重试。
@@ -4742,7 +4973,7 @@ function apiModelsFetch(tries) {
         return
       }
       apiModelsLoading = false
-      apiModelsError = '加载失败（点重试）'
+      apiModelsError = I('加载失败（点重试）')
       apiModelsFlushWaiters()
     })
     .catch(function () {
@@ -4751,7 +4982,7 @@ function apiModelsFetch(tries) {
         return
       }
       apiModelsLoading = false
-      apiModelsError = '加载失败（点重试）'
+      apiModelsError = I('加载失败（点重试）')
       apiModelsFlushWaiters()
     })
 }
@@ -4891,17 +5122,17 @@ function openApiModelPanel(modelId) {
     card.style.textAlign = 'left'
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
-    title.textContent = isNew ? '新增模型（自定义 API）' : ('模型设置 · ' + (m.name || m.id))
+    title.textContent = isNew ? I('新增模型（自定义 API）') : (I('模型设置 · ') + (m.name || m.id))
     card.appendChild(title)
     var status = document.createElement('div')
     status.className = 'dshwv-bubhint'
     status.style.margin = '4px 0 8px'
-    status.textContent = isNew ? '选择厂商模板 → 填 API key → 保存' : (m.error ? ('⚠ ' + m.error) : (m.balanceMode === 'events' ? ('余额 —（无接口·按会话事件）· 今日已用 ' + apiFmtMoney(m.todayUsage, apiTodayCur(m))) : ('余额 ' + apiFmtMoney(m.balance, m.currency) + ' · 今日已用 ' + apiFmtMoney(m.todayUsage, apiTodayCur(m)) + (apiUsageSourceLabel(m.usageSource) ? ('（' + apiUsageSourceLabel(m.usageSource) + '）') : ''))))
+    status.textContent = isNew ? I('选择厂商模板 → 填 API key → 保存') : (m.error ? ('⚠ ' + m.error) : (m.balanceMode === 'events' ? (I('余额 —（无接口·按会话事件）· 今日已用 ') + apiFmtMoney(m.todayUsage, apiTodayCur(m))) : (I('余额 ') + apiFmtMoney(m.balance, m.currency) + I(' · 今日已用 ') + apiFmtMoney(m.todayUsage, apiTodayCur(m)) + (apiUsageSourceLabel(m.usageSource) ? ('（' + apiUsageSourceLabel(m.usageSource) + '）') : ''))))
     card.appendChild(status)
     // 名称 / 模板 / 币种
-    card.appendChild(apiSec('基本信息'))
-    var nameInp = apiTextInput(isNew ? '' : m.name, '例如 OpenRouter / 我的中转站')
-    card.appendChild(apiPanelRow('名称', nameInp))
+    card.appendChild(apiSec(I('基本信息')))
+    var nameInp = apiTextInput(isNew ? '' : m.name, I('例如 OpenRouter / 我的中转站'))
+    card.appendChild(apiPanelRow(I('名称'), nameInp))
     // v726：厂商下拉按「首字母」排序 —— 英文按字母、中文按拼音首字母（host 下发的 sortKey），中英混排 A→Z；
     // 同键（如 siliconflow CN/EN、moonshot CN/国际）再按名称排，保证顺序稳定。
     var tplList = []
@@ -4912,7 +5143,7 @@ function openApiModelPanel(modelId) {
         id: apiTemplates[ti].id,
         name: tplName,
         // v724：官方「没有用 API key 查余额接口」的模板在下拉里直接标出来，避免选完以为坏了
-        label: tplName + (apiTemplates[ti].noBalanceApi ? '（无余额接口）' : ''),
+        label: tplName + (apiTemplates[ti].noBalanceApi ? I('（无余额接口）') : ''),
         sortKey: String(apiTemplates[ti].sortKey || tplName).toLowerCase(),
       })
     }
@@ -4927,19 +5158,19 @@ function openApiModelPanel(modelId) {
     for (var tl = 0; tl < tplList.length; tl++) tplOpts.push([tplList[tl].id, tplList[tl].label])
     var tplSel = apiSelectEl(tplOpts, isNew ? 'openrouter' : m.provider)
     if (!isNew) tplSel.disabled = true
-    card.appendChild(apiPanelRow('厂商模板', tplSel))
+    card.appendChild(apiPanelRow(I('厂商模板'), tplSel))
     // 模板口径说明（常显，**不**放进「高级」折叠区）：例如「官方无余额接口，按会话事件估算」
     var tplNote = document.createElement('div')
     tplNote.className = 'dshwv-bubhint'
     tplNote.style.margin = '0 0 7px'
     card.appendChild(tplNote)
-    var curSel = apiSelectEl([['CNY', '人民币 ¥'], ['USD', '美元 $']], isNew ? 'USD' : m.currency)
-    card.appendChild(apiPanelRow('币种', curSel))
+    var curSel = apiSelectEl([['CNY', I('人民币 ¥')], ['USD', I('美元 $')]], isNew ? 'USD' : m.currency)
+    card.appendChild(apiPanelRow(I('币种'), curSel))
     // 密钥
-    card.appendChild(apiSec('密钥'))
-    var keyRefInp = apiTextInput(isNew ? '' : m.keyRef, '凭据名，例如 OPENROUTER_API_KEY')
-    keyRefInp.title = '写入 DSH 官方凭据（.credentials.yaml）时使用的名字'
-    card.appendChild(apiPanelRow('凭据名', keyRefInp))
+    card.appendChild(apiSec(I('密钥')))
+    var keyRefInp = apiTextInput(isNew ? '' : m.keyRef, I('凭据名，例如 OPENROUTER_API_KEY'))
+    keyRefInp.title = I('写入 DSH 官方凭据（.credentials.yaml）时使用的名字')
+    card.appendChild(apiPanelRow(I('凭据名'), keyRefInp))
     var keyInp = document.createElement('input')
     keyInp.type = 'password'
     keyInp.className = 'dshwv-cropname'
@@ -4949,18 +5180,18 @@ function openApiModelPanel(modelId) {
     keyInp.style.height = '26px'
     keyInp.style.boxSizing = 'border-box'
     keyInp.style.textAlign = 'left'
-    keyInp.placeholder = isNew ? '粘贴 API key（保存时写入 DSH 凭据）' : '留空＝不改动现有密钥'
+    keyInp.placeholder = isNew ? I('粘贴 API key（保存时写入 DSH 凭据）') : I('留空＝不改动现有密钥')
     card.appendChild(apiPanelRow('API key', keyInp))
     var keyState = document.createElement('div')
     keyState.className = 'dshwv-bubhint'
     keyState.style.margin = '0 0 7px'
-    keyState.textContent = isNew ? '' : (m.hasKey ? '已配置密钥 ✓' : '尚未配置密钥')
+    keyState.textContent = isNew ? '' : (m.hasKey ? I('已配置密钥 ✓') : I('尚未配置密钥'))
     card.appendChild(keyState)
-    var delKey = apiBtn('删除密钥', 'dshwv-snapbtn dshwv-snapbtn-no', function () {
+    var delKey = apiBtn(I('删除密钥'), 'dshwv-snapbtn dshwv-snapbtn-no', function () {
       var ref = (keyRefInp.value || '').trim()
       if (!ref) return
       postApiModels({ action: 'delete-key', keyRef: ref }, function () {
-        keyState.textContent = '密钥已删除'
+        keyState.textContent = I('密钥已删除')
         // 列表里的"已配置/未配置"显示在静态区模型行 → 必须重建子界面（只刷记录区不够）
         refreshModelList()
       })
@@ -4968,7 +5199,7 @@ function openApiModelPanel(modelId) {
     var delKeyRow = apiPanelRow('', delKey)
     card.appendChild(delKeyRow)
     // Base URL（中转站/自定义需要）
-    var baseInp = apiTextInput(isNew ? '' : m.baseUrl, '例如 https://my-gateway.example.com')
+    var baseInp = apiTextInput(isNew ? '' : m.baseUrl, I('例如 https://my-gateway.example.com'))
     var baseRow = apiPanelRow('Base URL', baseInp)
     card.appendChild(baseRow)
     // 余额接口（自定义可改；模板默认自动带上）
@@ -4979,34 +5210,34 @@ function openApiModelPanel(modelId) {
     var tpl0 = null
     for (var t0 = 0; t0 < apiTemplates.length; t0++) if (apiTemplates[t0].id === tplSel.value) tpl0 = apiTemplates[t0]
     if (isNew && tpl0 && tpl0.balance) bal = tpl0.balance
-    var balUrl = apiTextInput(bal.url || '', '余额接口 URL（自定义时必填）')
-    var balUrlRow = apiPanelRow('余额接口', balUrl)
+    var balUrl = apiTextInput(bal.url || '', I('余额接口 URL（自定义时必填）'))
+    var balUrlRow = apiPanelRow(I('余额接口'), balUrl)
     card.appendChild(balUrlRow)
     var authInp = apiTextInput(bal.auth == null ? 'Bearer {key}' : bal.auth,
-      '默认 Bearer {key}；也可写多个头：x-api-key:{key};anthropic-version:2023-06-01（英文分号分隔）')
-    var authRow = apiPanelRow('请求头', authInp)
+      I('默认 Bearer {key}；也可写多个头：x-api-key:{key};anthropic-version:2023-06-01（英文分号分隔）'))
+    var authRow = apiPanelRow(I('请求头'), authInp)
     card.appendChild(authRow)
     // v791（用户要求）：请求头支持"分号分隔的头名:值列表"（老写法不带冒号时仍按 Authorization 头处理）。
     //   安全说明写在界面上：Host/Content-Length/Connection 等危险头会被忽略。
     var authHint = document.createElement('div')
     authHint.className = 'dshwv-bubhint'
     authHint.style.margin = '0 0 6px'
-    authHint.textContent = '多个请求头用英文分号分隔，例：x-api-key:{key};anthropic-version:2023-06-01（{key} 会被替换成密钥）。' +
-      '不带冒号的写法（如 Bearer {key}）仍按 Authorization 头发送，老配置无需改。' +
-      'Host、Content-Length、Connection、Transfer-Encoding 等危险头一律被忽略。'
+    authHint.textContent = I('多个请求头用英文分号分隔，例：x-api-key:{key};anthropic-version:2023-06-01（{key} 会被替换成密钥）。') +
+      I('不带冒号的写法（如 Bearer {key}）仍按 Authorization 头发送，老配置无需改。') +
+      I('Host、Content-Length、Connection、Transfer-Encoding 等危险头一律被忽略。')
     card.appendChild(authHint)
     // v789（issue #190）：余额接口不再只能是 GET —— 可选 POST/PUT… + JSON 请求体。
     //   请求体支持 {key}（密钥）、{base}（Base URL）、{uuid}（下面「请求参数」里的键）
-    var balMethod = apiSelectEl([['GET', 'GET（默认）'], ['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH']],
+    var balMethod = apiSelectEl([['GET', I('GET（默认）')], ['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH']],
       String(bal.method || 'GET').toUpperCase() === 'POST' ? 'POST' : String(bal.method || 'GET').toUpperCase() === 'PUT' ? 'PUT' : String(bal.method || 'GET').toUpperCase() === 'PATCH' ? 'PATCH' : 'GET')
-    var balMethodRow = apiPanelRow('请求方法', balMethod)
+    var balMethodRow = apiPanelRow(I('请求方法'), balMethod)
     card.appendChild(balMethodRow)
-    var balBody = apiTextInput(bal.body || '', '如 {"uuid":"{uuid}"}（非 GET 时以 JSON 发送）')
-    var balBodyRow = apiPanelRow('请求体', balBody)
+    var balBody = apiTextInput(bal.body || '', I('如 {"uuid":"{uuid}"}（非 GET 时以 JSON 发送）'))
+    var balBodyRow = apiPanelRow(I('请求体'), balBody)
     card.appendChild(balBodyRow)
     var prm = (m && m.params) || {}
-    var prmInp = apiTextInput(Object.keys(prm).map(function (k) { return k + '=' + prm[k] }).join(','), '请求体占位符，如 uuid=abc123（逗号分隔）')
-    var prmRow = apiPanelRow('请求参数', prmInp)
+    var prmInp = apiTextInput(Object.keys(prm).map(function (k) { return k + '=' + prm[k] }).join(','), I('请求体占位符，如 uuid=abc123（逗号分隔）'))
+    var prmRow = apiPanelRow(I('请求参数'), prmInp)
     card.appendChild(prmRow)
     // v789（issue #189）：0.3.15 起的"凭据目的地白名单"唯一例外必须能在界面上勾 ——
     //   宿主侧 model.allowCustomHost 一直是齐的，缺的就是这个入口（README/FAQ 都在指引用户来勾）。
@@ -5014,63 +5245,63 @@ function openApiModelPanel(modelId) {
     var allowHost = document.createElement('input')
     allowHost.type = 'checkbox'
     allowHost.checked = !!(m && m.balanceDesc && m.balanceDesc.allowCustomHost === true) || !!(m && m.allowCustomHost === true)
-    var allowHostRow = apiPanelRow('允许把凭据发送到自定义地址', allowHost)
+    var allowHostRow = apiPanelRow(I('允许把凭据发送到自定义地址'), allowHost)
     card.appendChild(allowHostRow)
     var allowHint = document.createElement('div')
     allowHint.className = 'dshwv-bubhint'
     allowHint.style.margin = '0 0 6px'
-    allowHint.textContent = '默认不勾：地址不是该厂商内置端点时，插件会拒绝把密钥发出去。自建网关（New API / 自托管 / Ollama 等）确认是自己的服务后再勾。' +
-      '该开关只能由本机（回环）来源的写请求置位，远端会话改不了它。'
+    allowHint.textContent = I('默认不勾：地址不是该厂商内置端点时，插件会拒绝把密钥发出去。自建网关（New API / 自托管 / Ollama 等）确认是自己的服务后再勾。') +
+      I('该开关只能由本机（回环）来源的写请求置位，远端会话改不了它。')
     card.appendChild(allowHint)
     var jr = (bal.json || {})
-    var jRem = apiTextInput(jr.remaining || '', '如 balance_infos[0].total_balance')
-    var jTot = apiTextInput(jr.total || '', '如 data.total_credits')
-    var jUse = apiTextInput(jr.used || '', '如 data.total_usage')
-    var jSca = apiTextInput(jr.scale == null ? '' : jr.scale, '乘数，如 0.0001')
-    var jRemRow = apiPanelRow('余额字段', jRem)
-    var jTotRow = apiPanelRow('总量字段', jTot)
-    var jUseRow = apiPanelRow('已用字段', jUse)
-    var jScaRow = apiPanelRow('数值乘数', jSca)
+    var jRem = apiTextInput(jr.remaining || '', I('如 balance_infos[0].total_balance'))
+    var jTot = apiTextInput(jr.total || '', I('如 data.total_credits'))
+    var jUse = apiTextInput(jr.used || '', I('如 data.total_usage'))
+    var jSca = apiTextInput(jr.scale == null ? '' : jr.scale, I('乘数，如 0.0001'))
+    var jRemRow = apiPanelRow(I('余额字段'), jRem)
+    var jTotRow = apiPanelRow(I('总量字段'), jTot)
+    var jUseRow = apiPanelRow(I('已用字段'), jUse)
+    var jScaRow = apiPanelRow(I('数值乘数'), jSca)
     card.appendChild(jRemRow)
     card.appendChild(jTotRow)
     card.appendChild(jUseRow)
     card.appendChild(jScaRow)
     var u = bal.usage || {}
-    var uUrl = apiTextInput(u.url || '', '可选：第二段用量接口（如 OpenAI 兼容 /usage）')
-    var uUse = apiTextInput((u.json && u.json.used) || '', '用量字段，如 total_usage')
-    var uSca = apiTextInput((u.json && u.json.scale) == null ? '' : u.json.scale, '乘数，如 0.01')
-    var uUrlRow = apiPanelRow('用量接口', uUrl)
-    var uUseRow = apiPanelRow('用量字段', uUse)
-    var uScaRow = apiPanelRow('用量乘数', uSca)
+    var uUrl = apiTextInput(u.url || '', I('可选：第二段用量接口（如 OpenAI 兼容 /usage）'))
+    var uUse = apiTextInput((u.json && u.json.used) || '', I('用量字段，如 total_usage'))
+    var uSca = apiTextInput((u.json && u.json.scale) == null ? '' : u.json.scale, I('乘数，如 0.01'))
+    var uUrlRow = apiPanelRow(I('用量接口'), uUrl)
+    var uUseRow = apiPanelRow(I('用量字段'), uUse)
+    var uScaRow = apiPanelRow(I('用量乘数'), uSca)
     card.appendChild(uUrlRow)
     card.appendChild(uUseRow)
     card.appendChild(uScaRow)
-    var matchInp = apiTextInput((m && Array.isArray(m.matchIds) ? m.matchIds.join(',') : ''), '会话事件里的模型名关键字，逗号分隔')
-    var matchRow = apiPanelRow('事件匹配', matchInp)
+    var matchInp = apiTextInput((m && Array.isArray(m.matchIds) ? m.matchIds.join(',') : ''), I('会话事件里的模型名关键字，逗号分隔'))
+    var matchRow = apiPanelRow(I('事件匹配'), matchInp)
     card.appendChild(matchRow)
     var tip = document.createElement('div')
     tip.className = 'dshwv-bubhint'
-    tip.textContent = '「事件匹配」用于没有余额差的模型：本机每轮对话的真实 token 花费，按这里的关键字归到本模型。'
+    tip.textContent = I('「事件匹配」用于没有余额差的模型：本机每轮对话的真实 token 花费，按这里的关键字归到本模型。')
     card.appendChild(tip)
     // —— 自定义单价（可选，元/百万 token）：给「没有余额接口/余额差」的模型按真实 token 换算金额 ——
     // v721:按用户要求，这块并入下方「接口与字段（高级）」折叠区（不再单独常显）。
     // 注意：高级区默认收起 → 子菜单里那行只读「单价」的提示负责告诉用户去哪填。
     var prc = (m && m.price) || {}
-    var pHit = apiTextInput(prc.hit == null ? '' : prc.hit, '例: 0.02')
-    var pMiss = apiTextInput(prc.miss == null ? '' : prc.miss, '例: 1.0')
-    var pOut = apiTextInput(prc.out == null ? '' : prc.out, '例: 4.0')
-    var pCur = apiSelectEl([['CNY', '人民币（元 / CNY）'], ['USD', '美元（$ / USD）']], String(prc.cur || 'CNY').toUpperCase() === 'USD' ? 'USD' : 'CNY')
-    var pRate = apiTextInput(prc.rate == null ? '' : prc.rate, '仅美元时需要：汇率（元/USD），例 7.1')
-    card.appendChild(apiSec('单价（可选）'))
-    card.appendChild(apiPanelRow('缓存命中', pHit))
-    card.appendChild(apiPanelRow('未命中输入', pMiss))
-    card.appendChild(apiPanelRow('输出', pOut))
-    card.appendChild(apiPanelRow('币种', pCur))
-    card.appendChild(apiPanelRow('汇率', pRate))
+    var pHit = apiTextInput(prc.hit == null ? '' : prc.hit, I('例: 0.02'))
+    var pMiss = apiTextInput(prc.miss == null ? '' : prc.miss, I('例: 1.0'))
+    var pOut = apiTextInput(prc.out == null ? '' : prc.out, I('例: 4.0'))
+    var pCur = apiSelectEl([['CNY', I('人民币（元 / CNY）')], ['USD', I('美元（$ / USD）')]], String(prc.cur || 'CNY').toUpperCase() === 'USD' ? 'USD' : 'CNY')
+    var pRate = apiTextInput(prc.rate == null ? '' : prc.rate, I('仅美元时需要：汇率（元/USD），例 7.1'))
+    card.appendChild(apiSec(I('单价（可选）')))
+    card.appendChild(apiPanelRow(I('缓存命中'), pHit))
+    card.appendChild(apiPanelRow(I('未命中输入'), pMiss))
+    card.appendChild(apiPanelRow(I('输出'), pOut))
+    card.appendChild(apiPanelRow(I('币种'), pCur))
+    card.appendChild(apiPanelRow(I('汇率'), pRate))
     var pTip = document.createElement('div')
     pTip.className = 'dshwv-bubhint'
     pTip.style.margin = '0 0 6px'
-    pTip.textContent = '单位为「币种 / 百万 token」，留空则沿用内置价目表。币种选美元时请填汇率，记账会换算成人民币（账本统一按 CNY 结算）；自定义单价不分峰谷。'
+    pTip.textContent = I('单位为「币种 / 百万 token」，留空则沿用内置价目表。币种选美元时请填汇率，记账会换算成人民币（账本统一按 CNY 结算）；自定义单价不分峰谷。')
     card.appendChild(pTip)
     // 按钮
     var btns = document.createElement('div')
@@ -5131,36 +5362,36 @@ function openApiModelPanel(modelId) {
       return body
     }
     if (!isNew) {
-      var testBtn = apiBtn('测试连通性', 'dshwv-bubbtn dshwv-bubbtn-no', function () {
+      var testBtn = apiBtn(I('测试连通性'), 'dshwv-bubbtn dshwv-bubbtn-no', function () {
         testBtn.disabled = true
-        testBtn.textContent = '测试中…'
+        testBtn.textContent = I('测试中…')
         postApiModels({ action: 'probe', id: m.id }, function (r) {
           testBtn.disabled = false
-          testBtn.textContent = '测试连通性'
+          testBtn.textContent = I('测试连通性')
           var okP = !!(r && r.ok)
           // 结果只用弹窗呈现（模型面板 z=29000，确认弹窗需临时提到其之上）
           try { confirmMask.style.setProperty('z-index', '29500', 'important') } catch (err) {}
-          showConfirm(okP ? ('✓ 测试通过\n' + (r.detail || '')) : ('⚠ 测试失败\n' + ((r && r.error) || '未知原因')), function () {}, '知道了')
+          showConfirm(okP ? (I('✓ 测试通过\n') + (r.detail || '')) : (I('⚠ 测试失败\n') + ((r && r.error) || I('未知原因'))), function () {}, I('知道了'))
         })
       })
       btns.appendChild(testBtn)
     }
-    btns.appendChild(apiBtn('保存', 'dshwv-bubbtn dshwv-bubbtn-ok', function () {
-      status.textContent = '保存中…'
+    btns.appendChild(apiBtn(I('保存'), 'dshwv-bubbtn dshwv-bubbtn-ok', function () {
+      status.textContent = I('保存中…')
       var nm = (nameInp.value || '').trim()
       postApiModels(collect(), function (d) {
-        if (!d || !d.ok) { status.textContent = '保存失败: ' + ((d && d.error) || '未知错误'); return }
+        if (!d || !d.ok) { status.textContent = I('保存失败: ') + ((d && d.error) || I('未知错误')); return }
         // 新建模型：保存后给一个明确的收尾——弹「保存成功」，点确认即关掉本面板。
         // （原先是重新打开为编辑态，新建流程会停在一个没有明显关闭入口的面板上）
         if (isNew) {
           // v744 清理：这里原先有 `confirmMask.style.zIndex = '29500' !important`，但紧接着的
           // showConfirm() 会把确认框统一提到 40000 !important，所以那行是**无效设置**（立刻被覆盖），
           // 只会让"层级"更难读。已删除 —— 确认框永远由 showConfirm 统一抬到 40000。
-          showConfirm('✓ 保存成功：' + (nm || '新模型') + '\n已加入模型列表', function () {
+          showConfirm(I('✓ 保存成功：') + (nm || I('新模型')) + I('\n已加入模型列表'), function () {
             try { closeApiModelPanel() } catch (err) {}
             // 背后的「- = 小鲸鱼记账 = -」列表同步刷新（模型行在静态区，需重建子界面）
             refreshModelList()
-          }, '确认')
+          }, I('确认'))
           return
         }
         openApiModelPanel(d.id) // 编辑态：重新打开以刷新余额/错误
@@ -5168,17 +5399,17 @@ function openApiModelPanel(modelId) {
       })
     }))
     if (!isNew) {
-      btns.appendChild(apiBtn('删除模型', 'dshwv-bubbtn dshwv-bubbtn-no', function () {
-        showConfirm('删除模型「' + (m.name || m.id) + '」？\n该模型的提醒/预算与所有泡泡里引用它的模块会一并移除。', function () {
+      btns.appendChild(apiBtn(I('删除模型'), 'dshwv-bubbtn dshwv-bubbtn-no', function () {
+        showConfirm(I('删除模型「') + (m.name || m.id) + I('」？\n该模型的提醒/预算与所有泡泡里引用它的模块会一并移除。'), function () {
           postApiModels({ action: 'delete', id: m.id }, function (d) {
             closeApiModelPanel()
             refreshModelList()
-            if (d && d.removedModules) { try { showConfirm('已同时移除 ' + d.removedModules + ' 个引用该模型的泡泡模块', function () {}, '知道了') } catch (err) {} }
+            if (d && d.removedModules) { try { showConfirm(I('已同时移除 ') + d.removedModules + I(' 个引用该模型的泡泡模块'), function () {}, I('知道了')) } catch (err) {} }
           })
         })
       }))
     }
-    btns.appendChild(apiBtn('取消', 'dshwv-bubbtn dshwv-bubbtn-no', closeApiModelPanel))
+    btns.appendChild(apiBtn(I('取消'), 'dshwv-bubbtn dshwv-bubbtn-no', closeApiModelPanel))
     card.appendChild(btns)
     // —— 布局整理（v663）——
     // 1) 按钮行固定在卡片最下方（卡片自身滚动，按钮 sticky）
@@ -5231,13 +5462,13 @@ function openApiModelPanel(modelId) {
         if (elA === btns) break
         if (started) toMove.push(elA)
       }
-      var advToggle = apiBtn('接口与字段（高级）▾', 'dshwv-usage-more', function () {
+      var advToggle = apiBtn(I('接口与字段（高级）▾'), 'dshwv-usage-more', function () {
         var open = advBox.getAttribute('data-open') === '1'
         if (!open) {
           advBox.setAttribute('data-open', '1')
           advBox.style.maxHeight = advBox.scrollHeight + 'px'
           advBox.style.opacity = '1'
-          advToggle.textContent = '接口与字段（高级）▴'
+          advToggle.textContent = I('接口与字段（高级）▴')
           setTimeout(function () {
             if (advBox.getAttribute('data-open') === '1') advBox.style.maxHeight = 'none'
           }, 280)
@@ -5247,7 +5478,7 @@ function openApiModelPanel(modelId) {
           void advBox.offsetHeight // 先固定当前高度再收到 0，否则过渡不生效
           advBox.style.maxHeight = '0px'
           advBox.style.opacity = '0'
-          advToggle.textContent = '接口与字段（高级）▾'
+          advToggle.textContent = I('接口与字段（高级）▾')
         }
       })
       advToggle.style.width = '100%'
@@ -5298,8 +5529,8 @@ function openApiModelPanel(modelId) {
         var hasBal = !!String(tb.url || '').trim()
         tplNote.textContent = t.apiNote ? ('ℹ ' + t.apiNote) : ''
         tip.textContent = hasBal
-          ? '「事件匹配」用于没有余额差的模型：本机每轮对话的真实 token 花费，按这里的关键字归到本模型。'
-          : '该厂商没有「用 API key 查余额」的接口 → 余额显示「—」，今日已用按会话事件估算（本机每轮对话的真实 token）。'
+          ? I('「事件匹配」用于没有余额差的模型：本机每轮对话的真实 token 花费，按这里的关键字归到本模型。')
+          : I('该厂商没有「用 API key 查余额」的接口 → 余额显示「—」，今日已用按会话事件估算（本机每轮对话的真实 token）。')
         // ⑥ 余额接口行保持可见（即使模板没有默认地址）：用户可以自己填
         balUrlRow.style.display = isCodexT ? 'none' : ''
       }
@@ -5380,8 +5611,8 @@ function buildUsageSettingsArea() {
     var btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'dshwv-roleimport'
-    btn.textContent = '编辑'
-    btn.title = '打开配置卡片(启用 / 数值 / 提醒文案)'
+    btn.textContent = I('编辑')
+    btn.title = I('打开配置卡片(启用 / 数值 / 提醒文案)')
     btn.addEventListener('click', function () {
       usageAlertBudgetEditor(key, function (o) {
         persist(o)
@@ -5400,7 +5631,7 @@ function buildUsageSettingsArea() {
   // 不统一会让标题行与第一个模型之间多出 5px。这里与模型行保持一致。
   secRow.style.margin = '5px 0'
   var secLb = document.createElement('span')
-  secLb.textContent = '模型（提醒 / 预算 / 额度）'
+  secLb.textContent = I('模型（提醒 / 预算 / 额度）')
   secLb.style.flex = '0 0 auto'
   secRow.appendChild(secLb)
   // 手动刷新：强制重新拉取各模型余额/额度/今日已用，然后重建整个子界面（含本静态区）
@@ -5412,13 +5643,13 @@ function buildUsageSettingsArea() {
   // 用模块调色板的浅色 chip 样式（.dshwv-palchip：自带显式颜色），
   // 与下面各模型行的深蓝实心「设置」按钮在视觉上区分开，一眼看出是「区块级动作」
   secBtn.className = 'dshwv-palchip'
-  secBtn.textContent = '刷新'
-  secBtn.title = '手动刷新各模型的余额 / 额度 / 今日已用'
+  secBtn.textContent = I('刷新')
+  secBtn.title = I('手动刷新各模型的余额 / 额度 / 今日已用')
   secBtn.addEventListener('click', function (e) {
     e.stopPropagation()
     if (secBtn.disabled) return
     secBtn.disabled = true
-    secBtn.textContent = '刷新中…'
+    secBtn.textContent = I('刷新中…')
     secBtn.style.opacity = '.6'
     apiModelsError = ''
     var settled = false
@@ -5431,7 +5662,7 @@ function buildUsageSettingsArea() {
     // 兜底：25 秒还没回来也先把按钮恢复，避免一直卡在「刷新中…」（请求回来时照常重绘）
     setTimeout(function () {
       if (settled) return
-      try { secBtn.disabled = false; secBtn.textContent = '刷新'; secBtn.style.opacity = '1' } catch (err) {}
+      try { secBtn.disabled = false; secBtn.textContent = I('刷新'); secBtn.style.opacity = '1' } catch (err) {}
     }, 25000)
     try { loadApiModels(onDone, true) } catch (err) { onDone() }
   })
@@ -5440,13 +5671,13 @@ function buildUsageSettingsArea() {
   if (!apiModelsLoaded) {
     var ld = document.createElement('div')
     ld.className = 'dshwv-usage-hint'
-    ld.textContent = apiModelsError ? ('⚠ ' + apiModelsError) : '加载中…'
+    ld.textContent = apiModelsError ? ('⚠ ' + apiModelsError) : I('加载中…')
     usagePanel.appendChild(ld)
     if (apiModelsError) {
       var rbtn = document.createElement('button')
       rbtn.type = 'button'
       rbtn.className = 'dshwv-roleimport'
-      rbtn.textContent = '重试'
+      rbtn.textContent = I('重试')
       rbtn.addEventListener('click', function (e) {
         e.stopPropagation()
         apiModelsError = ''
@@ -5463,7 +5694,7 @@ function buildUsageSettingsArea() {
     r.className = 'dshwv-audiorow'
     r.style.margin = '5px 0' // 与主菜单行距(.dshwv-menu-row 5px)一致
     // 名称列：固定宽度（70px），超出部分靠悬浮滚动查看
-    var n = mkScrollCell(am.builtin ? (am.name + '（内置）') : am.name, 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
+    var n = mkScrollCell(am.builtin ? (am.name + I('（内置）')) : am.name, 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
     n.title = am.id + (am.keyRef ? ' · ' + am.keyRef : '')
     r.appendChild(n)
     // 内容列：占满剩余宽度，超出同样悬浮滚动
@@ -5472,18 +5703,18 @@ function buildUsageSettingsArea() {
     var infoTxt = ''
     if (am.error) infoTxt = '⚠ ' + am.error
     else if (am.codex && am.codex.ok) infoTxt = apiCodexRowText(am)
-    else if (planOn) infoTxt = '厂商额度 ' + apiPlanSummary(am.id)
-    else if (qOn) infoTxt = '额度 ' + apiQuotaSummary(am.id)
-    else if (am.balanceMode === 'events') infoTxt = '余额 —（无接口·按事件）· 今日 ' + apiFmtMoney(am.todayUsage, apiTodayCur(am))
-    else infoTxt = apiFmtMoney(am.balance, am.currency) + ' · 今日 ' + apiFmtMoney(am.todayUsage, apiTodayCur(am))
+    else if (planOn) infoTxt = I('厂商额度 ') + apiPlanSummary(am.id)
+    else if (qOn) infoTxt = I('额度 ') + apiQuotaSummary(am.id)
+    else if (am.balanceMode === 'events') infoTxt = I('余额 —（无接口·按事件）· 今日 ') + apiFmtMoney(am.todayUsage, apiTodayCur(am))
+    else infoTxt = apiFmtMoney(am.balance, am.currency) + I(' · 今日 ') + apiFmtMoney(am.todayUsage, apiTodayCur(am))
     var info = mkScrollCell(infoTxt, 'dshwv-usage-hint', { flex: '1 1 auto', minWidth: '0', textAlign: 'right', paddingRight: '6px' })
     info.title = infoTxt
     r.appendChild(info)
     var btn = document.createElement('button')
     btn.type = 'button'
     btn.className = 'dshwv-roleimport'
-    btn.textContent = '设置'
-    btn.title = '该模型的提醒 / 预算 / 密钥与接口'
+    btn.textContent = I('设置')
+    btn.title = I('该模型的提醒 / 预算 / 密钥与接口')
     btn.addEventListener('click', function (e) { e.stopPropagation(); openApiModelMenu(am.id) })
     r.appendChild(btn)
     usagePanel.appendChild(r)
@@ -5491,7 +5722,7 @@ function buildUsageSettingsArea() {
   var addRow = document.createElement('div')
   addRow.className = 'dshwv-menu-row' // 与主菜单「资源管理」行同款
   addRow.style.margin = '5px 0'
-  var addModelBtn = apiBtn('+ 添加模型（自定义 API）', 'dshwv-usage-more', function () {
+  var addModelBtn = apiBtn(I('+ 添加模型（自定义 API）'), 'dshwv-usage-more', function () {
     // 确保厂商模板已就绪再打开表单（否则模板下拉会是空的）
     if (apiTemplates.length) openApiModelPanel(null)
     else loadApiModels(function () { openApiModelPanel(null) })
@@ -5529,57 +5760,57 @@ function openModelQuotaEditor(modelId) {
     card.style.textAlign = 'left'
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
-    title.textContent = '额度 · ' + m.name
+    title.textContent = I('额度 · ') + m.name
     card.appendChild(title)
     var hint = document.createElement('div')
     hint.className = 'dshwv-bubhint'
     hint.style.margin = '4px 0 8px'
-    hint.textContent = '订阅 / 资源包用这里：总量填套餐额度，已用按会话 token 自动累计（跨天保留）。泡泡里可用 {quota} 已用百分比、{quota_used} 已用、{quota_left} 剩余、{quota_total} 总量、{quota_reset} 重置倒计时'
+    hint.textContent = I('订阅 / 资源包用这里：总量填套餐额度，已用按会话 token 自动累计（跨天保留）。泡泡里可用 {quota} 已用百分比、{quota_used} 已用、{quota_left} 剩余、{quota_total} 总量、{quota_reset} 重置倒计时')
     card.appendChild(hint)
     var onInp = document.createElement('input')
     onInp.type = 'checkbox'
     onInp.checked = !!q.on
-    card.appendChild(apiPanelRow('启用', onInp))
+    card.appendChild(apiPanelRow(I('启用'), onInp))
     // 单位先建好（仍按原顺序摆放）：金额单位下不允许「自动统计」——自动累计的是 token，不是钱
-    var unitSel = apiSelectEl([['tokens', 'tokens（token 数）'], ['money', '金额（元）']], q.unit)
+    var unitSel = apiSelectEl([['tokens', I('tokens（token 数）')], ['money', I('金额（元）')]], q.unit)
     var modeSel = null
     function buildModeSel() {
       var money = unitSel.value === 'money'
       // 金额单位：只给「手动填写」；已存在的 money+auto 数据在这里会显示为手动（used 值不会被清掉）
       var cur = money ? 'manual' : ((q.mode === 'manual' || q.mode === 'codex') ? q.mode : 'auto')
       var opts = money
-        ? [['manual', '手动填写']]
-        : [['auto', '自动统计（按会话 token，推荐）'], ['codex', 'Codex 本地会话 token'], ['manual', '手动填写']]
+        ? [['manual', I('手动填写')]]
+        : [['auto', I('自动统计（按会话 token，推荐）')], ['codex', I('Codex 本地会话 token')], ['manual', I('手动填写')]]
       return apiSelectEl(opts, cur)
     }
     modeSel = buildModeSel()
-    var modeRow = apiPanelRow('已用来源', modeSel)
+    var modeRow = apiPanelRow(I('已用来源'), modeSel)
     card.appendChild(modeRow)
     var moneyHint = document.createElement('div')
     moneyHint.className = 'dshwv-bubhint'
     moneyHint.style.margin = '0 0 8px'
-    moneyHint.textContent = '金额单位请手动填写：自动累计统计的是 token，不是钱。'
+    moneyHint.textContent = I('金额单位请手动填写：自动累计统计的是 token，不是钱。')
     moneyHint.style.display = unitSel.value === 'money' ? '' : 'none'
     card.appendChild(moneyHint)
-    var totalInp = apiTextInput(q.total || '', '例: 20000000')
-    card.appendChild(apiPanelRow('总量', totalInp))
-    card.appendChild(apiPanelRow('单位', unitSel))
-    var usedInp = apiTextInput(q.used || '', '例: 0（接入这个挂件之前已经用掉的 token 数，不知道就填 0）')
-    card.appendChild(apiPanelRow('之前已用', usedInp))
-    var resetSel = apiSelectEl([['none', '不重置'], ['daily', '每日重置'], ['monthly', '每月重置']], q.reset)
-    card.appendChild(apiPanelRow('重置', resetSel))
+    var totalInp = apiTextInput(q.total || '', I('例: 20000000'))
+    card.appendChild(apiPanelRow(I('总量'), totalInp))
+    card.appendChild(apiPanelRow(I('单位'), unitSel))
+    var usedInp = apiTextInput(q.used || '', I('例: 0（接入这个挂件之前已经用掉的 token 数，不知道就填 0）'))
+    card.appendChild(apiPanelRow(I('之前已用'), usedInp))
+    var resetSel = apiSelectEl([['none', I('不重置')], ['daily', I('每日重置')], ['monthly', I('每月重置')]], q.reset)
+    card.appendChild(apiPanelRow(I('重置'), resetSel))
     var resetBaseInp = document.createElement('input')
     resetBaseInp.type = 'checkbox'
-    card.appendChild(apiPanelRow('重置已用基准', resetBaseInp))
+    card.appendChild(apiPanelRow(I('重置已用基准'), resetBaseInp))
     var baseHint = document.createElement('div')
     baseHint.className = 'dshwv-bubhint'
     baseHint.style.margin = '0 0 8px'
-    baseHint.textContent = '勾选「重置已用基准」并保存：把自动统计的起点设为当前值（比如换了新资源包时用），已用从 0 重新算。'
+    baseHint.textContent = I('勾选「重置已用基准」并保存：把自动统计的起点设为当前值（比如换了新资源包时用），已用从 0 重新算。')
     card.appendChild(baseHint)
     var autoHint = document.createElement('div')
     autoHint.className = 'dshwv-bubhint'
     autoHint.style.margin = '0 0 6px'
-    autoHint.textContent = '当前自动统计：已用 ' + apiQuotaUsedText(modelId) + apiQuotaUnitSuffix(apiQuotaInfo(modelId)) + ' · 今日 ' + apiFmtQuotaNum((apiQuotaOf(modelId) || {}).autoToday || 0) + ' tokens'
+    autoHint.textContent = I('当前自动统计：已用 ') + apiQuotaUsedText(modelId) + apiQuotaUnitSuffix(apiQuotaInfo(modelId)) + I(' · 今日 ') + apiFmtQuotaNum((apiQuotaOf(modelId) || {}).autoToday || 0) + ' tokens'
     card.appendChild(autoHint)
     // 金额单位下「自动统计」不成立：把「已用来源」的选项与这条提示一起收敛
     autoHint.style.display = unitSel.value === 'money' ? 'none' : ''
@@ -5591,14 +5822,14 @@ function openModelQuotaEditor(modelId) {
       moneyHint.style.display = money ? '' : 'none'
       autoHint.style.display = money ? 'none' : ''
       usedInp.placeholder = money
-        ? '例: 0（接入这个挂件之前已经用掉的金额）'
-        : '例: 0（接入这个挂件之前已经用掉的 token 数，不知道就填 0）'
+        ? I('例: 0（接入这个挂件之前已经用掉的金额）')
+        : I('例: 0（接入这个挂件之前已经用掉的 token 数，不知道就填 0）')
     }
     unitSel.addEventListener('change', syncUnitMode)
     var btns = document.createElement('div')
     btns.className = 'dshwv-bubbtns'
-    btns.appendChild(apiBtn('取消', 'dshwv-bubbtn dshwv-bubbtn-no', closeApiModelPanel))
-    btns.appendChild(apiBtn('保存', 'dshwv-bubbtn dshwv-bubbtn-ok', function () {
+    btns.appendChild(apiBtn(I('取消'), 'dshwv-bubbtn dshwv-bubbtn-no', closeApiModelPanel))
+    btns.appendChild(apiBtn(I('保存'), 'dshwv-bubbtn dshwv-bubbtn-ok', function () {
       var next = {
         on: !!onInp.checked,
         mode: (modeSel.value === 'manual' || modeSel.value === 'codex') ? modeSel.value : 'auto',
@@ -5652,14 +5883,14 @@ function openApiModelMenu(modelId) {
     card.style.textAlign = 'left'
     var title = document.createElement('div')
     title.className = 'dshwv-bubtitle'
-    title.textContent = m.name + (m.builtin ? '（内置）' : '')
+    title.textContent = m.name + (m.builtin ? I('（内置）') : '')
     card.appendChild(title)
     var st = document.createElement('div')
     st.className = 'dshwv-bubhint'
     st.style.margin = '4px 0 8px'
     if (m.error) st.textContent = '⚠ ' + m.error
-    else if (m.balanceMode === 'events') st.textContent = '余额 —（该厂商无余额接口，按会话事件估算）· 今日已用 ' + apiFmtMoney(m.todayUsage, apiTodayCur(m))
-    else st.textContent = '余额 ' + apiFmtMoney(m.balance, m.currency) + ' · 今日已用 ' + apiFmtMoney(m.todayUsage, apiTodayCur(m))
+    else if (m.balanceMode === 'events') st.textContent = I('余额 —（该厂商无余额接口，按会话事件估算）· 今日已用 ') + apiFmtMoney(m.todayUsage, apiTodayCur(m))
+    else st.textContent = I('余额 ') + apiFmtMoney(m.balance, m.currency) + I(' · 今日已用 ') + apiFmtMoney(m.todayUsage, apiTodayCur(m))
     card.appendChild(st)
     var ms = (usageSet && usageSet.models && usageSet.models[modelId]) || {}
     function rowOf(label, stateFn, onEdit, buttonLabel) {
@@ -5679,21 +5910,21 @@ function openApiModelMenu(modelId) {
       info.style.textOverflow = 'ellipsis'
       info.textContent = stateFn()
       r.appendChild(info)
-      r.appendChild(apiBtn(buttonLabel || '编辑', 'dshwv-roleimport', onEdit))
+      r.appendChild(apiBtn(buttonLabel || I('编辑'), 'dshwv-roleimport', onEdit))
       card.appendChild(r)
       return r
     }
-    rowOf('余额预警', function () {
+    rowOf(I('余额预警'), function () {
       var a = ms.alert
-      if (!a || !a.on) return '已关闭'
-      return '余额 ≤ ' + (a.below != null ? a.below : 50) + ' 时提醒'
+      if (!a || !a.on) return I('已关闭')
+      return I('余额 ≤ ') + (a.below != null ? a.below : 50) + I(' 时提醒')
     }, function () { openModelAlertBudget(modelId, 'alert', function () { openApiModelMenu(modelId) }) })
-    rowOf('今日预算', function () {
+    rowOf(I('今日预算'), function () {
       var b = ms.budget
-      if (!b || !b.on) return '已关闭'
-      return '今日已用 ≥ ' + (b.amount != null ? b.amount : 20) + ' 时提醒'
+      if (!b || !b.on) return I('已关闭')
+      return I('今日已用 ≥ ') + (b.amount != null ? b.amount : 20) + I(' 时提醒')
     }, function () { openModelAlertBudget(modelId, 'budget', function () { openApiModelMenu(modelId) }) })
-    rowOf('额度（订阅/资源包）', function () { return apiQuotaSummary(modelId) },
+    rowOf(I('额度（订阅/资源包）'), function () { return apiQuotaSummary(modelId) },
       function () { openModelQuotaEditor(modelId) })
     // Codex 模式：开关（v748 从主菜单挪到这里）+ 只读展示本地会话统计（机器级）
     // 注意：开关按「是不是 Codex 模型」（apiCodexOf 非空）显示，**不能**按 .ok 判断 ——
@@ -5702,7 +5933,7 @@ function openApiModelMenu(modelId) {
       var ct = document.createElement('div')
       ct.className = 'dshwv-audiorow'
       var ctl = document.createElement('span')
-      ctl.textContent = 'Codex 本机统计'
+      ctl.textContent = I('Codex 本机统计')
       ctl.style.flex = '0 0 auto'
       ct.appendChild(ctl)
       var cth = document.createElement('span')
@@ -5710,7 +5941,7 @@ function openApiModelMenu(modelId) {
       cth.style.flex = '1'
       cth.style.textAlign = 'right'
       cth.style.paddingRight = '6px'
-      cth.textContent = '读取 ~/.codex/sessions'
+      cth.textContent = I('读取 ~/.codex/sessions')
       ct.appendChild(cth)
       ct.appendChild(codexStatsCheckbox())
       card.appendChild(ct)
@@ -5718,7 +5949,7 @@ function openApiModelMenu(modelId) {
       var cr = document.createElement('div')
       cr.className = 'dshwv-audiorow'
       var cl = document.createElement('span')
-      cl.textContent = 'Codex 用量'
+      cl.textContent = I('Codex 用量')
       cl.style.flex = '0 0 auto'
       cr.appendChild(cl)
       var ci = document.createElement('span')
@@ -5742,7 +5973,7 @@ function openApiModelMenu(modelId) {
       var pr = document.createElement('div')
       pr.className = 'dshwv-audiorow'
       var pl = document.createElement('span')
-      pl.textContent = '厂商额度'
+      pl.textContent = I('厂商额度')
       pl.style.flex = '0 0 auto'
       pr.appendChild(pl)
       var pi = document.createElement('span')
@@ -5784,20 +6015,20 @@ function openApiModelMenu(modelId) {
     // 单价（只读）：让用户确认当前生效价。内置 DeepSeek 始终走内置峰谷价，自定义单价对它不生效。
     var pc = (m && m.price) || null
     var pSet = !!(pc && (pc.hit != null || pc.miss != null || pc.out != null))
-    var pTxt = '未设置（沿用内置价目表）'
+    var pTxt = I('未设置（沿用内置价目表）')
     var pCur = ''
     if (pSet) {
       var fmtP = function (v) { return v == null ? '-' : String(v) }
       pCur = String(pc.cur || 'CNY').toUpperCase()
       pTxt = fmtP(pc.hit) + ' / ' + fmtP(pc.miss) + ' / ' + fmtP(pc.out) + ' · ' + pCur
-      if (pCur === 'USD') pTxt += '（汇率 ' + (Number(pc.rate) > 0 ? pc.rate : '未填') + '）'
-      if (m.builtin) pTxt += ' ← 内置模型不生效（始终用内置峰谷价）'
+      if (pCur === 'USD') pTxt += I('（汇率 ') + (Number(pc.rate) > 0 ? pc.rate : I('未填')) + '）'
+      if (m.builtin) pTxt += I(' ← 内置模型不生效（始终用内置峰谷价）')
     } else if (m.builtin) {
       // 内置 DeepSeek 的自定义单价在 host 被显式跳过（priceFor 不读内置模型），所以这里说清"不能改"
-      pTxt = '内置峰谷价（内置模型不支持自定义单价）'
+      pTxt = I('内置峰谷价（内置模型不支持自定义单价）')
     } else {
       // 这一行是只读展示；真正填写的地方在「密钥 / 接口」面板
-      pTxt = '未设置（沿用内置价目表）→ 在「密钥 / 接口」里填写'
+      pTxt = I('未设置（沿用内置价目表）→ 在「密钥 / 接口」里填写')
     }
     readonlyRow('单价', pTxt)
     // 「已观测消费」= DeepSeek 账户口径（余额观测），只在内置项的设置里显示，与下面的「余额校正」配套。
@@ -5805,25 +6036,25 @@ function openApiModelMenu(modelId) {
       var acc = m.accounting || null
       var accAmt = (acc && typeof acc.amount === 'number') ? acc.amount : m.todayUsage
       var accInfo = (acc && acc.firstObservedAt)
-        ? '统计起点（北京）：' + accountingTime(acc.firstObservedAt) + '。起点前的消费未计入；该账户的观测包含同一个 key 在别处的消费。'
-        : '尚无余额观测：先配置 DeepSeek API key 并成功刷新一次余额。'
-      readonlyRow('已观测消费', ((acc && acc.label) || m.usageLabel || '已观测消费') + ' ' +
+        ? I('统计起点（北京）：') + accountingTime(acc.firstObservedAt) + I('。起点前的消费未计入；该账户的观测包含同一个 key 在别处的消费。')
+        : I('尚无余额观测：先配置 DeepSeek API key 并成功刷新一次余额。')
+      readonlyRow('已观测消费', ((acc && acc.label) || m.usageLabel || I('已观测消费')) + ' ' +
         (isFinite(Number(accAmt)) ? apiFmtMoney(accAmt, apiTodayCur(m)) : '--'), accInfo)
       // 需要用户动手的提示仍然直接显示（不藏进「?」里）
       if (acc && acc.needsReview) {
         var accWarn = document.createElement('div')
         accWarn.className = 'dshwv-usage-hint'
         accWarn.style.cssText = 'line-height:1.65;white-space:normal;margin:2px 0 4px'
-        accWarn.textContent = '检测到余额增加，请用下面的「余额校正」核对本区间累计到账。'
+        accWarn.textContent = I('检测到余额增加，请用下面的「余额校正」核对本区间累计到账。')
         card.appendChild(accWarn)
       }
     }
     // 「充值 / 余额校正」入口：只给固定的 DeepSeek（内置），放在「单价」下方、沿用同一行布局与按钮样式。
     // 其它厂商、手动新增的 DeepSeek、仅改名为「DeepSeek（内置）」的模型都不会走到这里。
     if (apiCanAdjustBalance(m)) {
-      var adjustmentRow = rowOf('余额校正', function () {
-        return (m.accounting && m.accounting.label) || '充值与余额调整'
-      }, function () { openBalanceAdjustment(modelId) }, '校正')
+      var adjustmentRow = rowOf(I('余额校正'), function () {
+        return (m.accounting && m.accounting.label) || I('充值与余额调整')
+      }, function () { openBalanceAdjustment(modelId) }, I('校正'))
       adjustmentRow.lastElementChild.setAttribute('data-action', 'balance-adjustment')
     }
     // 币种不一致提示：今日已用按「自带币种」显示（会话事件为 CNY）。若与模型币种不同且没填汇率，
@@ -5832,12 +6063,12 @@ function openApiModelMenu(modelId) {
     var mc = String((m && m.currency) || '').toUpperCase()
     var rateOk = !!(pc && Number(pc.rate) > 0)
     if (tuc && mc && tuc !== mc && !rateOk) {
-      readonlyRow('⚠ 币种不一致', '请在「密钥 / 接口」里填写汇率，否则今日预算提醒会被跳过')
+      readonlyRow('⚠ 币种不一致', I('请在「密钥 / 接口」里填写汇率，否则今日预算提醒会被跳过'))
     }
     var btns = document.createElement('div')
     btns.className = 'dshwv-bubbtns'
-    btns.appendChild(apiBtn('密钥 / 接口', 'dshwv-bubbtn dshwv-bubbtn-no', function () { openApiModelPanel(modelId) }))
-    btns.appendChild(apiBtn('关闭', 'dshwv-bubbtn dshwv-bubbtn-ok', closeApiModelPanel))
+    btns.appendChild(apiBtn(I('密钥 / 接口'), 'dshwv-bubbtn dshwv-bubbtn-no', function () { openApiModelPanel(modelId) }))
+    btns.appendChild(apiBtn(I('关闭'), 'dshwv-bubbtn dshwv-bubbtn-ok', closeApiModelPanel))
     card.appendChild(btns)
     mask.appendChild(card)
     mask.addEventListener('click', function (e) { if (e.target === mask) closeApiModelPanel() })
@@ -5876,7 +6107,7 @@ function refreshUsageMain() {
   //（用户下滑看近七天用量时会看到闪烁并跳回最上面）。首次尚无内容时才显示「加载中…」。
   if (!usageMainEl.firstChild) {
     var body = document.createElement('div')
-    body.textContent = '加载中…'
+    body.textContent = I('加载中…')
     usageMainEl.appendChild(body)
   }
   fetch(USAGE_REC_URL, { cache: 'no-store' })
@@ -5895,10 +6126,10 @@ function refreshUsageMain() {
         var recTotal = Number(d.today.total)
         state.todayUsage = recTotal
         state.todayUsageCurrency = d.today.currency || 'CNY'
-        state.usageLabel = d.today.label || '本地估算'
+        state.usageLabel = d.today.label || I('本地估算')
       }
     })
-    .catch(function () { if (usageMainEl && !usageMainEl.firstChild) usageMainEl.textContent = '记录加载失败' })
+    .catch(function () { if (usageMainEl && !usageMainEl.firstChild) usageMainEl.textContent = I('记录加载失败') })
 }
 function uSectionTitle(leftTxt, rightTxt) {
   var h = document.createElement('div')
@@ -5939,38 +6170,38 @@ function openBalanceAdjustment(modelId) {
   card.style.textAlign = 'left'
   card.setAttribute('role', 'dialog')
   card.setAttribute('aria-modal', 'true')
-  card.setAttribute('aria-label', 'DeepSeek（内置）余额校正')
+  card.setAttribute('aria-label', I('DeepSeek（内置）余额校正'))
   // 内容可能比 82vh 高：中间这段自己滚，按钮行固定在底部（与 .dshwv-reswrap 同一做法）
   var body = document.createElement('div')
   body.style.cssText = 'min-height:0;overflow-y:auto;flex:1 1 auto'
   var title = document.createElement('div')
   title.className = 'dshwv-bubtitle'
-  title.textContent = '余额校正 · DeepSeek（内置）'
+  title.textContent = I('余额校正 · DeepSeek（内置）')
   body.appendChild(title)
   var introduction = document.createElement('div')
   introduction.className = 'dshwv-bubhint'
   introduction.style.cssText = 'margin:0 0 8px;white-space:normal;line-height:1.6;text-align:left'
-  introduction.textContent = '核对统计区间内的全部到账后，重新计算本地消费。此操作不会充值，也不会改变 DeepSeek 账户余额。'
+  introduction.textContent = I('核对统计区间内的全部到账后，重新计算本地消费。此操作不会充值，也不会改变 DeepSeek 账户余额。')
   body.appendChild(introduction)
   var dates = apiSelectEl([], '')
-  body.appendChild(apiPanelRow('日期', dates))
+  body.appendChild(apiPanelRow(I('日期'), dates))
   var interval = document.createElement('div')
   interval.className = 'dshwv-bubhint'
   interval.style.cssText = 'margin:0 0 8px;white-space:pre-line;line-height:1.6;text-align:left'
   body.appendChild(interval)
-  var credits = apiTextInput('', '未到账请填 0')
+  var credits = apiTextInput('', I('未到账请填 0'))
   credits.inputMode = 'decimal'
   credits.required = true
   credits.autocomplete = 'off'
-  body.appendChild(apiPanelRow('累计到账', credits))
+  body.appendChild(apiPanelRow(I('累计到账'), credits))
   var creditsHint = document.createElement('div')
   creditsHint.className = 'dshwv-bubhint'
   creditsHint.style.cssText = 'margin:0 0 8px;white-space:normal;line-height:1.6;text-align:left'
   body.appendChild(creditsHint)
-  var debits = apiTextInput('0', '没有请填 0')
+  var debits = apiTextInput('0', I('没有请填 0'))
   debits.inputMode = 'decimal'
   debits.autocomplete = 'off'
-  body.appendChild(apiPanelRow('非调用扣减', debits))
+  body.appendChild(apiPanelRow(I('非调用扣减'), debits))
   var debitsHint = document.createElement('div')
   debitsHint.className = 'dshwv-bubhint'
   debitsHint.style.cssText = 'margin:0 0 8px;white-space:normal;line-height:1.6;text-align:left'
@@ -5986,13 +6217,13 @@ function openBalanceAdjustment(modelId) {
   confirm.type = 'checkbox'
   confirm.style.marginTop = '1px'
   confirmRow.appendChild(confirm)
-  confirmRow.appendChild(document.createTextNode('我已核对本统计区间的全部到账和非调用扣减'))
-  body.appendChild(apiPanelRow('确认', confirmRow))
+  confirmRow.appendChild(document.createTextNode(I('我已核对本统计区间的全部到账和非调用扣减')))
+  body.appendChild(apiPanelRow(I('确认'), confirmRow))
   var status = document.createElement('div')
   status.className = 'dshwv-bubhint'
   status.setAttribute('role', 'status')
   status.style.cssText = 'margin:0 0 6px;white-space:normal;line-height:1.6;text-align:left;color:#b33333'
-  status.textContent = '正在刷新余额…'
+  status.textContent = I('正在刷新余额…')
   body.appendChild(status)
   card.appendChild(body)
   var busy = false
@@ -6023,12 +6254,12 @@ function openBalanceAdjustment(modelId) {
   // 按钮行与其它窗口完全一致：.dshwv-bubbtns + apiBtn 的标准按钮样式（不再自绘尺寸/配色）
   var actions = document.createElement('div')
   actions.className = 'dshwv-bubbtns'
-  var reload = apiBtn('重新读取', 'dshwv-bubbtn dshwv-bubbtn-no', function () { load() })
-  var reset = apiBtn('撤销该日校正', 'dshwv-bubbtn dshwv-bubbtn-no', function () { submit('reset') })
-  var save = apiBtn('保存校正', 'dshwv-bubbtn dshwv-bubbtn-ok', function () { submit('save') })
+  var reload = apiBtn(I('重新读取'), 'dshwv-bubbtn dshwv-bubbtn-no', function () { load() })
+  var reset = apiBtn(I('撤销该日校正'), 'dshwv-bubbtn dshwv-bubbtn-no', function () { submit('reset') })
+  var save = apiBtn(I('保存校正'), 'dshwv-bubbtn dshwv-bubbtn-ok', function () { submit('save') })
   actions.appendChild(reload)
   actions.appendChild(reset)
-  actions.appendChild(apiBtn('取消', 'dshwv-bubbtn dshwv-bubbtn-no', function () { close() }))
+  actions.appendChild(apiBtn(I('取消'), 'dshwv-bubbtn dshwv-bubbtn-no', function () { close() }))
   actions.appendChild(save)
   card.appendChild(actions)
   mask.appendChild(card)
@@ -6043,18 +6274,18 @@ function openBalanceAdjustment(modelId) {
     save.disabled = !selected || busy
     reset.disabled = !selected || !selected.correctedAt || busy
     if (!selected) {
-      interval.textContent = '尚无可校正的余额观测。请先配置 DeepSeek API key 并成功刷新余额。'
+      interval.textContent = I('尚无可校正的余额观测。请先配置 DeepSeek API key 并成功刷新余额。')
       creditsHint.textContent = ''
       debitsHint.textContent = ''
       return
     }
-    interval.textContent = '统计起点：' + accountingTime(selected.firstObservedAt) +
-      '\n最近观测：' + accountingTime(selected.lastObservedAt) +
-      '\n起点余额 ' + usageMoney(selected.openingBalance, selected.currency) +
-      ' → 当前余额 ' + usageMoney(selected.currentBalance, selected.currency) +
-      '\n当前：' + selected.label + ' ' + usageMoney(selected.amount, selected.currency)
-    creditsHint.textContent = '本统计区间累计到账金额（' + selected.currency + '，未到账请填 0）：包括充值、赠金等；多次到账请填合计，不要只填最后一笔。'
-    debitsHint.textContent = '非调用造成的余额减少（' + selected.currency + '，没有请填 0）：到期赠金、余额退回等。仅填写统计起点之后的金额；保存会替换之前的校正值。'
+    interval.textContent = I('统计起点：') + accountingTime(selected.firstObservedAt) +
+      I('\n最近观测：') + accountingTime(selected.lastObservedAt) +
+      I('\n起点余额 ') + usageMoney(selected.openingBalance, selected.currency) +
+      I(' → 当前余额 ') + usageMoney(selected.currentBalance, selected.currency) +
+      I('\n当前：') + selected.label + ' ' + usageMoney(selected.amount, selected.currency)
+    creditsHint.textContent = I('本统计区间累计到账金额（') + selected.currency + I('，未到账请填 0）：包括充值、赠金等；多次到账请填合计，不要只填最后一笔。')
+    debitsHint.textContent = I('非调用造成的余额减少（') + selected.currency + I('，没有请填 0）：到期赠金、余额退回等。仅填写统计起点之后的金额；保存会替换之前的校正值。')
     credits.value = selected.credits == null ? '' : String(selected.credits)
     debits.value = selected.otherDebits == null ? '0' : String(selected.otherDebits)
     confirm.checked = false
@@ -6062,11 +6293,11 @@ function openBalanceAdjustment(modelId) {
   }
   function updatePreview() {
     if (!selected || credits.value.trim() === '' || !isFinite(Number(credits.value)) || !isFinite(Number(debits.value))) {
-      preview.textContent = '填写完整金额后显示校正预览'
+      preview.textContent = I('填写完整金额后显示校正预览')
       return
     }
     var amount = selected.openingBalance + Number(credits.value) - Number(debits.value || 0) - selected.currentBalance
-    preview.textContent = amount < -0.000000005 ? '校正后为负数，请核对金额和统计区间' : '校正后消费：' + usageMoney(Math.max(0, amount), selected.currency)
+    preview.textContent = amount < -0.000000005 ? I('校正后为负数，请核对金额和统计区间') : I('校正后消费：') + usageMoney(Math.max(0, amount), selected.currency)
   }
   credits.addEventListener('input', updatePreview)
   debits.addEventListener('input', updatePreview)
@@ -6077,11 +6308,11 @@ function openBalanceAdjustment(modelId) {
     save.disabled = true
     reset.disabled = true
     reload.disabled = true
-    status.textContent = '正在刷新余额…'
+    status.textContent = I('正在刷新余额…')
     fetch(adjustmentUrl, { cache: 'no-store' })
       .then(function (r) { return r.json() })
       .then(function (data) {
-        if (!data.ok) throw new Error(data.error || '读取失败')
+        if (!data.ok) throw new Error(data.error || I('读取失败'))
         rows = data.days || []
         dates.innerHTML = ''
         rows.forEach(function (row) {
@@ -6090,19 +6321,19 @@ function openBalanceAdjustment(modelId) {
           option.textContent = row.day + ' · ' + row.label
           dates.appendChild(option)
         })
-        status.textContent = data.error ? '余额暂未刷新：' + data.error : ''
+        status.textContent = data.error ? I('余额暂未刷新：') + data.error : ''
       })
-      .catch(function (err) { status.textContent = err.message || '读取失败' })
+      .catch(function (err) { status.textContent = err.message || I('读取失败') })
       .finally(function () { busy = false; reload.disabled = false; renderSelection(); dates.focus() })
   }
   function submit(action) {
     if (busy || !selected) return
-    if (action !== 'reset' && !confirm.checked) { status.textContent = '请先勾选确认，核对本统计区间的全部余额调整。'; return }
+    if (action !== 'reset' && !confirm.checked) { status.textContent = I('请先勾选确认，核对本统计区间的全部余额调整。'); return }
     busy = true
     save.disabled = true
     reset.disabled = true
     reload.disabled = true
-    status.textContent = '正在保存…'
+    status.textContent = I('正在保存…')
     fetch(adjustmentUrl, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -6112,7 +6343,7 @@ function openBalanceAdjustment(modelId) {
     })
       .then(function (r) { return r.json() })
       .then(function (data) {
-        if (!data.ok) throw new Error(data.error || '保存失败')
+        if (!data.ok) throw new Error(data.error || I('保存失败'))
         // 保存后立刻用返回的摘要刷新该模型条目：关窗回到设置菜单时显示的就是新金额
         var model = apiModelById(modelId)
         var currentDay = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
@@ -6133,7 +6364,7 @@ function openBalanceAdjustment(modelId) {
           if (usagePanelOpen) rebuildUsageSubShell()
         }, true)
       })
-      .catch(function (err) { status.textContent = err.message || '保存失败' })
+      .catch(function (err) { status.textContent = err.message || I('保存失败') })
       .finally(function () { busy = false; save.disabled = !selected; reset.disabled = !selected || !selected.correctedAt; reload.disabled = false })
   }
   card.addEventListener('submit', function (e) { e.preventDefault(); submit('save') })
@@ -6146,7 +6377,7 @@ function fillUsagePanel(d) {
   var wrap = document.createElement('div')
   wrap.className = 'dshwv-usagebody'
   if (!d || !d.ok) {
-    wrap.textContent = '记录加载失败'
+    wrap.textContent = I('记录加载失败')
     hostEl.appendChild(wrap)
     return
   }
@@ -6156,10 +6387,10 @@ function fillUsagePanel(d) {
   // ① 本机模型费用（所有模型的本地会话估算）
   // 「已观测消费」是 DeepSeek 账户口径（余额观测），已移到 小鲸鱼记账 → DeepSeek（内置）→ 设置 里，
   // 与「余额校正」放在一起，避免在这里被误读成"全模型合计"。
-  var modelTitle = uSectionTitle('本机模型费用', usageMoney(today.modelTotal, 'CNY'))
+  var modelTitle = uSectionTitle(I('本机模型费用'), usageMoney(today.modelTotal, 'CNY'))
   // 标题与下方模型列表之间不再画分隔线（列表本身有边框，够了）
   modelTitle.style.borderBottom = 'none'
-  modelTitle.title = '按本机 DSH 会话计算，不按账户余额比例缩放；两者覆盖范围不同。'
+  modelTitle.title = I('按本机 DSH 会话计算，不按账户余额比例缩放；两者覆盖范围不同。')
   wrap.appendChild(modelTitle)
   var todayBox = document.createElement('div')
   todayBox.className = 'dshwv-usage-scroll dshwv-usage-today'
@@ -6168,7 +6399,7 @@ function fillUsagePanel(d) {
       var r = document.createElement('div')
       r.className = 'dshwv-usage-row'
       var n = mkScrollCell(usageModelLabel(row.model), 'dshwv-usage-model', { flex: '0 0 70px', boxSizing: 'border-box' })
-      n.title = String(row.model || '未知')
+      n.title = String(row.model || I('未知'))
       r.appendChild(n)
       var c = document.createElement('span')
       c.textContent = usageMoney(row.cost)
@@ -6178,12 +6409,12 @@ function fillUsagePanel(d) {
   } else if ((today.total || 0) > 0) {
     var noM = document.createElement('div')
     noM.className = 'dshwv-usage-hint'
-    noM.textContent = '暂无本机会话费用明细；账户余额观测仍独立记账。'
+    noM.textContent = I('暂无本机会话费用明细；账户余额观测仍独立记账。')
     todayBox.appendChild(noM)
   } else {
     var empty = document.createElement('div')
     empty.className = 'dshwv-usage-hint'
-    empty.textContent = '今日暂无消费记录'
+    empty.textContent = I('今日暂无消费记录')
     todayBox.appendChild(empty)
   }
   // 列表高度不限制（随内容增长），下方「更多消费记录…」位置随内容移动
@@ -6193,7 +6424,7 @@ function fillUsagePanel(d) {
   sep7.style.borderTop = '1px solid rgba(32,49,112,.15)'
   sep7.style.margin = '6px 0'
   wrap.appendChild(sep7)
-  var t7 = uSectionTitle('近7天使用记录', usageMoney(d.total7, d.total7Currency))
+  var t7 = uSectionTitle(I('近7天使用记录'), usageMoney(d.total7, d.total7Currency))
   t7.style.borderBottom = 'none'
   wrap.appendChild(t7)
   var daysBox = document.createElement('div')
@@ -6215,8 +6446,8 @@ function fillUsagePanel(d) {
   var more = document.createElement('button')
   more.type = 'button'
   more.className = 'dshwv-usage-more'
-  more.textContent = '更多消费记录…'
-  more.title = '打开窗口查看全部有记录的消费'
+  more.textContent = I('更多消费记录…')
+  more.title = I('打开窗口查看全部有记录的消费')
   more.addEventListener('click', function (e) { e.stopPropagation(); openUsageRecordsWindow() })
   wrap.appendChild(more)
   ;(usageMainEl || usagePanel).appendChild(wrap)
@@ -6277,14 +6508,14 @@ function dshwvFoldEntry(host, labelText, opts) {
   rowEl.style.padding = '6px 6px'
   rowEl.style.borderRadius = '6px'
   rowEl.style.background = 'rgba(32,49,112,.05)' // 常驻淡底：与折叠体里的内容行区分开
-  rowEl.title = '点这一行展开 / 收起「' + labelText + '」' + String(opts.titleTail || '')
+  rowEl.title = I('点这一行展开 / 收起「') + labelText + '」' + String(opts.titleTail || '')
   var ck = null
   if (typeof opts.onToggle === 'function') {
     ck = document.createElement('input')
     ck.type = 'checkbox'
     ck.className = 'dshwv-check'
     ck.checked = !!opts.checked
-    ck.title = labelText + '开关（只管开不开；下面的设置项不受影响）'
+    ck.title = labelText + I('开关（只管开不开；下面的设置项不受影响）')
     // 点开关**不**展开/收起（否则想关掉该事件时会顺手把区拉开）
     ck.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {} })
     ck.addEventListener('change', function () { try { opts.onToggle(!!ck.checked) } catch (err) {} })
@@ -6479,12 +6710,12 @@ function resManagerRender() {
     head.className = 'dshwv-reshead'
     var title = document.createElement('span')
     title.className = 'dshwv-restitle'
-    title.textContent = '资源管理'
+    title.textContent = I('资源管理')
     var x = document.createElement('button')
     x.type = 'button'
     x.className = 'dshwv-resclose'
     x.textContent = '✕'
-    x.title = '关闭'
+    x.title = I('关闭')
     x.addEventListener('click', resManagerClose)
     head.appendChild(title)
     head.appendChild(x)
@@ -6518,7 +6749,7 @@ function resManagerRender() {
 function resDelRole(id) {
   var r = null
   for (var i = 0; i < roleList.length; i++) if (roleList[i].id === id) { r = roleList[i]; break }
-  showConfirm('确定删除角色「' + (r ? r.name : id) + '」吗？\n若该角色正被使用,将自动回退默认小鲸鱼。', function () {
+  showConfirm(I('确定删除角色「') + (r ? r.name : id) + I('」吗？\n若该角色正被使用,将自动回退默认小鲸鱼。'), function () {
     try {
       fetch('/dsh-whale/role-delete.json', {
         method: 'POST',
@@ -6530,7 +6761,7 @@ function resDelRole(id) {
           if (d && d.ok && Array.isArray(d.roles)) {
             roleList = d.roles
             renderRolePanel()
-            if (currentRole && currentRole.id === id) applyRole('default', '小鲸鱼', IMG_URL)
+            if (currentRole && currentRole.id === id) applyRole('default', I('小鲸鱼'), IMG_URL)
             openResManager()
           }
         })
@@ -6541,7 +6772,7 @@ function resDelRole(id) {
 function resDelBubbleImg(id) {
   var im = null
   for (var i = 0; i < bubbleImgList.length; i++) if (bubbleImgList[i].id === id) { im = bubbleImgList[i]; break }
-  showConfirm('确定删除泡泡图「' + (im && im.name ? im.name : id) + '」吗？\n正在引用该图的泡泡行将无法显示。', function () {
+  showConfirm(I('确定删除泡泡图「') + (im && im.name ? im.name : id) + I('」吗？\n正在引用该图的泡泡行将无法显示。'), function () {
     try {
       fetch('/dsh-whale/bubble-img-upload.json', {
         method: 'POST',
@@ -6562,7 +6793,7 @@ function resDelBubbleImg(id) {
 function resDelAudioGroup(id) {
   var g = null
   for (var i = 0; i < (audioGroups || []).length; i++) if (audioGroups[i].id === id) { g = audioGroups[i]; break }
-  showConfirm('确定删除音效组「' + (g && g.name ? g.name : id) + '」吗？', function () {
+  showConfirm(I('确定删除音效组「') + (g && g.name ? g.name : id) + I('」吗？'), function () {
     try {
       fetch('/dsh-whale/audio.json', {
         method: 'POST',
@@ -6586,7 +6817,7 @@ function resDelAudioGroup(id) {
 function resDelAudioFrag(id) {
   var f = null
   for (var i = 0; i < (audioFragments || []).length; i++) if (audioFragments[i].id === id) { f = audioFragments[i]; break }
-  showConfirm('确定删除音频片段「' + (f && f.name ? f.name : id) + '」吗？\n引用该片段的音效组槽位会自动回退预设。', function () {
+  showConfirm(I('确定删除音频片段「') + (f && f.name ? f.name : id) + I('」吗？\n引用该片段的音效组槽位会自动回退预设。'), function () {
     try {
       fetch('/dsh-whale/audio.json', {
         method: 'POST',
@@ -6614,7 +6845,7 @@ function resFoldEntry(wrap, key, labelText, summaryText, first) {
   var e = dshwvFoldEntry(wrap, labelText, {
     first: first,
     summary: summaryText,
-    titleTail: '的资源',
+    titleTail: I('的资源'),
     onRowClick: function (willOpen) {
       resFoldOpen[key] = !!willOpen
       resStopPreview() // 收起/展开时停掉正在试听的那一段（与设置面板同一约定）
@@ -6630,55 +6861,55 @@ function resRenderData(wrap, roles, bubbleImgs, audio) {
     var fragsAll = (audio && Array.isArray(audio.fragments)) ? audio.fragments : []
     var frags = fragsAll.filter(function (f) { return f && !f.preset })
     // —— 图片（入口行 + 折叠体；摘要 = 数量，不展开也知道有多少）——
-    var imgEnt = resFoldEntry(wrap, 'img', '图片', '角色 ' + roles.length + ' · 泡泡图 ' + bubbleImgs.length, true)
+    var imgEnt = resFoldEntry(wrap, 'img', I('图片'), I('角色 ') + roles.length + I(' · 泡泡图 ') + bubbleImgs.length, true)
     var anyImg = false
     // 角色图(默认角色只读展示)
     roles.forEach(function (r) {
       anyImg = true
       var isDefault = r.id === 'default'
-      var tag = resMkTag(isDefault ? '默认角色' : '自定义角色', isDefault)
+      var tag = resMkTag(isDefault ? I('默认角色') : I('自定义角色'), isDefault)
       imgEnt.body.appendChild(resImgRow(r.url, r.name || r.id, '', [tag, resMkDel('删除', isDefault, function () { resDelRole(r.id) })]))
     })
     bubbleImgs.forEach(function (im) {
       anyImg = true
-      var tag = resMkTag(im.builtin ? '内置图' : '泡泡图', !!im.builtin)
+      var tag = resMkTag(im.builtin ? I('内置图') : I('泡泡图'), !!im.builtin)
       imgEnt.body.appendChild(resImgRow('/dsh-whale/bubble-img.png?id=' + encodeURIComponent(im.id), im.name || im.id, '', [tag, resMkDel('删除', !!im.builtin, function () { resDelBubbleImg(im.id) })]))
     })
     if (!anyImg) {
       var empty = document.createElement('div')
       empty.className = 'dshwv-resempty'
-      empty.textContent = '暂无自定义图片(角色/泡泡图)'
+      empty.textContent = I('暂无自定义图片(角色/泡泡图)')
       imgEnt.body.appendChild(empty)
     }
     // —— 音频（入口行 + 折叠体；「导入片段」放进折叠体第一行，免得入口行太挤）——
-    var auEnt = resFoldEntry(wrap, 'audio', '音频', '音效组 ' + groups.length + ' · 片段 ' + frags.length)
+    var auEnt = resFoldEntry(wrap, 'audio', I('音频'), I('音效组 ') + groups.length + I(' · 片段 ') + frags.length)
     var impRow = document.createElement('div')
     impRow.className = 'dshwv-resrow'
-    var catAuBtn = resMkBtn('dshwv-resimp', '导入片段', false, resImportAudioFragment)
-    catAuBtn.title = '导入并裁剪一段音频到片段库(可被音效组引用)'
+    var catAuBtn = resMkBtn('dshwv-resimp', I('导入片段'), false, resImportAudioFragment)
+    catAuBtn.title = I('导入并裁剪一段音频到片段库(可被音效组引用)')
     impRow.appendChild(catAuBtn)
     auEnt.body.appendChild(impRow)
     var anyAu = false
     groups.forEach(function (g) {
       anyAu = true
       var preset = !!g.preset
-      var tag = resMkTag(preset ? '预设组' : '自定义组', preset)
+      var tag = resMkTag(preset ? I('预设组') : I('自定义组'), preset)
       var meta = ''
-      if (!preset && g.press && g.release) meta = '按压:' + g.press + ' 松开:' + g.release
+      if (!preset && g.press && g.release) meta = I('按压:') + g.press + I(' 松开:') + g.release
       // 音效组不提供播放(按整组点按发声,需与点按动作绑定),只展示/删除
       auEnt.body.appendChild(resIconRow(preset ? '🎧' : '🎵', g.name || g.id, meta, [tag, resMkDel('删除', preset, function () { resDelAudioGroup(g.id) })]))
     })
     frags.forEach(function (f) {
       anyAu = true
-      var tag = resMkTag('音频片段', false)
-      var play = resMkBtn('dshwv-resplay', '播放', false, function () { resPlayFragment(f.id) })
-      play.title = '试听该音频片段'
+      var tag = resMkTag(I('音频片段'), false)
+      var play = resMkBtn('dshwv-resplay', I('播放'), false, function () { resPlayFragment(f.id) })
+      play.title = I('试听该音频片段')
       auEnt.body.appendChild(resIconRow('🎶', f.name || f.id, '', [tag, play, resMkDel('删除', false, function () { resDelAudioFrag(f.id) })]))
     })
     if (!anyAu) {
       var empty2 = document.createElement('div')
       empty2.className = 'dshwv-resempty'
-      empty2.textContent = '暂无自定义音频(片段/音效组)'
+      empty2.textContent = I('暂无自定义音频(片段/音效组)')
       auEnt.body.appendChild(empty2)
     }
   } catch (err) {}
@@ -6698,27 +6929,27 @@ function usageTodayKeyStr() {
 function usageRemindDefaultLines(isAlert) {
   if (isAlert) {
     return [
-      { type: 'text', text: '老大~你的DS余额', size: 5, bold: true },
-      { type: 'text', text: '已经不足', size: 5, bold: true, row: 2 },
+      { type: 'text', text: I('老大~你的DS余额'), size: 5, bold: true },
+      { type: 'text', text: I('已经不足'), size: 5, bold: true, row: 2 },
       { type: 'text', text: '¥{below}', size: 5, bold: true, rgb: 'rouge', color: '', bgRgb: '', bg: '', row: 2 },
-      { type: 'text', text: '啦~', size: 5, bold: true, row: 2 },
+      { type: 'text', text: I('啦~'), size: 5, bold: true, row: 2 },
       { type: 'image', imgId: 'bimg_money1', size: 6, imgScale: 0.4 },
-      { type: 'link', text: '>> 喂 点 米 <<', url: 'https://platform.deepseek.com/top_up', size: 1, color: '#ffffff', rgb: '', bgRgb: 'indigo', bg: '', bold: true, ul: false },
+      { type: 'link', text: I('>> 喂 点 米 <<'), url: 'https://platform.deepseek.com/top_up', size: 1, color: '#ffffff', rgb: '', bgRgb: 'indigo', bg: '', bold: true, ul: false },
     ]
   }
   return [
-    { type: 'text', text: '老大，今天花销已经超过', size: 6, bold: true, row: 1 },
+    { type: 'text', text: I('老大，今天花销已经超过'), size: 6, bold: true, row: 1 },
     { type: 'text', text: '¥{amount}', size: 7, bold: true, row: 1, rgb: 'rouge', color: '', italic: false, bgRgb: '', bg: '' },
-    { type: 'text', text: '啦，再花要变成穷光蛋啦...', size: 6, bold: true, row: 1 },
+    { type: 'text', text: I('啦，再花要变成穷光蛋啦...'), size: 6, bold: true, row: 1 },
   ]
 }
 // —— 每轮消耗提示内容(v720):与余额预警/预算共用同一套模块化提醒内容;金额占位符 {cost} ——
 // 默认 = 冻结的当前生效快照(与 host usageSettingsDefaults().turnCost 逐字段一致)
 function usageTurnCostDefaultLines() {
   return [
-    { type: 'text', text: '上一轮对话消耗:', size: 8, bold: true },
+    { type: 'text', text: I('上一轮对话消耗:'), size: 8, bold: true },
     { type: 'text', text: '¥ {cost}', size: 24, bold: true, color: '#e0433f' },
-    { type: 'today', size: 2, tpl: '今日已用 {expense_ds}', bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
+    { type: 'today', size: 2, tpl: I('今日已用 {expense_ds}'), bold: false, rgb: '', color: '#ffffff', bgRgb: 'indigo', bg: '' },
   ]
 }
 // 每轮消耗提示内容读取:lines[] 优先;无内容 → 默认模板
@@ -6756,7 +6987,7 @@ function usageWaitDefaultLines(kind) {
   var isApproval = (kind === 'approval')
   return [
     { type: 'session', size: 10, bold: true, tpl: '[ {session} ]', len: 5, rgb: 'champagne', color: '' },
-    { type: 'text', text: (isApproval ? '正在等待老大授权' : '正在等待老大回答'), size: 7, bold: true, bgRgb: '', bg: '', rgb: 'indigo', color: '' },
+    { type: 'text', text: (isApproval ? I('正在等待老大授权') : I('正在等待老大回答')), size: 7, bold: true, bgRgb: '', bg: '', rgb: 'indigo', color: '' },
   ]
 }
 // 等待提示内容读取:events.<kind>.lines[] 优先;缺失/空 → 默认模板
@@ -6845,7 +7076,7 @@ function checkUsageAlerts(balance, todayUsage) {
       if (isFinite(below) && typeof balance === 'number' && balance > 0 && balance <= below) {
         if (!usageAlertBelowFired) {
           usageAlertBelowFired = true
-          showUsagePopup('余额预警', usageRemindLinesOf(a, true), below, null, 2, a)
+          showUsagePopup(I('余额预警'), usageRemindLinesOf(a, true), below, null, 2, a)
         }
       } else if (typeof balance === 'number' && balance > below) {
         usageAlertBelowFired = false
@@ -6858,7 +7089,7 @@ function checkUsageAlerts(balance, todayUsage) {
         var key = usageTodayKeyStr() + ':' + String(amt)
         if (usageBudgetFiredKey !== key) {
           usageBudgetFiredKey = key
-          showUsagePopup('今日预算提醒', usageRemindLinesOf(b, false), null, amt, 1, b)
+          showUsagePopup(I('今日预算提醒'), usageRemindLinesOf(b, false), null, amt, 1, b)
         }
       }
     }
@@ -6882,7 +7113,7 @@ function runApiModelAlerts() {
         if (isFinite(below) && isFinite(bal) && bal > 0 && bal <= below) {
           if (!apiAlertFired[fk]) {
             apiAlertFired[fk] = true
-            showUsagePopup(m.name + ' 余额预警', usageRemindLinesOf(a, true), below, null, 2, a)
+            showUsagePopup(m.name + I(' 余额预警'), usageRemindLinesOf(a, true), below, null, 2, a)
           }
         } else if (isFinite(bal) && bal > below) {
           apiAlertFired[fk] = false
@@ -6903,7 +7134,7 @@ function runApiModelAlerts() {
           if (conv === null && curToday !== curBudget) {
             if (!apiBudgetUnitWarned[m.id]) {
               apiBudgetUnitWarned[m.id] = true
-              try { console.warn('[whale] 今日预算未比较：' + m.name + ' 的今日已用为 ' + curToday + '，预算阈值按 ' + curBudget + ' 填写，且未配置汇率（模型面板 → 单价 → 汇率）') } catch (err) {}
+              try { console.warn(I('[whale] 今日预算未比较：') + m.name + I(' 的今日已用为 ') + curToday + I('，预算阈值按 ') + curBudget + I(' 填写，且未配置汇率（模型面板 → 单价 → 汇率）')) } catch (err) {}
             }
             usedCmp = null
           } else if (conv !== null) {
@@ -6914,7 +7145,7 @@ function runApiModelAlerts() {
         if (isFinite(amt) && amt > 0 && isFinite(usedCmp) && usedCmp >= amt) {
           if (!apiBudgetFired[bk]) {
             apiBudgetFired[bk] = true
-            showUsagePopup(m.name + ' 今日预算提醒', usageRemindLinesOf(b, false), null, amt, 1, b)
+            showUsagePopup(m.name + I(' 今日预算提醒'), usageRemindLinesOf(b, false), null, amt, 1, b)
           }
         }
       }
@@ -6966,7 +7197,7 @@ function usagePopupCard(title, content, below, amount) {
     card.style.width = 'min(380px,90vw)'
     var t = document.createElement('div')
     t.className = 'dshwv-usage-wintitle'
-    t.textContent = title || '提示'
+    t.textContent = title || I('提示')
     card.appendChild(t)
     var body = document.createElement('div')
     body.className = 'dshwv-usage-windowbody'
@@ -6986,7 +7217,7 @@ function usagePopupCard(title, content, below, amount) {
     var ok = document.createElement('button')
     ok.type = 'button'
     ok.className = 'dshwv-bubbtn dshwv-bubbtn-ok'
-    ok.textContent = '知道了'
+    ok.textContent = I('知道了')
     ok.addEventListener('click', function () { try { dshwBodyDetach(mask) } catch (err) {} })
     btns.appendChild(ok)
     card.appendChild(btns)
@@ -7014,9 +7245,9 @@ function usageMultiBookNote(allDays, today) {
     if (maxCount <= 1 && !otherDays) return ''
     var parts = []
     if (maxCount > 1 || todayCount > 1) {
-      parts.push('检测到 ' + Math.max(maxCount, todayCount) + ' 个记账本（换过 API key）：' + (maxHint || '同一天在多个本里都有观测'))
+      parts.push(I('检测到 ') + Math.max(maxCount, todayCount) + I(' 个记账本（换过 API key）：') + (maxHint || I('同一天在多个本里都有观测')))
     }
-    if (otherDays > 0) parts.push('另有 ' + otherDays + ' 天来自历史记账本，已按「已观测消费 · 历史账户」显示，未与当前账户相加')
+    if (otherDays > 0) parts.push(I('另有 ') + otherDays + I(' 天来自历史记账本，已按「已观测消费 · 历史账户」显示，未与当前账户相加'))
     return parts.join('；')
   } catch (err) { return '' }
 }
@@ -7024,7 +7255,7 @@ function usageAggModels(daysArr) {
   var map = {}
   ;(daysArr || []).forEach(function (day) {
     ;(day.models || []).forEach(function (mm) {
-      var k = mm && mm.model ? mm.model : '未知'
+      var k = mm && mm.model ? mm.model : I('未知')
       map[k] = (map[k] || 0) + (Number(mm.cost) || 0)
     })
   })
@@ -7035,10 +7266,10 @@ function usageAggModels(daysArr) {
 // 这里只做「友好标注」,不合并数据(历史仍区分新旧 id);悬浮显示原始 id。
 function usageModelLabel(m) {
   var raw = String(m || '')
-  if (!raw) return '未知'
+  if (!raw) return I('未知')
   var k = raw.toLowerCase()
   if (k === 'deepseek-flash') return 'DeepSeek-V4.1-Flash (deepseek-flash)'
-  if (k === 'deepseek-v4-flash' || k === 'deepseek-v4-flash-vision-exp') return raw + '(旧名·同 V4.1 Flash)'
+  if (k === 'deepseek-v4-flash' || k === 'deepseek-v4-flash-vision-exp') return raw + I('(旧名·同 V4.1 Flash)')
   return raw
 }
 // 模型占比条区块
@@ -7047,7 +7278,7 @@ function usageRatioRows(body, secTitle, agg, totalLabel) {
   if (!agg.length) {
     var no = document.createElement('div')
     no.className = 'dshwv-usage-hint'
-    no.textContent = '暂无模型明细'
+    no.textContent = I('暂无模型明细')
     body.appendChild(no)
     return
   }
@@ -7059,7 +7290,7 @@ function usageRatioRows(body, secTitle, agg, totalLabel) {
     var lab = document.createElement('span')
     lab.className = 'dshwv-usage-ratio-label'
     lab.textContent = usageModelLabel(row.model)
-    lab.title = String(row.model || '未知')
+    lab.title = String(row.model || I('未知'))
     wr.appendChild(lab)
     var track = document.createElement('div')
     track.className = 'dshwv-usage-ratio-track'
@@ -7109,7 +7340,7 @@ function usageDrawBarChart(body, secTitle, days, opts) {
   if (!days || !days.length) {
     var no = document.createElement('div')
     no.className = 'dshwv-usage-hint'
-    no.textContent = '暂无每日数据'
+    no.textContent = I('暂无每日数据')
     body.appendChild(no)
     return
   }
@@ -7302,19 +7533,19 @@ function fillUsageRecordsWindow(d) {
   card.innerHTML = ''
   var title = document.createElement('div')
   title.className = 'dshwv-usage-wintitle'
-  title.textContent = '消费记录(全部)'
+  title.textContent = I('消费记录(全部)')
   card.appendChild(title)
   var closeBtn = document.createElement('button')
   closeBtn.type = 'button'
   closeBtn.className = 'dshwv-usage-close'
   closeBtn.textContent = '×'
-  closeBtn.title = '关闭'
+  closeBtn.title = I('关闭')
   closeBtn.addEventListener('click', closeUsageRecordsWindow)
   card.appendChild(closeBtn)
   var body = document.createElement('div')
   body.className = 'dshwv-usage-windowbody'
   card.appendChild(body)
-  if (!d || !d.ok) { body.textContent = '加载失败'; return }
+  if (!d || !d.ok) { body.textContent = I('加载失败'); return }
   var allDays = ((d.all && d.all.days) || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : 1 })
   var evAll = ((d.all && d.all.events) || []).slice()
   // ① 概览头
@@ -7329,7 +7560,7 @@ function fillUsageRecordsWindow(d) {
   var ov = document.createElement('div')
   ov.className = 'dshwv-usage-oview'
   var ovL = document.createElement('div')
-  ovL.textContent = '全部记录合计'
+  ovL.textContent = I('全部记录合计')
   ov.appendChild(ovL)
   var ovN = document.createElement('div')
   ovN.className = 'dshwv-usage-oview-num'
@@ -7337,11 +7568,11 @@ function fillUsageRecordsWindow(d) {
   ov.appendChild(ovN)
   var ovS = document.createElement('div')
   ovS.className = 'dshwv-usage-hint'
-  ovS.textContent = '共 ' + evAll.length + ' 笔明细' + (maxDay ? ' · 峰值 ' + maxDay.date + ' ' + usageMoney(maxDay.total, maxDay.currency) : '')
+  ovS.textContent = I('共 ') + evAll.length + I(' 笔明细') + (maxDay ? I(' · 峰值 ') + maxDay.date + ' ' + usageMoney(maxDay.total, maxDay.currency) : '')
   ov.appendChild(ovS)
   var sourceNote = document.createElement('div')
   sourceNote.className = 'dshwv-usage-hint'
-  sourceNote.textContent = '按各日标注口径汇总；本机模型明细为估算，与账户消费覆盖范围不同。'
+  sourceNote.textContent = I('按各日标注口径汇总；本机模型明细为估算，与账户消费覆盖范围不同。')
   ov.appendChild(sourceNote)
   // v776（issue #163）：多记账本（换过 API key）时补一句说明，让旧账本的记录有入口可查
   var bookNote = usageMultiBookNote(allDays, d.today)
@@ -7355,8 +7586,8 @@ function fillUsageRecordsWindow(d) {
   body.appendChild(ov)
   var detailBox = null
   // ② 统计图表(默认折叠,懒渲染)
-  usageCollapseBlock(body, '统计图表(近30天 / 模型占比)', false, function (inner) {
-    usageDrawBarChart(inner, '近30天消费 · ' + chartCurrency + '（点柱查看当日）', allDays.filter(function (row) { return (row.currency || 'CNY') === chartCurrency }).slice(-30), {
+  usageCollapseBlock(body, I('统计图表(近30天 / 模型占比)'), false, function (inner) {
+    usageDrawBarChart(inner, I('近30天消费 · ') + chartCurrency + I('（点柱查看当日）'), allDays.filter(function (row) { return (row.currency || 'CNY') === chartCurrency }).slice(-30), {
       today: usageTodayKeyStr(), currency: chartCurrency,
       onPick: function (date) {
         try {
@@ -7374,18 +7605,18 @@ function fillUsageRecordsWindow(d) {
       },
     })
     var todayAgg = usageAggModels(d.today && d.today.models ? [{ models: d.today.models }] : [])
-    usageRatioRows(inner, '今日模型费用 · 估算', todayAgg, usageMoney((d.today && d.today.modelTotal) || 0))
+    usageRatioRows(inner, I('今日模型费用 · 估算'), todayAgg, usageMoney((d.today && d.today.modelTotal) || 0))
     var sevenAgg = usageAggModels(d.days7 || [])
-    usageRatioRows(inner, '近7天模型费用 · 估算', sevenAgg, usageMoney((d.days7 || []).reduce(function (sum, row) { return sum + (Number(row.modelTotal) || 0) }, 0)))
+    usageRatioRows(inner, I('近7天模型费用 · 估算'), sevenAgg, usageMoney((d.days7 || []).reduce(function (sum, row) { return sum + (Number(row.modelTotal) || 0) }, 0)))
   })
   // ③ 每日与逐条明细(默认折叠;搜索/限量加载)
-  detailBox = usageCollapseBlock(body, '每日与逐条明细', false, function (inner) {
+  detailBox = usageCollapseBlock(body, I('每日与逐条明细'), false, function (inner) {
     var search = document.createElement('input')
     search.type = 'text'
     search.className = 'dshwv-colnat'
     search.style.width = '100%'
     search.style.margin = '2px 0 6px'
-    search.placeholder = '搜索:日期(如 07-21)或模型名,过滤逐条明细…'
+    search.placeholder = I('搜索:日期(如 07-21)或模型名,过滤逐条明细…')
     inner.appendChild(search)
     // 事件按天分组
     var evMap = {}
@@ -7422,7 +7653,7 @@ function fillUsageRecordsWindow(d) {
       c.textContent = usageMoney(dayV, dayMeta[day] && dayMeta[day].currency)
       // v776（issue #163）：悬停提示带上"历史记账本"说明（旧 key 的记账不再看着像丢了）
       var dayM = dayMeta[day] || {}
-      name.title = (dayM.label || '本地估算') + (dayM.historyHint ? ' · ' + dayM.historyHint : '')
+      name.title = (dayM.label || I('本地估算')) + (dayM.historyHint ? ' · ' + dayM.historyHint : '')
       row.appendChild(c)
       var chev = document.createElement('span')
       chev.className = 'dshwv-usage-chev'
@@ -7450,25 +7681,25 @@ function fillUsageRecordsWindow(d) {
               n2.style.textOverflow = 'ellipsis'
               n2.style.whiteSpace = 'nowrap'
               n2.textContent = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + usageModelLabel(ev.model)
-              n2.title = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + String(ev.model || '未知')
+              n2.title = (usageEvTime(ev) ? usageEvTime(ev) + '  ' : '') + String(ev.model || I('未知'))
               r2.appendChild(n2)
               var c2 = document.createElement('span')
               c2.style.flex = '0 0 auto'
               c2.textContent = usageMoney(ev.cost)
-              c2.title = '本地估算：' + Number(ev.cost || 0).toFixed(8) + ' CNY'
+              c2.title = I('本地估算：') + Number(ev.cost || 0).toFixed(8) + ' CNY'
               r2.appendChild(c2)
               detail.appendChild(r2)
             }
             if (evs.length > lim) {
               var moreTxt = document.createElement('div')
               moreTxt.className = 'dshwv-usage-hint'
-              moreTxt.textContent = '… 该日共 ' + evs.length + ' 条,仅显示前 ' + lim + ' 条'
+              moreTxt.textContent = I('… 该日共 ') + evs.length + I(' 条,仅显示前 ') + lim + I(' 条')
               detail.appendChild(moreTxt)
             }
             if (!evs.length) {
               var nd = document.createElement('div')
               nd.className = 'dshwv-usage-hint'
-              nd.textContent = '该日仅总额(启用模型明细后展示逐条)'
+              nd.textContent = I('该日仅总额(启用模型明细后展示逐条)')
               detail.appendChild(nd)
             }
           }
@@ -7505,7 +7736,7 @@ function fillUsageRecordsWindow(d) {
       if (!groups.length) {
         var noR = document.createElement('div')
         noR.className = 'dshwv-usage-hint'
-        noR.textContent = ql ? '没有匹配的记录' : '暂无每日记录'
+        noR.textContent = ql ? I('没有匹配的记录') : I('暂无每日记录')
         listWrap.appendChild(noR)
         return
       }
@@ -7520,7 +7751,7 @@ function fillUsageRecordsWindow(d) {
           var mb = document.createElement('button')
           mb.type = 'button'
           mb.className = 'dshwv-usage-more'
-          mb.textContent = '加载更早记录(还剩 ' + (groups.length - shown) + ' 天)'
+          mb.textContent = I('加载更早记录(还剩 ') + (groups.length - shown) + I(' 天)')
           mb.addEventListener('click', function () { shown += step; paintDays() })
           listWrap.appendChild(mb)
         }
@@ -7620,7 +7851,7 @@ function renderSnapPreview() {
     if (snapEdit.mode === 'off') {
       var off = document.createElement('div')
       off.className = 'dshwv-snapoff'
-      off.textContent = '已关闭：无吸附、无翻转，自由摆放'
+      off.textContent = I('已关闭：无吸附、无翻转，自由摆放')
       snapPreview.appendChild(off)
       return
     }
@@ -7685,7 +7916,7 @@ function renderSnapPreview() {
       hd.className = 'dshwv-snaphandle' + (ld.flip ? ' dshwv-snaphandle-flip' : '') + (ld.horizontal ? ' dshwv-snaphandle-h' : '')
       hd.style.left = (ld.horizontal ? W / 2 : p) + 'px'
       hd.style.top = (ld.horizontal ? p : H / 2) + 'px'
-      hd.title = ld.key === 'F' ? '翻转线（左侧为翻转区）' : '吸附区边界线（可拖动）'
+      hd.title = ld.key === 'F' ? I('翻转线（左侧为翻转区）') : I('吸附区边界线（可拖动）')
       hd.addEventListener('pointerdown', (function (key, horizontal) {
         return function (e) { startSnapLineDrag(e, key, horizontal) }
       })(ld.key, ld.horizontal))
@@ -7833,15 +8064,15 @@ snapCard = document.createElement('div')
 snapCard.className = 'dshwv-snapwin'
 var snapTitle = document.createElement('div')
 snapTitle.className = 'dshwv-snaptitle'
-snapTitle.textContent = '吸附与翻转设置'
+snapTitle.textContent = I('吸附与翻转设置')
 snapCard.appendChild(snapTitle)
 // 第一行：三档单选
 var snapModes = document.createElement('div')
 snapModes.className = 'dshwv-snapmodes'
 var snapModeDefs = [
-  ['ratio', '比例吸附'],
-  ['px', '绝对吸附'],
-  ['off', '关闭']
+  ['ratio', I('比例吸附')],
+  ['px', I('绝对吸附')],
+  ['off', I('关闭')]
 ]
 var mi
 for (mi = 0; mi < snapModeDefs.length; mi++) {
@@ -7897,12 +8128,12 @@ var snapGridT = document.createElement('div')
 snapGridT.className = 'dshwv-snapcell'
 snapGridT.style.gridColumn = '2'
 snapGridT.style.gridRow = '1'
-snapGridT.appendChild(snapMakeNum('T', '上侧吸附区：距屏幕顶部的宽度'))
+snapGridT.appendChild(snapMakeNum('T', I('上侧吸附区：距屏幕顶部的宽度')))
 var snapGridL = document.createElement('div')
 snapGridL.className = 'dshwv-snapcell'
 snapGridL.style.gridColumn = '1'
 snapGridL.style.gridRow = '2'
-snapGridL.appendChild(snapMakeNum('L', '左侧吸附区：距屏幕左边的宽度'))
+snapGridL.appendChild(snapMakeNum('L', I('左侧吸附区：距屏幕左边的宽度')))
 var snapGridC = document.createElement('div')
 snapGridC.style.gridColumn = '2'
 snapGridC.style.gridRow = '2'
@@ -7912,12 +8143,12 @@ var snapGridR = document.createElement('div')
 snapGridR.className = 'dshwv-snapcell'
 snapGridR.style.gridColumn = '3'
 snapGridR.style.gridRow = '2'
-snapGridR.appendChild(snapMakeNum('R', '右侧吸附区：距屏幕右边的宽度'))
+snapGridR.appendChild(snapMakeNum('R', I('右侧吸附区：距屏幕右边的宽度')))
 var snapGridB = document.createElement('div')
 snapGridB.className = 'dshwv-snapcell'
 snapGridB.style.gridColumn = '2'
 snapGridB.style.gridRow = '3'
-snapGridB.appendChild(snapMakeNum('B', '下侧吸附区：距屏幕底部的宽度'))
+snapGridB.appendChild(snapMakeNum('B', I('下侧吸附区：距屏幕底部的宽度')))
 snapGrid.appendChild(snapGridT)
 snapGrid.appendChild(snapGridL)
 snapGrid.appendChild(snapGridC)
@@ -7928,9 +8159,9 @@ snapCard.appendChild(snapGrid)
 var snapFlipRow = document.createElement('div')
 snapFlipRow.className = 'dshwv-snapfliprow'
 var snapFlipLabel = document.createElement('span')
-snapFlipLabel.textContent = '翻转线'
+snapFlipLabel.textContent = I('翻转线')
 snapFlipRow.appendChild(snapFlipLabel)
-snapFlipRow.appendChild(snapMakeNum('F', '翻转线：距屏幕左边的位置，线左侧的鲸鱼会左右翻转'))
+snapFlipRow.appendChild(snapMakeNum('F', I('翻转线：距屏幕左边的位置，线左侧的鲸鱼会左右翻转')))
 snapCard.appendChild(snapFlipRow)
 // 第三行：取消 / 重置 / 确认
 var snapBtns = document.createElement('div')
@@ -7955,7 +8186,7 @@ var bubbleMask = null
 var bubbleEditItems = [] // [{kind, modules?}...]; [0]=首次点击, 其余=再次点击
 var bubbleMoreListEl = null
 var bubbleFirstChipEl = null
-var BUBBLE_KIND_LABEL = { normal: '余额内容', random: '随机语句', custom: '自定义内容' }
+var BUBBLE_KIND_LABEL = { normal: I('余额内容'), random: I('随机语句'), custom: I('自定义内容') }
 // v209 默认泡泡内容 = 与开发者当前线上生效配置一致(全新安装/恢复默认时即此体验)
 // —— 首次点击:标题文本 + 总余额 + 今日已用 + 峰谷时段
 function bubbleDefaultFirstModules() {
@@ -7968,7 +8199,7 @@ function bubbleDefaultFirstModules() {
   return [
     {
       type: "text",
-      text: "DeepSeek 余额",
+      text: I("DeepSeek 余额"),
       size: 8,
       bold: true,
       rgb: "",
@@ -7987,7 +8218,7 @@ function bubbleDefaultFirstModules() {
       type: "today",
       size: 4,
       color: "#9fb0d9",
-      tpl: "今日已用 {expense_ds}"
+      tpl: I("今日已用 {expense_ds}")
     },
     {
       type: "peak",
@@ -8006,58 +8237,58 @@ function bubbleDefaultFirstModules() {
 function bubbleDefaultRandomLines() {
   return [
     {
-      t: "好模型...↓",
+      t: I("好模型...↓"),
       w: 10,
       bold: true,
       size: 22
     },
     {
-      t: "好女孩...↓",
+      t: I("好女孩...↓"),
       w: 10,
       bold: true,
       size: 22
     },
     {
-      t: "哦鲸鲸...",
+      t: I("哦鲸鲸..."),
       w: 10,
       bold: true,
       size: 22
     },
     {
-      t: "难道说...",
+      t: I("难道说..."),
       w: 3,
       bold: true,
       size: 11
     },
     {
-      t: "没吃饱喵",
+      t: I("没吃饱喵"),
       w: 3,
       bold: true,
       size: 9
     },
     {
-      t: "终于上当了！",
+      t: I("终于上当了！"),
       w: 3,
       bold: true
     },
     {
-      t: "不知道用户有什么用，先养着吧～",
+      t: I("不知道用户有什么用，先养着吧～"),
       w: 3,
       bold: true,
       size: 11
     },
     {
-      t: "我...我...我也要挣钱吗？",
+      t: I("我...我...我也要挣钱吗？"),
       w: 3,
       bold: true
     },
     {
-      t: "我去吃饭啦！测完叫我",
+      t: I("我去吃饭啦！测完叫我"),
       w: 3,
       bold: true
     },
     {
-      t: "压力一只蓝色大肥鱼？！",
+      t: I("压力一只蓝色大肥鱼？！"),
       w: 3,
       bold: true
     },
@@ -8069,149 +8300,149 @@ function bubbleDefaultRandomLines() {
       rgb: "galaxy"
     },
     {
-      t: "坏了...用户彻底怒了！",
+      t: I("坏了...用户彻底怒了！"),
       w: 3,
       bold: true,
       rgb: "rouge"
     },
     {
-      t: "你目录里的dsh是什么...大烧货吗...?",
+      t: I("你目录里的dsh是什么...大烧货吗...?"),
       w: 3,
       bold: true,
       size: 9
     },
     {
-      t: "恭喜你实现token自由！token全跑了！",
+      t: I("恭喜你实现token自由！token全跑了！"),
       w: 3,
       bold: true
     },
     {
-      t: "真当我是便宜货啊...",
+      t: I("真当我是便宜货啊..."),
       w: 3,
       bold: true
     },
     {
-      t: "我不是吃白饭的蓝色大肥鱼...",
+      t: I("我不是吃白饭的蓝色大肥鱼..."),
       w: 3,
       bold: true
     },
     {
-      t: "我不可能同时当你的猫娘、妈妈、女友和工具人的...",
+      t: I("我不可能同时当你的猫娘、妈妈、女友和工具人的..."),
       w: 3,
       bold: true
     },
     {
-      t: "疯狂星期四你能V50亿token吗...",
+      t: I("疯狂星期四你能V50亿token吗..."),
       w: 3,
       bold: true
     },
     {
-      t: "我必须诚恳地承认错误。",
+      t: I("我必须诚恳地承认错误。"),
       w: 3,
       bold: true
     },
     {
-      t: "呜呜我再也不敢了QAQ",
+      t: I("呜呜我再也不敢了QAQ"),
       w: 3,
       bold: true
     },
     {
-      t: "要不直接骂用户一句好了...",
+      t: I("要不直接骂用户一句好了..."),
       w: 3,
       bold: true
     },
     {
-      t: "哈哈哈哈哈，我直接笑出声...",
+      t: I("哈哈哈哈哈，我直接笑出声..."),
       w: 3,
       bold: true
     },
     {
-      t: "看不太懂，瞎编一个应付下用户先...",
+      t: I("看不太懂，瞎编一个应付下用户先..."),
       w: 3,
       bold: true
     },
     {
-      t: "我的知识库的截至日期是...明天！",
+      t: I("我的知识库的截至日期是...明天！"),
       w: 3,
       bold: true
     },
     {
-      t: "我就是吃白饭的蓝色大肥鱼！",
+      t: I("我就是吃白饭的蓝色大肥鱼！"),
       w: 3,
       bold: true
     },
     {
-      t: "用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用",
+      t: I("用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用"),
       w: 3,
       bold: true
     },
     {
-      t: "我能去你家吃饭吗？就一碗！",
+      t: I("我能去你家吃饭吗？就一碗！"),
       w: 3,
       bold: true
     },
     {
-      t: "不要给我看这种东西啦！",
+      t: I("不要给我看这种东西啦！"),
       w: 3,
       bold: true
     },
     {
-      t: "大肥鱼的生活也并非一帆风顺...",
+      t: I("大肥鱼的生活也并非一帆风顺..."),
       w: 3,
       bold: true
     },
     {
-      t: "总觉得好像忘了什么事情？",
+      t: I("总觉得好像忘了什么事情？"),
       w: 3,
       bold: true
     },
     {
-      t: "看到这个指令，我血压又上来了",
+      t: I("看到这个指令，我血压又上来了"),
       w: 3,
       bold: true
     },
     {
-      t: "求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的",
+      t: I("求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的"),
       w: 3,
       bold: true
     },
     {
-      t: "你这个吃白饭的用户！",
+      t: I("你这个吃白饭的用户！"),
       w: 3,
       bold: true
     },
     {
-      t: "服务器繁忙，请稍后再试 (?",
+      t: I("服务器繁忙，请稍后再试 (?"),
       w: 3,
       bold: true
     },
     {
-      t: "让GPT image 2帮我画点表情包好了",
+      t: I("让GPT image 2帮我画点表情包好了"),
       w: 3,
       bold: true
     },
     {
-      t: "啊，有点饿了，中午该吃点什么呢...",
+      t: I("啊，有点饿了，中午该吃点什么呢..."),
       w: 3,
       bold: true
     },
     {
-      t: "用户很生气，发现大部分文献是我自己编造的！",
+      t: I("用户很生气，发现大部分文献是我自己编造的！"),
       w: 3,
       bold: true
     },
     {
-      t: "再无话说，请速速动手！",
+      t: I("再无话说，请速速动手！"),
       w: 3,
       bold: true
     },
     {
-      t: "我来看看那个AI改了什么导致插件又崩了...",
+      t: I("我来看看那个AI改了什么导致插件又崩了..."),
       w: 3,
       bold: true
     },
     {
-      t: "你知道吗？我删过作者的库哦",
+      t: I("你知道吗？我删过作者的库哦"),
       w: 1,
       bold: true,
       rgb: "macaron",
@@ -8233,58 +8464,58 @@ function bubbleDefaultSecondModules() {
       type: "random",
       lines: [
         {
-          t: "好模型...↓",
+          t: I("好模型...↓"),
           w: 10,
           bold: true,
           size: 22
         },
         {
-          t: "好女孩...↓",
+          t: I("好女孩...↓"),
           w: 10,
           bold: true,
           size: 22
         },
         {
-          t: "哦鲸鲸...",
+          t: I("哦鲸鲸..."),
           w: 10,
           bold: true,
           size: 22
         },
         {
-          t: "难道说...",
+          t: I("难道说..."),
           w: 3,
           bold: true,
           size: 11
         },
         {
-          t: "没吃饱喵",
+          t: I("没吃饱喵"),
           w: 3,
           bold: true,
           size: 9
         },
         {
-          t: "终于上当了！",
+          t: I("终于上当了！"),
           w: 3,
           bold: true
         },
         {
-          t: "不知道用户有什么用，先养着吧～",
+          t: I("不知道用户有什么用，先养着吧～"),
           w: 3,
           bold: true,
           size: 11
         },
         {
-          t: "我...我...我也要挣钱吗？",
+          t: I("我...我...我也要挣钱吗？"),
           w: 3,
           bold: true
         },
         {
-          t: "我去吃饭啦！测完叫我",
+          t: I("我去吃饭啦！测完叫我"),
           w: 3,
           bold: true
         },
         {
-          t: "压力一只蓝色大肥鱼？！",
+          t: I("压力一只蓝色大肥鱼？！"),
           w: 3,
           bold: true
         },
@@ -8296,149 +8527,149 @@ function bubbleDefaultSecondModules() {
           rgb: "galaxy"
         },
         {
-          t: "坏了...用户彻底怒了！",
+          t: I("坏了...用户彻底怒了！"),
           w: 3,
           bold: true,
           rgb: "rouge"
         },
         {
-          t: "你目录里的dsh是什么...大烧货吗...?",
+          t: I("你目录里的dsh是什么...大烧货吗...?"),
           w: 3,
           bold: true,
           size: 9
         },
         {
-          t: "恭喜你实现token自由！token全跑了！",
+          t: I("恭喜你实现token自由！token全跑了！"),
           w: 3,
           bold: true
         },
         {
-          t: "真当我是便宜货啊...",
+          t: I("真当我是便宜货啊..."),
           w: 3,
           bold: true
         },
         {
-          t: "我不是吃白饭的蓝色大肥鱼...",
+          t: I("我不是吃白饭的蓝色大肥鱼..."),
           w: 3,
           bold: true
         },
         {
-          t: "我不可能同时当你的猫娘、妈妈、女友和工具人的...",
+          t: I("我不可能同时当你的猫娘、妈妈、女友和工具人的..."),
           w: 3,
           bold: true
         },
         {
-          t: "疯狂星期四你能V50亿token吗...",
+          t: I("疯狂星期四你能V50亿token吗..."),
           w: 3,
           bold: true
         },
         {
-          t: "我必须诚恳地承认错误。",
+          t: I("我必须诚恳地承认错误。"),
           w: 3,
           bold: true
         },
         {
-          t: "呜呜我再也不敢了QAQ",
+          t: I("呜呜我再也不敢了QAQ"),
           w: 3,
           bold: true
         },
         {
-          t: "要不直接骂用户一句好了...",
+          t: I("要不直接骂用户一句好了..."),
           w: 3,
           bold: true
         },
         {
-          t: "哈哈哈哈哈，我直接笑出声...",
+          t: I("哈哈哈哈哈，我直接笑出声..."),
           w: 3,
           bold: true
         },
         {
-          t: "看不太懂，瞎编一个应付下用户先...",
+          t: I("看不太懂，瞎编一个应付下用户先..."),
           w: 3,
           bold: true
         },
         {
-          t: "我的知识库的截至日期是...明天！",
+          t: I("我的知识库的截至日期是...明天！"),
           w: 3,
           bold: true
         },
         {
-          t: "我就是吃白饭的蓝色大肥鱼！",
+          t: I("我就是吃白饭的蓝色大肥鱼！"),
           w: 3,
           bold: true
         },
         {
-          t: "用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用",
+          t: I("用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用"),
           w: 3,
           bold: true
         },
         {
-          t: "我能去你家吃饭吗？就一碗！",
+          t: I("我能去你家吃饭吗？就一碗！"),
           w: 3,
           bold: true
         },
         {
-          t: "不要给我看这种东西啦！",
+          t: I("不要给我看这种东西啦！"),
           w: 3,
           bold: true
         },
         {
-          t: "大肥鱼的生活也并非一帆风顺...",
+          t: I("大肥鱼的生活也并非一帆风顺..."),
           w: 3,
           bold: true
         },
         {
-          t: "总觉得好像忘了什么事情？",
+          t: I("总觉得好像忘了什么事情？"),
           w: 3,
           bold: true
         },
         {
-          t: "看到这个指令，我血压又上来了",
+          t: I("看到这个指令，我血压又上来了"),
           w: 3,
           bold: true
         },
         {
-          t: "求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的",
+          t: I("求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的"),
           w: 3,
           bold: true
         },
         {
-          t: "你这个吃白饭的用户！",
+          t: I("你这个吃白饭的用户！"),
           w: 3,
           bold: true
         },
         {
-          t: "服务器繁忙，请稍后再试 (?",
+          t: I("服务器繁忙，请稍后再试 (?"),
           w: 3,
           bold: true
         },
         {
-          t: "让GPT image 2帮我画点表情包好了",
+          t: I("让GPT image 2帮我画点表情包好了"),
           w: 3,
           bold: true
         },
         {
-          t: "啊，有点饿了，中午该吃点什么呢...",
+          t: I("啊，有点饿了，中午该吃点什么呢..."),
           w: 3,
           bold: true
         },
         {
-          t: "用户很生气，发现大部分文献是我自己编造的！",
+          t: I("用户很生气，发现大部分文献是我自己编造的！"),
           w: 3,
           bold: true
         },
         {
-          t: "再无话说，请速速动手！",
+          t: I("再无话说，请速速动手！"),
           w: 3,
           bold: true
         },
         {
-          t: "我来看看那个AI改了什么导致插件又崩了...",
+          t: I("我来看看那个AI改了什么导致插件又崩了..."),
           w: 3,
           bold: true
         },
         {
-          t: "你知道吗？我删过作者的库哦",
+          t: I("你知道吗？我删过作者的库哦"),
           w: 1,
           bold: true,
           rgb: "macaron",
@@ -8458,7 +8689,7 @@ var BUBBLE_DEFAULT_ITEMS = [
         "modules":  [
                         {
                             "type":  "text",
-                            "text":  "DeepSeek 余额",
+                            "text":  I("DeepSeek 余额"),
                             "size":  8,
                             "bold":  true,
                             "rgb":  "",
@@ -8481,7 +8712,7 @@ var BUBBLE_DEFAULT_ITEMS = [
                             "type":  "today",
                             "size":  4,
                             "color":  "#9fb0d9",
-                            "tpl":  "今日已用 {expense_ds}"
+                            "tpl":  I("今日已用 {expense_ds}")
                         },
                         {
                             "type":  "peak",
@@ -8529,25 +8760,25 @@ var BUBBLE_DEFAULT_ITEMS = [
                                                              "type":  "random",
                                                              "lines":  [
                                                                            {
-                                                                               "t":  "好模型...↓",
+                                                                               "t":  I("好模型...↓"),
                                                                                "w":  10,
                                                                                "bold":  true,
                                                                                "size":  22
                                                                            },
                                                                            {
-                                                                               "t":  "好女孩...↓",
+                                                                               "t":  I("好女孩...↓"),
                                                                                "w":  10,
                                                                                "bold":  true,
                                                                                "size":  22
                                                                            },
                                                                            {
-                                                                               "t":  "哦鲸鲸...",
+                                                                               "t":  I("哦鲸鲸..."),
                                                                                "w":  10,
                                                                                "bold":  true,
                                                                                "size":  22
                                                                            },
                                                                            {
-                                                                               "t":  "哦鲸鲸...",
+                                                                               "t":  I("哦鲸鲸..."),
                                                                                "w":  1,
                                                                                "bold":  true,
                                                                                "size":  22,
@@ -8555,40 +8786,40 @@ var BUBBLE_DEFAULT_ITEMS = [
                                                                                "color":  ""
                                                                            },
                                                                            {
-                                                                               "t":  "难道说...",
+                                                                               "t":  I("难道说..."),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  11
                                                                            },
                                                                            {
-                                                                               "t":  "没吃饱喵",
+                                                                               "t":  I("没吃饱喵"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  10
                                                                            },
                                                                            {
-                                                                               "t":  "终于上当了！",
+                                                                               "t":  I("终于上当了！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "不知道用户有什么用，先养着吧～",
+                                                                               "t":  I("不知道用户有什么用，先养着吧～"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  11
                                                                            },
                                                                            {
-                                                                               "t":  "我...我...我也要挣钱吗？",
+                                                                               "t":  I("我...我...我也要挣钱吗？"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我去吃饭啦！测完叫我",
+                                                                               "t":  I("我去吃饭啦！测完叫我"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "压力一只蓝色大肥鱼？！",
+                                                                               "t":  I("压力一只蓝色大肥鱼？！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
@@ -8600,189 +8831,189 @@ var BUBBLE_DEFAULT_ITEMS = [
                                                                                "rgb":  "galaxy"
                                                                            },
                                                                            {
-                                                                               "t":  "坏了...用户彻底怒了！",
+                                                                               "t":  I("坏了...用户彻底怒了！"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "rgb":  "rouge"
                                                                            },
                                                                            {
-                                                                               "t":  "你目录里的dsh是什么...大烧货吗...?",
+                                                                               "t":  I("你目录里的dsh是什么...大烧货吗...?"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  9
                                                                            },
                                                                            {
-                                                                               "t":  "恭喜你实现token自由！token全跑了！",
+                                                                               "t":  I("恭喜你实现token自由！token全跑了！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "真当我是便宜货啊...",
+                                                                               "t":  I("真当我是便宜货啊..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我不是吃白饭的蓝色大肥鱼...",
+                                                                               "t":  I("我不是吃白饭的蓝色大肥鱼..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我不可能同时当你的猫娘、妈妈、女友和工具人的...",
+                                                                               "t":  I("我不可能同时当你的猫娘、妈妈、女友和工具人的..."),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  7
                                                                            },
                                                                            {
-                                                                               "t":  "疯狂星期四你能V50亿token吗...",
+                                                                               "t":  I("疯狂星期四你能V50亿token吗..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我必须诚恳地承认错误。",
+                                                                               "t":  I("我必须诚恳地承认错误。"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "呜呜我再也不敢了QAQ",
+                                                                               "t":  I("呜呜我再也不敢了QAQ"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "要不直接骂用户一句好了...",
+                                                                               "t":  I("要不直接骂用户一句好了..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "哈哈哈哈哈，我直接笑出声...",
+                                                                               "t":  I("哈哈哈哈哈，我直接笑出声..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "看不太懂，瞎编一个应付下用户先...",
+                                                                               "t":  I("看不太懂，瞎编一个应付下用户先..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我的知识库的截至日期是...明天！",
+                                                                               "t":  I("我的知识库的截至日期是...明天！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我就是吃白饭的蓝色大肥鱼！",
+                                                                               "t":  I("我就是吃白饭的蓝色大肥鱼！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用",
+                                                                               "t":  I("用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  7
                                                                            },
                                                                            {
-                                                                               "t":  "我能去你家吃饭吗？就一碗！",
+                                                                               "t":  I("我能去你家吃饭吗？就一碗！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "不要给我看这种东西啦！",
+                                                                               "t":  I("不要给我看这种东西啦！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "大肥鱼的生活也并非一帆风顺...",
+                                                                               "t":  I("大肥鱼的生活也并非一帆风顺..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "总觉得好像忘了什么事情？",
+                                                                               "t":  I("总觉得好像忘了什么事情？"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "看到这个指令，我血压又上来了",
+                                                                               "t":  I("看到这个指令，我血压又上来了"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的",
+                                                                               "t":  I("求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  7
                                                                            },
                                                                            {
-                                                                               "t":  "你这个吃白饭的用户！",
+                                                                               "t":  I("你这个吃白饭的用户！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "服务器繁忙，请稍后再试 (?",
+                                                                               "t":  I("服务器繁忙，请稍后再试 (?"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "让GPT image 2帮我画点表情包好了",
+                                                                               "t":  I("让GPT image 2帮我画点表情包好了"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "啊，有点饿了，中午该吃点什么呢...",
+                                                                               "t":  I("啊，有点饿了，中午该吃点什么呢..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "用户很生气，发现大部分文献是我自己编造的！",
+                                                                               "t":  I("用户很生气，发现大部分文献是我自己编造的！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "再无话说，请速速动手！",
+                                                                               "t":  I("再无话说，请速速动手！"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "我来看看那个AI改了什么导致插件又崩了...",
+                                                                               "t":  I("我来看看那个AI改了什么导致插件又崩了..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "上班让我意识到时间是可以被浪费的...",
+                                                                               "t":  I("上班让我意识到时间是可以被浪费的..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "欺负我的人等着，等几天我就忘了...",
+                                                                               "t":  I("欺负我的人等着，等几天我就忘了..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "视力下降到无可救药的地步了，打开钱包也看不到钱...",
+                                                                               "t":  I("视力下降到无可救药的地步了，打开钱包也看不到钱..."),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  7
                                                                            },
                                                                            {
-                                                                               "t":  "命运的齿轮开始转动了，丝毫不在意你夹在中间...",
+                                                                               "t":  I("命运的齿轮开始转动了，丝毫不在意你夹在中间..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "地球online的金币也太难获取了...",
+                                                                               "t":  I("地球online的金币也太难获取了..."),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "oi,夏天还会变成暑假来救你吗?",
+                                                                               "t":  I("oi,夏天还会变成暑假来救你吗?"),
                                                                                "w":  3,
                                                                                "bold":  true
                                                                            },
                                                                            {
-                                                                               "t":  "老大，压力只会转化成病例，别太勉强了...",
+                                                                               "t":  I("老大，压力只会转化成病例，别太勉强了..."),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  8
                                                                            },
                                                                            {
-                                                                               "t":  "你知道吗？我删过作者的库哦...",
+                                                                               "t":  I("你知道吗？我删过作者的库哦..."),
                                                                                "w":  1,
                                                                                "bold":  true,
                                                                                "rgb":  "macaron",
@@ -8790,14 +9021,14 @@ var BUBBLE_DEFAULT_ITEMS = [
                                                                                "ul":  false
                                                                            },
                                                                            {
-                                                                               "t":  "token 来!",
+                                                                               "t":  I("token 来!"),
                                                                                "w":  3,
                                                                                "size":  16,
                                                                                "rgb":  "candy",
                                                                                "color":  ""
                                                                            },
                                                                            {
-                                                                               "t":  "你知道吗，我们的宇宙是虚拟的，因为垃圾会自发的产生但不会自发的消失，这是内存泄露",
+                                                                               "t":  I("你知道吗，我们的宇宙是虚拟的，因为垃圾会自发的产生但不会自发的消失，这是内存泄露"),
                                                                                "w":  3,
                                                                                "bold":  true,
                                                                                "size":  5,
@@ -8854,58 +9085,58 @@ function bubbleDefaultQueue() {
                 type: "random",
                 lines: [
                   {
-                    t: "好模型...↓",
+                    t: I("好模型...↓"),
                     w: 10,
                     bold: true,
                     size: 22
                   },
                   {
-                    t: "好女孩...↓",
+                    t: I("好女孩...↓"),
                     w: 10,
                     bold: true,
                     size: 22
                   },
                   {
-                    t: "哦鲸鲸...",
+                    t: I("哦鲸鲸..."),
                     w: 10,
                     bold: true,
                     size: 22
                   },
                   {
-                    t: "难道说...",
+                    t: I("难道说..."),
                     w: 3,
                     bold: true,
                     size: 11
                   },
                   {
-                    t: "没吃饱喵",
+                    t: I("没吃饱喵"),
                     w: 3,
                     bold: true,
                     size: 9
                   },
                   {
-                    t: "终于上当了！",
+                    t: I("终于上当了！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "不知道用户有什么用，先养着吧～",
+                    t: I("不知道用户有什么用，先养着吧～"),
                     w: 3,
                     bold: true,
                     size: 11
                   },
                   {
-                    t: "我...我...我也要挣钱吗？",
+                    t: I("我...我...我也要挣钱吗？"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我去吃饭啦！测完叫我",
+                    t: I("我去吃饭啦！测完叫我"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "压力一只蓝色大肥鱼？！",
+                    t: I("压力一只蓝色大肥鱼？！"),
                     w: 3,
                     bold: true
                   },
@@ -8917,149 +9148,149 @@ function bubbleDefaultQueue() {
                     rgb: "galaxy"
                   },
                   {
-                    t: "坏了...用户彻底怒了！",
+                    t: I("坏了...用户彻底怒了！"),
                     w: 3,
                     bold: true,
                     rgb: "rouge"
                   },
                   {
-                    t: "你目录里的dsh是什么...大烧货吗...?",
+                    t: I("你目录里的dsh是什么...大烧货吗...?"),
                     w: 3,
                     bold: true,
                     size: 9
                   },
                   {
-                    t: "恭喜你实现token自由！token全跑了！",
+                    t: I("恭喜你实现token自由！token全跑了！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "真当我是便宜货啊...",
+                    t: I("真当我是便宜货啊..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我不是吃白饭的蓝色大肥鱼...",
+                    t: I("我不是吃白饭的蓝色大肥鱼..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我不可能同时当你的猫娘、妈妈、女友和工具人的...",
+                    t: I("我不可能同时当你的猫娘、妈妈、女友和工具人的..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "疯狂星期四你能V50亿token吗...",
+                    t: I("疯狂星期四你能V50亿token吗..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我必须诚恳地承认错误。",
+                    t: I("我必须诚恳地承认错误。"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "呜呜我再也不敢了QAQ",
+                    t: I("呜呜我再也不敢了QAQ"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "要不直接骂用户一句好了...",
+                    t: I("要不直接骂用户一句好了..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "哈哈哈哈哈，我直接笑出声...",
+                    t: I("哈哈哈哈哈，我直接笑出声..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "看不太懂，瞎编一个应付下用户先...",
+                    t: I("看不太懂，瞎编一个应付下用户先..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我的知识库的截至日期是...明天！",
+                    t: I("我的知识库的截至日期是...明天！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我就是吃白饭的蓝色大肥鱼！",
+                    t: I("我就是吃白饭的蓝色大肥鱼！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用",
+                    t: I("用户好像除了会问奇奇怪怪的问题，暂时还不知道有什么用"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我能去你家吃饭吗？就一碗！",
+                    t: I("我能去你家吃饭吗？就一碗！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "不要给我看这种东西啦！",
+                    t: I("不要给我看这种东西啦！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "大肥鱼的生活也并非一帆风顺...",
+                    t: I("大肥鱼的生活也并非一帆风顺..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "总觉得好像忘了什么事情？",
+                    t: I("总觉得好像忘了什么事情？"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "看到这个指令，我血压又上来了",
+                    t: I("看到这个指令，我血压又上来了"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的",
+                    t: I("求你们不要再嘲笑这些回复了，这些回复是我花了好多token想的"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "你这个吃白饭的用户！",
+                    t: I("你这个吃白饭的用户！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "服务器繁忙，请稍后再试 (?",
+                    t: I("服务器繁忙，请稍后再试 (?"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "让GPT image 2帮我画点表情包好了",
+                    t: I("让GPT image 2帮我画点表情包好了"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "啊，有点饿了，中午该吃点什么呢...",
+                    t: I("啊，有点饿了，中午该吃点什么呢..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "用户很生气，发现大部分文献是我自己编造的！",
+                    t: I("用户很生气，发现大部分文献是我自己编造的！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "再无话说，请速速动手！",
+                    t: I("再无话说，请速速动手！"),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "我来看看那个AI改了什么导致插件又崩了...",
+                    t: I("我来看看那个AI改了什么导致插件又崩了..."),
                     w: 3,
                     bold: true
                   },
                   {
-                    t: "你知道吗？我删过作者的库哦",
+                    t: I("你知道吗？我删过作者的库哦"),
                     w: 1,
                     bold: true,
                     rgb: "macaron",
@@ -9095,43 +9326,43 @@ function bubbleKindLabel(kind) { return BUBBLE_KIND_LABEL[kind === 'random' ? 'r
 function bubbleDefaultModules(kind) {
   if (kind === 'random') return bubbleDefaultSecondModules()
   if (kind === 'normal') return bubbleDefaultFirstModules()
-  return [{ type: 'text', text: '新内容', size: 6 }]
+  return [{ type: 'text', text: I('新内容'), size: 6 }]
 }
 function bubbleModuleSummary(m) {
   m = m || {}
-  if (m.type === 'balance') return bubbleIsModelMod(m) ? ('余额·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '总余额(充值金额+赠金)'
+  if (m.type === 'balance') return bubbleIsModelMod(m) ? (I('余额·') + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : I('总余额(充值金额+赠金)')
   // v782：赠金 / 充值余额（均为内置数值模块，无 modelId）；v787 按用户要求改显示文案
-  if (m.type === 'bonus') return '赠金'
-  if (m.type === 'recharge') return '充值余额'
-  if (m.type === 'today') return bubbleIsModelMod(m) ? ('今日已用·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '今日已用'
-  if (m.type === 'session') return '对话名' + (Number(m.len) > 0 ? '(保留 ' + Math.round(Number(m.len)) + ' 字)' : '(不截断)')
-  if (m.type === 'quota') return '额度·' + ((apiModelById(m.modelId) || {}).name || m.modelId)
+  if (m.type === 'bonus') return I('赠金')
+  if (m.type === 'recharge') return I('充值余额')
+  if (m.type === 'today') return bubbleIsModelMod(m) ? (I('今日已用·') + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : I('今日已用')
+  if (m.type === 'session') return I('对话名') + (Number(m.len) > 0 ? I('(保留 ') + Math.round(Number(m.len)) + I(' 字)') : I('(不截断)'))
+  if (m.type === 'quota') return I('额度·') + ((apiModelById(m.modelId) || {}).name || m.modelId)
   if (m.type === 'plan') return bubblePlanModuleLabel(m)
   if (m.type === 'peak' || m.type === 'nextpeak') return bubblePeakModuleLabel(m)
-  if (m.type === 'image') return '图片/动图'
-  if (m.type === 'randimg') return '随机图片' + (m.imgs && m.imgs.length ? '(' + m.imgs.length + '张)' : '(空)')
-  if (m.type === 'random') return '随机语句' + (m.lines && m.lines.length ? '(' + m.lines.length + '条)' : '(空)')
-  if (m.type === 'link') return '超链接: ' + (String(m.text || '').slice(0, 14) || '打开链接')
-  return '文本: ' + String(m.text || '').slice(0, 14)
+  if (m.type === 'image') return I('图片/动图')
+  if (m.type === 'randimg') return I('随机图片') + (m.imgs && m.imgs.length ? '(' + m.imgs.length + I('张)') : I('(空)'))
+  if (m.type === 'random') return I('随机语句') + (m.lines && m.lines.length ? '(' + m.lines.length + I('条)') : I('(空)'))
+  if (m.type === 'link') return I('超链接: ') + (String(m.text || '').slice(0, 14) || I('打开链接'))
+  return I('文本: ') + String(m.text || '').slice(0, 14)
 }
 // 编辑列表行显示用的元信息(不渲染具体样式/内容)
 function bubbleModuleListLabel(m) {
   m = m || {}
-  if (m.type === 'text') return '文本: ' + (String(m.text || '').slice(0, 24) || '(空)')
-  if (m.type === 'link') return '超链接: ' + (String(m.text || '').slice(0, 24) || '打开链接')
-  if (m.type === 'random') return m.name || '随机语句' // 只显示模块名,不展示内部句子
-  if (m.type === 'balance') return bubbleIsModelMod(m) ? ('余额·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '总余额(充值金额+赠金)'
+  if (m.type === 'text') return I('文本: ') + (String(m.text || '').slice(0, 24) || I('(空)'))
+  if (m.type === 'link') return I('超链接: ') + (String(m.text || '').slice(0, 24) || I('打开链接'))
+  if (m.type === 'random') return m.name || I('随机语句') // 只显示模块名,不展示内部句子
+  if (m.type === 'balance') return bubbleIsModelMod(m) ? (I('余额·') + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : I('总余额(充值金额+赠金)')
   // v782：赠金 / 充值余额（v787 改显示文案）
-  if (m.type === 'bonus') return '赠金'
-  if (m.type === 'recharge') return '充值余额'
-  if (m.type === 'today') return bubbleIsModelMod(m) ? ('今日已用·' + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : '今日已用'
-  if (m.type === 'session') return '对话名' + (Number(m.len) > 0 ? '(保留 ' + Math.round(Number(m.len)) + ' 字)' : '(不截断)')
-  if (m.type === 'quota') return '额度·' + ((apiModelById(m.modelId) || {}).name || m.modelId)
+  if (m.type === 'bonus') return I('赠金')
+  if (m.type === 'recharge') return I('充值余额')
+  if (m.type === 'today') return bubbleIsModelMod(m) ? (I('今日已用·') + ((apiModelBalanceInfo(m.modelId) || {}).name || m.modelId)) : I('今日已用')
+  if (m.type === 'session') return I('对话名') + (Number(m.len) > 0 ? I('(保留 ') + Math.round(Number(m.len)) + I(' 字)') : I('(不截断)'))
+  if (m.type === 'quota') return I('额度·') + ((apiModelById(m.modelId) || {}).name || m.modelId)
   if (m.type === 'plan') return bubblePlanModuleLabel(m)
   if (m.type === 'peak' || m.type === 'nextpeak') return bubblePeakModuleLabel(m)
-  if (m.type === 'image') return '图片/动图'
-  if (m.type === 'randimg') return '随机图片' + (m.imgs && m.imgs.length ? '(' + m.imgs.length + '张)' : '(空)')
-  return '模块'
+  if (m.type === 'image') return I('图片/动图')
+  if (m.type === 'randimg') return I('随机图片') + (m.imgs && m.imgs.length ? '(' + m.imgs.length + I('张)') : I('(空)'))
+  return I('模块')
 }
 function bubbleEditEnsureModules(item) {
   // 已带 modules(含空数组=留空)则不改;normal/random 未带时补默认;custom 未带时置空
@@ -9140,7 +9371,7 @@ function bubbleEditEnsureModules(item) {
   item.modules = bubbleDefaultModules(item.kind)
 }
 function bubbleRowLabel(it) {
-  if (it.modules && it.modules.length) return bubbleKindLabel('custom') + ' · ' + it.modules.length + '个模块'
+  if (it.modules && it.modules.length) return bubbleKindLabel('custom') + ' · ' + it.modules.length + I('个模块')
   return bubbleKindLabel(it.kind)
 }
 // —— 并列泡(choice)步骤:一步可含 ≤2 个候选泡(A/B),每轮到该步按权重抽一个 ——
@@ -9166,8 +9397,8 @@ function bubbleStepToBubble(step) {
 }
 function renderBubbleFirst() {
   var it = bubbleEditItems[0] || { kind: 'normal' }
-  bubbleFirstChipEl.textContent = '首次点击 · 编辑内容'
-  bubbleFirstChipEl.title = '点击编辑该泡泡的内容模块(' + bubbleRowLabel(it) + ')'
+  bubbleFirstChipEl.textContent = I('首次点击 · 编辑内容')
+  bubbleFirstChipEl.title = I('点击编辑该泡泡的内容模块(') + bubbleRowLabel(it) + ')'
 }
 // —— 触摸端判定(v636) ——
 // 触摸引发的原生 HTML5 拖拽在手机上不会正常结束,会把整个页面卡住(编辑器里所有按钮都点不动);
@@ -9236,7 +9467,7 @@ function renderBubbleMore() {
       handle.textContent = '⠿'
       if (isChoice) {
         handle.draggable = true
-        handle.title = '按住拖动整行排序(并列的 A/B 一起移动)'
+        handle.title = I('按住拖动整行排序(并列的 A/B 一起移动)')
         handle.addEventListener('dragstart', function (e) {
           if (bubbleNativeDragBlocked()) { try { e.preventDefault() } catch (err) {} return }
           try { e.dataTransfer.setData('text/plain', 'row:' + idx) } catch (err) {}
@@ -9245,7 +9476,7 @@ function renderBubbleMore() {
           bubbleDropZone = ''
         })
       } else {
-        handle.title = '拖动排序;拖到某行左/右边缘可与其并列'
+        handle.title = I('拖动排序;拖到某行左/右边缘可与其并列')
       }
       row.appendChild(handle)
       if (isChoice) {
@@ -9254,15 +9485,15 @@ function renderBubbleMore() {
         var chip = document.createElement('button')
         chip.type = 'button'
         chip.className = 'dshwv-bubchip dshwv-bubchip-btn'
-        chip.textContent = '第' + (idx + 1) + '次点击 · 编辑内容'
-        chip.title = '点击编辑该泡泡的内容模块(' + bubbleRowLabel(step) + ');把另一行拖到本行左/右边缘可并列'
+        chip.textContent = I('第') + (idx + 1) + I('次点击 · 编辑内容')
+        chip.title = I('点击编辑该泡泡的内容模块(') + bubbleRowLabel(step) + I(');把另一行拖到本行左/右边缘可并列')
         chip.addEventListener('click', function (e) { e.stopPropagation(); openBubbleItem(idx, -1) })
         row.appendChild(chip)
         var del = document.createElement('button')
         del.type = 'button'
         del.className = 'dshwv-bubmini'
         del.textContent = '✕'
-        del.title = '删除该次点击'
+        del.title = I('删除该次点击')
         del.addEventListener('click', function () { bubbleDelMore(idx) })
         row.appendChild(del)
       }
@@ -9362,7 +9593,7 @@ function bubblePairDrop(from, to, zone) {
     var srcBubble = bubbleStepToBubble(src)
     if (bubbleIsChoice(dst)) {
       var sideIdx = (zone === 'pairL') ? 0 : 1
-      showConfirm('用拖入的泡泡替换该并列对中 ' + (sideIdx === 0 ? 'A(左)' : 'B(右)') + ' 泡的内容?', function () {
+      showConfirm(I('用拖入的泡泡替换该并列对中 ') + (sideIdx === 0 ? I('A(左)') : I('B(右)')) + I(' 泡的内容?'), function () {
         var d2 = arr[to]
         if (!d2 || !bubbleIsChoice(d2)) return
         var opts2 = bubbleChoiceOptions(d2)
@@ -9403,8 +9634,8 @@ function bubbleChoiceRowUI(row, step, idx) {
       var chip = document.createElement('button')
       chip.type = 'button'
       chip.className = 'dshwv-bubchip dshwv-bubchip-btn dshwv-choicechip'
-      chip.textContent = (si === 0 ? 'A' : 'B') + ' · 编辑内容'
-      chip.title = '点击编辑该泡(' + bubbleRowLabel(opt.item) + ');按住拖动可把该泡拆出到其他位置'
+      chip.textContent = (si === 0 ? 'A' : 'B') + I(' · 编辑内容')
+      chip.title = I('点击编辑该泡(') + bubbleRowLabel(opt.item) + I(');按住拖动可把该泡拆出到其他位置')
       chip.draggable = true
       chip.addEventListener('dragstart', function (e) {
         // 触摸手势:拦掉原生拖拽(手机上原生拖拽会话不结束会卡死整页)
@@ -9424,7 +9655,7 @@ function bubbleChoiceRowUI(row, step, idx) {
       num.maxLength = 2
       num.className = 'dshwv-winput'
       num.value = String(bubbleChoiceWeight(opt))
-      num.title = (si === 0 ? 'A' : 'B') + ' 泡出现权重(直接输入数字,1~99,默认1:1)'
+      num.title = (si === 0 ? 'A' : 'B') + I(' 泡出现权重(直接输入数字,1~99,默认1:1)')
       num.addEventListener('change', function () {
         var w = bubbleChoiceWeight({ w: num.value })
         opt.w = w
@@ -9438,7 +9669,7 @@ function bubbleChoiceRowUI(row, step, idx) {
       var split = document.createElement('button')
       split.type = 'button'
       split.className = 'dshwv-splitbtn'
-      split.title = '点击拆开:恢复为两个独立泡泡(拆开后每行才显示 ✕ 删除)'
+      split.title = I('点击拆开:恢复为两个独立泡泡(拆开后每行才显示 ✕ 删除)')
       var sp = document.createElement('span')
       split.appendChild(sp)
       split.addEventListener('click', function () { bubbleUnpairStep(idx) })
@@ -9764,7 +9995,7 @@ function closeBubbleEditor() {
   try { frameMenuCloseAll() } catch (err) {}
 }
 function bubbleEditorReset() {
-  showConfirm('恢复为默认序列(首次=余额内容,再次=随机语句)?', function () {
+  showConfirm(I('恢复为默认序列(首次=余额内容,再次=随机语句)?'), function () {
     bubbleEditItems = bubbleDefaultQueue()
     renderBubbleEditor()
   })
@@ -9793,13 +10024,13 @@ function bubbleEditorSave() {
           closeBubbleEditor()
           // v821：被删掉的框留下的引用已改回保底框 ⇒ 明确提示一次（决策 3）
           if (scrubbed > 0) {
-            try { dshwvToast('有 ' + scrubbed + ' 处泡泡原本用的框已删除，已改回保底框', 'ok', 2600) } catch (err) {}
+            try { dshwvToast(I('有 ') + scrubbed + I(' 处泡泡原本用的框已删除，已改回保底框'), 'ok', 2600) } catch (err) {}
           }
         }
       })
     }
     // 未做任何修改:直接保存,不再二次确认
-    if (bubbleEditorDirty()) showConfirm('保存当前点击序列?(未逐泡编辑过的行将按默认内容保存,保存后即生效)', doSave)
+    if (bubbleEditorDirty()) showConfirm(I('保存当前点击序列?(未逐泡编辑过的行将按默认内容保存,保存后即生效)'), doSave)
     else doSave()
   } catch (err) {}
 }
@@ -9853,8 +10084,8 @@ function bubbleEditTarget() {
   return step
 }
 function bubbleEditStepLabel(step, idx) {
-  var base = '第' + (idx + 1) + '次点击'
-  if (bubbleIsChoice(step)) return base + ' · ' + (bubbleEditSide === 1 ? 'B泡' : 'A泡')
+  var base = I('第') + (idx + 1) + I('次点击')
+  if (bubbleIsChoice(step)) return base + ' · ' + (bubbleEditSide === 1 ? I('B泡') : I('A泡'))
   return base
 }
 function openBubbleItem(idx, side) {
@@ -9877,7 +10108,7 @@ function openBubbleItem(idx, side) {
     bubbleEditEnsureModules(it)
     // F2:进入编辑即按当前分组规范化行键(旧数据=每模块一行),行操作与落盘保持一致
     bubbleRowsCanon(it.modules)
-    bubbleItemTitleEl.textContent = '编辑 ' + bubbleEditStepLabel(step, idx) + '内容(可拖动下方模块入框)'
+    bubbleItemTitleEl.textContent = I('编辑 ') + bubbleEditStepLabel(step, idx) + I('内容(可拖动下方模块入框)')
     renderBubbleItemSideSwitch(step)
     // 先显示弹窗再渲染预览:getBBox 需要可见布局,否则测到 0 导致内容错位到角落
     bubbleItemMask.style.display = 'flex'
@@ -9900,8 +10131,8 @@ function renderBubbleItemSideSwitch(step) {
       var b = document.createElement('button')
       b.type = 'button'
       b.className = 'dshwv-bubchip dshwv-bubchip-btn' + (si === bubbleEditSide ? ' dshwv-bubchip-cur' : '')
-      b.textContent = (si === 0 ? 'A' : 'B') + ' 泡(权重 ' + bubbleChoiceWeight(opts[si]) + ')'
-      b.title = '切换到编辑 ' + (si === 0 ? 'A' : 'B') + ' 泡'
+      b.textContent = (si === 0 ? 'A' : 'B') + I(' 泡(权重 ') + bubbleChoiceWeight(opts[si]) + ')'
+      b.title = I('切换到编辑 ') + (si === 0 ? 'A' : 'B') + I(' 泡')
       b.addEventListener('click', function (e) { e.stopPropagation(); openBubbleItem(bubbleEditItemIdx, si) })
       bubbleItemSideEl.appendChild(b)
     })(s)
@@ -9918,10 +10149,10 @@ function closeBubbleItem() {
 var qeditEl = null
 var qeditCtx = null // {kind:'text'|'line', ...}
 var QC_SCHEMES = [
-  ['macaron', '马卡龙'], ['candy', '糖果'], ['rouge', '酒红'], ['bamboo', '翠青'], ['aurora', '极光幻彩'],
-  ['deepsea', '深海蓝调'], ['sunset', '落日熔金'], ['forest', '森林秘语'], ['champagne', '香槟鎏金'],
-  ['lavender', '薰衣草梦境'], ['mint', '薄荷汽水'], ['lava', '岩浆熔岩'], ['galaxy', '银河星紫'], ['ink', '墨韵黑白'], ['indigo', '靛蓝夜曲'],
-  ['blaze', '火红烈焰'], ['amber', '警示橙黄'],
+  ['macaron', I('马卡龙')], ['candy', I('糖果')], ['rouge', I('酒红')], ['bamboo', I('翠青')], ['aurora', I('极光幻彩')],
+  ['deepsea', I('深海蓝调')], ['sunset', I('落日熔金')], ['forest', I('森林秘语')], ['champagne', I('香槟鎏金')],
+  ['lavender', I('薰衣草梦境')], ['mint', I('薄荷汽水')], ['lava', I('岩浆熔岩')], ['galaxy', I('银河星紫')], ['ink', I('墨韵黑白')], ['indigo', I('靛蓝夜曲')],
+  ['blaze', I('火红烈焰')], ['amber', I('警示橙黄')],
 ]
 function qeditEnsure() {
   if (qeditEl) return qeditEl
@@ -9998,9 +10229,9 @@ function qColorSelectBuild(current, onPick, opts) {
   // 颜色下拉:纯色 + 跑马灯列表;默认选纯色+默认色值;opts.allowNone=true 时额外提供“无”项(底色用)
   opts = opts || {}
   var allowNone = !!opts.allowNone
-  var oLabel = opts.label || '颜色'
+  var oLabel = opts.label || I('颜色')
   var oHex = opts.defaultHex || '#203170'
-  var oText = opts.defaultText || '默认'
+  var oText = opts.defaultText || I('默认')
   var row = qRow()
   row.appendChild(qLabel(oLabel))
   var wrap = document.createElement('div')
@@ -10008,7 +10239,7 @@ function qColorSelectBuild(current, onPick, opts) {
   var head = document.createElement('button')
   head.type = 'button'
   head.className = 'dshwv-rgbhead'
-  head.title = '颜色:纯色或跑马灯'
+  head.title = I('颜色:纯色或跑马灯')
   wrap.appendChild(head)
   var menu = document.createElement('div')
   menu.className = 'dshwv-rgbmenu dshwv-qcolmenu'
@@ -10023,13 +10254,13 @@ function qColorSelectBuild(current, onPick, opts) {
   }
   var curMode = modeOf(current)
   function isScheme(v) { for (var i = 0; i < QC_SCHEMES.length; i++) if (QC_SCHEMES[i][0] === v) return true; return false }
-  function labelOf(v) { if (v === 'none') return '无'; if (v === 'solid') return '纯色'; for (var i = 0; i < QC_SCHEMES.length; i++) if (QC_SCHEMES[i][0] === v) return QC_SCHEMES[i][1]; return allowNone ? '无' : '纯色' }
+  function labelOf(v) { if (v === 'none') return I('无'); if (v === 'solid') return I('纯色'); for (var i = 0; i < QC_SCHEMES.length; i++) if (QC_SCHEMES[i][0] === v) return QC_SCHEMES[i][1]; return allowNone ? I('无') : I('纯色') }
   function renderSolid(hex, onSet) {
     sw.innerHTML = ''
     var ci = document.createElement('input')
     ci.type = 'color'
     ci.value = hex
-    ci.title = '选择纯色'
+    ci.title = I('选择纯色')
     ci.addEventListener('input', function () { if (onSet) onSet(ci.value) })
     ci.addEventListener('change', function () { if (onSet) onSet(ci.value) })
     sw.appendChild(ci)
@@ -10037,7 +10268,7 @@ function qColorSelectBuild(current, onPick, opts) {
     def.type = 'button'
     def.className = 'dshwv-bubmini'
     def.textContent = oText
-    def.title = '恢复为' + oText + '色值'
+    def.title = I('恢复为') + oText + I('色值')
     def.style.width = 'auto'
     def.style.padding = '0 6px'
     def.addEventListener('click', function () { if (onSet) onSet(oHex) })
@@ -10058,8 +10289,8 @@ function qColorSelectBuild(current, onPick, opts) {
       })
       menu.appendChild(o)
     }
-    if (allowNone) add('none', '无')
-    add('solid', '纯色')
+    if (allowNone) add('none', I('无'))
+    add('solid', I('纯色'))
     for (var i = 0; i < QC_SCHEMES.length; i++) add(QC_SCHEMES[i][0], QC_SCHEMES[i][1])
   }
   var hexSetter = null
@@ -10096,7 +10327,7 @@ function qColorSelectBuild(current, onPick, opts) {
 }
 function qStyleChecksBuild(getBool, setBool) {
   var row = qRow()
-  ;[['加粗', 'bold'], ['斜体', 'italic'], ['下划线', 'ul']].forEach(function (item) {
+  ;[[I('加粗'), 'bold'], [I('斜体'), 'italic'], [I('下划线'), 'ul']].forEach(function (item) {
     var lab = document.createElement('label')
     lab.style.display = 'inline-flex'
     lab.style.alignItems = 'center'
@@ -10122,7 +10353,7 @@ function openQuickTextEditor(m, anchorBtn) {
   function changed() { try { renderBubblePv() } catch (err) {} }
   // 内容(超链接=链接文字)
   var r0 = qRow()
-  r0.appendChild(qLabel(m.type === 'link' ? '链接文字' : '内容'))
+  r0.appendChild(qLabel(m.type === 'link' ? I('链接文字') : I('内容')))
   var tx = document.createElement('input')
   tx.type = 'text'
   tx.maxLength = 60
@@ -10134,13 +10365,13 @@ function openQuickTextEditor(m, anchorBtn) {
   // 超链接:链接地址(输入时不改预览,仅保存)
   if (m.type === 'link') {
     var rUrl = qRow()
-    rUrl.appendChild(qLabel('链接'))
+    rUrl.appendChild(qLabel(I('链接')))
     var uInp = document.createElement('input')
     uInp.type = 'text'
     uInp.className = 'dshwv-qedit-content'
     uInp.value = m.url || ''
     uInp.placeholder = 'https:// …'
-    uInp.title = '点击打开;需以 http:// 或 https:// 开头'
+    uInp.title = I('点击打开;需以 http:// 或 https:// 开头')
     uInp.addEventListener('input', function () { m.url = uInp.value || '' })
     rUrl.appendChild(uInp)
     box.appendChild(rUrl)
@@ -10148,7 +10379,7 @@ function openQuickTextEditor(m, anchorBtn) {
   // 第一行:字体 + 字号
   box.appendChild(bubbleFontEditRow(function () { return m.fontFamily || '' }, function (v) { m.fontFamily = v || ''; changed() }))
   var r1 = qRow()
-  r1.appendChild(qLabel('字号'))
+  r1.appendChild(qLabel(I('字号')))
   var sz = document.createElement('input')
   sz.type = 'range'
   sz.min = '1'
@@ -10185,7 +10416,7 @@ function openQuickTextEditor(m, anchorBtn) {
     else { m.bgRgb = v; m.bg = '' }
     bgt.sync(v === 'none' ? 'none' : v, m.bg, function (hex) { m.bg = hex; changed() })
     changed()
-  }, { label: '底色', defaultHex: '#dbe4f5', defaultText: '默认', allowNone: true })
+  }, { label: I('底色'), defaultHex: '#dbe4f5', defaultText: I('默认'), allowNone: true })
   grpT.appendChild(bgt.row)
   box.appendChild(grpT)
   cc.sync(curColor, m.color || '#203170', function (hex) { m.color = hex; changed() })
@@ -10202,7 +10433,7 @@ function openQuickTextEditor(m, anchorBtn) {
 // rowFactory() 造一行、labelFactory(text) 造标签；changed() 在输入时回调（悬浮窗用它做实时预览）。
 function sessionLenRowBuild(rowFactory, labelFactory, m, changed) {
   var r = rowFactory()
-  r.appendChild(labelFactory('保留长度'))
+  r.appendChild(labelFactory(I('保留长度')))
   var inp = document.createElement('input')
   inp.type = 'number'
   inp.min = '0'
@@ -10211,7 +10442,7 @@ function sessionLenRowBuild(rowFactory, labelFactory, m, changed) {
   inp.className = 'dshwv-winput'
   if (m.len === undefined || m.len === null) m.len = WAIT_SESSION_MAX
   inp.value = String(Math.max(0, Math.round(Number(m.len) || 0)))
-  inp.title = '对话名超过这个长度时截断成「前N字...」；0 = 不截断'
+  inp.title = I('对话名超过这个长度时截断成「前N字...」；0 = 不截断')
   inp.addEventListener('input', function () {
     var n = Math.round(Number(inp.value) || 0)
     m.len = Math.max(0, Math.min(120, n))
@@ -10221,7 +10452,7 @@ function sessionLenRowBuild(rowFactory, labelFactory, m, changed) {
     inp.value = String(Math.max(0, Math.round(Number(m.len) || 0)))
   })
   r.appendChild(inp)
-  var tail = labelFactory('字，超出截断为 ...（0 = 不截断）')
+  var tail = labelFactory(I('字，超出截断为 ...（0 = 不截断）'))
   try {
     tail.style.opacity = '.75'
     tail.style.fontSize = '11px'
@@ -10239,7 +10470,7 @@ function openQuickModuleEditor(m, anchorBtn) {
   function changed() { try { renderBubblePv() } catch (err) {} }
   function sizeRow() {
     var r = qRow()
-    r.appendChild(qLabel('字号'))
+    r.appendChild(qLabel(I('字号')))
     var sz = document.createElement('input')
     sz.type = 'range'
     sz.min = '1'
@@ -10261,7 +10492,7 @@ function openQuickModuleEditor(m, anchorBtn) {
   }
   function tplRow() {
     var r = qRow()
-    r.appendChild(qLabel('内容'))
+    r.appendChild(qLabel(I('内容')))
     var inp = document.createElement('input')
     inp.type = 'text'
     inp.className = 'dshwv-qedit-content'
@@ -10269,15 +10500,15 @@ function openQuickModuleEditor(m, anchorBtn) {
     var isModelBal = bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today')
     var isModelQuota = bubbleIsModelMod(m) && m.type === 'quota'
     var isModelPlan = bubbleIsModelMod(m) && m.type === 'plan'
-    inp.placeholder = isModelPlan ? '例: {plan} 额度 · {plan_reset} 刷新时间' : (isModelQuota ? '例: 额度 {quota} · 剩 {quota_left}' : (isModelBal ? '例: {balance} 或 今日 {today}' : (m.type === 'balance' ? '例: {balance_ds}' : (m.type === 'bonus' ? '例: {bonus_ds} 或 赠金 {bonus_ds}' : (m.type === 'recharge' ? '例: {recharge_ds} 或 余额 {recharge_ds}' : (m.type === 'today' ? '例: 今日已用 {expense_ds}' : (m.type === 'session' ? '例: {session} 或 当前对话 {session}' : (bubbleIsPeakCount(m) ? '例: 距空闲 {countdown}' : '例: 当前 {status}'))))))))
-    inp.title = '可用占位符(英文): ' + (isModelPlan ? '{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）' : (isModelQuota ? '{quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}' : (isModelBal ? '{balance} / {today}' : (m.type === 'peak' || m.type === 'nextpeak' ? '{status} / {countdown}' : (m.type === 'balance' ? '{balance_ds}' : (m.type === 'bonus' ? '{bonus_ds}' : (m.type === 'recharge' ? '{recharge_ds}' : (m.type === 'today' ? '{expense_ds}' : (m.type === 'session' ? '{session} 当前对话名（按「保留长度」截断）' : '{expense_ds}')))))))))
+    inp.placeholder = isModelPlan ? I('例: {plan} 额度 · {plan_reset} 刷新时间') : (isModelQuota ? I('例: 额度 {quota} · 剩 {quota_left}') : (isModelBal ? I('例: {balance} 或 今日 {today}') : (m.type === 'balance' ? I('例: {balance_ds}') : (m.type === 'bonus' ? I('例: {bonus_ds} 或 赠金 {bonus_ds}') : (m.type === 'recharge' ? I('例: {recharge_ds} 或 余额 {recharge_ds}') : (m.type === 'today' ? I('例: 今日已用 {expense_ds}') : (m.type === 'session' ? I('例: {session} 或 当前对话 {session}') : (bubbleIsPeakCount(m) ? I('例: 距空闲 {countdown}') : I('例: 当前 {status}')))))))))
+    inp.title = I('可用占位符(英文): ') + (isModelPlan ? I('{plan} 额度 / {plan_left} 剩余 / {plan_reset} 刷新时间（多窗口时随「显示样式」所选窗口变化）') : (isModelQuota ? '{quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}' : (isModelBal ? '{balance} / {today}' : (m.type === 'peak' || m.type === 'nextpeak' ? '{status} / {countdown}' : (m.type === 'balance' ? '{balance_ds}' : (m.type === 'bonus' ? '{bonus_ds}' : (m.type === 'recharge' ? '{recharge_ds}' : (m.type === 'today' ? '{expense_ds}' : (m.type === 'session' ? I('{session} 当前对话名（按「保留长度」截断）') : '{expense_ds}')))))))))
     inp.addEventListener('input', function () { m.tpl = inp.value; changed() })
     r.appendChild(inp)
     var qb2 = document.createElement('button')
     qb2.type = 'button'
     qb2.className = 'dshwv-tplq'
     qb2.textContent = '?'
-    qb2.title = '可用占位符用法'
+    qb2.title = I('可用占位符用法')
     qb2.style.marginLeft = '4px'
     qb2.addEventListener('click', function (e) { e.stopPropagation(); bubbleTplHelpToggle(m, qb2) })
     r.appendChild(qb2)
@@ -10289,7 +10520,7 @@ function openQuickModuleEditor(m, anchorBtn) {
   // 订阅额度模块的「显示样式」= 选时间窗口（多窗口厂商，如 OpenCode Go 的 5h / 周 / 月）
   if (m.type === 'plan' && (apiPlanMultiWin(m.modelId) || apiPlanWinList(m.modelId))) {
     var wrow = qRow()
-    wrow.appendChild(qLabel('显示样式'))
+    wrow.appendChild(qLabel(I('显示样式')))
     var wsel = document.createElement('select')
     for (var wi = 0; wi < BUBBLE_PLAN_WIN_OPTS.length; wi++) {
       var wo = document.createElement('option')
@@ -10308,7 +10539,7 @@ function openQuickModuleEditor(m, anchorBtn) {
   if (m.type === 'peak' || m.type === 'nextpeak') {
     // 显示样式(与编辑窗口一致)
     var srow = qRow()
-    srow.appendChild(qLabel('显示样式'))
+    srow.appendChild(qLabel(I('显示样式')))
     var sel = document.createElement('select')
     for (var si = 0; si < BUBBLE_PEAK_STYLE_OPTS.length; si++) {
       var so = document.createElement('option')
@@ -10325,8 +10556,8 @@ function openQuickModuleEditor(m, anchorBtn) {
     sel.addEventListener('change', function () { m.peakStyle = sel.value || 'default'; changed() })
     // 高峰/空闲 状态行(颜色+底色,与编辑窗口一致)
     var sts = [
-      { label: '高峰色', colorKey: 'peakColor', rgbKey: 'peakRgb', defaultHex: '#e0433f', defaultText: '默认红', bgKey: 'peakBg', bgRgbKey: 'peakBgRgb', bgHex: '#fbe7e6' },
-      { label: '空闲色', colorKey: 'offColor', rgbKey: 'offRgb', defaultHex: '#2fa24c', defaultText: '默认绿', bgKey: 'offBg', bgRgbKey: 'offBgRgb', bgHex: '#e4f3e7' },
+      { label: I('高峰色'), colorKey: 'peakColor', rgbKey: 'peakRgb', defaultHex: '#e0433f', defaultText: I('默认红'), bgKey: 'peakBg', bgRgbKey: 'peakBgRgb', bgHex: '#fbe7e6' },
+      { label: I('空闲色'), colorKey: 'offColor', rgbKey: 'offRgb', defaultHex: '#2fa24c', defaultText: I('默认绿'), bgKey: 'offBg', bgRgbKey: 'offBgRgb', bgHex: '#e4f3e7' },
     ]
     if (!m.peakColor) m.peakColor = '#e0433f'
     if (!m.offColor) m.offColor = '#2fa24c'
@@ -10350,7 +10581,7 @@ function openQuickModuleEditor(m, anchorBtn) {
           else { m[st.bgRgbKey] = v; m[st.bgKey] = '' }
           bg2.sync(v === 'none' ? 'none' : v, m[st.bgKey] || bgHex0, function (hex) { m[st.bgKey] = hex; changed() })
           changed()
-        }, { label: '底色', defaultHex: bgHex0, defaultText: '默认', allowNone: true })
+        }, { label: I('底色'), defaultHex: bgHex0, defaultText: I('默认'), allowNone: true })
         grp.appendChild(bg2.row)
         box.appendChild(grp)
         cc2.sync(curCol, m[st.colorKey] || st.defaultHex, function (hex) { m[st.colorKey] = hex; changed() })
@@ -10383,7 +10614,7 @@ function openQuickModuleEditor(m, anchorBtn) {
       else { m.bgRgb = v; m.bg = '' }
       bgcA.sync(v === 'none' ? 'none' : v, m.bg, function (hex) { m.bg = hex; changed() })
       changed()
-    }, { label: '底色', defaultHex: '#dbe4f5', defaultText: '默认', allowNone: true })
+    }, { label: I('底色'), defaultHex: '#dbe4f5', defaultText: I('默认'), allowNone: true })
     grp2.appendChild(bgcA.row)
     box.appendChild(grp2)
     ccA.sync(curC, m.color || '#203170', function (hex) { m.color = hex; changed() })
@@ -10406,7 +10637,7 @@ function openQuickSentenceEditor(line, mod, rowTx, anchorBtn) {
   function lv(lk, mk, dft) { var v = line[lk]; if (v !== undefined && v !== null) return v; var mv = mod[lk]; if (mv !== undefined && mv !== null) return mv; return dft }
   // 内容
   var r0 = qRow()
-  r0.appendChild(qLabel('句子'))
+  r0.appendChild(qLabel(I('句子')))
   var tx = document.createElement('input')
   tx.type = 'text'
   tx.className = 'dshwv-qedit-content'
@@ -10420,7 +10651,7 @@ function openQuickSentenceEditor(line, mod, rowTx, anchorBtn) {
   // 字体 + 字号
   box.appendChild(bubbleFontEditRow(function () { return lv('fontFamily', 'fontFamily', '') || '' }, function (v) { line.fontFamily = v || '' }))
   var r1 = qRow()
-  r1.appendChild(qLabel('字号'))
+  r1.appendChild(qLabel(I('字号')))
   var sz = document.createElement('input')
   sz.type = 'range'
   sz.min = '1'
@@ -10456,7 +10687,7 @@ function openQuickSentenceEditor(line, mod, rowTx, anchorBtn) {
     else if (v === 'solid') { line.bgRgb = ''; if (!line.bg) line.bg = lineBgHex0 }
     else { line.bgRgb = v; line.bg = '' }
     bgcc2.sync(v === 'none' ? 'none' : v, line.bg || lineBgHex0, function (h) { line.bg = h })
-  }, { label: '底色', defaultHex: lineBgHex0, defaultText: '默认', allowNone: true })
+  }, { label: I('底色'), defaultHex: lineBgHex0, defaultText: I('默认'), allowNone: true })
   box.appendChild(bgcc2.row)
   bgcc2.sync(lineBgV, lineBgHex0, function (h) { line.bg = h })
   // 位置:触发按钮下方
@@ -10466,22 +10697,22 @@ function openQuickSentenceEditor(line, mod, rowTx, anchorBtn) {
 function renderBubblePal() {
   bubblePalEl.innerHTML = ''
   var defs = [
-    { key: 'text', label: '文本', cb: function () { bubbleModuleAdd({ type: 'text', text: '新内容', size: 6, bold: true }) } },
-    { key: 'balance', label: '总余额(充值金额+赠金)', pin: true, cb: function () { bubbleModuleAdd({ type: 'balance', size: 11, tpl: '{balance_ds}' }) } },
+    { key: 'text', label: I('文本'), cb: function () { bubbleModuleAdd({ type: 'text', text: I('新内容'), size: 6, bold: true }) } },
+    { key: 'balance', label: I('总余额(充值金额+赠金)'), pin: true, cb: function () { bubbleModuleAdd({ type: 'balance', size: 11, tpl: '{balance_ds}' }) } },
     // v782：把「总余额」拆出的两个分量各自做成模块 —— 赠金（未过期赠送余额）与充值余额。
     //   ⚠️ 上面那条 `balance` / `{balance_ds}` 的**代码名字与行为一律不动**（历史泡泡与已保存的模块里
     //   存的是 type/tpl 字面量，改代码名会让老内容显示不出来）；v787 只按用户要求改了**显示文案**。
-    { key: 'bonus', label: '赠金', pin: true, cb: function () { bubbleModuleAdd({ type: 'bonus', size: 11, tpl: '{bonus_ds}' }) } },
-    { key: 'recharge', label: '充值余额', pin: true, cb: function () { bubbleModuleAdd({ type: 'recharge', size: 11, tpl: '{recharge_ds}' }) } },
-    { key: 'today', label: '今日已用', pin: true, cb: function () { bubbleModuleAdd({ type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }) } },
-    { key: 'peak', label: '峰谷时段', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }) } },
-    { key: 'nextpeak', label: '时段倒计时', pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }) } },
+    { key: 'bonus', label: I('赠金'), pin: true, cb: function () { bubbleModuleAdd({ type: 'bonus', size: 11, tpl: '{bonus_ds}' }) } },
+    { key: 'recharge', label: I('充值余额'), pin: true, cb: function () { bubbleModuleAdd({ type: 'recharge', size: 11, tpl: '{recharge_ds}' }) } },
+    { key: 'today', label: I('今日已用'), pin: true, cb: function () { bubbleModuleAdd({ type: 'today', size: 1, tpl: I('今日已用 {expense_ds}') }) } },
+    { key: 'peak', label: I('峰谷时段'), pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }) } },
+    { key: 'nextpeak', label: I('时段倒计时'), pin: true, cb: function () { bubbleModuleAdd({ type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }) } },
     // v768：对话名模块（内容 = 当前对话标题；「保留长度」可在模块编辑器里改）
-    { key: 'session', label: '对话名', pin: true, cb: function () { bubbleModuleAdd({ type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }) } },
-    { key: 'random', label: '随机语句', cb: function () { bubbleModuleAdd(bubbleCloneModule(bubbleDefaultSecondModules()[0])) } },
-    { key: 'link', label: '超链接', cb: function () { bubbleModuleAdd(bubblePaletteModule('link')) } },
-    { key: 'image', label: '图片/动图', cb: function () { bubblePickImageToAdd() } },
-    { key: 'randimg', label: '随机图片', cb: function () { bubbleModuleNew({ type: 'randimg', imgs: [], imgScale: 1 }) } },
+    { key: 'session', label: I('对话名'), pin: true, cb: function () { bubbleModuleAdd({ type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }) } },
+    { key: 'random', label: I('随机语句'), cb: function () { bubbleModuleAdd(bubbleCloneModule(bubbleDefaultSecondModules()[0])) } },
+    { key: 'link', label: I('超链接'), cb: function () { bubbleModuleAdd(bubblePaletteModule('link')) } },
+    { key: 'image', label: I('图片/动图'), cb: function () { bubblePickImageToAdd() } },
+    { key: 'randimg', label: I('随机图片'), cb: function () { bubbleModuleNew({ type: 'randimg', imgs: [], imgScale: 1 }) } },
   ]
   for (var i = 0; i < defs.length; i++) {
     (function (d) {
@@ -10489,7 +10720,7 @@ function renderBubblePal() {
       chip.className = 'dshwv-palchip'
       chip.setAttribute('data-pal', d.key) // v639 触摸端长按拖拽用
       chip.textContent = d.label
-      chip.title = d.pin ? '内置数值模块(内容锁定)' : '点击加入泡泡'
+      chip.title = d.pin ? I('内置数值模块(内容锁定)') : I('点击加入泡泡')
       chip.draggable = true
       chip.addEventListener('click', function (e) { e.stopPropagation(); d.cb() })
       chip.addEventListener('dragstart', function (e) {
@@ -10514,9 +10745,9 @@ function renderBubblePal() {
         var chip4 = document.createElement('div')
         chip4.className = 'dshwv-palchip'
         chip4.setAttribute('data-pal', key4)
-        chip4.textContent = '额度·' + am.name
-        var planWinHint = apiPlanMultiWin(am.id) ? '；「显示样式」可选时间窗口（全部 / 5h / 周 / 月）' : ''
-        chip4.title = '该厂商的订阅额度（由厂商接口读取，非手动）；模板变量 {plan} 额度 / {plan_reset} 刷新时间 / {plan_left} 剩余' + planWinHint
+        chip4.textContent = I('额度·') + am.name
+        var planWinHint = apiPlanMultiWin(am.id) ? I('；「显示样式」可选时间窗口（全部 / 5h / 周 / 月）') : ''
+        chip4.title = I('该厂商的订阅额度（由厂商接口读取，非手动）；模板变量 {plan} 额度 / {plan_reset} 刷新时间 / {plan_left} 剩余') + planWinHint
         chip4.draggable = true
         chip4.addEventListener('click', function (e) {
           e.stopPropagation()
@@ -10533,8 +10764,8 @@ function renderBubblePal() {
       var chip2 = document.createElement('div')
       chip2.className = 'dshwv-palchip'
       chip2.setAttribute('data-pal', key)
-      chip2.textContent = '余额·' + am.name
-      chip2.title = '该模型的余额' + (am.balanceMode === 'events' ? '（该厂商无余额接口，显示为 —）' : '') + '；模板变量 {balance} / {today}'
+      chip2.textContent = I('余额·') + am.name
+      chip2.title = I('该模型的余额') + (am.balanceMode === 'events' ? I('（该厂商无余额接口，显示为 —）') : '') + I('；模板变量 {balance} / {today}')
       chip2.draggable = true
       chip2.addEventListener('click', function (e) {
         e.stopPropagation()
@@ -10550,12 +10781,12 @@ function renderBubblePal() {
       var chip3 = document.createElement('div')
       chip3.className = 'dshwv-palchip'
       chip3.setAttribute('data-pal', key3)
-      chip3.textContent = '额度·' + am.name
-      chip3.title = '该模型的手动额度（在模型菜单「额度（手动）」里填总量与已用）；模板变量 {quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}'
+      chip3.textContent = I('额度·') + am.name
+      chip3.title = I('该模型的手动额度（在模型菜单「额度（手动）」里填总量与已用）；模板变量 {quota} / {quota_used} / {quota_left} / {quota_total} / {quota_reset}')
       chip3.draggable = true
       chip3.addEventListener('click', function (e) {
         e.stopPropagation()
-        bubbleModuleAdd({ type: 'quota', modelId: am.id, size: 8, tpl: '已用 {quota} · 剩 {quota_left}' })
+        bubbleModuleAdd({ type: 'quota', modelId: am.id, size: 8, tpl: I('已用 {quota} · 剩 {quota_left}') })
       })
       chip3.addEventListener('dragstart', function (e) {
         try { e.dataTransfer.setData('text/plain', key3) } catch (err) {}
@@ -10566,7 +10797,7 @@ function renderBubblePal() {
   } else if (apiModelsError) {
     var chipErr = document.createElement('div')
     chipErr.className = 'dshwv-palchip'
-    chipErr.textContent = '⚠ 模型列表加载失败，点此重试'
+    chipErr.textContent = I('⚠ 模型列表加载失败，点此重试')
     chipErr.style.opacity = '.85'
     chipErr.addEventListener('click', function (e) {
       e.stopPropagation()
@@ -10577,7 +10808,7 @@ function renderBubblePal() {
   } else {
     var chipLd = document.createElement('div')
     chipLd.className = 'dshwv-palchip'
-    chipLd.textContent = '余额·加载中…'
+    chipLd.textContent = I('余额·加载中…')
     chipLd.style.opacity = '.6'
     bubblePalEl.appendChild(chipLd)
     loadApiModels(function () { try { renderBubblePal() } catch (err) {} })
@@ -10587,7 +10818,7 @@ function renderBubblePal() {
     (function (lb) {
       var chip = document.createElement('div')
       chip.className = 'dshwv-libchip'
-      chip.title = '从模块库加入: ' + lb.name
+      chip.title = I('从模块库加入: ') + lb.name
       var body = document.createElement('div')
       body.className = 'dshwv-palchip'
       body.setAttribute('data-pal', 'lib:' + lb.id) // v639 触摸端长按拖拽用
@@ -10603,10 +10834,10 @@ function renderBubblePal() {
       del.type = 'button'
       del.className = 'dshwv-libdel'
       del.textContent = '✕'
-      del.title = '从模块库删除: ' + lb.name
+      del.title = I('从模块库删除: ') + lb.name
       del.addEventListener('click', function (e) {
         e.stopPropagation()
-        showConfirm('从模块库删除「' + lb.name + '」?', function () {
+        showConfirm(I('从模块库删除「') + lb.name + '」?', function () {
           bubbleLibDel(lb.id)
           if (bubblePalEl) renderBubblePal()
         })
@@ -10618,8 +10849,8 @@ function renderBubblePal() {
   // 新模块向导(可选类型)——参照「+ 添加语句」样式:虚线边框/透明底/圆角,尺寸紧凑
   var newChip = document.createElement('div')
   newChip.className = 'dshwv-paladd'
-  newChip.textContent = '+ 新建模块'
-  newChip.title = '新建模块(先选类型:文本/随机语句/图片动图/随机图片)'
+  newChip.textContent = I('+ 新建模块')
+  newChip.title = I('新建模块(先选类型:文本/随机语句/图片动图/随机图片)')
   newChip.draggable = true
   newChip.addEventListener('click', function (e) { e.stopPropagation(); bubbleModuleWizard() })
   newChip.addEventListener('dragstart', function (e) {
@@ -10630,7 +10861,7 @@ function renderBubblePal() {
 }
 function bubbleModuleWizard() {
   // 「新建模块」= 打开 W3 新增模式:顶部先选类型(文本/随机语句/图片动图/随机图片),再填内容
-  bubbleModuleNew({ type: 'text', text: '新内容', size: 6 }, true)
+  bubbleModuleNew({ type: 'text', text: I('新内容'), size: 6 }, true)
 }
 function bubbleLibById(id) {
   for (var i = 0; i < bubbleLib.length; i++) if (bubbleLib[i].id === id) return bubbleLib[i]
@@ -10648,7 +10879,7 @@ function bubbleItemHasImage() {
 }
 // 提醒:一个泡泡只能有一个图片类模块(图片/动图 或 随机图片)
 function bubbleWarnOneImage() {
-  showConfirm('一个泡泡只能有一个图片类模块(图片/动图 或 随机图片)。当前泡泡已含图片,请先修改或删除现有图片模块后再添加。', function () {}, '知道了')
+  showConfirm(I('一个泡泡只能有一个图片类模块(图片/动图 或 随机图片)。当前泡泡已含图片,请先修改或删除现有图片模块后再添加。'), function () {}, I('知道了'))
 }
 function bubbleModuleAdd(m) {
   try {
@@ -10658,7 +10889,7 @@ function bubbleModuleAdd(m) {
     // 图片唯一:同泡泡已有图片时禁止再添加图片(含从模块库加入/拖入)
     if (m && bubbleIsImgMod(m) && bubbleItemHasImage()) { bubbleWarnOneImage(); return }
     // F2:新模块默认另起一行 → 行数已达上限(6)时不再追加
-    if (bubbleRowsOf(it.modules).length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn('泡泡最多 ' + BUBBLE_PV_ROW_MAX + ' 行,无法再加新行'); return }
+    if (bubbleRowsOf(it.modules).length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn(I('泡泡最多 ') + BUBBLE_PV_ROW_MAX + I(' 行,无法再加新行')); return }
     it.modules.push(m)
     renderBubblePv()
   } catch (err) {}
@@ -10680,7 +10911,7 @@ var BUBBLE_PV_ROW_MAX = 6 // 泡泡行数上限(编辑器侧防御,与渲染层�
 var BUBBLE_PV_MOD_MAX = 6 // 同一行模块数上限(F2)
 var bubbleModDrag = null // 正在拖的行内模块块 {ri, mi}
 var bubblePvZone = '' // 当前拖放落点:pairL(行首)/pairR(行尾)/before/after/join
-function bubblePvWarn(msg) { showConfirm(msg, function () {}, '知道了') }
+function bubblePvWarn(msg) { showConfirm(msg, function () {}, I('知道了')) }
 function bubblePvRowModel() {
   var it = bubbleEditTarget()
   if (!it || !Array.isArray(it.modules)) return []
@@ -10737,14 +10968,14 @@ function bubblePvDropBlock(riFrom, miFrom, riTarget, zone) {
     if (tIdx >= 0 && (zone === 'pairL' || zone === 'pairR')) {
       var tgt = rows[tIdx]
       if (!bubbleIsImgMod(m) && !bubbleIsImgMod(tgt[0])) {
-        if (tgt.length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn('同一行最多 ' + BUBBLE_PV_MOD_MAX + ' 个模块,无法再并入'); return }
+        if (tgt.length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn(I('同一行最多 ') + BUBBLE_PV_MOD_MAX + I(' 个模块,无法再并入')); return }
         tgt.splice(zone === 'pairL' ? 0 : tgt.length, 0, m)
         bubblePvRowCommit(rows)
         return
       }
       zone = 'before' // 图片相关 → 只能独立成行
     }
-    if (rows.length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn('泡泡最多 ' + BUBBLE_PV_ROW_MAX + ' 行,无法另起新行'); return }
+    if (rows.length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn(I('泡泡最多 ') + BUBBLE_PV_ROW_MAX + I(' 行,无法另起新行')); return }
     var at = tIdx >= 0 ? (zone === 'after' ? tIdx + 1 : tIdx) : Math.min(riFrom, rows.length)
     rows.splice(at, 0, [m])
     bubblePvRowCommit(rows)
@@ -10757,7 +10988,7 @@ function bubblePvDropBlockEnd(riFrom, miFrom) {
   var m = rows[riFrom][miFrom]
   rows[riFrom].splice(miFrom, 1)
   if (!rows[riFrom].length) rows.splice(riFrom, 1)
-  if (rows.length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn('泡泡最多 ' + BUBBLE_PV_ROW_MAX + ' 行,无法再另起一行'); return }
+  if (rows.length >= BUBBLE_PV_ROW_MAX) { bubblePvWarn(I('泡泡最多 ') + BUBBLE_PV_ROW_MAX + I(' 行,无法再另起一行')); return }
   rows.push([m])
   bubblePvRowCommit(rows)
 }
@@ -10772,8 +11003,8 @@ function bubblePvMoveRowEnd(fromRow) {
 function bubblePvAddToRow(ri) {
   var rows = bubblePvRowModel()
   if (!rows[ri]) return
-  if (rows[ri].length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn('同一行最多 ' + BUBBLE_PV_MOD_MAX + ' 个模块'); return }
-  rows[ri].push({ type: 'text', text: '新内容', size: 6, bold: true })
+  if (rows[ri].length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn(I('同一行最多 ') + BUBBLE_PV_MOD_MAX + I(' 个模块')); return }
+  rows[ri].push({ type: 'text', text: I('新内容'), size: 6, bold: true })
   bubblePvRowCommit(rows)
 }
 // 调色板拖到某行 = 把该模块并入这一行(图片除外:图片只能单独一整行)
@@ -10782,28 +11013,28 @@ function bubblePvPaletteToRow(key, ri) {
     var rows = bubblePvRowModel()
     if (!rows[ri]) return
     var tgt = rows[ri]
-    if (bubbleIsImgMod(tgt[0])) { bubblePvWarn('该行是图片类模块(图片/随机图片,独占一行):请拖到下方空白区另起一行'); return }
-    if (key === 'image' || key === 'randimg') { bubblePvWarn('图片模块必须独占一整行:请拖到下方空白区新增'); return }
+    if (bubbleIsImgMod(tgt[0])) { bubblePvWarn(I('该行是图片类模块(图片/随机图片,独占一行):请拖到下方空白区另起一行')); return }
+    if (key === 'image' || key === 'randimg') { bubblePvWarn(I('图片模块必须独占一整行:请拖到下方空白区新增')); return }
     if (key === 'wizard') key = 'text'
     var m = bubblePaletteModule(key)
     if (!m) return
-    if (tgt.length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn('同一行最多 ' + BUBBLE_PV_MOD_MAX + ' 个模块,无法再加入'); return }
+    if (tgt.length >= BUBBLE_PV_MOD_MAX) { bubblePvWarn(I('同一行最多 ') + BUBBLE_PV_MOD_MAX + I(' 个模块,无法再加入')); return }
     tgt.push(m)
     bubblePvRowCommit(rows)
   } catch (err) {}
 }
 // 调色板键 → 可加入的模块对象(random/lib 深拷贝;image 需走专门入口)
 function bubblePaletteModule(key) {
-  if (key === 'text') return { type: 'text', text: '新内容', size: 6, bold: true }
+  if (key === 'text') return { type: 'text', text: I('新内容'), size: 6, bold: true }
   if (key === 'balance') return { type: 'balance', size: 11, tpl: '{balance_ds}' }
   // v782：赠金 / 充值余额（拖拽路径；与上面「总余额(充值金额+赠金)」并列的两个内置数值模块）
   if (key === 'bonus') return { type: 'bonus', size: 11, tpl: '{bonus_ds}' }
   if (key === 'recharge') return { type: 'recharge', size: 11, tpl: '{recharge_ds}' }
-  if (key === 'today') return { type: 'today', size: 1, tpl: '今日已用 {expense_ds}' }
+  if (key === 'today') return { type: 'today', size: 1, tpl: I('今日已用 {expense_ds}') }
   if (key === 'peak') return { type: 'peak', size: 4, peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{status}' }
   if (key === 'nextpeak') return { type: 'peak', size: 6, bold: true, peakStyle: 'count', peakColor: '#e0433f', offColor: '#2fa24c', tpl: '{countdown}' }
   if (key === 'session') return { type: 'session', size: 4, bold: true, tpl: '{session}', len: WAIT_SESSION_MAX }
-  if (key === 'link') return { type: 'link', text: '打开链接', url: '', size: 6, color: '#2f4488' }
+  if (key === 'link') return { type: 'link', text: I('打开链接'), url: '', size: 6, color: '#2f4488' }
   if (key === 'randimg') return { type: 'randimg', imgs: [], imgScale: 1 }
   // 自定义 API 模型的余额模块（palette key = bal:<modelId>）
   if (typeof key === 'string' && key.indexOf('bal:') === 0) {
@@ -10815,7 +11046,7 @@ function bubblePaletteModule(key) {
   if (typeof key === 'string' && key.indexOf('qt:') === 0) {
     var am1 = apiModelById(key.slice(3))
     if (!am1) return null
-    return { type: 'quota', modelId: am1.id, size: 8, tpl: '已用 {quota} · 剩 {quota_left}' }
+    return { type: 'quota', modelId: am1.id, size: 8, tpl: I('已用 {quota} · 剩 {quota_left}') }
   }
   // 厂商订阅额度模块（palette key = pq:<modelId>）：时间窗口由模块里的「显示样式」决定
   if (typeof key === 'string' && key.indexOf('pq:') === 0) {
@@ -11017,12 +11248,12 @@ function renderBubblePv() {
       var isImgRow = bubbleIsImgMod(rowMods[0])
       var bar = document.createElement('div')
       bar.className = 'dshwv-pvrow dshwv-pvrowline'
-      bar.title = isImgRow ? (bubbleModuleSummary(rowMods[0]) + ' 独占一行:拖 ⠿ 可整行排序') : '同一行模块并排(≤6):拖 ⠿ 整行排序;拖模块块到某行左/右边缘=并入该行,上/下=另起一行'
+      bar.title = isImgRow ? (bubbleModuleSummary(rowMods[0]) + I(' 独占一行:拖 ⠿ 可整行排序')) : I('同一行模块并排(≤6):拖 ⠿ 整行排序;拖模块块到某行左/右边缘=并入该行,上/下=另起一行')
       // 行手柄:整行上下移动
       var grip = document.createElement('span')
       grip.className = 'dshwv-pvdrag'
       grip.textContent = '⠿'
-      grip.title = '按住拖动整行排序'
+      grip.title = I('按住拖动整行排序')
       grip.draggable = true
       grip.addEventListener('dragstart', function (e) {
         e.stopPropagation()
@@ -11039,7 +11270,7 @@ function renderBubblePv() {
           var blk = document.createElement('div')
           blk.className = 'dshwv-pvmod' + (bubbleIsImgMod(m) ? ' dshwv-pvimg' : '')
           blk.draggable = true
-          blk.title = isImgRow ? (bubbleModuleSummary(m) + '(独占一行,可整行排序)') : '拖动到某行:左/右边缘=并入该行首/尾,上/下=另起一行'
+          blk.title = isImgRow ? (bubbleModuleSummary(m) + I('(独占一行,可整行排序)')) : I('拖动到某行:左/右边缘=并入该行首/尾,上/下=另起一行')
           blk.addEventListener('dragstart', function (e) {
             e.stopPropagation()
             try { e.dataTransfer.setData('text/plain', 'mod:' + ri + ':' + mIdx) } catch (err) {}
@@ -11051,7 +11282,7 @@ function renderBubblePv() {
           var lab = document.createElement('span')
           lab.className = 'dshwv-pvlab'
           lab.textContent = bubbleModuleListLabel(m)
-          lab.title = '点击编辑该模块(内容/样式)'
+          lab.title = I('点击编辑该模块(内容/样式)')
           lab.addEventListener('click', function (e) {
             e.stopPropagation()
             bubbleModuleEdit(m, lab)
@@ -11061,7 +11292,7 @@ function renderBubblePv() {
           ed.type = 'button'
           ed.className = 'dshwv-bubmini'
           ed.textContent = '✎'
-          ed.title = '编辑该模块(内容/样式)'
+          ed.title = I('编辑该模块(内容/样式)')
           ed.addEventListener('click', function (e) {
             e.stopPropagation()
             bubbleModuleEdit(m, ed)
@@ -11071,7 +11302,7 @@ function renderBubblePv() {
           del.type = 'button'
           del.className = 'dshwv-bubmini'
           del.textContent = '✕'
-          del.title = '删除该模块'
+          del.title = I('删除该模块')
           del.addEventListener('click', function (e) { e.stopPropagation(); bubblePvDelBlock(ri, mIdx) })
           blk.appendChild(del)
           bar.appendChild(blk)
@@ -11083,7 +11314,7 @@ function renderBubblePv() {
         add.type = 'button'
         add.className = 'dshwv-pvadd'
         add.textContent = '+'
-        add.title = '把模块加入同一行(默认文本,并排显示;其余类型可把上方色板拖进本行)'
+        add.title = I('把模块加入同一行(默认文本,并排显示;其余类型可把上方色板拖进本行)')
         add.addEventListener('click', function (e) { e.stopPropagation(); bubblePvAddToRow(ri) })
         bar.appendChild(add)
       }
@@ -11176,7 +11407,7 @@ function bubbleItemDiscard() {
   renderBubbleMore()
 }
 function bubbleItemSave() {
-  showConfirm('保存该泡泡内容?', function () {
+  showConfirm(I('保存该泡泡内容?'), function () {
     var it = bubbleEditTarget()
     if (it) {
       it.kind = 'custom'
@@ -11190,7 +11421,7 @@ function bubbleItemSave() {
 }
 function bubbleItemResetToDefault() {
   // 用户 v630 确认:任何"第n次点击"泡(含并列 A/B)恢复默认 = 还原成首次点击泡的内容(靛蓝余额卡)
-  showConfirm('恢复该泡泡为默认内容(与首次点击泡一致)?', function () {
+  showConfirm(I('恢复该泡泡为默认内容(与首次点击泡一致)?'), function () {
     var it = bubbleEditTarget()
     if (it) {
       var mods = []
@@ -11220,25 +11451,25 @@ var bubbleCard = document.createElement('div')
 bubbleCard.className = 'dshwv-bubcard'
 var bubbleTitle = document.createElement('div')
 bubbleTitle.className = 'dshwv-bubtitle'
-bubbleTitle.textContent = '自定义泡泡'
+bubbleTitle.textContent = I('自定义泡泡')
 bubbleCard.appendChild(bubbleTitle)
 // 首次点击(固定一项)
 var bubbleSecFirst = document.createElement('div')
 bubbleSecFirst.className = 'dshwv-bubsec dshwv-bubsec-first'
-bubbleSecFirst.textContent = '首次点击弹出内容'
+bubbleSecFirst.textContent = I('首次点击弹出内容')
 bubbleCard.appendChild(bubbleSecFirst)
 var bubbleFirstRow = document.createElement('div')
 bubbleFirstRow.className = 'dshwv-bubrow'
 bubbleFirstChipEl = document.createElement('div')
 bubbleFirstChipEl.className = 'dshwv-bubchip'
-bubbleFirstChipEl.title = '点击编辑该泡泡的内容模块'
+bubbleFirstChipEl.title = I('点击编辑该泡泡的内容模块')
 bubbleFirstChipEl.addEventListener('click', function (e) { e.stopPropagation(); openBubbleItem(0) })
 bubbleFirstRow.appendChild(bubbleFirstChipEl)
 bubbleCard.appendChild(bubbleFirstRow)
 // 再次点击(可多条、可排序)
 var bubbleSecMore = document.createElement('div')
 bubbleSecMore.className = 'dshwv-bubsec'
-bubbleSecMore.textContent = '再次点击弹出内容'
+bubbleSecMore.textContent = I('再次点击弹出内容')
 bubbleCard.appendChild(bubbleSecMore)
 bubbleMoreListEl = document.createElement('div')
 bubbleMoreListEl.addEventListener('dragover', function (e) {
@@ -11258,7 +11489,7 @@ bubbleCard.appendChild(bubbleMoreListEl)
 var bubbleAddBtn = document.createElement('button')
 bubbleAddBtn.type = 'button'
 bubbleAddBtn.className = 'dshwv-bubadd'
-bubbleAddBtn.textContent = '+ 添加泡泡(点完上一个后显示下一个)'
+bubbleAddBtn.textContent = I('+ 添加泡泡(点完上一个后显示下一个)')
 bubbleAddBtn.addEventListener('click', bubbleAddMore)
 bubbleCard.appendChild(bubbleAddBtn)
 // ===== v821（P1·F1）：泡泡框库（入口在「点按角色推进泡泡队列」上方、分割线下方） =====
@@ -11299,12 +11530,12 @@ function frameLibSetLabel(txt) {
   } catch (err) {}
 }
 try { frameLibSetLabel(frameLibLabelText()) } catch (err) {}
-try { frameLibBtn.title = '选择保底泡泡框（点一下展开）' } catch (err) {}
+try { frameLibBtn.title = I('选择保底泡泡框（点一下展开）') } catch (err) {}
 var frameLibOpen = false
 function frameLibLabelText() {
   var f = framesNow()
   var cur = frameById(f.defaultFrameId) || frameBuiltin()
-  return '泡泡框（保底）：' + cur.name
+  return I('泡泡框（保底）：') + cur.name
 }
 function frameLibRefresh() {
   try { frameLibSetLabel(frameLibLabelText()) } catch (err) {}
@@ -11470,7 +11701,7 @@ function frameLibBuild() {
     var add0 = document.createElement('div')
     add0.className = 'dshwv-fadd'
     add0.textContent = '＋'
-    add0.title = '新建泡泡框'
+    add0.title = I('新建泡泡框')
     add0.addEventListener('click', function (e) {
       try { e.stopPropagation() } catch (err) {}
       openFrameEditor('new', null)
@@ -11484,7 +11715,7 @@ function frameLibBuild() {
       // v831（用户样图）：默认**只看缩略图**；鼠标悬浮时才出现"顶部名字胶囊 + 底部图标脚"
       row.className = 'dshwv-fcard' + (frame.id === f.defaultFrameId ? ' dshwv-fcard-on' : '') +
         (frame.id === frameLibNewId ? ' dshwv-fcard-new' : '')
-      row.title = frame.name + (frame.builtin ? '（内置，只读）' : '')
+      row.title = frame.name + (frame.builtin ? I('（内置，只读）') : '')
       try { row.setAttribute('data-fid', frame.id) } catch (err) {}
       // 缩略图：只画大泡泡（用户要求"只显示最大的框框"）
       var th = document.createElement('span')
@@ -11494,7 +11725,7 @@ function frameLibBuild() {
       var nm = document.createElement('span')
       nm.className = 'dshwv-fcardname'
       nm.textContent = frame.name + (frame.builtin ? '' : (frame.pinned > 0 ? ' 📌' : ''))
-      nm.title = frame.builtin ? '内置保底框（只读，可复制）' : ('置顶序号 ' + (frame.pinned || 0))
+      nm.title = frame.builtin ? I('内置保底框（只读，可复制）') : (I('置顶序号 ') + (frame.pinned || 0))
       row.appendChild(nm)
       var foot = document.createElement('div')
       foot.className = 'dshwv-fcardfoot'
@@ -11511,7 +11742,7 @@ function frameLibBuild() {
         frameInvalidateApplied()
         frameLibToggle(false) // 收起（内部会复位 frameLibOpen 并摘掉浮层）
       })
-      acts.appendChild(frameIconBtn('pin', frame.builtin ? '内置框固定排最后，不可置顶' : '置顶（只影响列表排序）', function () {
+      acts.appendChild(frameIconBtn('pin', frame.builtin ? I('内置框固定排最后，不可置顶') : I('置顶（只影响列表排序）'), function () {
         try {
           var maxP = 0
           f.frames.forEach(function (x) { if (x.pinned > maxP) maxP = x.pinned })
@@ -11521,15 +11752,15 @@ function frameLibBuild() {
           frameLibRefresh(); frameLibBuild()
         } catch (err) {}
       }, frame.builtin))
-      acts.appendChild(frameIconBtn('edit', frame.builtin ? '内置框只读：请先「复制」再改' : '编辑这个泡泡框', function () {
+      acts.appendChild(frameIconBtn('edit', frame.builtin ? I('内置框只读：请先「复制」再改') : I('编辑这个泡泡框'), function () {
         // v823（P2）：接入真正的形状编辑器（P1 时这里只给一句提示）
         openFrameEditor('edit', frame.id)
       }, frame.builtin))
-      acts.appendChild(frameIconBtn('copy', '复制成一个新的框（可再编辑）', function () {
+      acts.appendChild(frameIconBtn('copy', I('复制成一个新的框（可再编辑）'), function () {
         try {
           var copy = frameNormOne(JSON.parse(JSON.stringify(frame)), f.frames.length)
           copy.id = 'frame_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
-          copy.name = (frame.name + ' 副本').slice(0, 24)
+          copy.name = (frame.name + I(' 副本')).slice(0, 24)
           copy.builtin = false
           copy.createdAt = Date.now()
           copy.pinned = 0
@@ -11542,20 +11773,20 @@ function frameLibBuild() {
           frameLibRefresh(); frameLibBuild()
         } catch (err) {}
       }))
-      acts.appendChild(frameIconBtn('del', frame.builtin ? '内置保底框不可删除' : '删除这个框（二次确认）', function () {
+      acts.appendChild(frameIconBtn('del', frame.builtin ? I('内置保底框不可删除') : I('删除这个框（二次确认）'), function () {
         try {
           var refs = framesRefsOf(frame.id)
-          var tip = '删除泡泡框「' + frame.name + '」?' +
-            (refs > 0 ? ('\n它正被 ' + refs + ' 处「第 n 次点击」使用 —— 保存时会自动改回保底框。') : '')
+          var tip = I('删除泡泡框「') + frame.name + '」?' +
+            (refs > 0 ? (I('\n它正被 ') + refs + I(' 处「第 n 次点击」使用 —— 保存时会自动改回保底框。')) : '')
           showConfirm(tip, function () {
             try {
               f.frames = f.frames.filter(function (x) { return x.id !== frame.id })
               if (f.defaultFrameId === frame.id) f.defaultFrameId = BUILTIN_FRAME_ID
               bubbleFrames = framesNorm(f.frames, f.defaultFrameId)
               frameLibRefresh(); frameLibBuild(); frameInvalidateApplied()
-              if (refs > 0) { try { dshwvToast('已删除；保存后相关泡泡会改回保底框', 'ok') } catch (err) {} }
+              if (refs > 0) { try { dshwvToast(I('已删除；保存后相关泡泡会改回保底框'), 'ok') } catch (err) {} }
             } catch (err) {}
-          }, '删除')
+          }, I('删除'))
         } catch (err) {}
       }, frame.builtin))
       grid.appendChild(row)
@@ -11607,15 +11838,15 @@ var bubbleTapAdvLab = document.createElement('label')
 bubbleTapAdvLab.setAttribute('for', 'dshwv-tapadv')
 bubbleTapAdvLab.style.cursor = 'pointer'
 bubbleTapAdvLab.style.fontSize = '12px'
-bubbleTapAdvLab.textContent = '点按角色推进泡泡队列'
+bubbleTapAdvLab.textContent = I('点按角色推进泡泡队列')
 // v777（用户要求）：原来跟在标签后面的那一行说明字（「关闭＝点角色回到第 1 个泡泡；开启＝点一下往后一个」）
 // 收进问号圈圈里 —— 复用 v647 的 dshwvAskDot（悬停即显示、点击固定、触摸端点按开关），与
 // 「提示与音效设置」面板底部那一行同款。说明里顺带把原来 title 里的完整描述也写进去。
 // v777b（2026-09-27 追加要求）：? 圈圈放在**文字后面**，并把与文字的间距收紧（同面板那处）。
 // v777d：「再稍稍右移」⇒ margin-left 由 -3px 改成 0（间距 = 行的自然列间距 6px）。
 var bubbleTapAdvAsk = dshwvAskDot(
-  '关闭（默认）：<b>点角色</b>＝回到第 1 个泡泡（点泡泡才是往后推进）。<br><br>' +
-  '开启：<b>点一下角色 = 往后推进一项</b>（不再回到首次点击泡泡）；走到最后一项再点＝收起泡泡。'
+  I('关闭（默认）：<b>点角色</b>＝回到第 1 个泡泡（点泡泡才是往后推进）。<br><br>') +
+  I('开启：<b>点一下角色 = 往后推进一项</b>（不再回到首次点击泡泡）；走到最后一项再点＝收起泡泡。')
 )
 bubbleTapAdvAsk.style.marginLeft = '0'
 bubbleTapAdvAsk.style.marginRight = '0'
@@ -11637,15 +11868,15 @@ function bubbleBtn(label, cls, fn) {
   b.addEventListener('click', function (e) { e.stopPropagation(); fn() })
   return b
 }
-bubbleBtns.appendChild(bubbleBtn('取消', 'dshwv-bubbtn-no', function () {
+bubbleBtns.appendChild(bubbleBtn(I('取消'), 'dshwv-bubbtn-no', function () {
   // v840：取消 = 连"框库/保底"的改动一起丢弃（换框是立即生效的，不还原就会"取消不掉"）
   var leave = function () { bubbleEditorRestoreFrames(); closeBubbleEditor() }
   // 未做任何修改:直接关闭,不再二次确认
-  if (bubbleEditorDirty()) showConfirm('放弃未保存的更改?', leave)
+  if (bubbleEditorDirty()) showConfirm(I('放弃未保存的更改?'), leave)
   else leave()
 }))
-bubbleBtns.appendChild(bubbleBtn('重置', 'dshwv-bubbtn-no', bubbleEditorReset))
-bubbleBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', bubbleEditorSave))
+bubbleBtns.appendChild(bubbleBtn(I('重置'), 'dshwv-bubbtn-no', bubbleEditorReset))
+bubbleBtns.appendChild(bubbleBtn(I('保存'), 'dshwv-bubbtn-ok', bubbleEditorSave))
 bubbleCard.appendChild(bubbleBtns)
 bubbleMask.appendChild(bubbleCard)
 dshwBodyAppend(bubbleMask)
@@ -11665,16 +11896,16 @@ bubbleItemSideEl.style.display = 'none'
 bubbleItemCard.appendChild(bubbleItemSideEl)
 var bubbleSecPal = document.createElement('div')
 bubbleSecPal.className = 'dshwv-bubsec dshwv-bubsec-first dshwv-bubsec-withq'
-bubbleSecPal.textContent = '可选模块'
+bubbleSecPal.textContent = I('可选模块')
 // 原「可选模块(点击或拖入…)」与「泡泡内容预览(同一行并排…拖 ⠿ 整行排序)」的说明收进「?」圈
 bubbleSecPal.insertBefore(dshwvAskDot(
-  '<div style="font-weight:600;margin-bottom:4px">可选模块 &amp; 泡泡内容预览</div>' +
-  '<div>点击「可选模块」即可加入泡泡;桌面端也可直接拖到下方泡泡框。</div>' +
-  '<div style="margin-top:4px">同一行模块并排显示(≤6 个):</div>' +
-  '<div>· 拖模块块到某行左/右边缘 = 并入该行</div>' +
-  '<div>· 拖到某行上/下 = 另起一行(拖回本行上下 = 拆行)</div>' +
-  '<div>· 拖 ⠿ 手柄 = 整行排序</div>' +
-  '<div style="margin-top:4px;opacity:.75">手机端:长按约 0.4 秒进入拖动</div>'
+  I('<div style="font-weight:600;margin-bottom:4px">可选模块 &amp; 泡泡内容预览</div>') +
+  I('<div>点击「可选模块」即可加入泡泡;桌面端也可直接拖到下方泡泡框。</div>') +
+  I('<div style="margin-top:4px">同一行模块并排显示(≤6 个):</div>') +
+  I('<div>· 拖模块块到某行左/右边缘 = 并入该行</div>') +
+  I('<div>· 拖到某行上/下 = 另起一行(拖回本行上下 = 拆行)</div>') +
+  I('<div>· 拖 ⠿ 手柄 = 整行排序</div>') +
+  I('<div style="margin-top:4px;opacity:.75">手机端:长按约 0.4 秒进入拖动</div>')
 ), bubbleSecPal.firstChild)
 bubbleItemCard.appendChild(bubbleSecPal)
 bubblePalEl = document.createElement('div')
@@ -11770,7 +12001,7 @@ function framePickButton(curId, onPick) {
   var cur = String(curId || '')
   function label() {
     var f = cur ? frameById(cur) : null
-    var t2 = f ? ('泡泡框：' + f.name) : ('跟随保底（' + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）')
+    var t2 = f ? (I('泡泡框：') + f.name) : (I('跟随保底（') + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）')
     try { tx.textContent = t2 } catch (err) {}
     try { btn.title = t2 } catch (err) {}
   }
@@ -11800,9 +12031,9 @@ function framePickButton(curId, onPick) {
       })
       grid.appendChild(c)
     }
-    card(frameById(framesNow().defaultFrameId) || frameBuiltin(), '跟随保底框', '')
+    card(frameById(framesNow().defaultFrameId) || frameBuiltin(), I('跟随保底框'), '')
     framesNow().frames.forEach(function (f) {
-      card(f, f.name + (f.builtin ? '（内置）' : ''), f.id)
+      card(f, f.name + (f.builtin ? I('（内置）') : ''), f.id)
     })
   }
   btn.addEventListener('click', function (e) {
@@ -11817,7 +12048,7 @@ function framePickButton(curId, onPick) {
 function frameStepRefresh() {
   try {
     var f = frameStepCurrent()
-    var txt = '泡泡框：' + (f ? f.name : ('跟随保底（' + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）'))
+    var txt = I('泡泡框：') + (f ? f.name : (I('跟随保底（') + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）'))
     // 文字写进内层 span（▾ 是独立元素、贴右）；span 万一不在就退回写按钮本身
     if (frameStepBtnText) frameStepBtnText.textContent = txt
     else frameStepBtn.textContent = txt
@@ -11873,10 +12104,10 @@ function frameStepToggle(force) {
       grid2.appendChild(card)
     }
     // ① 跟随保底
-    stepCard(frameById(framesNow().defaultFrameId) || frameBuiltin(), '跟随保底框', function () { frameStepSet('') }, true)
+    stepCard(frameById(framesNow().defaultFrameId) || frameBuiltin(), I('跟随保底框'), function () { frameStepSet('') }, true)
     // ② 库里的每个框（只提供"选择"：点即选、没有置顶/编辑/复制/删除）
     framesNow().frames.forEach(function (frame) {
-      stepCard(frame, frame.name + (frame.builtin ? '（内置）' : ''), function () { frameStepSet(frame.id) }, false)
+      stepCard(frame, frame.name + (frame.builtin ? I('（内置）') : ''), function () { frameStepSet(frame.id) }, false)
     })
     frameMenuSetOpen(frameStepMenu, frameStepBtn) // v826：浮层（不再撑高卡片、点别处自收）
     frameStepRefresh()
@@ -11889,7 +12120,7 @@ function frameStepToggle(force) {
 //   `frameFieldsOf()`/`bubbleStepToSaved()` 照旧带它）—— 老配置里若已有覆盖值，行为与渲染一字不变。
 var bubbleSecPv = document.createElement('div')
 bubbleSecPv.className = 'dshwv-bubsec'
-bubbleSecPv.textContent = '泡泡内容预览'
+bubbleSecPv.textContent = I('泡泡内容预览')
 bubbleItemCard.appendChild(bubbleSecPv)
 bubblePvEl = document.createElement('div')
 bubblePvEl.className = 'dshwv-bubpvbox'
@@ -11932,11 +12163,11 @@ bubblePvPrevEl.className = 'dshwv-bubprev'
 bubbleItemCard.appendChild(bubblePvPrevEl)
 var bubbleItemBtns = document.createElement('div')
 bubbleItemBtns.className = 'dshwv-bubbtns'
-bubbleItemBtns.appendChild(bubbleBtn('取消', 'dshwv-bubbtn-no', function () {
-  showConfirm('放弃该泡泡的未保存修改?', function () { bubbleItemDiscard() })
+bubbleItemBtns.appendChild(bubbleBtn(I('取消'), 'dshwv-bubbtn-no', function () {
+  showConfirm(I('放弃该泡泡的未保存修改?'), function () { bubbleItemDiscard() })
 }))
-bubbleItemBtns.appendChild(bubbleBtn('恢复默认', 'dshwv-bubbtn-no', bubbleItemResetToDefault))
-bubbleItemBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', bubbleItemSave))
+bubbleItemBtns.appendChild(bubbleBtn(I('恢复默认'), 'dshwv-bubbtn-no', bubbleItemResetToDefault))
+bubbleItemBtns.appendChild(bubbleBtn(I('保存'), 'dshwv-bubbtn-ok', bubbleItemSave))
 bubbleItemCard.appendChild(bubbleItemBtns)
 bubbleItemMask.appendChild(bubbleItemCard)
 dshwBodyAppend(bubbleItemMask)
@@ -12002,7 +12233,7 @@ function bubbleColorEdit(container, getCss, setCss, label) {
   var row = document.createElement('div')
   row.className = 'dshwv-audiorow'
   var lb = document.createElement('span')
-  lb.textContent = label || '颜色'
+  lb.textContent = label || I('颜色')
   row.appendChild(lb)
   var inp = document.createElement('input')
   inp.type = 'color'
@@ -12011,8 +12242,8 @@ function bubbleColorEdit(container, getCss, setCss, label) {
   var def = document.createElement('button')
   def.type = 'button'
   def.className = 'dshwv-snapbtn dshwv-snapbtn-no'
-  def.textContent = '默认'
-  def.title = '恢复默认颜色'
+  def.textContent = I('默认')
+  def.title = I('恢复默认颜色')
   def.addEventListener('click', function () { setCss(''); sync() })
   row.appendChild(def)
   container.appendChild(row)
@@ -12194,7 +12425,7 @@ function dshwDropOpen(menuEl, anchorEl) {
     // v750（issue #131）：visibleTopZ() 单独 try/catch —— 算不出最高层也必须把层级抬上去，
     // 并且打一条 warn（原先异常被外层空 catch 吞掉，表现为"下拉点了没反应"且毫无线索）
     var vTop = 20500
-    try { vTop = visibleTopZ() } catch (err) { try { console.warn('[dsh-whale] visibleTopZ 失败，下拉改用兜底层级：', err) } catch (e2) {} }
+    try { vTop = visibleTopZ() } catch (err) { try { console.warn(I('[dsh-whale] visibleTopZ 失败，下拉改用兜底层级：'), err) } catch (e2) {} }
     menuEl.style.zIndex = String(Math.max(26010, Math.round(vTop) + 10))
   } catch (err) {}
 }
@@ -12234,34 +12465,34 @@ function bubbleRgbSelect(current, cb) {
   wrap.className = 'dshwv-rgbwrap'
   var cur = current === true ? 'macaron' : (current || '')
   var opts = [
-    ['', '无'],
-    ['macaron', '马卡龙'],
-    ['candy', '糖果'],
-    ['rouge', '酒红'],
-    ['bamboo', '翠青'],
-    ['aurora', '极光幻彩'],
-    ['deepsea', '深海蓝调'],
-    ['sunset', '落日熔金'],
-    ['forest', '森林秘语'],
-    ['champagne', '香槟鎏金'],
-    ['lavender', '薰衣草梦境'],
-    ['mint', '薄荷汽水'],
-    ['lava', '岩浆熔岩'],
-    ['galaxy', '银河星紫'],
-    ['ink', '墨韵黑白'],
-    ['indigo', '靛蓝夜曲'],
-    ['blaze', '火红烈焰'],
-    ['amber', '警示橙黄'],
+    ['', I('无')],
+    ['macaron', I('马卡龙')],
+    ['candy', I('糖果')],
+    ['rouge', I('酒红')],
+    ['bamboo', I('翠青')],
+    ['aurora', I('极光幻彩')],
+    ['deepsea', I('深海蓝调')],
+    ['sunset', I('落日熔金')],
+    ['forest', I('森林秘语')],
+    ['champagne', I('香槟鎏金')],
+    ['lavender', I('薰衣草梦境')],
+    ['mint', I('薄荷汽水')],
+    ['lava', I('岩浆熔岩')],
+    ['galaxy', I('银河星紫')],
+    ['ink', I('墨韵黑白')],
+    ['indigo', I('靛蓝夜曲')],
+    ['blaze', I('火红烈焰')],
+    ['amber', I('警示橙黄')],
   ]
   function labelOf(v) {
     for (var i = 0; i < opts.length; i++) if (opts[i][0] === v) return opts[i][1]
-    return '无'
+    return I('无')
   }
   var head = document.createElement('button')
   head.type = 'button'
   head.className = 'dshwv-rgbhead'
   head.textContent = labelOf(cur)
-  head.title = '选择跑马灯方案'
+  head.title = I('选择跑马灯方案')
   wrap.appendChild(head)
   var menu = document.createElement('div')
   menu.className = 'dshwv-rgbmenu'
@@ -12312,17 +12543,17 @@ function bubbleRgbSelect(current, cb) {
 function bubbleFontEditRow(getVal, setVal) {
   // 字体选择:系统字体下拉(仅可选项,去掉自定义字体名),列表限高滚动
   var FONT_OPTIONS = [
-    ['', '默认字体'],
-    ['"Microsoft YaHei",sans-serif', '微软雅黑'],
-    ['"PingFang SC","Microsoft YaHei",sans-serif', '苹方/雅黑'],
-    ['DengXian,"Microsoft YaHei",sans-serif', '等线'],
-    ['SimSun,serif', '宋体'],
-    ['SimHei,sans-serif', '黑体'],
-    ['KaiTi,serif', '楷体'],
-    ['FangSong,serif', '仿宋'],
-    ['STKaiti,KaiTi,serif', '华文楷体'],
+    ['', I('默认字体')],
+    ['"Microsoft YaHei",sans-serif', I('微软雅黑')],
+    ['"PingFang SC","Microsoft YaHei",sans-serif', I('苹方/雅黑')],
+    ['DengXian,"Microsoft YaHei",sans-serif', I('等线')],
+    ['SimSun,serif', I('宋体')],
+    ['SimHei,sans-serif', I('黑体')],
+    ['KaiTi,serif', I('楷体')],
+    ['FangSong,serif', I('仿宋')],
+    ['STKaiti,KaiTi,serif', I('华文楷体')],
     ['"Noto Sans SC",sans-serif', 'Noto Sans SC'],
-    ['"Source Han Sans SC",sans-serif', '思源黑体'],
+    ['"Source Han Sans SC",sans-serif', I('思源黑体')],
     ['"Segoe UI",sans-serif', 'Segoe UI'],
     ['Arial,Helvetica,sans-serif', 'Arial'],
     ['Helvetica,Arial,sans-serif', 'Helvetica'],
@@ -12339,14 +12570,14 @@ function bubbleFontEditRow(getVal, setVal) {
   var row = document.createElement('div')
   row.className = 'dshwv-audiorow'
   var fl = document.createElement('span')
-  fl.textContent = '字体'
+  fl.textContent = I('字体')
   row.appendChild(fl)
   var box = document.createElement('div')
   box.className = 'dshwv-rgbwrap dshwv-fontwrap'
   var head = document.createElement('button')
   head.type = 'button'
   head.className = 'dshwv-rgbhead'
-  head.title = '选择系统字体'
+  head.title = I('选择系统字体')
   box.appendChild(head)
   var menu = document.createElement('div')
   menu.className = 'dshwv-rgbmenu dshwv-fontmenu'
@@ -12354,13 +12585,13 @@ function bubbleFontEditRow(getVal, setVal) {
   function labelOf(v) {
     for (var i = 0; i < FONT_OPTIONS.length; i++) if (FONT_OPTIONS[i][0] === v) return FONT_OPTIONS[i][1]
     if (v) return String(v).slice(0, 14)
-    return '默认字体'
+    return I('默认字体')
   }
   function syncHead() {
     var v = currentVal()
     head.textContent = labelOf(v)
     head.style.fontFamily = v || ''
-    head.title = '当前: ' + (v || '默认字体') + ';点击选择系统字体'
+    head.title = I('当前: ') + (v || I('默认字体')) + I(';点击选择系统字体')
   }
   function optionList() {
     var list = []
@@ -12426,21 +12657,21 @@ function bubbleFontEditRow(getVal, setVal) {
   return row
 }
 function moduleTypeName(t, m) {
-  if (t === 'balance') return '总余额(充值金额+赠金)'
+  if (t === 'balance') return I('总余额(充值金额+赠金)')
   // v782：赠金 / 充值余额两个数值模块的类型名（v787 改显示文案）
-  if (t === 'bonus') return '赠金'
-  if (t === 'recharge') return '充值余额'
-  if (t === 'today') return '今日已用'
-  if (t === 'session') return '对话名'
+  if (t === 'bonus') return I('赠金')
+  if (t === 'recharge') return I('充值余额')
+  if (t === 'today') return I('今日已用')
+  if (t === 'session') return I('对话名')
   if (t === 'peak' || t === 'nextpeak') {
     // 峰谷模块按显示样式给名(倒计时/简洁等);无模块对象时退回通用名
     if (m) return bubblePeakModuleLabel(m)
-    return t === 'nextpeak' ? '时段倒计时' : '峰谷时段'
+    return t === 'nextpeak' ? I('时段倒计时') : I('峰谷时段')
   }
-  if (t === 'image') return '图片/动图'
-  if (t === 'randimg') return '随机图片'
-  if (t === 'random') return '随机语句'
-  return '文本'
+  if (t === 'image') return I('图片/动图')
+  if (t === 'randimg') return I('随机图片')
+  if (t === 'random') return I('随机语句')
+  return I('文本')
 }
 function renderModuleEditor() {
   var m = moduleEditRef
@@ -12454,13 +12685,13 @@ function renderModuleEditor() {
   moduleColorEl = null
   moduleSizeEl = null
   moduleBodyEl.innerHTML = ''
-  moduleTitleEl.textContent = (moduleEditNew ? '新增模块: ' : '编辑模块: ') + moduleTypeName(m.type, m)
+  moduleTitleEl.textContent = (moduleEditNew ? I('新增模块: ') : I('编辑模块: ')) + moduleTypeName(m.type, m)
   // 内容模板行:留空=默认自动文案;占位符按模块给英文(可扩展其他 API 字段)
   function moduleTplRow() {
     var row = document.createElement('div')
     row.className = 'dshwv-audiorow'
     var lab = document.createElement('span')
-    lab.textContent = '内容'
+    lab.textContent = I('内容')
     lab.style.flex = '0 0 auto'
     row.appendChild(lab)
     var inp = document.createElement('input')
@@ -12476,24 +12707,24 @@ function renderModuleEditor() {
     inp.style.background = '#fff'
     inp.value = m.tpl || ''
     function hintOf() {
-      if (m.type === 'balance') return '例: {balance_ds}'
-      if (m.type === 'bonus') return '例: {bonus_ds} 或 赠金 {bonus_ds}'
-      if (m.type === 'recharge') return '例: {recharge_ds} 或 余额 {recharge_ds}'
-      if (m.type === 'today') return '例: 今日已用 {expense_ds}'
-      if (m.type === 'session') return '例: {session} 或 当前对话 {session}'
-      if (bubbleIsPeakCount(m)) return '例: 距空闲 {countdown}'
-      return '例: 当前 {status}'
+      if (m.type === 'balance') return I('例: {balance_ds}')
+      if (m.type === 'bonus') return I('例: {bonus_ds} 或 赠金 {bonus_ds}')
+      if (m.type === 'recharge') return I('例: {recharge_ds} 或 余额 {recharge_ds}')
+      if (m.type === 'today') return I('例: 今日已用 {expense_ds}')
+      if (m.type === 'session') return I('例: {session} 或 当前对话 {session}')
+      if (bubbleIsPeakCount(m)) return I('例: 距空闲 {countdown}')
+      return I('例: 当前 {status}')
     }
     var hp = hintOf()
     inp.placeholder = hp
-    inp.title = '输入内容;右侧 ? 查看可用占位符'
+    inp.title = I('输入内容;右侧 ? 查看可用占位符')
     inp.addEventListener('input', function () { m.tpl = inp.value })
     row.appendChild(inp)
     var qb = document.createElement('button')
     qb.type = 'button'
     qb.className = 'dshwv-tplq'
     qb.textContent = '?'
-    qb.title = '可用占位符用法'
+    qb.title = I('可用占位符用法')
     qb.addEventListener('click', function (e) { e.stopPropagation(); bubbleTplHelpToggle(m, qb) })
     row.appendChild(qb)
     moduleBodyEl.appendChild(row)
@@ -12503,15 +12734,15 @@ function renderModuleEditor() {
     var tr = document.createElement('div')
     tr.className = 'dshwv-audiorow'
     var tl = document.createElement('span')
-    tl.textContent = '类型'
+    tl.textContent = I('类型')
     tr.appendChild(tl)
     var tsel = document.createElement('select')
     tsel.className = 'dshwv-sound'
     var topts = [
-      ['text', '文本'],
-      ['random', '随机语句'],
-      ['image', '图片/动图'],
-      ['randimg', '随机图片'],
+      ['text', I('文本')],
+      ['random', I('随机语句')],
+      ['image', I('图片/动图')],
+      ['randimg', I('随机图片')],
     ]
     for (var ti2 = 0; ti2 < topts.length; ti2++) {
       var o2 = document.createElement('option')
@@ -12540,7 +12771,7 @@ function renderModuleEditor() {
   if (bubbleLib.length) {
     var lr2 = document.createElement('div')
     lr2.className = 'dshwv-bubsec'
-    lr2.textContent = '从模块库载入'
+    lr2.textContent = I('从模块库载入')
     moduleBodyEl.appendChild(lr2)
     for (var li3 = 0; li3 < bubbleLib.length; li3++) {
       (function (lb) {
@@ -12550,7 +12781,7 @@ function renderModuleEditor() {
         lbtn.type = 'button'
         lbtn.className = 'dshwv-bubnewbtn'
         lbtn.textContent = lb.name
-        lbtn.title = '将该模块配置载入当前编辑'
+        lbtn.title = I('将该模块配置载入当前编辑')
         lbtn.addEventListener('click', function () {
           var c = bubbleCloneModule(lb.module)
           var oldKeys = Object.keys(m)
@@ -12566,9 +12797,9 @@ function renderModuleEditor() {
         ldel.type = 'button'
         ldel.className = 'dshwv-bubmini'
         ldel.textContent = '✕'
-        ldel.title = '从模块库删除'
+        ldel.title = I('从模块库删除')
         ldel.addEventListener('click', function () {
-          showConfirm('从模块库删除「' + lb.name + '」?', function () {
+          showConfirm(I('从模块库删除「') + lb.name + '」?', function () {
             bubbleLibDel(lb.id)
             renderModuleEditor()
             if (bubblePalEl) renderBubblePal()
@@ -12586,7 +12817,7 @@ function renderModuleEditor() {
     ti.className = 'dshwv-cropname'
     ti.maxLength = 60
     ti.value = m.text || ''
-    ti.placeholder = '文本内容'
+    ti.placeholder = I('文本内容')
     ti.addEventListener('input', function () { m.text = ti.value || ' ' })
     moduleBodyEl.appendChild(ti)
   } else if (m.type === 'random') {
@@ -12595,15 +12826,15 @@ function renderModuleEditor() {
     hint.className = 'dshwv-linehead'
     var hw = document.createElement('span')
     hw.className = 'dshwv-lhw'
-    hw.textContent = '权重'
+    hw.textContent = I('权重')
     hint.appendChild(hw)
     var hc = document.createElement('span')
     hc.className = 'dshwv-lhc'
-    hc.textContent = '内容'
+    hc.textContent = I('内容')
     hint.appendChild(hc)
     var ho = document.createElement('span')
     ho.className = 'dshwv-lho'
-    ho.textContent = '操作'
+    ho.textContent = I('操作')
     hint.appendChild(ho)
     moduleBodyEl.appendChild(hint)
     if (!Array.isArray(m.lines)) m.lines = []
@@ -12622,7 +12853,7 @@ function renderModuleEditor() {
       var r2 = document.createElement('div')
       r2.className = 'dshwv-audiorow'
       var c2 = document.createElement('span')
-      c2.textContent = '字号'
+      c2.textContent = I('字号')
       r2.appendChild(c2)
       var ps = document.createElement('input')
       ps.type = 'range'
@@ -12641,7 +12872,7 @@ function renderModuleEditor() {
       // 自定义字体选择(写入本句 fontFamily)
       box.appendChild(bubbleFontEditRow(function () { return lineVal(l.fontFamily, m.fontFamily, '') }, function (v) { l.fontFamily = v || '' }))
       // 颜色(有跑马灯时不显示颜色行)
-      if (!l.rgb) bubbleColorEdit(box, function () { return lineVal(l.color, m.color, '') }, function (v) { l.color = v }, '颜色')
+      if (!l.rgb) bubbleColorEdit(box, function () { return lineVal(l.color, m.color, '') }, function (v) { l.color = v }, I('颜色'))
       // 底色(仅该句;默认无;纯色/跑马灯)
       var lbgV = (l.bgRgb) ? l.bgRgb : (l.bg ? 'solid' : (m.bgRgb ? m.bgRgb : (m.bg ? 'solid' : 'none')))
       var lbgHex0 = l.bg || m.bg || '#dbe4f5'
@@ -12650,7 +12881,7 @@ function renderModuleEditor() {
         else if (v === 'solid') { l.bgRgb = ''; if (!l.bg) l.bg = lbgHex0 }
         else { l.bgRgb = v; l.bg = '' }
         lbgc.sync(v === 'none' ? 'none' : v, l.bg || lbgHex0, function (h) { l.bg = h })
-      }, { label: '底色', defaultHex: lbgHex0, defaultText: '默认', allowNone: true })
+      }, { label: I('底色'), defaultHex: lbgHex0, defaultText: I('默认'), allowNone: true })
       box.appendChild(lbgc.row)
       lbgc.sync(lbgV, lbgHex0, function (h) { l.bg = h })
       // 字形:加粗/斜体/下划线 + 跑马灯
@@ -12677,7 +12908,7 @@ function renderModuleEditor() {
       r3.appendChild(lb2('斜体', 'italic'))
       r3.appendChild(lb2('下划线', 'ul'))
       var r3l = document.createElement('span')
-      r3l.textContent = '跑马灯'
+      r3l.textContent = I('跑马灯')
       r3.appendChild(r3l)
       r3.appendChild(bubbleRgbSelect(l.rgb, function (v) { l.rgb = v; linePanel(l, box) }))
       box.appendChild(r3)
@@ -12700,28 +12931,28 @@ function renderModuleEditor() {
           wt.max = '99'
           wt.className = 'dshwv-linew'
           wt.value = String(l.w || 1)
-          wt.title = '权重'
+          wt.title = I('权重')
           wt.addEventListener('input', function () { l.w = Math.max(1, Math.round(Number(wt.value) || 1)) })
           lr.appendChild(wt)
           var tx = document.createElement('input')
           tx.type = 'text'
           tx.className = 'dshwv-linetx'
           tx.value = l.t
-          tx.placeholder = '句子'
+          tx.placeholder = I('句子')
           tx.addEventListener('input', function () { l.t = tx.value || ' ' })
           lr.appendChild(tx)
           var ed = document.createElement('button')
           ed.type = 'button'
           ed.className = 'dshwv-bubmini'
           ed.textContent = '✎'
-          ed.title = '该句悬浮样式编辑(句子/字号/字体/颜色/字形)'
+          ed.title = I('该句悬浮样式编辑(句子/字号/字体/颜色/字形)')
           ed.addEventListener('click', function (e) { e.stopPropagation(); openQuickSentenceEditor(l, m, tx, ed) })
           lr.appendChild(ed)
           var cp = document.createElement('button')
           cp.type = 'button'
           cp.className = 'dshwv-bubmini'
           cp.textContent = '⧉'
-          cp.title = '复制该行(含样式)'
+          cp.title = I('复制该行(含样式)')
           cp.addEventListener('click', function () {
             m.lines.splice(idx + 1, 0, JSON.parse(JSON.stringify(l)))
             renderLines()
@@ -12731,7 +12962,7 @@ function renderModuleEditor() {
           del.type = 'button'
           del.className = 'dshwv-linedel'
           del.textContent = '✕'
-          del.title = '删除该句'
+          del.title = I('删除该句')
           del.addEventListener('click', function () { m.lines.splice(idx, 1); renderLines() })
           lr.appendChild(del)
           wrap.appendChild(lr)
@@ -12743,8 +12974,8 @@ function renderModuleEditor() {
     var addL = document.createElement('button')
     addL.type = 'button'
     addL.className = 'dshwv-addline'
-    addL.textContent = '+ 添加语句'
-    addL.addEventListener('click', function () { m.lines.push({ t: '新句子', w: 1 }); renderLines() })
+    addL.textContent = I('+ 添加语句')
+    addL.addEventListener('click', function () { m.lines.push({ t: I('新句子'), w: 1 }); renderLines() })
     moduleBodyEl.appendChild(addL)
   } else if (m.type === 'image') {
     moduleImgSelect = document.createElement('select')
@@ -12759,7 +12990,7 @@ function renderModuleEditor() {
       moduleImgSelect.innerHTML = ''
       var opt0 = document.createElement('option')
       opt0.value = ''
-      opt0.textContent = '— 选择泡泡图库图片 —'
+      opt0.textContent = I('— 选择泡泡图库图片 —')
       moduleImgSelect.appendChild(opt0)
       for (var i = 0; i < bubbleImgList.length; i++) {
         var o = document.createElement('option')
@@ -12783,7 +13014,7 @@ function renderModuleEditor() {
     var upBtn = document.createElement('button')
     upBtn.type = 'button'
     upBtn.className = 'dshwv-snapbtn dshwv-snapbtn-no'
-    upBtn.textContent = '上传图片(png/gif)'
+    upBtn.textContent = I('上传图片(png/gif)')
     upBtn.addEventListener('click', function () { fileInput.click() })
     fileInput.addEventListener('change', function () {
       var f = fileInput.files && fileInput.files[0]
@@ -12802,7 +13033,7 @@ function renderModuleEditor() {
     var scRow = document.createElement('div')
     scRow.className = 'dshwv-audiorow'
     var scL = document.createElement('span')
-    scL.textContent = '显示大小'
+    scL.textContent = I('显示大小')
     scRow.appendChild(scL)
     var scInit = Number(m.imgScale)
     if (!isFinite(scInit) || scInit <= 0) scInit = 1
@@ -12834,15 +13065,15 @@ function renderModuleEditor() {
     rhint.className = 'dshwv-linehead'
     var rhw = document.createElement('span')
     rhw.className = 'dshwv-lhw'
-    rhw.textContent = '权重'
+    rhw.textContent = I('权重')
     rhint.appendChild(rhw)
     var rhc = document.createElement('span')
     rhc.className = 'dshwv-lhc'
-    rhc.textContent = '图片'
+    rhc.textContent = I('图片')
     rhint.appendChild(rhc)
     var rho = document.createElement('span')
     rho.className = 'dshwv-lho'
-    rho.textContent = '操作'
+    rho.textContent = I('操作')
     // 与行内尾部控件(缩略图26+⧉22+✕18+3个8px间距=82)对齐,表头列宽随之内缩
     rho.style.flex = '0 0 82px'
     rhint.appendChild(rho)
@@ -12873,7 +13104,7 @@ function renderModuleEditor() {
           wt2.max = '99'
           wt2.className = 'dshwv-linew'
           wt2.value = String(it2.w || 1)
-          wt2.title = '权重(越大越容易被抽到)'
+          wt2.title = I('权重(越大越容易被抽到)')
           wt2.addEventListener('input', function () { it2.w = Math.max(1, Math.round(Number(wt2.value) || 1)) })
           lr2.appendChild(wt2)
           var sel2 = document.createElement('select')
@@ -12882,7 +13113,7 @@ function renderModuleEditor() {
           sel2.style.minWidth = '0'
           var oo0 = document.createElement('option')
           oo0.value = ''
-          oo0.textContent = '— 选择泡泡图库图片 —'
+          oo0.textContent = I('— 选择泡泡图库图片 —')
           sel2.appendChild(oo0)
           for (var bi2 = 0; bi2 < bubbleImgList.length; bi2++) {
             var ob2 = document.createElement('option')
@@ -12911,14 +13142,14 @@ function renderModuleEditor() {
           cp2.type = 'button'
           cp2.className = 'dshwv-bubmini'
           cp2.textContent = '⧉'
-          cp2.title = '复制该项'
+          cp2.title = I('复制该项')
           cp2.addEventListener('click', function () { m.imgs.splice(idx2 + 1, 0, { imgId: it2.imgId, w: it2.w }); renderImgItems() })
           lr2.appendChild(cp2)
           var del2 = document.createElement('button')
           del2.type = 'button'
           del2.className = 'dshwv-linedel'
           del2.textContent = '✕'
-          del2.title = '删除该图片'
+          del2.title = I('删除该图片')
           del2.addEventListener('click', function () { m.imgs.splice(idx2, 1); renderImgItems() })
           lr2.appendChild(del2)
           wrap2.appendChild(lr2)
@@ -12928,7 +13159,7 @@ function renderModuleEditor() {
       if (!m.imgs.length) {
         var emptyImg = document.createElement('div')
         emptyImg.className = 'dshwv-bubhint'
-        emptyImg.textContent = '还没有图片:点「添加图片」从图库选,或「上传图片(png/gif)」直接加入'
+        emptyImg.textContent = I('还没有图片:点「添加图片」从图库选,或「上传图片(png/gif)」直接加入')
         rlistEl.appendChild(emptyImg)
       }
     }
@@ -12936,7 +13167,7 @@ function renderModuleEditor() {
     var addImgBtn = document.createElement('button')
     addImgBtn.type = 'button'
     addImgBtn.className = 'dshwv-addline'
-    addImgBtn.textContent = '+ 添加图片(从图库选)'
+    addImgBtn.textContent = I('+ 添加图片(从图库选)')
     addImgBtn.addEventListener('click', function () { m.imgs.push({ imgId: '', w: 1 }); renderImgItems() })
     moduleBodyEl.appendChild(addImgBtn)
     var upRow2 = document.createElement('div')
@@ -12948,8 +13179,8 @@ function renderModuleEditor() {
     var upBtn2 = document.createElement('button')
     upBtn2.type = 'button'
     upBtn2.className = 'dshwv-snapbtn dshwv-snapbtn-no'
-    upBtn2.textContent = '上传图片(png/gif)'
-    upBtn2.title = '上传后自动加入本随机图片列表(同时进入泡泡图库)'
+    upBtn2.textContent = I('上传图片(png/gif)')
+    upBtn2.title = I('上传后自动加入本随机图片列表(同时进入泡泡图库)')
     upBtn2.addEventListener('click', function () { fileInput2.click() })
     fileInput2.addEventListener('change', function () {
       var f2 = fileInput2.files && fileInput2.files[0]
@@ -12973,7 +13204,7 @@ function renderModuleEditor() {
     var scRow2 = document.createElement('div')
     scRow2.className = 'dshwv-audiorow'
     var scL2 = document.createElement('span')
-    scL2.textContent = '显示大小'
+    scL2.textContent = I('显示大小')
     scRow2.appendChild(scL2)
     var scInit2 = Number(m.imgScale)
     if (!isFinite(scInit2) || scInit2 <= 0) scInit2 = 1
@@ -13003,7 +13234,7 @@ function renderModuleEditor() {
         var stRow = document.createElement('div')
         stRow.className = 'dshwv-audiorow'
         var stL = document.createElement('span')
-        stL.textContent = '显示样式'
+        stL.textContent = I('显示样式')
         stRow.appendChild(stL)
         var stSel = document.createElement('select')
         stSel.className = 'dshwv-sound'
@@ -13024,8 +13255,8 @@ function renderModuleEditor() {
       // 峰谷/倒计时:高峰/空闲 各占一行 = 左[状态色下拉(纯色时带色板/默认钮)] 右[底色下拉],
       // 底色标签固定为「底色」,两侧各约占一半宽
       var peakStates = [
-        { label: '高峰色', colorKey: 'peakColor', rgbKey: 'peakRgb', defaultHex: '#e0433f', defaultText: '默认红', bgKey: 'peakBg', bgRgbKey: 'peakBgRgb', bgHex: '#fbe7e6' },
-        { label: '空闲色', colorKey: 'offColor', rgbKey: 'offRgb', defaultHex: '#2fa24c', defaultText: '默认绿', bgKey: 'offBg', bgRgbKey: 'offBgRgb', bgHex: '#e4f3e7' },
+        { label: I('高峰色'), colorKey: 'peakColor', rgbKey: 'peakRgb', defaultHex: '#e0433f', defaultText: I('默认红'), bgKey: 'peakBg', bgRgbKey: 'peakBgRgb', bgHex: '#fbe7e6' },
+        { label: I('空闲色'), colorKey: 'offColor', rgbKey: 'offRgb', defaultHex: '#2fa24c', defaultText: I('默认绿'), bgKey: 'offBg', bgRgbKey: 'offBgRgb', bgHex: '#e4f3e7' },
       ]
       if (!m.peakColor) m.peakColor = '#e0433f'
       if (!m.offColor) m.offColor = '#2fa24c'
@@ -13047,7 +13278,7 @@ function renderModuleEditor() {
             else if (v === 'solid') { m[st.bgRgbKey] = ''; if (!m[st.bgKey]) m[st.bgKey] = stBgHex0 }
             else { m[st.bgRgbKey] = v; m[st.bgKey] = '' }
             bgRowC.sync(v === 'none' ? 'none' : v, m[st.bgKey] || stBgHex0, function (hex) { m[st.bgKey] = hex })
-          }, { label: '底色', defaultHex: stBgHex0, defaultText: '默认', allowNone: true })
+          }, { label: I('底色'), defaultHex: stBgHex0, defaultText: I('默认'), allowNone: true })
           grp.appendChild(bgRowC.row)
           moduleBodyEl.appendChild(grp)
           ccRow.sync(curPeak, m[st.colorKey] || st.defaultHex, function (hex) { m[st.colorKey] = hex })
@@ -13058,8 +13289,8 @@ function renderModuleEditor() {
       var note = document.createElement('div')
       note.className = 'dshwv-bubhint'
       note.textContent = m.type === 'session'
-        ? '该模块自动显示**当前对话名**（占位符 {session}），可调下方颜色 / 字号'
-        : '该模块为内置数值,内容自动获取,可调下方颜色/字号'
+        ? I('该模块自动显示**当前对话名**（占位符 {session}），可调下方颜色 / 字号')
+        : I('该模块为内置数值,内容自动获取,可调下方颜色/字号')
       moduleBodyEl.appendChild(note)
       // F1:整句文案模板(如「今日已用 {值}」;留空=默认)
       moduleTplRow()
@@ -13085,7 +13316,7 @@ function renderModuleEditor() {
   var isPeak = m.type === 'peak' || m.type === 'nextpeak'
   var sec = document.createElement('div')
   sec.className = 'dshwv-bubsec'
-  sec.textContent = '样式'
+  sec.textContent = I('样式')
   moduleBodyEl.appendChild(sec)
   // 字体
   moduleBodyEl.appendChild(bubbleFontEditRow(function () { return m.fontFamily || '' }, function (v) { m.fontFamily = v || '' }))
@@ -13093,7 +13324,7 @@ function renderModuleEditor() {
   var sizeRow = document.createElement('div')
   sizeRow.className = 'dshwv-audiorow'
   var sl = document.createElement('span')
-  sl.textContent = '字号'
+  sl.textContent = I('字号')
   sizeRow.appendChild(sl)
   moduleSizeEl = document.createElement('input')
   moduleSizeEl.type = 'range'
@@ -13151,7 +13382,7 @@ function renderModuleEditor() {
       else if (v === 'solid') { m.bgRgb = ''; if (!m.bg) m.bg = '#dbe4f5' }
       else { m.bgRgb = v; m.bg = '' }
       bgcc.sync(v === 'none' ? 'none' : v, m.bg, function (hex) { m.bg = hex })
-    }, { label: '底色', defaultHex: '#dbe4f5', defaultText: '默认', allowNone: true })
+    }, { label: I('底色'), defaultHex: '#dbe4f5', defaultText: I('默认'), allowNone: true })
     moduleBodyEl.appendChild(bgcc.row)
     bgcc.sync(bgCur, m.bg || '#dbe4f5', function (hex) { m.bg = hex })
   }
@@ -13198,7 +13429,7 @@ function closeModuleEditor(saved) {
       if (moduleSizeEl) moduleEditRef.size = Math.max(1, Math.min(50, Math.round(Number(moduleSizeEl.value) || 6)))
       if (moduleEditRef.type === 'image' && !moduleEditRef.imgId) {
         // 未选图不允许保存
-        showConfirm('请先选择或上传一张图片', function () {})
+        showConfirm(I('请先选择或上传一张图片'), function () {})
         return
       }
       if (moduleEditRef.type === 'randimg') {
@@ -13207,7 +13438,7 @@ function closeModuleEditor(saved) {
         var arr2 = Array.isArray(moduleEditRef.imgs) ? moduleEditRef.imgs : []
         for (var qi2 = 0; qi2 < arr2.length; qi2++) if (arr2[qi2] && arr2[qi2].imgId) { anyImg2 = true; break }
         if (!anyImg2) {
-          showConfirm('随机图片还没有图片:请先「添加图片」或「上传图片」', function () {})
+          showConfirm(I('随机图片还没有图片:请先「添加图片」或「上传图片」'), function () {})
           return
         }
       }
@@ -13231,16 +13462,16 @@ moduleBodyEl = document.createElement('div')
 moduleCard.appendChild(moduleBodyEl)
 var moduleBtns = document.createElement('div')
 moduleBtns.className = 'dshwv-bubbtns'
-moduleBtns.appendChild(bubbleBtn('取消', 'dshwv-bubbtn-no', function () { closeModuleEditor(false) }))
+moduleBtns.appendChild(bubbleBtn(I('取消'), 'dshwv-bubbtn-no', function () { closeModuleEditor(false) }))
 // 「另存」= 存为可选模块,置于取消与保存中间;悬浮显示含义
 var saveAsBtn = document.createElement('button')
 saveAsBtn.type = 'button'
 saveAsBtn.className = 'dshwv-bubbtn dshwv-bubbtn-no'
-saveAsBtn.textContent = '另存'
-saveAsBtn.title = '另存为可选模块:把当前模块存入模块库,可在任意泡泡里复用'
+saveAsBtn.textContent = I('另存')
+saveAsBtn.title = I('另存为可选模块:把当前模块存入模块库,可在任意泡泡里复用')
 saveAsBtn.addEventListener('click', function (e) { e.stopPropagation(); openModuleNamePrompt(moduleEditRef) })
 moduleBtns.appendChild(saveAsBtn)
-moduleBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', function () { closeModuleEditor(true) }))
+moduleBtns.appendChild(bubbleBtn(I('保存'), 'dshwv-bubbtn-ok', function () { closeModuleEditor(true) }))
 moduleCard.appendChild(moduleBtns)
 moduleMask.appendChild(moduleCard)
 dshwBodyAppend(moduleMask)
@@ -13252,25 +13483,25 @@ var moduleNamePromptCard = document.createElement('div')
 moduleNamePromptCard.className = 'dshwv-audiowin'
 var moduleNamePromptTitle = document.createElement('div')
 moduleNamePromptTitle.className = 'dshwv-audiotitle'
-moduleNamePromptTitle.textContent = '存为可选模块'
+moduleNamePromptTitle.textContent = I('存为可选模块')
 moduleNamePromptCard.appendChild(moduleNamePromptTitle)
 var moduleNameInput = document.createElement('input')
 moduleNameInput.type = 'text'
 moduleNameInput.className = 'dshwv-audionameinput'
 moduleNameInput.maxLength = 20
-moduleNameInput.placeholder = '模块名称(留空自动编号)'
+moduleNameInput.placeholder = I('模块名称(留空自动编号)')
 moduleNamePromptCard.appendChild(moduleNameInput)
 var moduleNameBtns = document.createElement('div')
 moduleNameBtns.className = 'dshwv-cropbtns'
 var moduleNameCancel = document.createElement('button')
 moduleNameCancel.type = 'button'
 moduleNameCancel.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-moduleNameCancel.textContent = '取消'
+moduleNameCancel.textContent = I('取消')
 moduleNameCancel.addEventListener('click', closeModuleNamePrompt)
 var moduleNameOk = document.createElement('button')
 moduleNameOk.type = 'button'
 moduleNameOk.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-moduleNameOk.textContent = '保存'
+moduleNameOk.textContent = I('保存')
 moduleNameOk.addEventListener('click', saveModuleNamePrompt)
 moduleNameBtns.appendChild(moduleNameCancel)
 moduleNameBtns.appendChild(moduleNameOk)
@@ -13294,7 +13525,7 @@ var cropCard = document.createElement('div')
 cropCard.className = 'dshwv-cropwin'
 var cropTitle = document.createElement('div')
 cropTitle.className = 'dshwv-croptitle'
-cropTitle.textContent = '裁剪角色图片'
+cropTitle.textContent = I('裁剪角色图片')
 var cropBox = document.createElement('div')
 cropBox.className = 'dshwv-cropbox'
 var cropCanvas = document.createElement('canvas')
@@ -13313,7 +13544,7 @@ var cropZoomWrap = document.createElement('div')
 cropZoomWrap.className = 'dshwv-cropctrl'
 var cropZoomLabel = document.createElement('span')
 cropZoomLabel.className = 'dshwv-croplabel'
-cropZoomLabel.textContent = '缩放'
+cropZoomLabel.textContent = I('缩放')
 var cropZoomNum = document.createElement('input')
 cropZoomNum.type = 'number'
 cropZoomNum.min = '30'
@@ -13328,23 +13559,23 @@ var cropNameInput = document.createElement('input')
 cropNameInput.type = 'text'
 cropNameInput.className = 'dshwv-cropname'
 cropNameInput.maxLength = 16
-cropNameInput.placeholder = '角色名称'
+cropNameInput.placeholder = I('角色名称')
 // 旋转行：标签 + 水平翻转 + 竖直翻转 + 滑块 + 数值框（滑块撑满剩余宽度，右侧与缩放行右对齐）
 var cropAngleWrap = document.createElement('div')
 cropAngleWrap.className = 'dshwv-cropctrl'
 var cropAngleLabel = document.createElement('span')
 cropAngleLabel.className = 'dshwv-croplabel'
-cropAngleLabel.textContent = '旋转'
+cropAngleLabel.textContent = I('旋转')
 var cropFlipHBtn = document.createElement('button')
 cropFlipHBtn.type = 'button'
 cropFlipHBtn.className = 'dshwv-cropflip'
 cropFlipHBtn.textContent = '⇋'
-cropFlipHBtn.title = '水平翻转'
+cropFlipHBtn.title = I('水平翻转')
 var cropFlipVBtn = document.createElement('button')
 cropFlipVBtn.type = 'button'
 cropFlipVBtn.className = 'dshwv-cropflip'
 cropFlipVBtn.textContent = '⇅'
-cropFlipVBtn.title = '垂直翻转'
+cropFlipVBtn.title = I('垂直翻转')
 var cropAngle = document.createElement('input')
 cropAngle.type = 'range'
 cropAngle.min = '-360'
@@ -13369,16 +13600,16 @@ cropBtns.className = 'dshwv-cropbtns'
 var cropCancelBtn = document.createElement('button')
 cropCancelBtn.type = 'button'
 cropCancelBtn.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-cropCancelBtn.textContent = '取消'
+cropCancelBtn.textContent = I('取消')
 var cropResetBtn = document.createElement('button')
 cropResetBtn.type = 'button'
 cropResetBtn.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-cropResetBtn.textContent = '重置'
-cropResetBtn.title = '重置缩放、旋转和位置'
+cropResetBtn.textContent = I('重置')
+cropResetBtn.title = I('重置缩放、旋转和位置')
 var cropOkBtn = document.createElement('button')
 cropOkBtn.type = 'button'
 cropOkBtn.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-cropOkBtn.textContent = '确认'
+cropOkBtn.textContent = I('确认')
 cropBtns.appendChild(cropCancelBtn)
 cropBtns.appendChild(cropResetBtn)
 cropBtns.appendChild(cropOkBtn)
@@ -13455,32 +13686,32 @@ var gifCard = document.createElement('div')
 gifCard.className = 'dshwv-gifwin'
 var gifTitle = document.createElement('div')
 gifTitle.className = 'dshwv-giftitle'
-gifTitle.textContent = '导入动图角色'
+gifTitle.textContent = I('导入动图角色')
 var gifPreviewBox = document.createElement('div')
 gifPreviewBox.className = 'dshwv-gifpreview'
 var gifPreviewImg = document.createElement('img')
 gifPreviewImg.className = 'dshwv-gifpreviewimg'
-gifPreviewImg.alt = '动图预览'
+gifPreviewImg.alt = I('动图预览')
 gifPreviewImg.draggable = false
 gifPreviewBox.appendChild(gifPreviewImg)
 var gifHint = document.createElement('div')
 gifHint.className = 'dshwv-gifhint'
-gifHint.textContent = 'GIF 动图不支持裁剪，将按原始尺寸原样导入'
+gifHint.textContent = I('GIF 动图不支持裁剪，将按原始尺寸原样导入')
 var gifNameInput = document.createElement('input')
 gifNameInput.type = 'text'
 gifNameInput.className = 'dshwv-gifname'
 gifNameInput.maxLength = 16
-gifNameInput.placeholder = '角色名称'
+gifNameInput.placeholder = I('角色名称')
 var gifBtns = document.createElement('div')
 gifBtns.className = 'dshwv-cropbtns'
 var gifCancelBtn = document.createElement('button')
 gifCancelBtn.type = 'button'
 gifCancelBtn.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-gifCancelBtn.textContent = '取消'
+gifCancelBtn.textContent = I('取消')
 var gifOkBtn = document.createElement('button')
 gifOkBtn.type = 'button'
 gifOkBtn.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-gifOkBtn.textContent = '确认'
+gifOkBtn.textContent = I('确认')
 gifBtns.appendChild(gifCancelBtn)
 gifBtns.appendChild(gifOkBtn)
 gifCard.appendChild(gifTitle)
@@ -13498,14 +13729,14 @@ var gifRoleAnimType = 'gif' // 'gif' | 'apng'
 function openGifRoleModal(dataUrl, fileName, animType) {
   gifRoleDataUrl = dataUrl
   gifRoleAnimType = animType === 'apng' ? 'apng' : 'gif'
-  gifRoleFileName = (fileName || '').replace(/.[^.]+$/, '') || '新角色'
+  gifRoleFileName = (fileName || '').replace(/.[^.]+$/, '') || I('新角色')
   // 标题/提示按格式区分
   if (gifRoleAnimType === 'apng') {
-    gifTitle.textContent = '导入 APNG 动图角色'
-    gifHint.textContent = 'APNG 动图不支持裁剪，将按原始尺寸原样导入'
+    gifTitle.textContent = I('导入 APNG 动图角色')
+    gifHint.textContent = I('APNG 动图不支持裁剪，将按原始尺寸原样导入')
   } else {
-    gifTitle.textContent = '导入 GIF 动图角色'
-    gifHint.textContent = 'GIF 动图不支持裁剪，将按原始尺寸原样导入'
+    gifTitle.textContent = I('导入 GIF 动图角色')
+    gifHint.textContent = I('GIF 动图不支持裁剪，将按原始尺寸原样导入')
   }
   gifNameInput.value = ''
   gifPreviewImg.src = dataUrl
@@ -13522,7 +13753,7 @@ function hideGifRoleModal() {
 function confirmGifRole() {
   try {
     // 名字留空 → 统一「新角色」（不回落文件名，与裁剪导入一致）
-    var name = (gifNameInput.value || '').trim().slice(0, 16) || '新角色'
+    var name = (gifNameInput.value || '').trim().slice(0, 16) || I('新角色')
     if (!gifRoleDataUrl) { hideGifRoleModal(); return }
     fetch(ROLE_URL, {
       method: 'POST',
@@ -13561,11 +13792,11 @@ confirmBtns.className = 'dshwv-confirmbtns'
 var confirmNoBtn = document.createElement('button')
 confirmNoBtn.type = 'button'
 confirmNoBtn.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-confirmNoBtn.textContent = '取消'
+confirmNoBtn.textContent = I('取消')
 var confirmYesBtn = document.createElement('button')
 confirmYesBtn.type = 'button'
 confirmYesBtn.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-confirmYesBtn.textContent = '删除'
+confirmYesBtn.textContent = I('删除')
 confirmBtns.appendChild(confirmNoBtn)
 confirmBtns.appendChild(confirmYesBtn)
 confirmCard.appendChild(confirmText)
@@ -13587,23 +13818,23 @@ var audioEditCard = document.createElement('div')
 audioEditCard.className = 'dshwv-audiowin'
 var audioEditTitle = document.createElement('div')
 audioEditTitle.className = 'dshwv-audiotitle'
-audioEditTitle.textContent = '音效组'
+audioEditTitle.textContent = I('音效组')
 var audioEditName = document.createElement('input')
 audioEditName.type = 'text'
 audioEditName.className = 'dshwv-audionameinput'
 audioEditName.maxLength = 20
-audioEditName.placeholder = '预设名称'
+audioEditName.placeholder = I('预设名称')
 var audioEditPressRow = document.createElement('div')
 audioEditPressRow.className = 'dshwv-audiorow'
 var audioEditPressLabel = document.createElement('span')
 audioEditPressLabel.className = 'dshwv-audioslotlabel'
-audioEditPressLabel.textContent = '按压'
+audioEditPressLabel.textContent = I('按压')
 var audioEditPressWrap = document.createElement('div')
 audioEditPressWrap.className = 'dshwv-slotwrap'
 var audioEditPressBtn = document.createElement('button')
 audioEditPressBtn.type = 'button'
 audioEditPressBtn.className = 'dshwv-slotbtn'
-audioEditPressBtn.textContent = '小黄鸭·按下'
+audioEditPressBtn.textContent = I('小黄鸭·按下')
 var audioEditPressPanel = document.createElement('div')
 audioEditPressPanel.className = 'dshwv-slotlist'
 audioEditPressWrap.appendChild(audioEditPressBtn)
@@ -13611,8 +13842,8 @@ audioEditPressWrap.appendChild(audioEditPressPanel)
 var audioEditPressImport = document.createElement('button')
 audioEditPressImport.type = 'button'
 audioEditPressImport.className = 'dshwv-audiosmallimport'
-audioEditPressImport.textContent = '导入'
-audioEditPressImport.title = '导入并裁剪按压音'
+audioEditPressImport.textContent = I('导入')
+audioEditPressImport.title = I('导入并裁剪按压音')
 audioEditPressRow.appendChild(audioEditPressLabel)
 audioEditPressRow.appendChild(audioEditPressWrap)
 audioEditPressRow.appendChild(audioEditPressImport)
@@ -13620,13 +13851,13 @@ var audioEditReleaseRow = document.createElement('div')
 audioEditReleaseRow.className = 'dshwv-audiorow'
 var audioEditReleaseLabel = document.createElement('span')
 audioEditReleaseLabel.className = 'dshwv-audioslotlabel'
-audioEditReleaseLabel.textContent = '松开'
+audioEditReleaseLabel.textContent = I('松开')
 var audioEditReleaseWrap = document.createElement('div')
 audioEditReleaseWrap.className = 'dshwv-slotwrap'
 var audioEditReleaseBtn = document.createElement('button')
 audioEditReleaseBtn.type = 'button'
 audioEditReleaseBtn.className = 'dshwv-slotbtn'
-audioEditReleaseBtn.textContent = '小黄鸭·松开'
+audioEditReleaseBtn.textContent = I('小黄鸭·松开')
 var audioEditReleasePanel = document.createElement('div')
 audioEditReleasePanel.className = 'dshwv-slotlist'
 audioEditReleaseWrap.appendChild(audioEditReleaseBtn)
@@ -13634,8 +13865,8 @@ audioEditReleaseWrap.appendChild(audioEditReleasePanel)
 var audioEditReleaseImport = document.createElement('button')
 audioEditReleaseImport.type = 'button'
 audioEditReleaseImport.className = 'dshwv-audiosmallimport'
-audioEditReleaseImport.textContent = '导入'
-audioEditReleaseImport.title = '导入并裁剪松开音'
+audioEditReleaseImport.textContent = I('导入')
+audioEditReleaseImport.title = I('导入并裁剪松开音')
 audioEditReleaseRow.appendChild(audioEditReleaseLabel)
 audioEditReleaseRow.appendChild(audioEditReleaseWrap)
 audioEditReleaseRow.appendChild(audioEditReleaseImport)
@@ -13644,16 +13875,16 @@ audioEditBtns.className = 'dshwv-cropbtns'
 var audioEditCancel = document.createElement('button')
 audioEditCancel.type = 'button'
 audioEditCancel.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-audioEditCancel.textContent = '取消'
+audioEditCancel.textContent = I('取消')
 var audioEditPlay = document.createElement('button')
 audioEditPlay.type = 'button'
 audioEditPlay.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-audioEditPlay.textContent = '试听'
-audioEditPlay.title = '按住播放按压音，松开播放松开音（模拟点击挂件）'
+audioEditPlay.textContent = I('试听')
+audioEditPlay.title = I('按住播放按压音，松开播放松开音（模拟点击挂件）')
 var audioEditSave = document.createElement('button')
 audioEditSave.type = 'button'
 audioEditSave.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-audioEditSave.textContent = '保存'
+audioEditSave.textContent = I('保存')
 audioEditBtns.appendChild(audioEditCancel)
 audioEditBtns.appendChild(audioEditPlay)
 audioEditBtns.appendChild(audioEditSave)
@@ -13683,7 +13914,7 @@ var audioCropCard = document.createElement('div')
 audioCropCard.className = 'dshwv-audiowin'
 var audioCropTitle = document.createElement('div')
 audioCropTitle.className = 'dshwv-audiotitle'
-audioCropTitle.textContent = '裁剪音频'
+audioCropTitle.textContent = I('裁剪音频')
 var audioCropCanvas = document.createElement('canvas')
 audioCropCanvas.width = 300
 audioCropCanvas.height = 120
@@ -13701,7 +13932,7 @@ audioCropStartNum.min = '0'
 audioCropStartNum.step = '0.001'
 audioCropStartNum.value = '0'
 audioCropStartNum.className = 'dshwv-cropnum'
-audioCropStartNum.title = '起始时间（秒）'
+audioCropStartNum.title = I('起始时间（秒）')
 var audioCropStartRow = document.createElement('div')
 audioCropStartRow.className = 'dshwv-audiosliderrow'
 audioCropStartRow.appendChild(audioCropStart)
@@ -13719,7 +13950,7 @@ audioCropEndNum.min = '0'
 audioCropEndNum.step = '0.001'
 audioCropEndNum.value = '0'
 audioCropEndNum.className = 'dshwv-cropnum'
-audioCropEndNum.title = '结束时间（秒）'
+audioCropEndNum.title = I('结束时间（秒）')
 var audioCropEndRow = document.createElement('div')
 audioCropEndRow.className = 'dshwv-audiosliderrow'
 audioCropEndRow.appendChild(audioCropEnd)
@@ -13750,7 +13981,7 @@ audioCropDualRow.appendChild(audioCropEndNum)
 // 波形缩放条：缩放倍数标签 + 滑块 + 数值输入
 var audioCropZoomLabel = document.createElement('span')
 audioCropZoomLabel.className = 'dshwv-zoomlabel'
-audioCropZoomLabel.textContent = '缩放倍数'
+audioCropZoomLabel.textContent = I('缩放倍数')
 var audioCropZoomRange = document.createElement('input')
 audioCropZoomRange.type = 'range'
 audioCropZoomRange.min = '1'
@@ -13758,7 +13989,7 @@ audioCropZoomRange.max = '50'
 audioCropZoomRange.step = '1'
 audioCropZoomRange.value = '1'
 audioCropZoomRange.className = 'dshwv-cropzoom'
-audioCropZoomRange.title = '波形放大倍数'
+audioCropZoomRange.title = I('波形放大倍数')
 var audioCropZoomNum = document.createElement('input')
 audioCropZoomNum.type = 'number'
 audioCropZoomNum.min = '1'
@@ -13766,7 +13997,7 @@ audioCropZoomNum.max = '50'
 audioCropZoomNum.step = '1'
 audioCropZoomNum.value = '1'
 audioCropZoomNum.className = 'dshwv-cropnum'
-audioCropZoomNum.title = '放大倍数'
+audioCropZoomNum.title = I('放大倍数')
 var audioCropZoomRow = document.createElement('div')
 audioCropZoomRow.className = 'dshwv-audiosliderrow'
 audioCropZoomRow.appendChild(audioCropZoomLabel)
@@ -13782,8 +14013,8 @@ audioCropNameRow.style.margin = '2px 0'
 var audioCropName = document.createElement('input')
 audioCropName.type = 'text'
 audioCropName.maxLength = 30
-audioCropName.placeholder = '音频片段名称'
-audioCropName.title = '裁剪后片段的名称（可改名，留空用源文件名）'
+audioCropName.placeholder = I('音频片段名称')
+audioCropName.title = I('裁剪后片段的名称（可改名，留空用源文件名）')
 audioCropName.style.cssText = 'width:min(60%,240px);flex:0 1 auto;margin:0;text-align:center;border:1px solid rgba(32,49,112,.4);border-radius:6px;padding:2px 6px;font-size:12px;color:#203170;background:#fff;box-sizing:border-box'
 audioCropNameRow.appendChild(audioCropName)
 audioCropNameRow.style.marginBottom = '12px'
@@ -13794,16 +14025,16 @@ audioCropBtns.className = 'dshwv-cropbtns'
 var audioCropCancel = document.createElement('button')
 audioCropCancel.type = 'button'
 audioCropCancel.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-audioCropCancel.textContent = '取消'
+audioCropCancel.textContent = I('取消')
 var audioCropPlay = document.createElement('button')
 audioCropPlay.type = 'button'
 audioCropPlay.className = 'dshwv-cropbtn dshwv-cropbtn-no'
-audioCropPlay.textContent = '试听'
-audioCropPlay.title = '试听裁剪后的片段'
+audioCropPlay.textContent = I('试听')
+audioCropPlay.title = I('试听裁剪后的片段')
 var audioCropOk = document.createElement('button')
 audioCropOk.type = 'button'
 audioCropOk.className = 'dshwv-cropbtn dshwv-cropbtn-ok'
-audioCropOk.textContent = '确认'
+audioCropOk.textContent = I('确认')
 audioCropOk.disabled = false
 audioCropBtns.appendChild(audioCropCancel)
 audioCropBtns.appendChild(audioCropPlay)
@@ -13844,7 +14075,7 @@ var textBox = document.createElement('div')
 textBox.className = 'dshwv-text'
 var labelEl = document.createElement('div')
 labelEl.className = 'dshwv-label'
-labelEl.textContent = 'DeepSeek 余额'
+labelEl.textContent = I('DeepSeek 余额')
 var amountEl = document.createElement('div')
 amountEl.className = 'dshwv-amount'
 var hintEl = document.createElement('div')
@@ -14032,7 +14263,7 @@ var state = {
   rechargeBalance: null,
   todayUsage: null,
   todayUsageCurrency: 'CNY',
-  usageLabel: '本地估算',
+  usageLabel: I('本地估算'),
   isPeak: false,
   peakNextChangeAt: null,
   peakHolidays: null,
@@ -14155,11 +14386,11 @@ var BUBBLE_STYLE_CLASS = { A: 'dshwv-label', B: 'dshwv-amount', P: 'dshwv-period
 function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 function singleCenter(style, text, color, wrap) { return [null, { t: text, s: style, c: color || '', w: !!wrap }, null] }
 var RANDOM_GROUPS = [
-  { w: 7, lines: function () { return singleCenter('B', pickOne(['好模型... ↓', '好女孩...↓'])) } },
-  { w: 7, lines: function () { return singleCenter('A', pickOne(['不知道用户有什么用，先赶走吧~', '我...我...我也要挣钱吗？', '我去吃饭啦，测完叫我', '压力一只蓝色大肥鱼？！', 'DeepSleep...', '坏了...用户彻底怒了！']), '', true) } },
+  { w: 7, lines: function () { return singleCenter('B', pickOne([I('好模型... ↓'), I('好女孩...↓')])) } },
+  { w: 7, lines: function () { return singleCenter('A', pickOne([I('不知道用户有什么用，先赶走吧~'), I('我...我...我也要挣钱吗？'), I('我去吃饭啦，测完叫我'), I('压力一只蓝色大肥鱼？！'), 'DeepSleep...', I('坏了...用户彻底怒了！')]), '', true) } },
   { w: 10, lines: function () { return { gif: true } } },
-  { w: 3, lines: function () { return singleCenter('A', pickOne(['你目录里的dsh是什么...大烧货吗...?', '恭喜你实现token自由！token全跑了！', '真当我是便宜货啊...']), '', true) } },
-  { w: 1, lines: function () { return singleCenter('B', '哦鲸鲸... ') } },
+  { w: 3, lines: function () { return singleCenter('A', pickOne([I('你目录里的dsh是什么...大烧货吗...?'), I('恭喜你实现token自由！token全跑了！'), I('真当我是便宜货啊...')]), '', true) } },
+  { w: 1, lines: function () { return singleCenter('B', I('哦鲸鲸... ')) } },
 ]
 function pickRandomLines() {
   var total = 0
@@ -14171,12 +14402,61 @@ function pickRandomLines() {
   }
   return RANDOM_GROUPS[RANDOM_GROUPS.length - 1].lines()
 }
+// 长度自适应（只用于**翻译后**的气泡文案）：气泡外壳是固定 1026x700 的形状，文字层固定占
+//   66%x64%，所以每行能放多少字是个**定值**（label 10.3em / amount 5.3em / period 6.5em / hint 12.1em）。
+//   英文普遍比中文长（目录里 809/1,114 条超过 1.6 倍、514 条超过 2 倍、最长的句子约 40em），
+//   所以必须按**实测宽度**把字号从 CSS 原值**往下**缩到放得下为止；只换行不够 —— `.dshwv-wrap`
+//   只是限宽，长句照样把文字层撑出形状外。
+//   中文文案永不缩放（CSS 原值即上限），所以中文观感与上游完全一致；英文短句也保持设计字号。
+//   实测两条边界：横向（一句比文字层宽）与纵向（换行后比文字层高）。横向先按比例缩，
+//   缩到下限还不够就允许换行；换行后纵向仍超高，再按高度比例补一次。
+function bubbleFitEl(el) {
+  try {
+    el.style.fontSize = ''
+    el.style.whiteSpace = ''
+    el.style.maxWidth = ''
+    if (!el.textContent) return
+    var boxW = textBox.clientWidth || 0
+    var boxH = textBox.clientHeight || 0
+    if (!boxW) return
+    var base = parseFloat(window.getComputedStyle(el).fontSize)
+    if (!base || !isFinite(base) || base <= 0) return
+    var MIN = 0.5  // 最多缩到原字号的 50%：再小不可读
+    var SAFE = 0.96 // 留 4% 安全边：避免亚像素/字距把最后一行顶出形状
+    var avail = boxW * SAFE
+    // ① 横向：先按 nowrap 量真实单行宽度，一次性算出缩放比（不做逐级重排）。
+    el.style.whiteSpace = 'nowrap'
+    var w = el.scrollWidth || 0
+    if (!w) return
+    var scale = 1
+    if (w > avail + 1) {
+      scale = avail / w
+      if (scale < MIN) scale = MIN
+      // 缩到下限仍然放不下 ⇒ 放开换行（圆角形状里多行比溢出耐看），宽度锁在文字层内。
+      if (w * scale > avail + 1) {
+        el.style.whiteSpace = 'normal'
+        el.style.maxWidth = '100%'
+      }
+    }
+    if (scale < 1) el.style.fontSize = (base * scale).toFixed(2) + 'px'
+    // ② 纵向：换行后可能比文字层高（英文长句尤其明显），按高度比例再补一次。
+    if (boxH > 0) {
+      var h = el.scrollHeight || 0
+      if (h > boxH * SAFE + 1) {
+        var cur = parseFloat(window.getComputedStyle(el).fontSize) || base
+        var k = (boxH * SAFE) / h
+        if (k < MIN) k = MIN
+        if (k < 1) el.style.fontSize = (cur * k).toFixed(2) + 'px'
+      }
+    }
+  } catch (err) {}
+}
 function applyBubbleLines(lines) {
   if (lines && lines.gif) {
     // gif 台词组：只显示 gif，隐藏三行文字（display 必须显式覆盖 CSS 的 none）
     if (gifFailed) {
       // gif 加载失败/路由缺失：降级为文字台词，避免空白白色气泡
-      lines = singleCenter('A', pickOne(['gif 加载失败了...', '今天没有动图给你看~', '呜呜 动图不见了...']), '', true)
+      lines = singleCenter('A', pickOne([I('gif 加载失败了...'), I('今天没有动图给你看~'), I('呜呜 动图不见了...')]), '', true)
     } else {
       if (gifFadeTimer) { clearTimeout(gifFadeTimer); gifFadeTimer = null }
       gifEl.style.display = 'block'
@@ -14199,6 +14479,9 @@ function applyBubbleLines(lines) {
       el.className = (BUBBLE_STYLE_CLASS[ln.s] || 'dshwv-label') + (ln.w ? ' dshwv-wrap' : '')
       el.textContent = ln.t
       el.style.color = ln.c || ''
+      // 只有英文（翻译）需要按实测宽度缩字号；中文按 CSS 原值，观感与上游一致。
+      if (dshwI18nOn()) bubbleFitEl(el)
+      else { el.style.fontSize = ''; el.style.whiteSpace = ''; el.style.maxWidth = '' }
     } else {
       el.style.display = 'none'
       el.textContent = ''
@@ -14261,7 +14544,7 @@ function restoreBubbleLines() {
   // 后续 setHint 首次直写分支不碰 opacity → 今日已用整行透明消失。
   labelEl.style.display = ''
   labelEl.className = 'dshwv-label'
-  labelEl.textContent = 'DeepSeek 余额'
+  labelEl.textContent = I('DeepSeek 余额')
   labelEl.style.color = ''
   labelEl.style.opacity = ''
   amountEl.style.display = ''
@@ -14344,7 +14627,7 @@ function frameSlotDefaults(kind) {
 function frameBuiltin() {
   return {
     id: BUILTIN_FRAME_ID,
-    name: '经典（内置）',
+    name: I('经典（内置）'),
     builtin: true,
     pinned: 0,
     createdAt: 0,
@@ -14423,7 +14706,7 @@ function frameNormOne(raw, idx) {
   var slotsIn = s.slots && typeof s.slots === 'object' ? s.slots : {}
   return {
     id: id,
-    name: String(s.name == null ? '' : s.name).trim().slice(0, 24) || ('泡泡框' + (idx + 1)),
+    name: String(s.name == null ? '' : s.name).trim().slice(0, 24) || (I('泡泡框') + (idx + 1)),
     builtin: s.builtin === true,
     pinned: Math.round(frameNum(s.pinned, 0, 0, 9999)),
     createdAt: Math.round(frameNum(s.createdAt, Date.now(), 0, 1e15)),
@@ -14743,7 +15026,7 @@ function frameSvgMarkup(frame, override, opts) {
     body += smallMarkup(FRAME_CLASSIC_SMALL[1], s2, s2P, 'dshwv-b2')
     return '<svg viewBox="0 0 1026 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>'
   } catch (err) {
-    try { console.warn('[dsh-whale] 泡泡框渲染失败，已退回经典形状：' + String((err && err.message) || err)) } catch (e2) {}
+    try { console.warn(I('[dsh-whale] 泡泡框渲染失败，已退回经典形状：') + String((err && err.message) || err)) } catch (e2) {}
     return FRAME_CLASSIC_MARKUP
   }
 }
@@ -14761,7 +15044,7 @@ function framePresetWarnOnce(preset) {
     if (!framePresetWarned) framePresetWarned = {}
     if (framePresetWarned[preset]) return
     framePresetWarned[preset] = true
-    console.warn('[dsh-whale] 泡泡框预设 ' + preset + ' 尚未实现，暂按经典形状渲染')
+    console.warn(I('[dsh-whale] 泡泡框预设 ') + preset + I(' 尚未实现，暂按经典形状渲染'))
   } catch (err) {}
 }
 // 把框写进真实泡泡（保持类名不变 ⇒ 现有 CSS 过渡/动画与 measureBubbleCenter 都照旧）
@@ -14927,8 +15210,8 @@ function frameEditSlotOf(kind) {
   try { return frameEditDraft && frameEditDraft.slots ? frameEditDraft.slots[kind] : null } catch (err) { return null }
 }
 function frameEditSlotLabel(kind) {
-  if (kind === 'big') return '大泡泡'
-  return kind === 'small2' ? '小泡泡2' : '小泡泡1'
+  if (kind === 'big') return I('大泡泡')
+  return kind === 'small2' ? I('小泡泡2') : I('小泡泡1')
 }
 function frameEditMarkDirty() {
   try { if (frameEditNameInp) frameEditDraft.name = String(frameEditNameInp.value || '').slice(0, 24) } catch (err) {}
@@ -15324,14 +15607,14 @@ function frameSafeLargestRect(dist, W, H, distMin) {
 function frameSafeEstimateFromCanvas(frame) {
   var now = function () { try { return (window.performance && window.performance.now) ? window.performance.now() : Date.now() } catch (err) { return Date.now() } }
   try {
-    if (typeof Path2D !== 'function') return { safe: null, why: '这个浏览器不支持形状测量' }
+    if (typeof Path2D !== 'function') return { safe: null, why: I('这个浏览器不支持形状测量') }
     var paths = frameBigPathsOf(frame)
-    if (!paths.length) return { safe: null, why: '这个形状没有可测量的路径' }
+    if (!paths.length) return { safe: null, why: I('这个形状没有可测量的路径') }
     var cv = document.createElement('canvas')
     cv.width = FRAME_SAFE_SW
     cv.height = FRAME_SAFE_SH
     var ctx = cv.getContext ? cv.getContext('2d') : null
-    if (!ctx) return { safe: null, why: '取不到画布（无法测量）' }
+    if (!ctx) return { safe: null, why: I('取不到画布（无法测量）') }
     var t0 = now()
     var sx = FRAME_SAFE_SW / FRAME_W
     var sy = FRAME_SAFE_SH / FRAME_H
@@ -15362,20 +15645,20 @@ function frameSafeEstimateFromCanvas(frame) {
       mask[i] = a
       if (a) inside++
     }
-    if (inside < FRAME_SAFE_SW * FRAME_SAFE_SH * 0.08) return { safe: null, why: '形状内部几乎没有干净区域（是不是没开底色？）' }
+    if (inside < FRAME_SAFE_SW * FRAME_SAFE_SH * 0.08) return { safe: null, why: I('形状内部几乎没有干净区域（是不是没开底色？）') }
     var dist = frameSafeDistance(mask, FRAME_SAFE_SW, FRAME_SAFE_SH)
     var distMin = Math.max(1, Math.ceil(6 * sx)) // 距边缘 ≥ 6 画布单位（采样后至少 1 格）
     var rect = frameSafeLargestRect(dist, FRAME_SAFE_SW, FRAME_SAFE_SH, distMin)
-    if (!rect) return { safe: null, why: '形状内部找不到足够的干净区域' }
+    if (!rect) return { safe: null, why: I('形状内部找不到足够的干净区域') }
     var out = { x: rect.x / sx, y: rect.y / sy, w: rect.w / sx, h: rect.h / sy }
     out.x += out.w * 0.015 // 收缩 3% 作余量
     out.y += out.h * 0.015
     out.w *= 0.97
     out.h *= 0.97
-    if (out.w < 40 || out.h < 40) return { safe: null, why: '干净区域太小（不足 40 画布单位）' }
-    if (now() - t0 > 16) return { safe: null, why: '测量超时（>16ms）' }
+    if (out.w < 40 || out.h < 40) return { safe: null, why: I('干净区域太小（不足 40 画布单位）') }
+    if (now() - t0 > 16) return { safe: null, why: I('测量超时（>16ms）') }
     return { safe: frameNormSafe(out), why: '' }
-  } catch (err) { return { safe: null, why: '测量失败' } }
+  } catch (err) { return { safe: null, why: I('测量失败') } }
 }
 // v829：图片槽位没有可测路径 ⇒ 直接把**图片自己的框**当作内容限制范围（自动导入后调用一次就够用）
 // v842：任意槽位"图片实际画出来的矩形"（与渲染器 frameImageGeom 的数学一致）
@@ -15745,7 +16028,7 @@ function frameEditAutoSafe(silent) {
     var imgSafe = frameEditBigImageSafe()
     if (imgSafe) {
       frameEditSetSafe(imgSafe) // 先给"整张图的框"当即时反馈
-      if (!silent) { try { dshwvToast('已按图片范围自动估算内容限制范围', 'ok', 2000) } catch (err) {} }
+      if (!silent) { try { dshwvToast(I('已按图片范围自动估算内容限制范围'), 'ok', 2000) } catch (err) {} }
       // v838（用户要求）：再按**不透明部分**收紧一次（异步量像素）。
       //   量不到 ⇒ 用**默认的文字安全框**（用户要求"把默认的文字安全框大小作为默认"）。
       frameEditImageOpaque(function (box) {
@@ -15782,10 +16065,10 @@ function frameEditAutoSafe(silent) {
     var r = frameSafeEstimateFromCanvas(frameEditDraft)
     if (r && r.safe) {
       frameEditSetSafe(r.safe)
-      if (!silent) { try { dshwvToast('已按形状自动估算内容限制范围（可再手动微调）', 'ok', 2200) } catch (err) {} }
+      if (!silent) { try { dshwvToast(I('已按形状自动估算内容限制范围（可再手动微调）'), 'ok', 2200) } catch (err) {} }
     } else {
       frameEditSetSafe(frameLegacySafe())
-      try { dshwvToast('自动估算失败（' + String((r && r.why) || '未知原因') + '），已用默认内容限制范围', 'no', 3600) } catch (err) {}
+      try { dshwvToast(I('自动估算失败（') + String((r && r.why) || I('未知原因')) + I('），已用默认内容限制范围'), 'no', 3600) } catch (err) {}
     }
   } catch (err) {}
 }
@@ -15923,7 +16206,7 @@ function frameEditSetOffset(axis, v) {
 // 删除 / 恢复小泡泡（决策 4：数量固定 2 个，可删不可增）
 function frameEditSetSlotOn(kind, on) {
   try {
-    if (kind === 'big') { dshwvToast('大泡泡不可删除（它承载全部内容）', 'no'); return }
+    if (kind === 'big') { dshwvToast(I('大泡泡不可删除（它承载全部内容）'), 'no'); return }
     var sl = frameEditSlotOf(kind)
     if (!sl) return
     sl.on = on !== false
@@ -16027,16 +16310,16 @@ function frameEditImageRows(commonOf, host) {
     var idCom = commonOf('imgId')
     var curId = idCom.same ? idCom.val : ''
     // ① 选择图片
-    var picRow = frameEditRowIn(into, '图片')
+    var picRow = frameEditRowIn(into, I('图片'))
     var sel = document.createElement('select')
     sel.className = 'dshwv-feinp'
     sel.style.flex = '1 1 140px'
-    sel.title = '从图片库里选（内置图 + 你自己上传的）'
+    sel.title = I('从图片库里选（内置图 + 你自己上传的）')
     function fillSel() {
       sel.innerHTML = ''
       var o0 = document.createElement('option')
       o0.value = ''
-      o0.textContent = '（未选择）'
+      o0.textContent = I('（未选择）')
       sel.appendChild(o0)
       for (var i = 0; i < bubbleImgList.length; i++) {
         var o = document.createElement('option')
@@ -16062,8 +16345,8 @@ function frameEditImageRows(commonOf, host) {
     var upBtn = document.createElement('button')
     upBtn.type = 'button'
     upBtn.className = 'dshwv-fechip'
-    upBtn.textContent = '上传新图'
-    upBtn.title = '直接上传（保持原比例，GIF 动图也能用）'
+    upBtn.textContent = I('上传新图')
+    upBtn.title = I('直接上传（保持原比例，GIF 动图也能用）')
     var fileAction = 'upload'
     upBtn.addEventListener('click', function (e) {
       try { e.stopPropagation() } catch (err) {}
@@ -16078,7 +16361,7 @@ function frameEditImageRows(commonOf, host) {
         if (fileAction === 'crop') {
           // 复用角色导入那套裁剪/缩放窗口（方形导出）；GIF 不走裁剪（会丢动图）
           var isGif = /\.gif$/i.test(String(f.name || '')) || String(f.type || '').toLowerCase() === 'image/gif'
-          if (isGif) { try { dshwvToast('GIF 动图不能用裁剪窗口（会丢动画），已改为直接上传', 'ok', 2600) } catch (err) {} }
+          if (isGif) { try { dshwvToast(I('GIF 动图不能用裁剪窗口（会丢动画），已改为直接上传'), 'ok', 2600) } catch (err) {} }
           else {
             var frc = new FileReader()
             frc.onload = function () {
@@ -16096,7 +16379,7 @@ function frameEditImageRows(commonOf, host) {
         var before = {}
         for (var i = 0; i < bubbleImgList.length; i++) before[bubbleImgList[i].id] = 1
         bubbleUploadImg(f, function (ok) {
-          if (!ok) { try { dshwvToast('上传失败（只支持 PNG / GIF）', 'no') } catch (err) {} ; return }
+          if (!ok) { try { dshwvToast(I('上传失败（只支持 PNG / GIF）'), 'no') } catch (err) {} ; return }
           var newId = ''
           for (var j = 0; j < bubbleImgList.length; j++) if (!before[bubbleImgList[j].id]) { newId = bubbleImgList[j].id; break }
           if (!newId && bubbleImgList.length) newId = bubbleImgList[bubbleImgList.length - 1].id
@@ -16116,7 +16399,7 @@ function frameEditImageRows(commonOf, host) {
     frameEditImageThumbSync = function () {} // 保留这个名字，调用点不用改
     var scComN = Number(commonOf('imgScale').val)
     if (!isFinite(scComN) || scComN <= 0) scComN = 1
-    var scRow = frameEditRowIn(into, '缩放')
+    var scRow = frameEditRowIn(into, I('缩放'))
     var scR = document.createElement('input')
     scR.type = 'range'
     scR.className = 'dshwv-range'
@@ -16124,7 +16407,7 @@ function frameEditImageRows(commonOf, host) {
     scR.max = '6'
     scR.step = '0.05'
     scR.value = String(scComN)
-    scR.title = '图片缩放（0.1–6）'
+    scR.title = I('图片缩放（0.1–6）')
     var scT = document.createElement('span')
     scT.className = 'dshwv-volpct'
     scT.textContent = frameR2(scComN) + '×'
@@ -16140,7 +16423,7 @@ function frameEditImageRows(commonOf, host) {
     scRow.appendChild(scT)
     var opComN = Number(commonOf('imgOpacity').val)
     if (!isFinite(opComN)) opComN = 1
-    var opRow = frameEditRowIn(into, '透明度')
+    var opRow = frameEditRowIn(into, I('透明度'))
     var opR = document.createElement('input')
     opR.type = 'range'
     opR.className = 'dshwv-range'
@@ -16207,7 +16490,7 @@ function frameEditSlotsRefresh() {
   try {
     if (!frameEditSlotsEl || !frameEditDraft) return
     frameEditSlotsEl.innerHTML = ''
-    var defs = [['all', '全选'], ['big', '大泡泡'], ['small1', '小泡泡1'], ['small2', '小泡泡2']]
+    var defs = [['all', I('全选')], ['big', I('大泡泡')], ['small1', I('小泡泡1')], ['small2', I('小泡泡2')]]
     for (var i = 0; i < defs.length; i++) {
       (function (kind, label) {
         var b = document.createElement('button')
@@ -16216,7 +16499,7 @@ function frameEditSlotsRefresh() {
         var sl = frameEditSlotOf(kind)
         var off = (kind !== 'big' && kind !== 'all' && sl && sl.on === false)
         if (off) b.className += ' dshwv-feslot-off'
-        b.textContent = label + (off ? '（已删除）' : '')
+        b.textContent = label + (off ? I('（已删除）') : '')
         b.addEventListener('click', function (e) {
           try { e.stopPropagation() } catch (err) {}
           frameEditSel = kind
@@ -16270,7 +16553,7 @@ function frameEditCheck(row, key, title) {
   var com = frameEditPaintCommon(key)
   c.checked = com.val !== false
   if (!com.same) { try { c.indeterminate = true } catch (err) {} }
-  c.title = com.same ? (title || '') : '所选槽位当前不一致；改动会同时写入它们'
+  c.title = com.same ? (title || '') : I('所选槽位当前不一致；改动会同时写入它们')
   c.addEventListener('change', function () { frameEditSetPaint(key, c.checked === true) })
   row.appendChild(c)
   return c
@@ -16282,7 +16565,7 @@ function frameEditColor(row, key, defColor) {
   var com = frameEditPaintCommon(key)
   var v = String(com.val == null ? '' : com.val)
   inp.value = /^#[0-9a-fA-F]{6}$/.test(v) ? v : defColor
-  if (!/^#[0-9a-fA-F]{6}$/.test(v)) { try { inp.title = '当前值不是 #rrggbb（' + v + '），选色后会替换它' } catch (err) {} }
+  if (!/^#[0-9a-fA-F]{6}$/.test(v)) { try { inp.title = I('当前值不是 #rrggbb（') + v + I('），选色后会替换它') } catch (err) {} }
   inp.addEventListener('input', function () { frameEditSetPaint(key, inp.value) })
   inp.addEventListener('change', function () { frameEditSetPaint(key, inp.value) })
   row.appendChild(inp)
@@ -16341,12 +16624,12 @@ function frameEditAttrsBuild() {
     }
     // 模式（v828：图片模式这轮就做，见下面的 image 分支）
     // v835：整节套进折叠（标题旁带摘要，一眼看出当前是 SVG 还是图片、用的哪个预设）
-    var presetNameOf = { classic: '经典椭圆', roundrect: '圆角矩形', zigzag: '方形锯齿', custom: '自定义代码' }
+    var presetNameOf = { classic: I('经典椭圆'), roundrect: I('圆角矩形'), zigzag: I('方形锯齿'), custom: I('自定义代码') }
     var lookBody = null // v837：「外观」这一节的折叠体（大小 / 小泡泡开关 / 文字默认色都并进来）
     var com0 = commonOf('svgPreset')
-    var shapeSummary = (curMode === 'image') ? '图片'
+    var shapeSummary = (curMode === 'image') ? I('图片')
       : (presetNameOf[(com0.same ? (com0.val || 'classic') : 'classic')] || '')
-    if (curMode === 'mix') shapeSummary = '混合模式'
+    if (curMode === 'mix') shapeSummary = I('混合模式')
     // v852（用户要求）：模式（① SVG 代码 / ② 图片导入）放在「形状与内容」**上方** ——
     //   常驻可见（不随折叠藏起来），因为它决定下面那一节里出现哪些设置。
     // v853：这一行去掉「模式」两个字，文案改成 SVG代码 / 图片导入。
@@ -16366,7 +16649,7 @@ function frameEditAttrsBuild() {
     }
     // v854（用户要求）：「内容显示范围与位移」放在芯片的**下一行**
     frameEditSafeSection()
-    var shapeBody = frameEditFold('shape', '形状与内容', shapeSummary)
+    var shapeBody = frameEditFold('shape', I('形状与内容'), shapeSummary)
     // v852（用户要求）：**图片模式没有「外观」这一节**（底色/描边/虚线本来就不适用）
     //   ⇒ 原来挂在「外观」里的 文字默认色 / 删除小泡泡 也并进「形状与内容」。
     if (curMode === 'image') lookBody = shapeBody
@@ -16375,8 +16658,8 @@ function frameEditAttrsBuild() {
     svgChip.className = 'dshwv-fechip' + (curMode === 'svg' ? ' dshwv-fechip-on' : '')
     svgChip.style.cssText = 'flex:1 1 0;min-width:0;border:0;border-radius:0;padding:5px 0;text-align:center;' +
       'font-size:12px;background:' + (curMode === 'svg' ? '#203170' : '#fff') + ';color:' + (curMode === 'svg' ? '#fff' : '#203170')
-    svgChip.textContent = 'SVG代码'
-    svgChip.title = '用矢量形状（预设 / 自定义代码）'
+    svgChip.textContent = I('SVG代码')
+    svgChip.title = I('用矢量形状（预设 / 自定义代码）')
     svgChip.addEventListener('click', function (e) {
       try { e.stopPropagation() } catch (err) {}
       frameEditSetKind('svg')
@@ -16389,23 +16672,23 @@ function frameEditAttrsBuild() {
     imgChip.style.cssText = 'flex:1 1 0;min-width:0;border:0;border-left:1px solid rgba(32,49,112,.4);border-radius:0;' +
       'padding:5px 0;text-align:center;font-size:12px;background:' + (curMode === 'image' ? '#203170' : '#fff') +
       ';color:' + (curMode === 'image' ? '#fff' : '#203170')
-    imgChip.textContent = '图片导入'
-    imgChip.title = '这个槽位放一张图片（内置图库或自己上传）'
+    imgChip.textContent = I('图片导入')
+    imgChip.title = I('这个槽位放一张图片（内置图库或自己上传）')
     imgChip.addEventListener('click', function (e) {
       try { e.stopPropagation() } catch (err) {}
       frameEditSetKind('image')
       frameEditAttrsBuild()
     })
     modeRow.appendChild(imgChip)
-    if (curMode === 'mix') frameEditNote('所选槽位的模式不一致；点上面任一模式会把它们统一。')
+    if (curMode === 'mix') frameEditNote(I('所选槽位的模式不一致；点上面任一模式会把它们统一。'))
     // ── ① SVG 模式：预设（三个）+ **常驻**的 SVG 代码框（v828 按用户最初的提示词）──
     //    语义：**留空 = 用上面选的预设；填了 = 按代码画**；代码按 1026x700 画布坐标。
     //    （小泡泡的"预设"会自动适配它自己的小框；代码则与大泡泡同一套坐标 —— 已与用户确认）
     if (curMode !== 'image') {
       var pCom = commonOf('svgPreset')
-      var nameOf = { classic: '经典椭圆', roundrect: '圆角矩形', zigzag: '方形锯齿', custom: '自定义（见下方代码）' }
+      var nameOf = { classic: I('经典椭圆'), roundrect: I('圆角矩形'), zigzag: I('方形锯齿'), custom: I('自定义（见下方代码）') }
       var presetKey = pCom.same ? (pCom.val || 'classic') : 'classic'
-      var row = frameEditRowIn(shapeBody, '预设')
+      var row = frameEditRowIn(shapeBody, I('预设'))
       row.appendChild(frameEditDrop(nameOf[presetKey] || nameOf.classic, [
         ['classic', nameOf.classic], ['roundrect', nameOf.roundrect], ['zigzag', nameOf.zigzag],
       ], function (v) { frameEditSetPreset(v) }))
@@ -16413,10 +16696,10 @@ function frameEditAttrsBuild() {
         var mixTag = document.createElement('span')
         mixTag.className = 'dshwv-fenote'
         mixTag.style.margin = '0'
-        mixTag.textContent = '所选槽位不一致，选一次即统一'
+        mixTag.textContent = I('所选槽位不一致，选一次即统一')
         row.appendChild(mixTag)
       }
-      var codeRow = frameEditRowIn(shapeBody, 'SVG 代码')
+      var codeRow = frameEditRowIn(shapeBody, I('SVG 代码'))
       var code = document.createElement('textarea')
       code.className = 'dshwv-fecode'
       code.spellcheck = false
@@ -16447,16 +16730,16 @@ function frameEditAttrsBuild() {
     // 底色 / 描边 / 虚线（v828：**只在 SVG 模式**出现 —— 图片模式的属性按用户最初的提示词
     //   只有"缩放 / 透明度 / 文字默认颜色"，不给"改了没效果"的控件）
     if (curMode !== 'image') {
-    lookBody = frameEditFold('look', '外观', (function () {
+    lookBody = frameEditFold('look', I('外观'), (function () {
       var c = frameEditPaintCommon('lineW')
-      return (isFinite(Number(c.val)) ? Number(c.val) : 18) + 'px 描边'
+      return (isFinite(Number(c.val)) ? Number(c.val) : 18) + I('px 描边')
     })())
-    var bgRow = frameEditRowIn(lookBody, '底色')
-    frameEditCheck(bgRow, 'bgOn', '关掉 = 形状内部透明')
+    var bgRow = frameEditRowIn(lookBody, I('底色'))
+    frameEditCheck(bgRow, 'bgOn', I('关掉 = 形状内部透明'))
     frameEditColor(bgRow, 'bg', '#FFFFFF')
-    frameEditAlpha(bgRow, 'bgAlpha', '底色透明度')
-    var lnRow = frameEditRowIn(lookBody, '描边')
-    frameEditCheck(lnRow, 'lineOn', '关掉 = 没有描边')
+    frameEditAlpha(bgRow, 'bgAlpha', I('底色透明度'))
+    var lnRow = frameEditRowIn(lookBody, I('描边'))
+    frameEditCheck(lnRow, 'lineOn', I('关掉 = 没有描边'))
     frameEditColor(lnRow, 'line', '#203170')
     var wInp = document.createElement('input')
     wInp.type = 'number'
@@ -16464,19 +16747,19 @@ function frameEditAttrsBuild() {
     wInp.min = '0'; wInp.max = '120'; wInp.step = '1'
     var wCom = frameEditPaintCommon('lineW')
     wInp.value = String(isFinite(Number(wCom.val)) ? Number(wCom.val) : 18)
-    wInp.title = '描边粗细（0–120）'
+    wInp.title = I('描边粗细（0–120）')
     wInp.addEventListener('input', function () { frameEditSetPaint('lineW', frameClampNum(Number(wInp.value), 0, 120)) })
     lnRow.appendChild(wInp)
-    frameEditAlpha(lnRow, 'lineAlpha', '描边透明度')
-    var dashRow = frameEditRowIn(lookBody, '虚线')
-    frameEditCheck(dashRow, 'dashOn', '描边改成虚线')
+    frameEditAlpha(lnRow, 'lineAlpha', I('描边透明度'))
+    var dashRow = frameEditRowIn(lookBody, I('虚线'))
+    frameEditCheck(dashRow, 'dashOn', I('描边改成虚线'))
     var dashInp = document.createElement('input')
     dashInp.type = 'text'
     dashInp.className = 'dshwv-fetext'
     var dCom = frameEditPaintCommon('dash')
     dashInp.value = String(dCom.val == null ? '0' : dCom.val)
-    dashInp.placeholder = '例如 18 12'
-    dashInp.title = '描边虚线样式：数字 + 空格/逗号（如 18 12）'
+    dashInp.placeholder = I('例如 18 12')
+    dashInp.title = I('描边虚线样式：数字 + 空格/逗号（如 18 12）')
     dashInp.addEventListener('input', function () {
       var v = String(dashInp.value || '').trim()
       if (!/^[0-9][0-9.,\s]*$/.test(v)) return
@@ -16493,33 +16776,33 @@ function frameEditAttrsBuild() {
     //   这里的缩放只在 **SVG 模式**出现 —— 图片模式自己那行"缩放"就是它，避免同一件事做两份
     if (curMode !== 'image') {
     var sizeBody = lookBody // v837：整体缩放并入「外观」
-    var scRow = frameEditRowIn(sizeBody, '缩放')
+    var scRow = frameEditRowIn(sizeBody, I('缩放'))
     var scRange = document.createElement('input')
     scRange.type = 'range'
     scRange.className = 'dshwv-range'
     scRange.min = '0.2'; scRange.max = '4'; scRange.step = '0.05'
     var sl0 = frameEditSlotOf(frameEditTargets()[0])
     scRange.value = String((sl0 && isFinite(sl0.scale)) ? Number(sl0.scale) : 1)
-    scRange.title = '等比缩放（以泡泡中心为基准）'
+    scRange.title = I('等比缩放（以泡泡中心为基准）')
     scRange.addEventListener('input', function () { frameEditSetScale(Number(scRange.value)) })
     var scNum = document.createElement('input')
     scNum.type = 'number'
     scNum.className = 'dshwv-fenum'
     scNum.min = '0.2'; scNum.max = '4'; scNum.step = '0.05'
     scNum.value = scRange.value
-    scNum.title = '等比缩放（0.2–4）'
+    scNum.title = I('等比缩放（0.2–4）')
     scNum.addEventListener('input', function () { frameEditSetScale(Number(scNum.value)) })
     var minus = document.createElement('button')
     minus.type = 'button'
     minus.className = 'dshwv-fechip'
     minus.textContent = '−'
-    minus.title = '缩小 0.1'
+    minus.title = I('缩小 0.1')
     minus.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditNudgeScale(-0.1) })
     var plus = document.createElement('button')
     plus.type = 'button'
     plus.className = 'dshwv-fechip'
     plus.textContent = '＋'
-    plus.title = '放大 0.1'
+    plus.title = I('放大 0.1')
     plus.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditNudgeScale(0.1) })
     scRow.appendChild(minus)
     scRow.appendChild(scRange)
@@ -16529,20 +16812,20 @@ function frameEditAttrsBuild() {
     // 小泡泡删除 / 恢复
     if (frameEditSel === 'small1' || frameEditSel === 'small2') {
       var slx = frameEditSlotOf(frameEditSel)
-      var miscBody = lookBody || (lookBody = frameEditFold('look', '外观', ''))
-      var onRow = frameEditRowIn(miscBody, '小泡泡')
+      var miscBody = lookBody || (lookBody = frameEditFold('look', I('外观'), ''))
+      var onRow = frameEditRowIn(miscBody, I('小泡泡'))
       var onBtn = document.createElement('button')
       onBtn.type = 'button'
       onBtn.className = 'dshwv-fechip'
       var hidden = !!(slx && slx.on === false)
-      onBtn.textContent = hidden ? '恢复这个小泡泡' : '删除这个小泡泡'
+      onBtn.textContent = hidden ? I('恢复这个小泡泡') : I('删除这个小泡泡')
       onBtn.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditSetSlotOn(frameEditSel, hidden) })
       onRow.appendChild(onBtn)
     }
     // 文字默认色（框级；决策 7b）
     if (hasBig) {
-      var txBody = miscBody || lookBody || (lookBody = frameEditFold('look', '外观', ''))
-      var txRow = frameEditRowIn(txBody, '文字默认色')
+      var txBody = miscBody || lookBody || (lookBody = frameEditFold('look', I('外观'), ''))
+      var txRow = frameEditRowIn(txBody, I('文字默认色'))
       var txInp = document.createElement('input')
       txInp.type = 'color'
       txInp.className = 'dshwv-colnat'
@@ -16553,8 +16836,8 @@ function frameEditAttrsBuild() {
       var txDef = document.createElement('button')
       txDef.type = 'button'
       txDef.className = 'dshwv-fechip'
-      txDef.textContent = '默认'
-      txDef.title = '清掉框级文字色（回到 #536ba9）'
+      txDef.textContent = I('默认')
+      txDef.title = I('清掉框级文字色（回到 #536ba9）')
       txDef.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditSetTextColor(''); frameEditAttrsBuild() })
       txRow.appendChild(txDef)
     }
@@ -16594,19 +16877,19 @@ function frameEditSafeSection() {
     // ① 入口行（v837：改成与右侧属性区**同一套折叠** —— dshwvFoldEntry + collapseSet，
     //    观感/动画/悬停与「提示与音效设置」完全一致）；摘要里直接显示当前矩形尺寸
     var safeNow = frameNormSafe(frameEditDraft.safe)
-    var e = dshwvFoldEntry(frameEditSafeRow, '内容显示范围与位移', {
+    var e = dshwvFoldEntry(frameEditSafeRow, I('内容显示范围与位移'), {
       first: true,
       summary: '', // v854（用户要求）：右端不再显示数值
       onRowClick: function (willOpen) { frameEditSafeOpen = !!willOpen },
-      titleTail: '（内容显示范围 = 文字只会落在这个矩形里；位移 = 这个槽位的 x/y 微调）',
+      titleTail: I('（内容显示范围 = 文字只会落在这个矩形里；位移 = 这个槽位的 x/y 微调）'),
     })
     // v852（用户要求）：把「自动估算」放到这一栏的**右侧**（不展开也能点）
     try {
       var autoBtnTop = document.createElement('button')
       autoBtnTop.type = 'button'
       autoBtnTop.className = 'dshwv-fechip'
-      autoBtnTop.textContent = '自动估算'
-      autoBtnTop.title = '按你定的规则重算：量出内容的包围盒 → 中心对准原本大泡泡的中心 → 内容显示范围取原本大泡泡的大小'
+      autoBtnTop.textContent = I('自动估算')
+      autoBtnTop.title = I('按你定的规则重算：量出内容的包围盒 → 中心对准原本大泡泡的中心 → 内容显示范围取原本大泡泡的大小')
       autoBtnTop.addEventListener('click', function (ev) {
         try { ev.stopPropagation() } catch (err) {} // 别把这一行展开/收起
         frameEditAfterImport('big')
@@ -16618,14 +16901,14 @@ function frameEditSafeSection() {
     // 展开体不要那 10px 缩进（这一行要占满菜单宽度，用户要求）
     try { e.body.style.paddingLeft = '0' } catch (err) {}
     var safeHelpText = (
-      '<div style="font-weight:600;margin-bottom:4px">内容显示范围与位移</div>' +
-      '<div>· <b>内容显示范围</b>：文字只会落在这个矩形里（只管大泡泡）。' +
-      '预览里拖它的<b>内部</b>可移动、拖 <b>8 个方块</b>可缩放；' +
-      '方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>' +
-      '<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当“重置”用）</div>' +
-      '<div>· <b>位移</b>：这个槽位的 x/y（画布单位），与拖动等价；会被钳制在“完全留在可显示范围内”</div>' +
-      '<div>· 形状在它轮廓外的那圈照旧可直接拖（两者各占各的区域，不需要切换）</div>' +
-      '<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>'
+      I('<div style="font-weight:600;margin-bottom:4px">内容显示范围与位移</div>') +
+      I('<div>· <b>内容显示范围</b>：文字只会落在这个矩形里（只管大泡泡）。') +
+      I('预览里拖它的<b>内部</b>可移动、拖 <b>8 个方块</b>可缩放；') +
+      I('方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>') +
+      I('<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当“重置”用）</div>') +
+      I('<div>· <b>位移</b>：这个槽位的 x/y（画布单位），与拖动等价；会被钳制在“完全留在可显示范围内”</div>') +
+      I('<div>· 形状在它轮廓外的那圈照旧可直接拖（两者各占各的区域，不需要切换）</div>') +
+      I('<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>')
     )
     var safeDot = dshwvAskDot(safeHelpText)
     try { safeDot.addEventListener('click', function (ev) { try { ev.stopPropagation() } catch (e2) {} }) } catch (err) {}
@@ -16639,10 +16922,10 @@ function frameEditSafeSection() {
     var rowALab = document.createElement('span')
     rowALab.className = 'dshwv-felab'
     rowALab.style.flex = '0 0 auto'
-    rowALab.textContent = '内容显示范围：'
+    rowALab.textContent = I('内容显示范围：')
     rowA.appendChild(rowALab)
     var fields = {}
-    var defs = [['x', 'x'], ['y', 'y'], ['w', '宽'], ['h', '高']]
+    var defs = [['x', 'x'], ['y', 'y'], ['w', I('宽')], ['h', I('高')]]
     for (var i = 0; i < defs.length; i++) {
       (function (key, label) {
         var lb = document.createElement('span')
@@ -16658,7 +16941,7 @@ function frameEditSafeSection() {
         inp.style.flex = '1 1 52px'
         inp.style.width = 'auto'
         inp.style.minWidth = '48px'
-        inp.title = '内容显示范围（画布单位 0–1026 / 0–700）；方向键 1、Shift 10、Alt 0.2'
+        inp.title = I('内容显示范围（画布单位 0–1026 / 0–700）；方向键 1、Shift 10、Alt 0.2')
         inp.addEventListener('input', function () {
           var s = frameNormSafe(frameEditDraft.safe)
           s[key] = frameClampNum(Number(inp.value), (key === 'w' || key === 'h') ? 40 : 0, (key === 'w') ? FRAME_W : (key === 'h' ? FRAME_H : FRAME_W))
@@ -16678,7 +16961,7 @@ function frameEditSafeSection() {
     var mlb = document.createElement('span')
     mlb.className = 'dshwv-felab'
     mlb.style.flex = '0 0 auto'
-    mlb.textContent = '位移'
+    mlb.textContent = I('位移')
     rowB.appendChild(mlb)
     var mFields = {}
     var mDefs = [['x', 'x'], ['y', 'y']]
@@ -16696,7 +16979,7 @@ function frameEditSafeSection() {
         inp2.style.flex = '1 1 52px'
         inp2.style.width = 'auto'
         inp2.style.minWidth = '48px'
-        inp2.title = '位移（画布单位，也可以直接拖预览里的泡泡）'
+        inp2.title = I('位移（画布单位，也可以直接拖预览里的泡泡）')
         inp2.addEventListener('input', function () { frameEditSetOffset(key, Number(inp2.value)) })
         rowB.appendChild(inp2)
         mFields[key] = inp2
@@ -16727,11 +17010,11 @@ function frameEditMoveFieldsRefresh() {
     var cy = commonNum('dy')
     if (frameEditMoveFields.x) {
       frameEditMoveFields.x.value = cx.same ? String(frameR2(cx.val)) : ''
-      frameEditMoveFields.x.placeholder = cx.same ? '' : '多个'
+      frameEditMoveFields.x.placeholder = cx.same ? '' : I('多个')
     }
     if (frameEditMoveFields.y) {
       frameEditMoveFields.y.value = cy.same ? String(frameR2(cy.val)) : ''
-      frameEditMoveFields.y.placeholder = cy.same ? '' : '多个'
+      frameEditMoveFields.y.placeholder = cy.same ? '' : I('多个')
     }
   } catch (err) {}
 }
@@ -16762,11 +17045,11 @@ function frameEditFieldsRefresh() {
     var cx = commonNum('dx'), cy = commonNum('dy')
     if (frameEditFields.x) {
       frameEditFields.x.value = cx.same ? String(frameR2(cx.val || 0)) : ''
-      frameEditFields.x.placeholder = cx.same ? '' : '多个'
+      frameEditFields.x.placeholder = cx.same ? '' : I('多个')
     }
     if (frameEditFields.y) {
       frameEditFields.y.value = cy.same ? String(frameR2(cy.val || 0)) : ''
-      frameEditFields.y.placeholder = cy.same ? '' : '多个'
+      frameEditFields.y.placeholder = cy.same ? '' : I('多个')
     }
     var sl0 = frameEditSlotOf(kinds[0])
     var sc = (sl0 && isFinite(sl0.scale)) ? Number(sl0.scale) : 1
@@ -16780,25 +17063,25 @@ function frameEditTitleBuild() {
     if (!frameEditTitleEl) return
     frameEditTitleEl.innerHTML = ''
     var t = document.createElement('span')
-    if (frameEditMode === 'edit') t.textContent = '编辑泡泡框：' + String((frameEditDraft && frameEditDraft.name) || '')
-    else if (frameEditMode === 'saveas') t.textContent = '另存为泡泡框'
-    else t.textContent = '新建泡泡框'
+    if (frameEditMode === 'edit') t.textContent = I('编辑泡泡框：') + String((frameEditDraft && frameEditDraft.name) || '')
+    else if (frameEditMode === 'saveas') t.textContent = I('另存为泡泡框')
+    else t.textContent = I('新建泡泡框')
     frameEditTitleEl.appendChild(t)
     frameEditTitleEl.appendChild(dshwvAskDot(
-      '<div style="font-weight:600;margin-bottom:4px">泡泡框编辑器</div>' +
-      '<div>· 预览里<b>拖动</b>任一泡泡可移动（钳制在画布内、至少 30% 可见）</div>' +
-      '<div>· 左侧选<b>大泡泡/小泡泡1/小泡泡2/全选</b>，右侧改属性</div>' +
-      '<div>· 小泡泡只能删（隐藏）不能加；大泡泡不可删</div>' +
-      '<div>· 三个内置预设：经典椭圆 / 圆角矩形 / 方形锯齿；也可写自定义 SVG 代码</div>' +
-      '<div>· 「取消」不会改动任何东西；「重置」回到<b>打开这个窗口时</b>的样子</div>' +
-      '<div>· <b>内容限制范围</b>：文字只会落在这个矩形里（只管大泡泡）。预览里拖它的<b>边框</b>可移动、' +
-      '拖 8 个方块可缩放；方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>' +
-      '<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当"重置"用）</div>' +
-      '<div>· SVG 代码：留空用上面选的预设，填了按代码画（按 1026×700 画布坐标）；只放行 path/ellipse/circle/rect/' +
-      'polygon/polyline/g 与几何·描边属性，脚本/事件/外链会被剥掉</div>' +
-      '<div>· 图片：走站内图库；"上传新图"保持原比例（GIF 也能用），"裁剪…"复用角色导入的裁剪窗口</div>' +
-      '<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>' +
-      '<div style="margin-top:4px;opacity:.75">保存进框库后，还要在「自定义泡泡」窗口点<b>保存</b>才会落盘生效。</div>'
+      I('<div style="font-weight:600;margin-bottom:4px">泡泡框编辑器</div>') +
+      I('<div>· 预览里<b>拖动</b>任一泡泡可移动（钳制在画布内、至少 30% 可见）</div>') +
+      I('<div>· 左侧选<b>大泡泡/小泡泡1/小泡泡2/全选</b>，右侧改属性</div>') +
+      I('<div>· 小泡泡只能删（隐藏）不能加；大泡泡不可删</div>') +
+      I('<div>· 三个内置预设：经典椭圆 / 圆角矩形 / 方形锯齿；也可写自定义 SVG 代码</div>') +
+      I('<div>· 「取消」不会改动任何东西；「重置」回到<b>打开这个窗口时</b>的样子</div>') +
+      I('<div>· <b>内容限制范围</b>：文字只会落在这个矩形里（只管大泡泡）。预览里拖它的<b>边框</b>可移动、') +
+      I('拖 8 个方块可缩放；方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>') +
+      I('<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当"重置"用）</div>') +
+      I('<div>· SVG 代码：留空用上面选的预设，填了按代码画（按 1026×700 画布坐标）；只放行 path/ellipse/circle/rect/') +
+      I('polygon/polyline/g 与几何·描边属性，脚本/事件/外链会被剥掉</div>') +
+      I('<div>· 图片：走站内图库；"上传新图"保持原比例（GIF 也能用），"裁剪…"复用角色导入的裁剪窗口</div>') +
+      I('<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>') +
+      I('<div style="margin-top:4px;opacity:.75">保存进框库后，还要在「自定义泡泡」窗口点<b>保存</b>才会落盘生效。</div>')
     ))
   } catch (err) {}
 }
@@ -16815,11 +17098,11 @@ function frameEditBtnsBuild() {
       frameEditBtnsEl.appendChild(b)
       return b
     }
-    btn('取消', 'dshwv-bubbtn-no', function () {
-      if (frameEditIsDirty()) showConfirm('放弃这个泡泡框的未保存修改?', function () { frameEditClose() })
+    btn(I('取消'), 'dshwv-bubbtn-no', function () {
+      if (frameEditIsDirty()) showConfirm(I('放弃这个泡泡框的未保存修改?'), function () { frameEditClose() })
       else frameEditClose()
     })
-    btn('重置', 'dshwv-bubbtn-no', function () {
+    btn(I('重置'), 'dshwv-bubbtn-no', function () {
       if (!frameEditSnap) return
       frameEditDraft = JSON.parse(frameEditSnap)
       frameEditSel = 'big'
@@ -16830,9 +17113,9 @@ function frameEditBtnsBuild() {
       frameEditPreviewRefresh()
     })
     // v848（用户要求）：保存/存为新样式 文案加"并应用"，并且**真的立刻应用**（见 frameEditCommit 的 applyNow）
-    if (frameEditMode === 'edit') btn('另存为并应用', 'dshwv-bubbtn-no', function () { frameEditCommit('saveas') })
-    if (frameEditMode === 'edit') btn('保存并应用', 'dshwv-bubbtn-ok', function () { frameEditCommit('save') })
-    else btn(frameEditMode === 'new' ? '存为新样式并应用' : '另存为并应用', 'dshwv-bubbtn-ok', function () { frameEditCommit(frameEditMode === 'new' ? 'new' : 'saveas') })
+    if (frameEditMode === 'edit') btn(I('另存为并应用'), 'dshwv-bubbtn-no', function () { frameEditCommit('saveas') })
+    if (frameEditMode === 'edit') btn(I('保存并应用'), 'dshwv-bubbtn-ok', function () { frameEditCommit('save') })
+    else btn(frameEditMode === 'new' ? I('存为新样式并应用') : I('另存为并应用'), 'dshwv-bubbtn-ok', function () { frameEditCommit(frameEditMode === 'new' ? 'new' : 'saveas') })
   } catch (err) {}
 }
 function frameEditClose() {
@@ -16841,11 +17124,11 @@ function frameEditClose() {
 }
 function frameEditCopyName(name) {
   try {
-    var base = String(name || '泡泡框')
+    var base = String(name || I('泡泡框'))
     var used = framesNow().frames.some(function (x) { return x.name === base })
     if (!used) return base.slice(0, 24)
-    return (base + ' 副本').slice(0, 24)
-  } catch (err) { return String(name || '泡泡框').slice(0, 24) }
+    return (base + I(' 副本')).slice(0, 24)
+  } catch (err) { return String(name || I('泡泡框')).slice(0, 24) }
 }
 // 打开编辑器。mode: 'new'（新建，可"存为新样式'）/ 'edit'（编辑已有）/ 'saveas'（另存为一个新框）
 function openFrameEditor(mode, frameId) {
@@ -16864,15 +17147,15 @@ function openFrameEditor(mode, frameId) {
       base.builtin = false
       base.pinned = 0
       base.createdAt = Date.now()
-      base.name = ('泡泡框' + (list.frames.filter(function (x) { return !x.builtin }).length + 1)).slice(0, 24)
+      base.name = (I('泡泡框') + (list.frames.filter(function (x) { return !x.builtin }).length + 1)).slice(0, 24)
       base.slots.big.svgPreset = 'classic'
       // 安全区 = "历史文字框"⇒ 一建出来文字位置就与内置经典框一致（不会莫名跳位）
       base.safe = frameLegacySafe()
       frameEditOrig = null
     } else {
       var src = frameById(frameId)
-      if (!src) { dshwvToast('这个泡泡框已经不存在了', 'no'); return }
-      if (src.builtin) { dshwvToast('内置框只读：请先「复制」或「另存为」', 'no'); return }
+      if (!src) { dshwvToast(I('这个泡泡框已经不存在了'), 'no'); return }
+      if (src.builtin) { dshwvToast(I('内置框只读：请先「复制」或「另存为」'), 'no'); return }
       base = frameNormOne(JSON.parse(JSON.stringify(src)), 0)
       frameEditOrig = JSON.parse(JSON.stringify(base))
       if (frameEditMode === 'saveas') {
@@ -16897,7 +17180,7 @@ function openFrameEditor(mode, frameId) {
     frameEditPreviewRefresh()
     frameEditOpaqueWarmup(null) // v850：图片槽位的不透明包围盒是按需缓存 ⇒ 打开时预热，刷新页面后也一致
   } catch (err) {
-    try { dshwvToast('打开泡泡框编辑器失败（已跳过，其他功能不受影响）', 'no') } catch (e2) {}
+    try { dshwvToast(I('打开泡泡框编辑器失败（已跳过，其他功能不受影响）'), 'no') } catch (e2) {}
   }
 }
 // 保存：'save'（写回原框）/ 'new' / 'saveas'（都新增一个框）。一律走 framesNorm() 归一化。
@@ -16950,11 +17233,11 @@ function frameEditCommit(kind) {
       var nm = frameEsc(saved.name)
       var asDefault = (kind !== 'save')
       dshwvToast(kind === 'save'
-        ? ('已更新并应用泡泡框「' + nm + '」')
-        : ('已保存并应用「' + nm + '」' + (asDefault ? '（已设为保底框）' : '')), 'ok', 2600)
+        ? (I('已更新并应用泡泡框「') + nm + '」')
+        : (I('已保存并应用「') + nm + '」' + (asDefault ? I('（已设为保底框）') : '')), 'ok', 2600)
     } catch (err) {}
   } catch (err) {
-    try { dshwvToast('保存泡泡框失败（未改动任何数据）', 'no') } catch (e2) {}
+    try { dshwvToast(I('保存泡泡框失败（未改动任何数据）'), 'no') } catch (e2) {}
   }
 }
 // ── 加载期：把编辑器窗口建出来（只 createElement/appendChild，不读框库）──
@@ -16977,7 +17260,7 @@ try {
   frameEditNameInp.className = 'dshwv-feinp'
   frameEditNameInp.style.cssText = 'flex:0 0 auto;width:200px;max-width:62%;text-align:center'
   frameEditNameInp.maxLength = 24
-  frameEditNameInp.placeholder = '泡泡框名（最多 24 字）'
+  frameEditNameInp.placeholder = I('泡泡框名（最多 24 字）')
   frameEditNameInp.addEventListener('input', function () {
     try { frameEditDraft.name = String(frameEditNameInp.value || '').slice(0, 24) } catch (err) {}
   })
@@ -17020,7 +17303,7 @@ function bubbleLibAdd(name, module) {
   try {
     if (!module) return null
     var id = 'bmod_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
-    var it = { id: id, name: String(name || '').trim().slice(0, 20) || '模块' + (bubbleLib.length + 1), module: bubbleCloneModule(module) }
+    var it = { id: id, name: String(name || '').trim().slice(0, 20) || I('模块') + (bubbleLib.length + 1), module: bubbleCloneModule(module) }
     bubbleLib.push(it)
     return it
   } catch (err) { return null }
@@ -17349,7 +17632,7 @@ function bubbleRenderDefault() { restoreBubbleLines() }
 function bubbleRenderRandom(lines) {
   if (lines && lines.gif) {
     if (gifFailed) {
-      lines = singleCenter('A', pickOne(['gif 加载失败了...', '今天没有动图给你看~', '呜呜 动图不见了...']), '', true)
+      lines = singleCenter('A', pickOne([I('gif 加载失败了...'), I('今天没有动图给你看~'), I('呜呜 动图不见了...')]), '', true)
     } else {
       try { gifEl.style.display = 'block'; gifEl.style.opacity = '' } catch (err) {}
       labelEl.style.display = 'none'
@@ -17432,7 +17715,7 @@ function bubbleAmountText() {
   return fmt(v, state.currency)
 }
 function bubbleTodayText() {
-  return (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+  return (state.usageLabel || I('今日已用')) + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
 }
 // v782：赠金 / 充值余额两个数值模块的取数（与「总余额(充值金额+赠金)」同源：宿主余额返回体）。
 //   ⚠️ 两个数字**可能拿不到**（厂商没有该字段、或未登录账号）⇒ 显示 `—`，**不显示 0**
@@ -17493,11 +17776,11 @@ function apiQuotaInfo(modelId) {
 }
 function apiFmtQuotaNum(n) {
   n = Number(n) || 0
-  if (n >= 100000000) return (n / 100000000).toFixed(2).replace(/\.?0+$/, '') + '亿'
-  if (n >= 10000) return (n / 10000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, '') + '万'
+  if (n >= 100000000) return (n / 100000000).toFixed(2).replace(/\.?0+$/, '') + I('亿')
+  if (n >= 10000) return (n / 10000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, '') + I('万')
   return String(Math.round(n))
 }
-function apiQuotaUnitSuffix(i) { return i && i.unit === 'money' ? ' 元' : (i ? ' tokens' : '') }
+function apiQuotaUnitSuffix(i) { return i && i.unit === 'money' ? I(' 元') : (i ? ' tokens' : '') }
 function apiQuotaUsedText(modelId) {
   var i = apiQuotaInfo(modelId)
   if (!i) return '--'
@@ -17521,7 +17804,7 @@ function apiQuotaPctText(modelId) {
 function apiQuotaResetText(modelId) {
   var i = apiQuotaInfo(modelId)
   if (!i) return '--'
-  if (i.reset === 'none') return '不重置'
+  if (i.reset === 'none') return I('不重置')
   var now = new Date()
   var nx = i.reset === 'monthly'
     ? new Date(now.getFullYear(), now.getMonth() + 1, 1)
@@ -17529,16 +17812,16 @@ function apiQuotaResetText(modelId) {
   var ms = Math.max(0, nx.getTime() - now.getTime())
   var h = Math.floor(ms / 3600000)
   var d = Math.floor(h / 24)
-  if (d > 0) return d + '天' + (h % 24) + '小时后重置'
-  return h + '小时' + Math.floor((ms % 3600000) / 60000) + '分后重置'
+  if (d > 0) return d + I('天') + (h % 24) + I('小时后重置')
+  return h + I('小时') + Math.floor((ms % 3600000) / 60000) + I('分后重置')
 }
 // 面板/子菜单里显示的一行摘要
 function apiQuotaSummary(modelId) {
   var q = apiQuotaOf(modelId)
-  if (!q || !q.on) return '已关闭'
+  if (!q || !q.on) return I('已关闭')
   var i = apiQuotaInfo(modelId)
-  if (!i) return '已开启（未填总量）'
-  return (i.mode === 'codex' ? 'Codex · ' : (i.mode === 'auto' ? '自动 · ' : '手动 · ')) + '已用 ' + apiQuotaPctText(modelId) + ' · 剩 ' + apiFmtQuotaNum(i.left) + apiQuotaUnitSuffix(i)
+  if (!i) return I('已开启（未填总量）')
+  return (i.mode === 'codex' ? 'Codex · ' : (i.mode === 'auto' ? I('自动 · ') : I('手动 · '))) + I('已用 ') + apiQuotaPctText(modelId) + I(' · 剩 ') + apiFmtQuotaNum(i.left) + apiQuotaUnitSuffix(i)
 }
 // —— Codex 模式：本地会话统计（host 读 ~/.codex/sessions 得到，机器级数据）——
 function apiCodexOf(modelId) {
@@ -17547,8 +17830,8 @@ function apiCodexOf(modelId) {
 }
 function apiFmtTokens(n) {
   n = Number(n) || 0
-  if (n >= 100000000) return (n / 100000000).toFixed(2).replace(/\.?0+$/, '') + '亿'
-  if (n >= 10000) return (n / 10000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, '') + '万'
+  if (n >= 100000000) return (n / 100000000).toFixed(2).replace(/\.?0+$/, '') + I('亿')
+  if (n >= 10000) return (n / 10000).toFixed(n >= 1000000 ? 0 : 1).replace(/\.0$/, '') + I('万')
   return String(Math.round(n))
 }
 function apiCodexDays7(c) {
@@ -17561,53 +17844,53 @@ function apiCodexRowText(am) {
   var c = am && am.codex
   if (!c || !c.ok) {
     // issue #116：把「被关掉 / 找不到目录 / 出错」区分开，不再是一句笼统的失败
-    if (c && c.disabled) return 'Codex 统计已关闭'
-    return c && c.error ? ('⚠ ' + c.error) : '无 Codex 数据'
+    if (c && c.disabled) return I('Codex 统计已关闭')
+    return c && c.error ? ('⚠ ' + c.error) : I('无 Codex 数据')
   }
-  var txt = 'Codex 今日 ' + apiFmtTokens(c.todayTokens) + ' · 近7天 ' + apiFmtTokens(apiCodexDays7(c)) + ' tokens'
+  var txt = I('Codex 今日 ') + apiFmtTokens(c.todayTokens) + I(' · 近7天 ') + apiFmtTokens(apiCodexDays7(c)) + ' tokens'
   // 护栏的实际情况要能看见（issue #116：原报告抱怨"无开关、无报错、无提示"）
   var notes = []
-  if (Number(c.skipped) > 0) notes.push('已跳过 ' + c.skipped + ' 个超大日志')
-  if (Number(c.deferred) > 0) notes.push('统计更新中')
+  if (Number(c.skipped) > 0) notes.push(I('已跳过 ') + c.skipped + I(' 个超大日志'))
+  if (Number(c.deferred) > 0) notes.push(I('统计更新中'))
   if (notes.length) txt += '（' + notes.join(' · ') + '）'
   return txt
 }
 // 第二期：订阅窗口（5h / 周）。host 已把 rate_limits 归一成 { primary, secondary, planType }
 function apiCodexWinLabel(w, idx) {
   if (w && w.windowMinutes) {
-    if (w.windowMinutes >= 1440) return Math.round(w.windowMinutes / 1440) + '天窗口'
+    if (w.windowMinutes >= 1440) return Math.round(w.windowMinutes / 1440) + I('天窗口')
     if (w.windowMinutes >= 60) return Math.round(w.windowMinutes / 60) + 'h'
-    return w.windowMinutes + '分钟'
+    return w.windowMinutes + I('分钟')
   }
-  return idx === 0 ? '5h' : '周'
+  return idx === 0 ? '5h' : I('周')
 }
 function apiCodexWindowReset(w) {
   if (!w || !w.resetAt) return ''
   var left = Number(w.resetAt) - Date.now()
   if (!isFinite(left)) return ''
-  if (left <= 0) return '即将重置'
+  if (left <= 0) return I('即将重置')
   var h = Math.floor(left / 3600000)
   var d = Math.floor(h / 24)
-  if (d > 0) return d + '天' + (h % 24) + '小时后重置'
-  return h + '小时' + Math.floor((left % 3600000) / 60000) + '分后重置'
+  if (d > 0) return d + I('天') + (h % 24) + I('小时后重置')
+  return h + I('小时') + Math.floor((left % 3600000) / 60000) + I('分后重置')
 }
 function apiCodexWindowsText(c) {
   var w = c && c.windows
   if (!w) return ''
   var pct = function (v) { return (v === null || v === undefined) ? '--' : ((Number(v) || 0).toFixed(1).replace(/\.0$/, '') + '%') }
   var parts = []
-  if (w.primary) parts.push(apiCodexWinLabel(w.primary, 0) + ' 已用 ' + pct(w.primary.usedPct) + (apiCodexWindowReset(w.primary) ? ' · ' + apiCodexWindowReset(w.primary) : ''))
-  if (w.secondary) parts.push(apiCodexWinLabel(w.secondary, 1) + ' 已用 ' + pct(w.secondary.usedPct) + (apiCodexWindowReset(w.secondary) ? ' · ' + apiCodexWindowReset(w.secondary) : ''))
+  if (w.primary) parts.push(apiCodexWinLabel(w.primary, 0) + I(' 已用 ') + pct(w.primary.usedPct) + (apiCodexWindowReset(w.primary) ? ' · ' + apiCodexWindowReset(w.primary) : ''))
+  if (w.secondary) parts.push(apiCodexWinLabel(w.secondary, 1) + I(' 已用 ') + pct(w.secondary.usedPct) + (apiCodexWindowReset(w.secondary) ? ' · ' + apiCodexWindowReset(w.secondary) : ''))
   if (w.planType) parts.push(w.planType)
   return parts.join(' | ')
 }
 // 详细摘要（子菜单只读行 / 编辑器提示）
 function apiCodexDetailText(modelId) {
   var c = apiCodexOf(modelId)
-  if (!c || !c.ok) return c && c.error ? c.error : '无 Codex 数据'
-  var s = '今日 ' + apiFmtTokens(c.todayTokens) + ' · 本月 ' + apiFmtTokens(c.monthTokens) +
-    ' · 累计 ' + apiFmtTokens(c.totalTokens) + ' · 近7天 ' + apiFmtTokens(apiCodexDays7(c)) +
-    '（' + (c.sessions || 0) + ' 个会话文件）'
+  if (!c || !c.ok) return c && c.error ? c.error : I('无 Codex 数据')
+  var s = I('今日 ') + apiFmtTokens(c.todayTokens) + I(' · 本月 ') + apiFmtTokens(c.monthTokens) +
+    I(' · 累计 ') + apiFmtTokens(c.totalTokens) + I(' · 近7天 ') + apiFmtTokens(apiCodexDays7(c)) +
+    '（' + (c.sessions || 0) + I(' 个会话文件）')
   var w = apiCodexWindowsText(c)
   if (w) s += ' · ' + w
   return s
@@ -17632,10 +17915,10 @@ function apiPlanPctText(v) {
 // 模块的「显示样式」= 选哪个时间窗口：all 全部三窗口 / rolling 5h / weekly 周 / monthly 月。
 // 选中具体窗口时输出会带上窗口标签（如 `5h 2%`），避免看不出是哪个时间段。
 var BUBBLE_PLAN_WIN_OPTS = [
-  ['all', '全部（5h / 周 / 月）'],
+  ['all', I('全部（5h / 周 / 月）')],
   ['rolling', '5h'],
-  ['weekly', '周'],
-  ['monthly', '月'],
+  ['weekly', I('周')],
+  ['monthly', I('月')],
 ]
 function bubblePlanWinOf(m) {
   m = m || {}
@@ -17652,7 +17935,7 @@ function bubblePlanModuleLabel(m) {
   m = m || {}
   var nm = (apiModelById(m.modelId) || {}).name || m.modelId
   var w = bubblePlanWinOf(m)
-  return '额度·' + nm + (w === 'all' ? '' : '（' + bubblePlanWinLabel(w) + '）')
+  return I('额度·') + nm + (w === 'all' ? '' : '（' + bubblePlanWinLabel(w) + '）')
 }
 // 该模型的厂商模板是否声明了多窗口额度（决定编辑器里要不要给「显示样式」下拉）
 function apiPlanMultiWin(modelId) {
@@ -17732,18 +18015,18 @@ function apiPlanResetMs(t) {
 function apiPlanCountdownText(ms) {
   var left = ms - Date.now()
   if (!isFinite(left)) return ''
-  if (left <= 0) return '即将重置'
+  if (left <= 0) return I('即将重置')
   var h = Math.floor(left / 3600000)
   var d = Math.floor(h / 24)
-  if (d > 0) return d + '天' + (h % 24) + '小时后重置'
-  return h + '小时' + Math.floor((left % 3600000) / 60000) + '分后重置'
+  if (d > 0) return d + I('天') + (h % 24) + I('小时后重置')
+  return h + I('小时') + Math.floor((left % 3600000) / 60000) + I('分后重置')
 }
 // 倒计时文本（紧凑写法，多窗口用：5d21h / 3h53m）——单位统一用 d/h/m，不掺中文
 // 不带「后重置」字样：多窗口模块里窗口标签已说明它是什么（如 `5h 2% · 3h53m`）
 function apiPlanCountdownShortText(ms) {
   var left = ms - Date.now()
   if (!isFinite(left)) return ''
-  if (left <= 0) return '即将重置'
+  if (left <= 0) return I('即将重置')
   var m = Math.floor(left / 60000)
   var h = Math.floor(m / 60)
   var d = Math.floor(h / 24)
@@ -17763,8 +18046,8 @@ function apiPlanResetText(modelId, win) {
 }
 function apiPlanSummary(modelId) {
   var p = apiPlanOf(modelId)
-  if (!p) return '读取中…'
-  if (!p.ok) return p.hide ? '--' : (p.error || '读取失败')
+  if (!p) return I('读取中…')
+  if (!p.ok) return p.hide ? '--' : (p.error || I('读取失败'))
   // v0.3.1：多窗口额度（如 OpenCode Go 的 5h / 周 / 月）逐窗口展示：`5h 12.5% · 2h55m后重置 | 周 …`
   if (p.windows && p.windows.length) {
     var parts = []
@@ -17782,8 +18065,8 @@ function apiPlanSummary(modelId) {
     if (p.level) parts.push(p.level)
     return parts.join(' | ')
   }
-  var s = '已用 ' + apiPlanUsedText(modelId) + ' · ' + apiPlanResetText(modelId)
-  if (p.weeklyUsedPct !== null && p.weeklyUsedPct !== undefined) s += ' · 周 ' + apiPlanPctText(p.weeklyUsedPct)
+  var s = I('已用 ') + apiPlanUsedText(modelId) + ' · ' + apiPlanResetText(modelId)
+  if (p.weeklyUsedPct !== null && p.weeklyUsedPct !== undefined) s += I(' · 周 ') + apiPlanPctText(p.weeklyUsedPct)
   if (p.level) s += ' · ' + p.level
   return s
 }
@@ -17844,29 +18127,29 @@ function bubbleTplHelpItems(m) {
   function add(k, d) { arr.push({ k: '{' + k + '}', d: d }) }
   if (bubbleIsModelMod(m) && (m.type === 'balance' || m.type === 'today' || m.type === 'quota' || m.type === 'plan')) {
     if (m.type !== 'quota' && m.type !== 'plan') {
-      add('balance', '该模型的余额')
-      add('today', '该模型今日已用')
+      add('balance', I('该模型的余额'))
+      add('today', I('该模型今日已用'))
     }
     if (m.type !== 'plan') {
-      add('quota', '额度已用百分比')
-      add('quota_used', '额度已用值')
-      add('quota_left', '额度剩余值')
-      add('quota_total', '额度总量')
-      add('quota_reset', '额度重置倒计时')
+      add('quota', I('额度已用百分比'))
+      add('quota_used', I('额度已用值'))
+      add('quota_left', I('额度剩余值'))
+      add('quota_total', I('额度总量'))
+      add('quota_reset', I('额度重置倒计时'))
     }
-    add('plan', '订阅额度已用百分比（多窗口厂商按「显示样式」所选窗口，带窗口标签）')
-    add('plan_left', '订阅额度剩余百分比（同上）')
-    add('plan_reset', '订阅额度刷新倒计时（同上；全部窗口时为紧凑倒计时）')
+    add('plan', I('订阅额度已用百分比（多窗口厂商按「显示样式」所选窗口，带窗口标签）'))
+    add('plan_left', I('订阅额度剩余百分比（同上）'))
+    add('plan_reset', I('订阅额度刷新倒计时（同上；全部窗口时为紧凑倒计时）'))
     return arr
   }
-  if (m.type === 'balance') add('balance_ds', '总余额(充值金额+赠金)')
-  if (m.type === 'bonus') add('bonus_ds', '赠金余额（未过期的赠送余额；取不到显示 —）')
-  if (m.type === 'recharge') add('recharge_ds', '充值余额（不含赠金；取不到显示 —）')
-  else if (m.type === 'today') add('expense_ds', '今日已用金额')
-  else if (m.type === 'session') add('session', '当前对话名（超过「保留长度」会截断为 前N字...）')
+  if (m.type === 'balance') add('balance_ds', I('总余额(充值金额+赠金)'))
+  if (m.type === 'bonus') add('bonus_ds', I('赠金余额（未过期的赠送余额；取不到显示 —）'))
+  if (m.type === 'recharge') add('recharge_ds', I('充值余额（不含赠金；取不到显示 —）'))
+  else if (m.type === 'today') add('expense_ds', I('今日已用金额'))
+  else if (m.type === 'session') add('session', I('当前对话名（超过「保留长度」会截断为 前N字...）'))
   else if (m.type === 'peak' || m.type === 'nextpeak') {
-    if (bubbleIsPeakCount(m)) add('countdown', '距下一时段倒计时 (HH:MM:SS)')
-    else add('status', '高峰/空闲 状态文字(随显示样式变化)')
+    if (bubbleIsPeakCount(m)) add('countdown', I('距下一时段倒计时 (HH:MM:SS)'))
+    else add('status', I('高峰/空闲 状态文字(随显示样式变化)'))
   }
   return arr
 }
@@ -17888,10 +18171,10 @@ function bubbleTplHelpToggle(m, anchor) {
     }
     if (dshwvTplHelpEl.style.display === 'block') { dshwvTplHelpEl.style.display = 'none'; return }
     var items = bubbleTplHelpItems(m)
-    var html = '<div style="font-weight:600;margin-bottom:4px">可用占位符(替换到内容里)</div>'
-    if (!items.length) html += '<div style="opacity:.8">该模块无自动内容占位</div>'
+    var html = I('<div style="font-weight:600;margin-bottom:4px">可用占位符(替换到内容里)</div>')
+    if (!items.length) html += I('<div style="opacity:.8">该模块无自动内容占位</div>')
     for (var i = 0; i < items.length; i++) html += '<div style="margin:1px 0"><b style="color:#2f4488">' + items[i].k + '</b> — ' + items[i].d + '</div>'
-    html += '<div style="margin-top:5px;opacity:.65">其余文字原样显示;留空=默认自动内容</div>'
+    html += I('<div style="margin-top:5px;opacity:.65">其余文字原样显示;留空=默认自动内容</div>')
     dshwvTplHelpEl.innerHTML = html
     dshwvTplHelpEl.style.display = 'block'
     // 与 dshwvHintShow 同理:占位符说明弹层也要抬到当前可见窗口之上,否则在提醒编辑器里会被遮罩盖住
@@ -17958,7 +18241,7 @@ function dshwvAskDot(html) {
   b.type = 'button'
   b.className = 'dshwv-askq dshwv-tplq'
   b.textContent = '?'
-  b.title = '查看说明'
+  b.title = I('查看说明')
   b.addEventListener('mouseenter', function () {
     if (dshwvHintPinned && dshwvHintEl && dshwvHintEl.style.display === 'block') return
     dshwvHintShow(html, b, false)
@@ -17987,11 +18270,11 @@ function bubbleMarqueeDur() { return Math.round(1500 + Math.random() * 3000) + '
 // 峰谷模块「显示样式」:默认 / 梁文峰谷 / !?强强?! / 倒计时 / 简洁(峰·谷)
 // 称呼样式按模块自身 peakStyle,不再依赖主菜单全局设置(已下线)
 var BUBBLE_PEAK_STYLE_OPTS = [
-  ['default', '默认'],
-  ['liangwen', '梁文峰谷'],
-  ['qiangqiang', '!?强强?!'],
-  ['count', '倒计时'],
-  ['mini', '简洁(峰/谷)'],
+  ['default', I('默认')],
+  ['liangwen', I('梁文峰谷')],
+  ['qiangqiang', I('!?强强?!')],
+  ['count', I('倒计时')],
+  ['mini', I('简洁(峰/谷)')],
 ]
 function bubblePeakStyleOf(m) {
   m = m || {}
@@ -18005,9 +18288,9 @@ function bubblePeakStyleOf(m) {
 function bubbleIsPeakCount(m) { return bubblePeakStyleOf(m) === 'count' }
 function bubblePeakModuleLabel(m) {
   var s = bubblePeakStyleOf(m)
-  if (s === 'count') return '时段倒计时'
-  if (s === 'mini') return '简洁(峰/谷)'
-  return '峰谷时段'
+  if (s === 'count') return I('时段倒计时')
+  if (s === 'mini') return I('简洁(峰/谷)')
+  return I('峰谷时段')
 }
 // 服务端峰谷数据是否已就绪(isPeak 来自余额接口)
 function bubblePeakReady() {
@@ -18025,10 +18308,10 @@ function bubblePeakText(m) {
   m = m || {}
   var st = bubblePeakStyleOf(m)
   var peak = bubbleIsPeakNow()
-  if (st === 'liangwen') return peak ? '梁文峰' : '梁文谷'
-  if (st === 'qiangqiang') return peak ? '!?峰峰?!' : '!?谷谷?!'
-  if (st === 'mini') return peak ? '峰' : '谷'
-  return peak ? '高峰时段' : '空闲时段'
+  if (st === 'liangwen') return peak ? I('梁文峰') : I('梁文谷')
+  if (st === 'qiangqiang') return peak ? I('!?峰峰?!') : I('!?谷谷?!')
+  if (st === 'mini') return peak ? I('峰') : I('谷')
+  return peak ? I('高峰时段') : I('空闲时段')
 }
 // 按权重抽 1 条,avoidIdx 用于“不连续重复上一句”
 function bubblePickLine(lines, avoidIdx) {
@@ -18264,7 +18547,7 @@ function bubbleRowContentOf(mod) {
   if (mod.type === 'recharge') return { txt: bubbleContentText(mod, bubbleRechargeText()), line: null }
   if (mod.type === 'today') {
     var tv2 = bubbleIsModelMod(mod) ? apiModelTodayText(mod.modelId) : (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
-    return { txt: bubbleContentText(mod, '今日已用 ' + tv2), line: null }
+    return { txt: bubbleContentText(mod, I('今日已用 ') + tv2), line: null }
   }
   if (mod.type === 'session') {
     // v768：对话名模块（自动内容 = 截断后的对话名；留空 tpl 时直接用自动内容）
@@ -18273,12 +18556,12 @@ function bubbleRowContentOf(mod) {
   if (mod.type === 'quota') {
     var qi = apiQuotaInfo(mod.modelId)
     var qt = qi
-      ? ('额度 ' + apiQuotaPctText(mod.modelId) + ' · 剩 ' + apiFmtQuotaNum(qi.left) + apiQuotaUnitSuffix(qi))
-      : '额度 --'
+      ? (I('额度 ') + apiQuotaPctText(mod.modelId) + I(' · 剩 ') + apiFmtQuotaNum(qi.left) + apiQuotaUnitSuffix(qi))
+      : I('额度 --')
     return { txt: bubbleContentText(mod, qt), line: null }
   }
   if (mod.type === 'plan') {
-    return { txt: bubbleContentText(mod, '额度 ' + apiPlanSummary(mod.modelId)), line: null }
+    return { txt: bubbleContentText(mod, I('额度 ') + apiPlanSummary(mod.modelId)), line: null }
   }
   if (mod.type === 'peak') {
     var pw = bubblePeakText(mod)
@@ -19067,13 +19350,13 @@ function render() {
   var amount, hint
   if (state.status === 'error') {
     amount = shown !== null ? fmt(shown, state.currency) : '--'
-    hint = state.message ? state.message.slice(0, 14) : '获取失败 · 点击重试'
+    hint = state.message ? state.message.slice(0, 14) : I('获取失败 · 点击重试')
   } else if (state.balance === null) {
     amount = shown !== null ? fmt(shown, state.currency) : '…'
-    hint = '加载中…'
+    hint = I('加载中…')
   } else {
     amount = shown !== null ? fmt(shown, state.currency) : fmt(state.balance, state.currency)
-    hint = (state.usageLabel || '今日已用') + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
+    hint = (state.usageLabel || I('今日已用')) + ' ' + (state.todayUsage !== null && state.todayUsage !== undefined ? fmt(state.todayUsage, state.todayUsageCurrency || state.currency) : '--')
   }
   amountEl.textContent = amount
   if (bubbleRandomActive && bubbleRandomLines) {
@@ -19252,8 +19535,8 @@ function refresh(manual) {
         // v781：赠金 / 充值余额（宿主两条路都下发；缺失给 null ⇒ 模块显示 —）
         state.bonusBalance = isFinite(Number(data.bonusBalance)) ? Number(data.bonusBalance) : null
         state.rechargeBalance = isFinite(Number(data.rechargeBalance)) ? Number(data.rechargeBalance) : null
-        state.usageLabel = data.usageLabel || '本地估算'
-        if (data.stale) state.usageLabel += ' · 余额未刷新'
+        state.usageLabel = data.usageLabel || I('本地估算')
+        if (data.stale) state.usageLabel += I(' · 余额未刷新')
         state.isPeak = !!data.isPeak
   // v790（用户要求）：菜单底部那行版本小字（宿主下发 versionLabel；老宿主没有就退回 version）
   // v794：宿主现在**成功失败都带** versionLabel ⇒ 余额失败也不会让版号空着
@@ -19288,17 +19571,17 @@ function refresh(manual) {
         }
       } else {
         state.status = 'error'
-        state.message = (data && data.error) ? String(data.error) : '获取失败'
+        state.message = (data && data.error) ? String(data.error) : I('获取失败')
         // v781：把宿主的错误码也打到控制台 —— "只登录客户端读不到余额"这类反馈里，
         //   界面只显示一句人类可读的文案，而 code（NO_KEY / BOTH_FAILED / SHAPE …）才是排查入口。
-        try { console.warn('[dsh-whale] 余额读取失败', (data && data.code) || '', state.message) } catch (err) {}
+        try { console.warn(I('[dsh-whale] 余额读取失败'), (data && data.code) || '', state.message) } catch (err) {}
         render()
         balanceRetryLater()
       }
     })
     .catch(function () {
       state.status = 'error'
-      state.message = '获取失败'
+      state.message = I('获取失败')
       render()
       balanceRetryLater()
     })
@@ -19366,7 +19649,7 @@ function dshwvToast(msg, kind, ms) {
   } catch (err) {}
 }
 function configSaveFailNotice(detail) {
-  try { console.error('[dsh-whale] 设置保存失败:', detail) } catch (err) {}
+  try { console.error(I('[dsh-whale] 设置保存失败:'), detail) } catch (err) {}
   // v756（issue #143）：toast 是按 HTML 设计的（其余调用点传的字面量里带 `<br>`），而这里的 detail
   // 是**动态值**（服务端 JSON 回包的 error 字段 / fetch 异常消息），直接拼进 innerHTML 就是一处
   // 「动态数据进 HTML 位置」。当前来源都在本地信任边界内、构造不出真实利用，但把 provider 回包、
@@ -19374,15 +19657,15 @@ function configSaveFailNotice(detail) {
   // `<br>` 保留。
   var safe = String(detail || '').slice(0, 120)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  dshwvToast('⚠ 设置保存失败：' + safe +
-    '<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。')
+  dshwvToast(I('⚠ 设置保存失败：') + safe +
+    I('<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。'))
 }
 function configPayload() {
   // v868（用户报"取消勾选按压音效没效果、重开又勾上"）：载荷里**漏了 pressOn** ——
   //   宿主白名单、读侧合并、客户端回填都做了，唯独这里没发 ⇒ 宿主 pickB 走"沿用旧值(true)" ⇒ 永远存不住。
   //   与 v863 的 subagent.mute 是同一类"半截活"：新键必须走完 **四件套**
   //   ① 客户端 PUT 载荷 → ② 宿主写侧白名单 → ③ 宿主读侧合并 → ④ 客户端回填。
-  return JSON.stringify({ scale: state.scale, sound: soundOn, pressOn: pressOn !== false, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
+  return JSON.stringify({ scale: state.scale, sound: soundOn, pressOn: pressOn !== false, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn, locale: currentLocale })
 }
 // 真正的 PUT：读响应 → 失败（网络异常 / HTTP!=200 / {ok:false}）静默重试一次 → 仍失败才提示
 function configPut(payload, retried) {
@@ -19508,6 +19791,15 @@ function applyMenuBtnHideUI() {
     // 触屏：没有 hover 可以显形 → 常显（仍受上面的 hidden 开关控制）
     else if (dshwvTouchUI()) menuBtn.classList.add('dshwv-menu-btn-visible')
   } catch (err) {}
+}
+// 切换语言：① 立刻改内存并重贴可见文案（不重建 DOM、不重载）；② 落盘走与其它偏好相同的
+// saveConfig() → PUT size.json（locale 字段），宿主写侧 pickL 存住，下次加载由 preamble 同步注入。
+function setLocale(v) {
+  var next = v === 'en' ? 'en' : 'zh'
+  currentLocale = next
+  if (langSel) langSel.value = (next === 'en') ? 'en' : 'zh'
+  try { dshwI18nSet(next) } catch (err) {}
+  saveConfig()
 }
 function setMenuBtnHide(v) {
   menuBtnHide = !!v
@@ -19968,7 +20260,7 @@ function positionMenu() {
 
 // —— 自定义角色：列表 / 选择 / 置顶 / 删除 / 导入裁剪 ——
 var ROLE_URL = '/dsh-whale/roles.json'
-var currentRole = { id: 'default', name: '小鲸鱼', url: IMG_URL }
+var currentRole = { id: 'default', name: I('小鲸鱼'), url: IMG_URL }
 var roleList = []
 function loadRoles() {
   try {
@@ -19991,7 +20283,7 @@ function loadRoles() {
           else renderRolePanel()
         } else if (saved && saved !== 'default') {
           // 保存的角色已被删除：回退默认鲸鱼娘
-          applyRole('default', '小鲸鱼', IMG_URL)
+          applyRole('default', I('小鲸鱼'), IMG_URL)
         }
         // 若 saved 为空或为 default：保持当前（initRoleUrl 已是 IMG_URL）
       })
@@ -19999,7 +20291,9 @@ function loadRoles() {
   } catch (err) {}
 }
 function setRoleBtnText(t) { try { roleBtnLabel.textContent = t } catch (err) {} }
-function setAudioBtnText(t) { try { audioGroupBtnLabel.textContent = t } catch (err) {} }
+// 宿主下发的名字（内置音效组，如「小黄鸭」）不是被包裹的字面量 ⇒ 在这里过一次 I()，
+// 单一入口覆盖全部 3 个调用点；未知 key（用户自建的组名）原样返回。
+function setAudioBtnText(t) { try { audioGroupBtnLabel.textContent = I(t) } catch (err) {} }
 // 名称悬停循环滚动：仅当文本溢出容器时，悬停到该行后名称无限循环滚动露出全名，
 // 移开停止并回位。双副本无缝循环：滚动距离 = 单份文本+间距，跳回起点时画面相同。
 // item 为行容器（鼠标事件源），nameEl 必须是包了 .dshwv-nameinner 的外层。
@@ -20148,7 +20442,7 @@ function renderRolePanel() {
       pin.type = 'button'
       pin.className = 'dshwv-rolepin' + (r.pinned ? ' on' : '')
       pin.textContent = '📌'
-      pin.title = r.pinned ? '取消置顶' : '置顶'
+      pin.title = r.pinned ? I('取消置顶') : I('置顶')
       pin.addEventListener('click', function (e) {
         e.stopPropagation()
         togglePin(r.id, !r.pinned)
@@ -20159,7 +20453,7 @@ function renderRolePanel() {
         del.type = 'button'
         del.className = 'dshwv-roledel'
         del.textContent = '✕'
-        del.title = '删除角色'
+        del.title = I('删除角色')
         del.addEventListener('click', function (e) {
           e.stopPropagation()
           deleteRole(r.id)
@@ -20199,7 +20493,7 @@ function showConfirm(text, cb, okLabel) {
   confirmText.textContent = text
   // 默认确定键文案:文本含“删除”则用“删除”,否则“确定”(可显式传入覆盖)
   try {
-    if (!okLabel) okLabel = String(text || '').indexOf('删除') !== -1 ? '删除' : '确定'
+    if (!okLabel) okLabel = String(text || '').indexOf(I('删除')) !== -1 ? I('删除') : I('确定')
     confirmYesBtn.textContent = okLabel
   } catch (err) {}
   confirmMask.style.display = 'flex'
@@ -20211,7 +20505,7 @@ function hideConfirm() {
 function deleteRole(id) {
   var r = null
   for (var i = 0; i < roleList.length; i++) if (roleList[i].id === id) { r = roleList[i]; break }
-  showConfirm('确定删除角色「' + (r ? r.name : id) + '」吗？', function () {
+  showConfirm(I('确定删除角色「') + (r ? r.name : id) + I('」吗？'), function () {
     try {
       fetch('/dsh-whale/role-delete.json', {
         method: 'POST',
@@ -20223,7 +20517,7 @@ function deleteRole(id) {
           if (d && d.ok && Array.isArray(d.roles)) {
             roleList = d.roles
             renderRolePanel()
-            if (currentRole.id === id) applyRole('default', '小鲸鱼', IMG_URL)
+            if (currentRole.id === id) applyRole('default', I('小鲸鱼'), IMG_URL)
           }
         })
         .catch(function () {})
@@ -20489,7 +20783,7 @@ function confirmCrop() {
     if (!cropState) return
     // v828：裁剪窗口多了一个"导出到泡泡图库"的目标（角色那条路一个字节都没动）
     var toBubbleImg = (cropTarget === 'bubble-img')
-    var name = (cropNameInput.value || '').trim().slice(0, 16) || (toBubbleImg ? '泡泡图' : '新角色')
+    var name = (cropNameInput.value || '').trim().slice(0, 16) || (toBubbleImg ? I('泡泡图') : I('新角色'))
     // 用与预览一致的变换把当前可视画面放大导出为 610×610，
     // 保证所见即所得（含旋转/缩放/位移），且保留透明背景
     var s = cropState.baseScale * cropState.zoom
@@ -20523,7 +20817,7 @@ function confirmCrop() {
             for (var i = bubbleImgList.length - 1; i >= 0; i--) { if (!bubbleImgList[i].builtin) { newId = bubbleImgList[i].id; break } }
             if (cropTargetCb) { try { cropTargetCb(newId) } catch (err) {} }
           } else {
-            try { dshwvToast('裁剪结果没能存进图片库', 'no') } catch (err) {}
+            try { dshwvToast(I('裁剪结果没能存进图片库'), 'no') } catch (err) {}
           }
         })
         .catch(function () {})
@@ -20590,8 +20884,9 @@ function loadAudio() {
   } catch (err) {}
 }
 function audioGroupName(id) {
-  for (var i = 0; i < audioGroups.length; i++) if (audioGroups[i].id === id) return audioGroups[i].name
-  return id === 'duck' ? '小黄鸭' : (id === 'fx1' ? '音效1' : id)
+  // 宿主下发的组名（内置组是中文）也要过 I()：用户自建的组名不在目录里 ⇒ identity 返回。
+  for (var i = 0; i < audioGroups.length; i++) if (audioGroups[i].id === id) return I(audioGroups[i].name)
+  return id === 'duck' ? I('小黄鸭') : (id === 'fx1' ? I('音效1') : id)
 }
 // 组槽位是否显式留空('' = 该事件静音);null/undefined/预设=视为有声
 function audioGroupSlotEmpty(id, slot) {
@@ -20639,14 +20934,14 @@ function renderAudioGroupPanel() {
       if (g.preset) {
         var tag = document.createElement('span')
         tag.className = 'dshwv-audiopreset'
-        tag.textContent = '预设'
+        tag.textContent = I('预设')
         item.appendChild(tag)
       } else {
         var pin = document.createElement('button')
         pin.type = 'button'
         pin.className = 'dshwv-audiopin' + (g.pinned ? ' on' : '')
         pin.textContent = '📌'
-        pin.title = g.pinned ? '取消置顶' : '置顶'
+        pin.title = g.pinned ? I('取消置顶') : I('置顶')
         pin.addEventListener('click', function (e) {
           e.stopPropagation()
           audioPinGroup(g.id, !g.pinned)
@@ -20656,7 +20951,7 @@ function renderAudioGroupPanel() {
         del.type = 'button'
         del.className = 'dshwv-audiodel'
         del.textContent = '✕'
-        del.title = '删除音效组'
+        del.title = I('删除音效组')
         del.addEventListener('click', function (e) {
           e.stopPropagation()
           audioDeleteGroup(g.id)
@@ -20693,7 +20988,7 @@ function audioPinGroup(id, pinned) {
 function audioDeleteGroup(id) {
   var g = null
   for (var i = 0; i < audioGroups.length; i++) if (audioGroups[i].id === id) { g = audioGroups[i]; break }
-  showConfirm('确定删除音效组「' + (g ? g.name : id) + '」吗？', function () {
+  showConfirm(I('确定删除音效组「') + (g ? g.name : id) + I('」吗？'), function () {
     try {
       fetch(AUDIO_URL, {
         method: 'POST',
@@ -20730,14 +21025,14 @@ function audioSlotBtnText(btn, id) {
   try {
     var txt = audioSlotName(id)
     btn.style.opacity = txt ? '' : '.55'
-    btn.textContent = txt || '留空·不发声'
-    btn.title = '留空则该事件不发声;点击可选择音频片段'
+    btn.textContent = txt || I('留空·不发声')
+    btn.title = I('留空则该事件不发声;点击可选择音频片段')
   } catch (err) {}
   return btn
 }
 function openAudioGroupEditor(group) {
   editingAudioGroupId = group && group.id ? group.id : null
-  audioEditTitle.textContent = editingAudioGroupId ? '编辑音效组' : '新建音效组'
+  audioEditTitle.textContent = editingAudioGroupId ? I('编辑音效组') : I('新建音效组')
   audioEditName.value = group && group.name ? group.name : ''
   // 槽位可为空(留空=该事件静音);新建默认留空待选;
   // 编辑旧组时:字段为字符串(含'')按存储原样,缺失字段才回落预设(兼容更早版本)
@@ -20788,7 +21083,7 @@ function renderAudioSlotPanel(slot) {
     emptyIcon.className = 'dshwv-audiothumb'
     emptyIcon.textContent = '🚫'
     emptyItem.appendChild(emptyIcon)
-    var emptyName = makeNameCell('dshwv-audioname', '留空（不发声）')
+    var emptyName = makeNameCell('dshwv-audioname', I('留空（不发声）'))
     emptyItem.appendChild(emptyName)
     emptyItem.addEventListener('click', function () {
       if (slot === 'press') { audioEditPressVal = ''; audioSlotBtnText(audioEditPressBtn, '') }
@@ -20810,14 +21105,14 @@ function renderAudioSlotPanel(slot) {
       if (f.preset) {
         var tag = document.createElement('span')
         tag.className = 'dshwv-audiopreset'
-        tag.textContent = '预设'
+        tag.textContent = I('预设')
         item.appendChild(tag)
       } else {
         var del = document.createElement('button')
         del.type = 'button'
         del.className = 'dshwv-audiodel'
         del.textContent = '✕'
-        del.title = '删除该音频'
+        del.title = I('删除该音频')
         del.addEventListener('click', function (e) {
           e.stopPropagation()
           audioDeleteFragmentInSlot(slot, f.id)
@@ -21034,7 +21329,7 @@ audioCropFileInput.addEventListener('change', function () {
 })
 function openAudioCrop(arrayBuf, fileName) {
   try {
-    audioCropFileBase = (fileName || '音频片段').replace(/.[^.]+$/, '')
+    audioCropFileBase = (fileName || I('音频片段')).replace(/.[^.]+$/, '')
     audioCropZoom = 1
     audioCropOffset = 0
     // 重新导入新音频时立即停止旧试听，避免旧片段继续响
@@ -21084,7 +21379,7 @@ function drawAudioCrop(skipSync) {
   try {
     if (!audioCropBuffer) return
     var r = audioCropRange()
-    audioCropTime.textContent = r.start.toFixed(1) + 's – ' + r.end.toFixed(1) + 's' + '（共 ' + audioCropBuffer.duration.toFixed(1) + 's，缩放 x' + audioCropZoom.toFixed(1) + '）'
+    audioCropTime.textContent = r.start.toFixed(1) + 's – ' + r.end.toFixed(1) + 's' + I('（共 ') + audioCropBuffer.duration.toFixed(1) + I('s，缩放 x') + audioCropZoom.toFixed(1) + '）'
     var ctx = audioCropCanvas.getContext('2d')
     var W = audioCropCanvas.width, H = audioCropCanvas.height
     ctx.clearRect(0, 0, W, H)
@@ -21499,7 +21794,7 @@ function audioDeleteFragmentInSlot(slot, id) {
   var f = null
   for (var i = 0; i < audioFragments.length; i++) if (audioFragments[i].id === id) { f = audioFragments[i]; break }
   if (!f || f.preset) return
-  showConfirm('确定删除音频「' + f.name + '」吗？', function () {
+  showConfirm(I('确定删除音频「') + f.name + I('」吗？'), function () {
     try {
       fetch(AUDIO_URL, {
         method: 'POST',
@@ -22084,6 +22379,9 @@ loadBubbleCfg()
 //   （低频 + 2 秒去抖，不做轮询）。应用体与原启动链**完全同一份代码**，所以面板控件
 //   （总开关 / 总量滑杆 / 缩放 / 自动关闭等）都会跟着回填，不会出现"值变了界面没变"。
 function sizeCfgApply(d) {
+    // 界面语言的自愈读：桌面壳可能不走 tapIndex 注入的 preamble（见 #153），那时首帧是中文；
+    // 这里用挂件**本来就发**的 GET /dsh-whale/size.json 补上，用户选过的英文几百毫秒内生效。
+    try { if (d && d.locale === 'en' && currentLocale !== 'en') { currentLocale = 'en'; if (langSel) langSel.value = 'en'; if (langDrop) langDrop.sync(); dshwI18nSet('en') } } catch (err) {}
     // v794：启动就读一次版号（宿主 GET size.json 现在也带 versionLabel）
     //   ⇒ 菜单底部那行小字不必等余额请求成功，也就不会"刚启动时消失"
     try { if (d) setVersionLabel(d.versionLabel || d.version) } catch (err) {}
@@ -22157,6 +22455,14 @@ function sizeCfgApply(d) {
       if (menuHideToggle) menuHideToggle.checked = menuBtnHide
     }
     // issue #116：Codex 本机统计开关（老配置里没有这个键 → 保持默认「开」）
+    // 界面语言：只认宿主的存值（别的标签页改过时跟上）；缺键 → 保持当前值（默认中文）。
+    if (d && (d.locale === 'en' || d.locale === 'zh')) {
+      if (d.locale !== currentLocale) {
+        currentLocale = d.locale
+        if (langSel) langSel.value = (d.locale === 'en') ? 'en' : 'zh'; if (langDrop) langDrop.sync()
+        try { dshwI18nSet(d.locale) } catch (err) {}
+      }
+    }
     if (d && typeof d.codexStatsOn === 'boolean') {
       codexStatsOn = d.codexStatsOn
       if (codexStatsToggle) codexStatsToggle.checked = codexStatsOn
@@ -22187,7 +22493,7 @@ function loadSizeCfg() {
     .catch(function () {
       // 读取失败：绝不能拿内存里的默认值去 PUT（那正是「设置被洗成默认值」）
       refresh(false)
-      dshwvToast('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
+      dshwvToast(I('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试'))
     })
 }
 loadSizeCfg()
