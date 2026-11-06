@@ -6685,6 +6685,9 @@ function resRenderData(wrap, roles, bubbleImgs, audio) {
 }
 // —— 余额预警 / 今日预算(弹窗提示;内容可编辑) ——
 var usageAlertBelowFired = false // 低于阈值已弹过;恢复高于后复位
+// v881：提醒来源键。内置 DeepSeek 的预警用 ''（= 历史默认值，零迁移）；自定义 API 模型用自己的 id。
+//   撤回（whaleSysWithdrawAlert）按「来源 + rank=2」双条件匹配 —— 今日预算(rank 1)与其它模型的预警都不受影响。
+var USAGE_ALERT_KEY_DS = ''
 var usageBudgetFiredKey = null // 当日预算已弹标记
 function usageTodayKeyStr() {
   var d = new Date()
@@ -6849,6 +6852,10 @@ function checkUsageAlerts(balance, todayUsage) {
         }
       } else if (typeof balance === 'number' && balance > below) {
         usageAlertBelowFired = false
+        // v881（issue #316）：余额回到阈值以上 ⇒ 这条预警已经没有意义，立刻撤回正在展示/排队中的那一条。
+        //   旧实现只复位「已弹过」标志，泡泡留在屏幕上等人手点；而点鲸鱼被 whaleClick 的 alert 守卫吃掉
+        //   （那是既有设计，不是 bug）⇒ 用户看到的就是「充值后余额已刷新、提醒仍挂着、点宠物没反应」。
+        whaleSysWithdrawAlert(USAGE_ALERT_KEY_DS)
       }
     }
     var b = usageSet.budget
@@ -6886,6 +6893,8 @@ function runApiModelAlerts() {
           }
         } else if (isFinite(bal) && bal > below) {
           apiAlertFired[fk] = false
+          // v881：自定义 API 模型的预警同样要在条件解除时撤回（只撤这个模型 id 的那一条）
+          whaleSysWithdrawAlert(m.id)
         }
       }
       var b = st.budget
@@ -6940,7 +6949,9 @@ function usageAlertModsResolved(mods, below, amount, cost, session) {
   return out
 }
 // content:字符串(单段)或提醒行数组;rank:1=今日预算 2=余额预警(与消耗泡泡同批排队,预算>预警>消耗);cfg 用于自动关闭时长
-function showUsagePopup(title, content, below, amount, rank, cfg) {
+// alertKey(v881):这条提醒的**来源** —— 内置 DeepSeek = USAGE_ALERT_KEY_DS('')、自定义模型 = 模型 id。
+//   撤回(whaleSysWithdrawAlert)靠它区分「哪一条预警」,预算(rank 1)与别的模型不会误伤。
+function showUsagePopup(title, content, below, amount, rank, cfg, alertKey) {
   try {
     var mods = []
     if (typeof content === 'string') mods = [{ type: 'text', text: content, size: 7, bold: true }]
@@ -6952,6 +6963,7 @@ function showUsagePopup(title, content, below, amount, rank, cfg) {
       frameId: String((cfg && cfg.frameId) || ''),
       rank: (rank === 1 || rank === 2) ? rank : 2,
       ttlMs: usageRemindTtlMs(cfg),
+      alertKey: alertKey == null ? USAGE_ALERT_KEY_DS : String(alertKey),
     })) return
     usagePopupCard(title, content, below, amount)
   } catch (err) {}
@@ -18872,7 +18884,13 @@ function whaleSysTick() {
   whaleSysTimer = null
   try {
     if (!bubbleOn || !bubbleBox || !textBox) { whaleSysQueue = []; whaleSysItem = null; return }
-    if (whaleSysItem) return
+    if (whaleSysItem) {
+      // v881（issue #316）：当前项对应的场景若已被**别的路径**顶掉（余额变化 showBubble() 直接
+      //   sceneOpen 一个普通泡泡、用户点开点击序列…），这一项就再也等不到自己的 hideXxx，
+      //   队列会永久饥饿 —— 之后的每轮消耗/预警全都不出。判据：泡泡场景与队列项 kind 是否同源。
+      if (bubbleScene && bubbleScene.kind === whaleSysItem.kind) return
+      whaleSysItem = null
+    }
     if (!whaleSysQueue.length) return
     // 存在尚未入队的正展示系统泡?仅在鲸鱼空闲且无我们自己队列项时取下一个
     // v761（#161 C5）：waitShown 也必须算"正被占着"——等待泡泡是常驻的（whaleSysItem 会一直是它），
@@ -18911,6 +18929,25 @@ function hideUsageAlertBubble() {
   bubbleLiveMods = null
   bubbleCloseVisual()
   whaleSysDone()
+}
+// v881（issue #316）：条件性提醒的主动撤回 —— 余额回到阈值以上时，这条预警不该再占着系统泡泡队列。
+//   旧实现只在 checkUsageAlerts 里复位「已弹过」标志：正在展示的泡泡要等用户手点才走，而点鲸鱼又被
+//   whaleClick 的 alert 守卫吃掉（那是既有设计，不是 bug）⇒ 表现为「充值后提醒一直挂着、点宠物没反应」。
+//   只撤「同来源 + rank=2」的项：今日预算(rank 1)与其它模型的预警触发条件与这条无关，一律不动。
+//   ⚠️ 先清队列、再收当前项 —— hideUsageAlertBubble() 内部会 whaleSysSwapNext() 淡切下一项，
+//   队列里若还留着同源旧项，刚撤掉的提醒会被这步又切回来。
+function whaleSysWithdrawAlert(alertKey) {
+  try {
+    var key = alertKey == null ? USAGE_ALERT_KEY_DS : String(alertKey)
+    for (var i = whaleSysQueue.length - 1; i >= 0; i--) {
+      var q = whaleSysQueue[i]
+      if (q && q.kind === 'alert' && Number(q.rank) === 2 && String(q.alertKey || '') === key) whaleSysQueue.splice(i, 1)
+    }
+    var cur = whaleSysItem
+    if (cur && cur.kind === 'alert' && Number(cur.rank) === 2 && String(cur.alertKey || '') === key) {
+      hideUsageAlertBubble()
+    }
+  } catch (err) {}
 }
 // ===== v761（#161 C5）：等待交互的**常驻**泡泡（提问 / 授权）=====
 // 语义与消耗(3)/预警(2)/预算(1)三档系统泡泡不同：那几档是"显示 N 秒自动关"，而挂起泡泡要
