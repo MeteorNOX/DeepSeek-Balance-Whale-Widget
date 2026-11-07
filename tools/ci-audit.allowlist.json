@@ -21,6 +21,38 @@
     {
       "key": "assets/whale-widget.js :: stage.innerHTML = svgEl.outerHTML",
       "why": "把已经在本页里的 SVG 节点搬进 stage，不是外部数据。"
+    },
+    {
+      "key": "assets/whale-widget.js :: bubbleShapeBox.innerHTML = FRAME_CLASSIC_MARKUP",
+      "why": "v815 自定义泡泡框：写死常量 FRAME_CLASSIC_MARKUP（历史那段经典形状 SVG 的逐字符拷贝），完全静态、不接任何输入。写进的是形状专属容器 .dshwv-shapewrap —— v822 起**绝不**写 bubbleBox.innerHTML，否则会把泡泡内容与动图一起删掉。"
+    },
+    {
+      "key": "assets/whale-widget.js :: bubbleShapeBox.innerHTML = frameSvgMarkup(resolveFrameForStep(null), null)",
+      "why": "v815/v822 自定义泡泡框：页面加载时的初始形状。frameSvgMarkup() 只输出本文件拼的 <svg>/<path>/<ellipse> 标签与白名单属性（fill/stroke/stroke-width/transform/几何），不拼接任何原始用户串；用户自定义 SVG 代码在上一步已过宿主 frameSvgSanitize() 白名单。"
+    },
+    {
+      "key": "assets/whale-widget.js :: bubbleShapeBox.innerHTML = frameSvgMarkup(frame, override)",
+      "why": "v815/v822 自定义泡泡框：展示每个泡泡时按当前框重画形状，走同一个 frameSvgMarkup()（同上：只拼白名单标签/属性），且只重写 .dshwv-shapewrap 这一层容器。v823（P2）起框可以是「自定义 SVG 代码」：那份代码先过客户端 frameSvgClean()（与宿主 frameSvgSanitize() 同一套白名单），保存时宿主再洗一遍，两道闸门都在；探针 _v815 ⑫ 带负样本。"
+    },
+    {
+      "key": "assets/whale-widget.js :: shape.innerHTML = frameSvgMarkup(frameEditDraft, null)",
+      "why": "v823（P2）泡泡框编辑器的**预览舞台**：与真实泡泡用同一个渲染器（frameSvgMarkup）画草稿框。数据来源 = 编辑器草稿（本机配置 + 用户在本窗口里输入的形状参数），自定义 SVG 代码在写进来之前已过 frameSvgClean() 白名单；写的是编辑器自己的舞台节点，不碰真实泡泡的 DOM。"
+    },
+    {
+      "key": "assets/whale-widget.js :: stage.innerHTML = frameSvgMarkup(o.frame, o.override || null)",
+      "why": "v825（P3）编辑器预览支持指定框：opts.frame 来自本机配置（resolveFrameForStep 解析出的框对象）+ 该项的 frameOverride，两者都已过客户端 frameSvgClean()/归一化，最终闸门仍是宿主 frameSvgSanitize()。与上面那条同源：只写预览舞台，不碰真实泡泡；不传 opts.frame 时仍走原来的“抄真实泡泡 SVG”分支。"
+    },
+    {
+      "key": "assets/whale-widget.js :: b.innerHTML = frameIconSvg(kind)",
+      "why": "v821 泡泡框下拉里的 4 个动作图标（置顶/编辑/复制/删除）。frameIconSvg() 返回本文件写死的 <svg><path/></svg> 字符串，kind 只在本文件内部调用点传字面量，不接任何外部输入。"
+    },
+    {
+      "key": "assets/whale-widget.js :: th.innerHTML = frameThumbMarkup(frame, null)",
+      "why": "v821 泡泡框下拉项的缩略图。frameThumbMarkup() = frameSvgMarkup() 去掉两个小泡泡后换 viewBox，只输出本文件拼的白名单标签/属性；frame 来自本机配置且已在宿主 frameSvgSanitize() 洗过。"
+    },
+    {
+      "key": "assets/whale-widget.js :: th.innerHTML = frameThumbMarkup(frame || frameBuiltin(), null)",
+      "why": "F2（第 n 次点击内容）框下拉里那一张卡片的缩略图；frameThumbMarkup() 由本文件用**白名单净化过**的框数据（frameSvgClean）拼 SVG —— 框数据只来自本插件自己的框库/宿主配置，不含外部 HTML。"
     }
   ]
 }

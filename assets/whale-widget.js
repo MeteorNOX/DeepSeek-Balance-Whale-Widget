@@ -251,7 +251,8 @@ function dshwvSound(url) {
   function beginWithBuffer(c, buf, delay) {
     try {
       if (!el._gain) { el._gain = c.createGain(); el._gain.connect(c.destination) }
-      el._gain.gain.value = Math.max(0, Math.min(1, Number(el.volume) || 0))
+      // v859：GainNode 支持 >1 的增益 ⇒ 这里的上限放到 2（= 200%）；<audio> 那条回落路径仍会被浏览器截到 1
+      el._gain.gain.value = Math.max(0, Math.min(2, Number(el.volume) || 0))
       var src = c.createBufferSource()
       src.buffer = buf
       src.connect(el._gain)
@@ -358,6 +359,206 @@ var IMG_URL = '/dsh-whale/image.png?v=2'
 var GIF_URL = '/dsh-whale/rua.gif'
 var BUBBLE_URL = '/dsh-whale/bubble.json'
 
+// ===== v815：自定义泡泡框 —— 常量必须在**泡泡构建之前**就绪 =====
+// ⚠️ 血的教训（v815 首版把这些常量写在 13000 行附近，而泡泡在 12600 行就调渲染器了）：
+//    初始化时 FRAME_CLASSIC_SMALL 还是 undefined ⇒ `FRAME_CLASSIC_SMALL[0]` 抛错 ⇒
+//    **整个 IIFE 挂掉、挂件直接消失**（用户实测"插件消失了"）。所以常统一放在文件前部；
+//    渲染器另有"永不致命"兜底：任何异常都退化成 FRAME_CLASSIC_MARKUP。
+var BUILTIN_FRAME_ID = 'frame_classic'
+var FRAME_W = 1026
+var FRAME_H = 700
+// 历史几何：**逐字符照抄**（改这里 = 改所有人的默认外观）
+var FRAME_CLASSIC_BIG_D = 'M 827 248 A 373 232 0 1 0 81 246 A 373 232 0 0 0 301 465 A 57 32 10 0 0 413 484 A 373 232 0 0 0 827 248 Z'
+var FRAME_CLASSIC_SMALL = [
+  { cx: 352, cy: 561, rx: 37.5, ry: 26 },
+  { cx: 442, cy: 646, rx: 24.5, ry: 18 },
+]
+var FRAME_PRESETS = ['classic', 'roundrect', 'zigzag', 'custom']
+// 历史那段写死的 SVG（逐字符拼装）：既是 P0 的比对基准，也是渲染器的**最终兜底**
+var FRAME_CLASSIC_MARKUP = '<svg viewBox="0 0 1026 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
+  '<path class="dshwv-bshape" fill="#FFFFFF" stroke="#203170" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" d="' + FRAME_CLASSIC_BIG_D + '"/>' +
+  '<ellipse class="dshwv-b1" cx="352" cy="561" rx="37.5" ry="26" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
+  '<ellipse class="dshwv-b2" cx="442" cy="646" rx="24.5" ry="18" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
+  '</svg>'
+// ===== v823（P2）：另外两个内置预设的几何 + 槽位几何工具 =====
+// ⚠️ 这一段是**只新增**：上面 classic 那三行字符串一个字都没动（P0 的逐字符一致是硬约束）。
+// ⚠️ 常量放在文件前部、并且"首次用到才生成"（自愈式缓存的写法见 framePresetBoxD）——
+//    因为渲染器在初始化期（泡泡构建）就会被调用，晚赋值的 var 在那里还是 undefined。
+// 大泡泡三个预设共用同一个包络 = 历史椭圆的外接矩形（圆心 454/247、rx 373、ry 232）：
+// 由历史 path 的弧长推得 x 81..827、y 15..479 ⇒ 换预设时视觉位置与大小不跳。
+var FRAME_BOX = { x: 81, y: 15, w: 746, h: 464 }
+// 圆角矩形：圆角 = 高 x 14%（PLAN §5），一条闭合路径、只用直线与圆弧（都在宿主白名单里）
+var FRAME_ROUNDRECT_D = 'M 146 15 H 762 A 65 65 0 0 1 827 80 V 414 A 65 65 0 0 1 762 479 H 146 A 65 65 0 0 1 81 414 V 80 A 65 65 0 0 1 146 15 Z'
+var FRAME_ZIGZAG_D = '' // 首次用到时由 frameZigzagBuild() 生成
+function frameR2(n) { return Math.round(Number(n) * 100) / 100 }
+// 方形锯齿空心框：外轮廓 = FRAME_BOX，齿高 = 高 x 4%，沿周长均匀分布（约 24 齿），
+// **一条闭合路径**（PLAN §12 的硬要求）、全部是横平竖直的台阶 ⇒ 不会有自交或斜向收口。
+// 每边段数取奇数 ⇒ 收口时正好回到边的起点，最后一条 Z 是零长度闭合（不会切出对角线）。
+function frameZigzagBuild() {
+  try {
+    var b = FRAME_BOX
+    var x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h
+    var tooth = b.h * 0.04
+    var unit = (2 * (b.w + b.h)) / 24
+    function oddCount(len) { var n = Math.max(3, Math.round(len / unit)); if (n % 2 === 0) n++; return n }
+    var nT = oddCount(b.w)
+    var nS = oddCount(b.h)
+    var d = ''
+    function seg(x, y) { d += (d ? ' L ' : 'M ') + frameR2(x) + ' ' + frameR2(y) }
+    var i, xa, xb, ya, yb, lv
+    for (i = 0; i < nT; i++) { // 上边：左 → 右，向内 = +y
+      xa = x0 + b.w * i / nT; xb = x0 + b.w * (i + 1) / nT
+      lv = (i % 2 === 0) ? y0 : y0 + tooth
+      seg(xa, lv); seg(xb, lv)
+    }
+    for (i = 0; i < nS; i++) { // 右边：上 → 下，向内 = -x
+      ya = y0 + b.h * i / nS; yb = y0 + b.h * (i + 1) / nS
+      lv = (i % 2 === 0) ? x1 : x1 - tooth
+      seg(lv, ya); seg(lv, yb)
+    }
+    for (i = 0; i < nT; i++) { // 下边：右 → 左，向内 = -y
+      xa = x1 - b.w * i / nT; xb = x1 - b.w * (i + 1) / nT
+      lv = (i % 2 === 0) ? y1 : y1 - tooth
+      seg(xa, lv); seg(xb, lv)
+    }
+    for (i = 0; i < nS; i++) { // 左边：下 → 上，向内 = +x
+      ya = y1 - b.h * i / nS; yb = y1 - b.h * (i + 1) / nS
+      lv = (i % 2 === 0) ? x0 : x0 + tooth
+      seg(lv, ya); seg(lv, yb)
+    }
+    return d + ' Z'
+  } catch (err) { return '' }
+}
+// 预设 → 大泡泡的 d（classic 与 custom 不走这里；未知预设返回空串 ⇒ 调用处回落经典）
+function framePresetBoxD(preset) {
+  try {
+    if (preset === 'roundrect') return FRAME_ROUNDRECT_D
+    if (preset === 'zigzag') {
+      if (!FRAME_ZIGZAG_D) FRAME_ZIGZAG_D = frameZigzagBuild()
+      return FRAME_ZIGZAG_D
+    }
+  } catch (err) {}
+  return ''
+}
+// 槽位在画布坐标系里的"可见包围盒"（含 scale；不含 dx/dy —— 拖动/钳制要在包围盒上加偏移）：
+//   big  = 预设包络以自身中心等比缩放；small1/small2 = 历史椭圆的 cx/cy/rx/ry 按 scale 等比。
+// 用途：① 拖动时的"至少 30% 可见"钳制；② 编辑器预览里的选中框。
+function frameSlotBox(frame, kind) {
+  try {
+    var cx, cy, hw, hh
+    if (kind === 'big') {
+      cx = FRAME_BOX.x + FRAME_BOX.w / 2; cy = FRAME_BOX.y + FRAME_BOX.h / 2
+      hw = FRAME_BOX.w / 2; hh = FRAME_BOX.h / 2
+    } else {
+      var base = FRAME_CLASSIC_SMALL[kind === 'small2' ? 1 : 0]
+      if (!base) return { x: FRAME_BOX.x, y: FRAME_BOX.y, w: FRAME_BOX.w, h: FRAME_BOX.h }
+      cx = base.cx; cy = base.cy; hw = base.rx; hh = base.ry
+    }
+    var sc = 1
+    try {
+      var sl = frame && frame.slots ? frame.slots[kind] : null
+      if (sl && isFinite(sl.scale) && Number(sl.scale) > 0) sc = Number(sl.scale)
+    } catch (err) {}
+    return { x: cx - hw * sc, y: cy - hh * sc, w: hw * 2 * sc, h: hh * 2 * sc }
+  } catch (err) { return { x: 0, y: 0, w: FRAME_W, h: FRAME_H } }
+}
+function frameClampNum(v, a, b) {
+  var n = Number(v)
+  if (!isFinite(n)) n = a
+  if (n < a) n = a
+  if (n > b) n = b
+  return n
+}
+// 拖动偏移的钳制（决策 5）：形状**至少 30% 可见** —— 也就是"与画布的重叠 ≥ 自身尺寸的 30%"。
+// 推导：重叠宽 = min(x+dx+w, 画布宽) - max(x+dx, 0) ≥ 0.3w ⇒ dx ∈ [-x-0.7w, 画布宽-x-0.3w]。
+// v841（用户要求）：**图片**槽位不夹取 —— 允许把它拖到画框外（实机也不裁剪，想摆哪就摆哪）。
+//   矢量形状仍按下面的规则夹在可显示范围内。
+function frameClampSlotOffsetFor(slot, box, dx, dy) {
+  try {
+    if (slot && slot.kind === 'image') return { dx: frameClampNum(Number(dx) || 0, -4000, 4000), dy: frameClampNum(Number(dy) || 0, -4000, 4000) }
+  } catch (err) {}
+  return frameClampSlotOffset(box, dx, dy)
+}
+function frameClampSlotOffset(box, dx, dy) {
+  // v837（用户要求）：形状必须**完全留在可显示范围**（1026x700 画布）里。
+  //   以前只要求"至少 30% 可见"⇒ 拖到最左/最右时形状有一大半跑到画布外，预览里（svg 视口会裁剪）
+  //   看上去就是"被截断显示"。现在最左/最右都正好贴边（形状比画布还大才退化到居中）。
+  //   注意：只在**编辑器拖动/输入**时夹取，不改渲染 —— 老配置里已有的越界位移照旧按原样渲染。
+  var b = box || { x: 0, y: 0, w: FRAME_W, h: FRAME_H }
+  var minX = -b.x
+  var maxX = FRAME_W - b.x - b.w
+  var minY = -b.y
+  var maxY = FRAME_H - b.y - b.h
+  if (minX > maxX) { minX = maxX = (minX + maxX) / 2 } // 形状比画布还大时的退化处理：钉在中间
+  if (minY > maxY) { minY = maxY = (minY + maxY) / 2 }
+  return { dx: frameClampNum(dx, minX, maxX), dy: frameClampNum(dy, minY, maxY) }
+}
+// 大泡泡的几何变换（dx/dy 平移 + 以自身中心等比缩放）。**默认值 ⇒ 返回空串**，
+// 这样内置经典框的输出与历史写死值仍然逐字符一致（P0 硬约束）。
+// ⚠️ 为什么平移/缩放要包一层 <g> 而不是直接写在 path 上：path 上的 transform 是**表现属性**，
+//    会被 `.dshwv-pop .dshwv-bshape{transform:scale(.7)}` / `.dshwv-pop-open …{transform:none}` 这两条
+//    CSS 覆盖掉（CSS 的 transform 优先级高于表现属性）⇒ 开合动画会把用户的位移一起抹掉。
+function frameBigTransform(slot) {
+  try {
+    var dx = Number(slot && slot.dx) || 0
+    var dy = Number(slot && slot.dy) || 0
+    var sc = (slot && isFinite(slot.scale)) ? Number(slot.scale) : 1
+    if (!dx && !dy && sc === 1) return ''
+    var parts = []
+    if (dx || dy) parts.push('translate(' + frameNumStr(dx) + ' ' + frameNumStr(dy) + ')')
+    if (sc !== 1) {
+      var cx = FRAME_BOX.x + FRAME_BOX.w / 2
+      var cy = FRAME_BOX.y + FRAME_BOX.h / 2
+      parts.push('translate(' + frameNumStr(cx) + ' ' + frameNumStr(cy) + ') scale(' + frameNumStr(sc) + ') translate(' + frameNumStr(-cx) + ' ' + frameNumStr(-cy) + ')')
+    }
+    return parts.join(' ')
+  } catch (err) { return '' }
+}
+// 用户自定义 SVG 代码的客户端净化（与宿主 frameSvgSanitize() **同一套规则**的副本）：
+//   为什么要副本 —— 编辑器要"所见即所存"，保存前的预览就必须先洗一遍，否则预览里能跑的东西存盘后才被宿主剥掉。
+//   宿主那一份仍是最终闸门（PUT 白名单），两份都要在探针里有负样本。
+function frameSvgClean(code) {
+  var TAGS = ['path', 'ellipse', 'circle', 'rect', 'polygon', 'polyline', 'g']
+  // ⚠️ v828：补上 `r`（`<circle>` 的半径）。它是白名单标签却漏了属性 ⇒ 用户写 `<circle r="30"/>` 会被剥成
+  //   `<circle cx cy/>`（等于画不出来），而"标签放行、属性漏放"这种缺口从外面看只是"我写的东西没效果"。
+  var ATTRS = ['d', 'points', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'width', 'height', 'fill', 'stroke',
+    'stroke-width', 'stroke-dasharray', 'stroke-linejoin', 'stroke-linecap', 'transform', 'opacity', 'fill-opacity', 'stroke-opacity']
+  try {
+    var s = String(code == null ? '' : code).slice(0, 8000)
+    if (!s) return ''
+    // 整块危险元素连内容一起删，再删它们的单标签形式
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|image|use|animate|set)\b[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    s = s.replace(/<\s*(script|foreignObject|style|iframe|image|use|animate|set)\b[^>]*\/?>/gi, '')
+    s = s.replace(/<\s*\/?\s*([A-Za-z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*)\/?>/g, function (m0, tag, attrs) {
+      var t = String(tag)
+      if (TAGS.indexOf(t) < 0) return ''
+      var closing = /^<\s*\//.test(m0)
+      // ⚠️ v823：**必须保住自闭合的斜杠**。原来（P0 首版）一律重新拼成 `<tag …>`，
+      //   而内联 SVG 里 `<path>` 不是空元素 ⇒ HTML 解析器会把后面的兄弟节点塞进它里面
+      //   （`<path a/><path b/>` 变成 path a > path b，SVG 不渲染 path 的子节点 ⇒ 第二个形状直接消失）。
+      //   多形状自定义代码是 P2 才引入的用法，所以这个坑到 P2 才暴露。
+      var selfClose = /\/\s*>$/.test(m0)
+      var out = '<' + (closing ? '/' : '') + t
+      if (!closing) {
+        var re = /([A-Za-z][\w:-]*)\s*=\s*("([^"]*)"|'([^']*)')/g
+        var m
+        while ((m = re.exec(attrs))) {
+          var name = String(m[1]).toLowerCase()
+          var val = String(m[3] !== undefined ? m[3] : m[4])
+          if (ATTRS.indexOf(name) < 0) continue
+          if (/javascript:|url\s*\(|expression\s*\(/i.test(val)) continue
+          if (/[<>]/.test(val)) continue
+          out += ' ' + name + '="' + val.replace(/"/g, '&quot;') + '"'
+        }
+      }
+      return out + ((selfClose && !closing) ? '/>' : '>')
+    })
+    // 标签之外的裸文本一律清掉（`<script>alert(1)` 未闭合时就不会留下 alert(1)）
+    s = s.replace(/[^<>]+(?=<|$)/g, '')
+    return s
+  } catch (err) { return '' }
+}
+
 var css = [
   '.dshwv-root{position:fixed;right:0;bottom:0;--dshw-scale:1;--dshw-base:clamp(122px,calc(min(250px,min(100vw,100vh) * 0.28) * var(--dshw-scale)),625px);width:var(--dshw-base);height:var(--dshw-base);pointer-events:none;user-select:none;-webkit-user-select:none;z-index:9999;font-family:inherit;transition:left .16s ease,top .16s ease,transform .3s ease}',
   // v634 移动端:去掉浏览器「点击高亮」方块——它画在可点元素的矩形包围盒上,
@@ -385,6 +586,8 @@ var css = [
   // 拖动期间握点相对挂件固定，让整个盒接过指针以保持 grabbing（类由按下时加、endDrag 摘）
   '.dshwv-root.dshwv-dragging .dshwv-body{pointer-events:auto;cursor:grabbing}',
   '.dshwv-pop{position:absolute;left:0;top:0;width:100%;aspect-ratio:1026/700;pointer-events:none;z-index:1;--dshw-u:calc(var(--dshw-base) / 1026)}',
+  // v822：形状专属容器（只在它里面重画 ⇒ 内容与动图不受影响）；铺满泡泡并排在最底层
+  '.dshwv-shapewrap{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}',
   // 纵深防御：泡泡容器必须透明，形状由内部 SVG 绘制；用 !important 压掉外部
   // 插件“类名子串匹配”选择器（如 aqua 的 [class*=bubble]）注入的玻璃/边框样式
   'html .dshwv-pop, html .dshwv-pop svg{background:transparent !important;border:0 !important;border-radius:0 !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}',
@@ -397,8 +600,17 @@ var css = [
   'html .dshwv-root,body .dshwv-root{background:transparent !important;background-image:none !important;border:0 !important;outline:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;filter:none !important}',
   'html .dshwv-root::before,html .dshwv-root::after{content:none !important;background:transparent !important;background-image:none !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}',
   '.dshwv-pop svg{display:block;width:100%;height:100%;pointer-events:none}',
-  '.dshwv-pop svg path,.dshwv-pop svg ellipse{pointer-events:none;cursor:pointer}',
-  '.dshwv-pop.dshwv-pop-open svg path,.dshwv-pop.dshwv-pop-open svg ellipse{pointer-events:visiblePainted}',
+  // v829（真机反馈"图片泡泡点了不跳转"）：命中判定必须覆盖**所有**形状元素，不能只写 path/ellipse。
+  //   机制：`.dshwv-pop` 与 `.dshwv-pop svg` 都是 `pointer-events:none`，泡泡的点击**靠形状本身**接住
+  //   （事件再冒泡到 bubbleBox 的 click ⇒ bubbleNext()）。而图片模式画的是 `<image>`、自定义代码还可能画
+  //   `<circle>/<rect>/<polygon>/<polyline>/<g>` —— 这些当时没被覆盖 ⇒ 整个泡泡**没有可点区域** ⇒
+  //   点击穿到下面的页面、翻页失效。改成 `svg *` 一次覆盖全部（以后新增标签也不会再漏）。
+  '.dshwv-pop svg *{pointer-events:none;cursor:pointer}',
+  '.dshwv-pop.dshwv-pop-open svg *{pointer-events:visiblePainted}',
+  // v830（用户要求）：图片**自己不吃指针** —— 图片的矩形（含透明边角）不该拦点击。
+  //   图片模式会额外画一层"只做命中、看不见"的形状（fill-opacity 极小），由它决定哪块区域算泡泡：
+  //   形状轮廓内可点（翻页），轮廓外的透明角落穿透到下面的页面。放在 `svg *` 之后 ⇒ 顺序上覆盖它。
+  '.dshwv-pop svg image,.dshwv-pop.dshwv-pop-open svg image{pointer-events:none}',
   '.dshwv-pop .dshwv-bshape,.dshwv-pop .dshwv-b1,.dshwv-pop .dshwv-b2{opacity:0;transform:scale(.7);transform-box:fill-box;transform-origin:50% 50%;transition:opacity .2s ease,transform .2s ease}',
   '.dshwv-pop.dshwv-pop-open .dshwv-bshape,.dshwv-pop.dshwv-pop-open .dshwv-b1,.dshwv-pop.dshwv-pop-open .dshwv-b2{opacity:1;transform:none}',
   '.dshwv-gif{position:absolute;left:var(--dshw-vx,44.25%);top:var(--dshw-vy,36%);transform:translate(-50%,-50%);max-width:calc(var(--dshw-u) * 560);max-height:calc(var(--dshw-u) * 400);display:none;opacity:0;transition:opacity .2s ease;pointer-events:none;-webkit-user-drag:none;user-select:none;object-fit:contain}',
@@ -416,6 +628,20 @@ var css = [
   // 大号字体垂直居中修正：flex 容器以 --dshw-vx/--dshw-vy 为整体中心，
   // 内容(任意行数/字号)由 justify-content:center 整体居中，不随字体度量漂移。
   '.dshwv-text .dshwv-trow{flex:0 0 auto;margin:calc(var(--dshw-u) * 2) 0}',
+  // v838（用户报"安全区变窄不会让文字换行"）：**只有**用了自定义文字安全框的框才允许换行
+  //   （内置经典框不挂这个类 ⇒ 历史外观不受影响；安全区本来就只管自定义框）
+  // v844（用户要求）：**安全区优先限制左右，不限制上下** ——
+  //   ① 宽度 = 安全区宽度（硬约束）：任何一行超出就换行；
+  //   ② 高度不再当盒子用（`height:auto !important` 盖掉内联高度）⇒ 行数变多时文字层自己变高，
+  //      而它仍然是"以安全区中心为中心"（top=安全区中心 + translate(-50%,-50%)）⇒ 视觉上上下都长出来，不会被截。
+  //   `!important` 是必须的：内联 height 的优先级高于普通 CSS 规则。
+  // v847：安全框内**水平竖直居中**（不再覆盖 transform/justify-content ⇒ 用 .dshwv-text 的居中那套；
+  //   高度仍然是 auto —— 行数变多时以安全区中心为基准上下对称长出来）
+  '.dshwv-textsafe{white-space:normal;overflow:visible;max-height:none;height:auto !important}',
+  // v845（用户确认）：**只在词间/标点处换行，不拆数字** ⇒ 只用 white-space:normal（不再 anywhere/break-word）
+  '.dshwv-textsafe .dshwv-trow,.dshwv-textsafe .dshwv-label,.dshwv-textsafe .dshwv-amount,' +
+  '.dshwv-textsafe .dshwv-period,.dshwv-textsafe .dshwv-hint,.dshwv-textsafe .dshwv-wrap{' +
+  'white-space:normal;word-break:normal;overflow-wrap:normal;max-width:100%}',
   '.dshwv-text .dshwv-mimg{flex:0 0 auto}',
   // label/amount/hint 三行也作为整体在 flex 容器内居中
   '.dshwv-text .dshwv-label,.dshwv-text .dshwv-amount,.dshwv-text .dshwv-hint{flex:0 0 auto;margin-left:auto;margin-right:auto}',
@@ -429,7 +655,7 @@ var css = [
   '.dshwv-menu-btn span{display:block;width:14px;height:2px;background:#fff;border-radius:1px}',
   '.dshwv-menu-btn:hover{background:#203170}',
   '.dshwv-menu-btn-hidden{visibility:hidden;pointer-events:none}',
-  '.dshwv-menu{position:fixed;min-width:196px;max-width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:rgba(255,255,255,.92);border:1px solid rgba(32,49,112,.35);border-radius:10px;padding:10px 12px;opacity:0;transform:scale(.96) translateY(10px);transform-origin:top right;transition:opacity .22s ease,transform .22s cubic-bezier(.34,1.3,.6,1);pointer-events:none;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,.18);color-scheme:light}',
+  '.dshwv-menu{position:fixed;min-width:196px;max-width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:rgba(255,255,255,.92);border:1px solid rgba(32,49,112,.35);border-radius:10px;padding:10px 12px 0;opacity:0;transform:scale(.96) translateY(10px);transform-origin:top right;transition:opacity .22s ease,transform .22s cubic-bezier(.34,1.3,.6,1);pointer-events:none;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,.18);color-scheme:light}',
   '.dshwv-menu.dshwv-menu-open{opacity:1;transform:scale(1) translateY(0);pointer-events:auto}',
   '.dshwv-menu-row{display:flex;align-items:center;gap:8px;margin:5px 0;color:#203170;font-size:12px;white-space:nowrap}',
   '.dshwv-range{flex:1;min-width:0;accent-color:#203170}',
@@ -440,6 +666,72 @@ var css = [
   '.dshwv-sound:hover{background:rgba(32,49,112,.16)}',
   '.dshwv-check{width:16px;height:16px;accent-color:#203170;cursor:pointer;flex:0 0 auto}',
   '.dshwv-menu-sep{height:1px;background:rgba(32,49,112,.25);margin:6px 0}',
+  // v790（用户要求）：菜单底部版本小字 —— 在"最下方按钮 ↔ 菜单底边"这段空隙里**居中**（用户第三次微调）。
+  //   ⚠️ 高度守恒：这段空隙原本就是 15px（按钮 margin-bottom 5 + 菜单 padding-bottom 10）。
+  //   现在**整段空隙都交给这一行**（行高 15px ⇒ 文字在空隙内垂直居中），
+  //   按钮 margin-bottom 5 → 0、菜单 padding-bottom 10 → 0 ⇒ 0 + 0 + 15 = 15，**菜单总高逐像素不变**。
+  // ⚠️ v817 修复（用户实测"点泡泡的带底色块却进了版号菜单"）：
+  //   菜单关闭态靠**祖先 `.dshwv-menu` 的 `pointer-events:none`** 挡点击（该属性会继承），
+  //   而为了让版号可点把它显式设成 `auto` ⇒ **菜单看不见时这一行仍在抢点击**：
+  //   泡泡（尤其带底色/峰谷那种块）只要盖到它的屏幕位置，点击就被它吃掉 ⇒ 泡泡不翻页、反而打开版号面板。
+  //   现在：默认 `none`（跟随祖先），**只有菜单真的打开时**才可点。
+  '.dshwv-ver{height:15px;line-height:15px;font-size:9px;text-align:center;color:#203170;opacity:.5;pointer-events:none;user-select:none;overflow:hidden;white-space:nowrap;margin:0}',
+  '.dshwv-menu.dshwv-menu-open .dshwv-ver{pointer-events:auto;cursor:pointer}',
+  '.dshwv-menu.dshwv-menu-open .dshwv-ver:hover{opacity:.85;text-decoration:underline}',
+  // v793（用户要求）：点版号弹出的「关于 / 自检」子视图 —— 与「小鲸鱼记账」同款（占满按钮上方区域、内部滚动）
+  // v795：整体重排（更紧凑）并补上滚动手感/滚动条，观感向记账子菜单看齐
+  '.dshwv-about{display:none;height:100%;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;padding:0 4px 10px 2px;color:#203170;font-size:12px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:rgba(32,49,112,.3) transparent}',
+  '.dshwv-about::-webkit-scrollbar{width:6px}',
+  '.dshwv-about::-webkit-scrollbar-track{background:transparent}',
+  '.dshwv-about::-webkit-scrollbar-thumb{background:rgba(32,49,112,.28);border-radius:3px}',
+  '.dshwv-about::-webkit-scrollbar-thumb:hover{background:rgba(32,49,112,.45)}',
+  '.dshwv-about-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:1px 0 2px}',
+  '.dshwv-about-name{font-weight:700;font-size:13px}',
+  '.dshwv-about-badge{font-size:10px;font-weight:600;border-radius:6px;padding:1px 5px;background:rgba(32,49,112,.1);opacity:.9}',
+  '.dshwv-about-badge-dev{background:rgba(224,67,63,.14);color:#a52724}',
+  '.dshwv-about-badge-ver{background:rgba(32,49,112,.14);opacity:1}',
+  '.dshwv-about-hr{border-top:1px solid rgba(32,49,112,.22);margin:5px 0 2px}',
+  // v798（用户要求）：整节（标题+内容）包一层容器；v799 改为**只有鼠标停在标题行（含复制按钮那一行）**时，
+  //   整节才出现淡底色 —— 用「标题行 hover 触发紧随其后的内容块」实现（`+` 相邻兄弟选择器），
+  //   这样不用 :has（兼容性更好），也彻底去掉了原先那条左侧竖条。
+  '.dshwv-about-secwrap{border-radius:7px;transition:background .15s ease}',
+  '.dshwv-about-sec{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:7px 0 1px;padding:2px 4px 3px;font-weight:600;font-size:11.5px;opacity:.95;border-bottom:1px solid rgba(32,49,112,.22);border-radius:6px 6px 0 0;cursor:pointer;transition:background .15s ease,border-color .15s ease}',
+  '.dshwv-about-sec:hover{background:rgba(32,49,112,.06);border-bottom-color:rgba(32,49,112,.42)}',
+  '.dshwv-about-sec:active{background:rgba(32,49,112,.12)}',
+  '.dshwv-about-sec:hover + .dshwv-about-body{background:rgba(32,49,112,.045);border-radius:0 0 6px 6px}',
+  '.dshwv-about-sect{flex:0 0 auto;opacity:.9;transition:opacity .15s ease,letter-spacing .15s ease}',
+  '.dshwv-about-sec:hover .dshwv-about-sect{opacity:1;letter-spacing:.25px}',
+  '.dshwv-about-secacts{display:flex;align-items:center;gap:4px;flex:0 0 auto}',
+  // v798：节标题的复制按钮再小一点；v801：默认**隐藏**（opacity 0），鼠标到标题行才显示
+  '.dshwv-about-iconbtn{border:1px solid rgba(32,49,112,.28);border-radius:5px;background:rgba(32,49,112,.05);color:#203170;font-size:10px;font-weight:500;padding:0 3px;line-height:14px;cursor:pointer;opacity:0;transition:opacity .15s ease,background .15s ease}',
+  '.dshwv-about-iconbtn:hover{background:rgba(32,49,112,.16)}',
+  '.dshwv-about-sec:hover .dshwv-about-iconbtn{opacity:1}',
+  '.dshwv-about-iconbtn-mark{border:0;background:transparent;font-size:11px;padding:0 1px}',
+  // v802：这两行（自检 / 检查更新）可点即刷新，但**不复制**（v805 起去掉行尾的 ↻ 图标）
+  '.dshwv-about-actrow{cursor:pointer}',
+  '.dshwv-about-actrow:hover{background:rgba(32,49,112,.07)}',
+  '.dshwv-about-actrow:active{background:rgba(32,49,112,.13)}',
+  // v799：顶行的刷新按钮 = 小圆形箭头图标（无边框、无文字）
+  '.dshwv-about-refresh{margin-left:0;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:#203170;opacity:.6;cursor:pointer;transition:opacity .15s ease,background .15s ease,transform .25s ease}',
+  '.dshwv-about-refresh:hover{opacity:1;background:rgba(32,49,112,.12)}',
+  '.dshwv-about-refresh:active{transform:rotate(180deg)}',
+  // v800：菜单内的复制提示浮条（贴在菜单可视区底部，菜单外不弹任何东西）
+  '.dshwv-about-flash{position:absolute;left:50%;bottom:9px;transform:translateX(-50%) translateY(6px);z-index:6;max-width:88%;box-sizing:border-box;padding:4px 10px;border-radius:8px;background:#fff;border:1px solid rgba(32,49,112,.35);box-shadow:0 6px 16px rgba(15,25,60,.18);color:#203170;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease}',
+  '.dshwv-about-flash-on{opacity:1;transform:translateX(-50%) translateY(0)}',
+  '.dshwv-about-body{display:block}',
+  '.dshwv-about-row{display:flex;gap:8px;justify-content:space-between;align-items:baseline;padding:2.5px 4px;min-width:0;border-radius:5px}',
+  '.dshwv-about-copyable{cursor:pointer}',
+  '.dshwv-about-copyable:hover{background:rgba(32,49,112,.07)}',
+  '.dshwv-about-copyable:active{background:rgba(32,49,112,.13)}',
+  '.dshwv-about-k{opacity:.72;flex:0 0 auto;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-about-v{text-align:right;word-break:break-all;min-width:0;flex:1 1 auto}',
+  '.dshwv-about-ok{color:#2fa24c;font-weight:600}',
+  '.dshwv-about-bad{color:#e0433f;font-weight:600}',
+  '.dshwv-about-acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}',
+  '.dshwv-about-btn{border:1px solid rgba(32,49,112,.35);border-radius:7px;background:rgba(32,49,112,.06);color:#203170;font-size:11.5px;padding:4px 6px;cursor:pointer;transition:background .12s ease}',
+  '.dshwv-about-btn:hover{background:rgba(32,49,112,.14)}',
+  '.dshwv-about-btn-main{grid-column:1 / -1;font-weight:600;background:rgba(32,49,112,.12)}',
+  '.dshwv-about-note{margin-top:7px;opacity:.62;font-size:10.5px;line-height:1.5}',
   '.dshwv-volpct{width:44px;text-align:right;color:#203170;font-size:12px}',
   '.dshwv-rolebtn-wrap{position:relative;flex:1;min-width:0}',
   '.dshwv-rolebtn{flex:1;min-width:0;display:flex;align-items:center;border:1px solid rgba(32,49,112,.4);border-radius:6px;background:rgba(32,49,112,.08);color:#203170;font-size:12px;padding:0 6px;cursor:pointer;overflow:hidden;height:24px}',
@@ -600,6 +892,96 @@ var css = [
   '.dshwv-qcolwrap{flex:0 1 auto;min-width:0;width:200px;max-width:200px}',
   '.dshwv-qcolwrap .dshwv-rgbhead{width:100%;box-sizing:border-box}',
   '.dshwv-rgbmenu.dshwv-qcolmenu{width:190px;max-width:210px;max-height:152px}',
+  // v821（P1）：泡泡框库下拉（复用 .dshwv-rgbmenu 的外观，这里只补行/缩略图/图标按钮/新建项）
+  '.dshwv-framemenu{width:250px;max-width:340px;max-height:320px;min-width:0}',
+  '.dshwv-frow{display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:6px}',
+  '.dshwv-frow:hover{background:rgba(32,49,112,.07)}',
+  '.dshwv-frow-on{background:rgba(32,49,112,.12)}',
+  '.dshwv-frow-on .dshwv-fname{font-weight:700}',
+  '.dshwv-fthumb{flex:0 0 auto;width:52px;height:30px;display:block;overflow:hidden;border-radius:4px;background:rgba(32,49,112,.05)}',
+  '.dshwv-fthumb svg{width:100%;height:100%;display:block}',
+  '.dshwv-fname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:#203170}',
+  '.dshwv-facts{flex:0 0 auto;display:flex;align-items:center;gap:2px}',
+  '.dshwv-ficonbtn{width:18px;height:18px;padding:0;border:none;border-radius:4px;background:transparent;color:rgba(32,49,112,.62);cursor:pointer;display:flex;align-items:center;justify-content:center}',
+  '.dshwv-ficonbtn:hover{background:rgba(32,49,112,.12);color:#203170}',
+  '.dshwv-ficonbtn-off{opacity:.28;cursor:default}',
+  '.dshwv-ficonbtn-off:hover{background:transparent;color:rgba(32,49,112,.62)}',
+  // v829：下拉改成卡片网格（用户样图）—— 顶部通栏「＋」+ 下面的卡片网格
+  '.dshwv-fadd{margin:4px 4px 6px;padding:4px;border:1px dashed rgba(32,49,112,.5);border-radius:8px;text-align:center;font-size:15px;line-height:1.1;color:#3a56a8;cursor:pointer;font-weight:700}',
+  '.dshwv-fadd:hover{background:rgba(32,49,112,.07)}',
+  // v831（用户样图）：卡片**放大**、一排最多三个；默认只看缩略图，**悬浮**才出现"名字胶囊 + 图标脚"
+  // v838（用户要求）：下拉出现时要有一段过渡（淡入 + 轻微下滑）
+  '@keyframes dshwvMenuIn{0%{opacity:0;transform:translateY(-5px)}100%{opacity:1;transform:none}}',
+  // v850（用户要求）：收起也要有过渡，别只有展开有（不然一开一关节奏不协调）。
+  //   `display:none` 是没法过渡的 ⇒ 收起时先挂 .dshwv-rgbclosing（保持 display:block 播反向动画），
+  //   动画结束后再由 JS 摘掉这个类、真正隐藏。
+  '@keyframes dshwvMenuOut{0%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-4px)}}',
+  '.dshwv-framemenu.dshwv-rgbopen{animation:dshwvMenuIn .16s ease-out}',
+  '.dshwv-framemenu.dshwv-rgbclosing{display:block;animation:dshwvMenuOut .14s ease-in forwards}',
+  '.dshwv-fgrid{display:flex;flex-wrap:wrap;gap:8px;padding:0 6px 6px;max-width:392px}',
+  // v832（用户澄清）：卡片**高度固定不变**，悬浮只是从**上下各盖一条**（名称 / 按钮），不是把卡片撑高
+  '.dshwv-fcard{position:relative;width:122px;height:96px;box-sizing:border-box;border:2px solid #f6c3d4;border-radius:14px;overflow:hidden;cursor:pointer;background:#fff}',
+  '.dshwv-fcard:hover{border-color:#f2a9c1}',
+  '.dshwv-fcard-on{border-color:#203170}',
+  // 缩略图铺满整张卡片（绝对定位 ⇒ 悬浮时覆盖上去的那两条不会挤动它）
+  '.dshwv-fcard .dshwv-fthumb{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:0;background:rgba(32,49,112,.06);overflow:hidden}',
+  '.dshwv-fcard .dshwv-fthumb svg{display:block;width:100%;height:100%}',
+  // 悬浮：顶部盖一条白底名称（盖住缩略图上沿），底部盖一条按钮栏（盖住下沿）
+  // v834（用户要求）：这两条出现的**过程也要有过渡** —— 用 opacity/visibility/transform 而不是 display 切换
+  //   （display 切换没法过渡），名称自上而下淡入、按钮栏自下而上淡入，各 .16s。
+  '.dshwv-fcardname{position:absolute;left:0;right:0;top:0;background:#fff;border-radius:0;text-align:center;font-size:11.5px;line-height:1.6;color:#203170;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 1px 3px rgba(32,49,112,.16);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .16s ease,transform .16s ease,visibility .16s ease}',
+  // 按钮**自动等间距**（space-evenly：四个按钮 + 左右边距一起均分）
+  '.dshwv-fcardfoot{display:flex;position:absolute;left:0;right:0;bottom:0;align-items:center;justify-content:space-evenly;gap:0;padding:3px 2px;background:#fbd6e2;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .16s ease,transform .16s ease,visibility .16s ease}',
+  '.dshwv-fcard:hover .dshwv-fcardname,.dshwv-fcard:hover .dshwv-fcardfoot{opacity:1;visibility:visible;transform:none}',
+  '.dshwv-fcard .dshwv-facts{display:contents}',
+  '.dshwv-fcard .dshwv-ficonbtn{width:20px;height:20px}',
+  '.dshwv-fcard .dshwv-ficonbtn svg{width:15px;height:15px}',
+  // 复制出来的新卡片要有"进场"过渡（用户要求）；v834：时间从 .34s 收到 .2s（原来偏长）
+  '@keyframes dshwvFcardIn{0%{opacity:0;transform:scale(.86)}60%{opacity:1;transform:scale(1.03)}100%{opacity:1;transform:none}}',
+  '.dshwv-fcard-new{animation:dshwvFcardIn .2s ease-out}',
+  // 触发按钮：文字居中、▾ 右对齐（用户要求）
+  '.dshwv-framebtn{padding-right:22px !important}',
+  '.dshwv-framebtntext{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+  '.dshwv-framebtnarrow{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;opacity:.75}',
+  // ===== v823（P2）：泡泡框编辑器（新建/编辑/另存为）=====
+  // 层号与 .dshwv-bubmask 同级（PLAN §9）；打开时还会走 dshwLayerUp() 抬到父窗口之上。
+  '.dshwv-framemask{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:20500;display:flex;align-items:center;justify-content:center;color-scheme:light}',
+  '.dshwv-framecard{background:#fff;border-radius:12px;padding:14px 16px;width:560px;max-width:94vw;box-shadow:0 10px 30px rgba(0,0,0,.3);color:#203170;box-sizing:border-box;max-height:92vh;overflow-y:auto;overflow-x:hidden;text-align:left}',
+  '.dshwv-fetitle{font-size:14px;font-weight:600;color:#203170;margin-bottom:6px;display:flex;align-items:center;gap:6px;justify-content:center}',
+  '.dshwv-fename{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:0}',
+  '.dshwv-feinp{flex:1;min-width:0;box-sizing:border-box;border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-size:12px;padding:4px 8px}',
+  '.dshwv-festagebox{border:1px dashed rgba(32,49,112,.5);border-radius:10px;background:#f6f8fd;padding:8px;text-align:center}',
+  '.dshwv-festage{position:relative;margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none}',
+  '.dshwv-festage svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}',
+  '.dshwv-festage .dshwv-text{opacity:1;transition:none;pointer-events:none}',
+  // v852：`.dshwv-fehint` 已经没有任何元素用它（那些小字提示在 v829 就删光了）⇒ 规则一并删掉
+  '.dshwv-febody{display:flex;gap:10px;align-items:flex-start;margin-top:8px;flex-wrap:wrap}',
+  '.dshwv-feslots{display:flex;flex-direction:column;gap:4px;flex:0 0 auto;min-width:88px;margin-top:10px}',
+  '.dshwv-feslot{border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-size:12px;padding:4px 8px;cursor:pointer;text-align:left;white-space:nowrap}',
+  '.dshwv-feslot:hover{background:rgba(32,49,112,.08)}',
+  '.dshwv-feslot.dshwv-feslot-on{background:#203170;color:#fff;border-color:#203170}',
+  '.dshwv-feslot.dshwv-feslot-off{opacity:.45;text-decoration:line-through}',
+  '.dshwv-feattrs{flex:1 1 240px;min-width:200px}',
+  // v855：「内容显示范围与位移」这一栏的外壳（块级 + 满宽）以及它里面两块都撑满
+  '.dshwv-fesafewrap{display:block;width:100%;box-sizing:border-box}',
+  // v857（用户要求）：切换「SVG代码 / 图片导入」、以及「外观」这一节出现时都要有过渡
+  '@keyframes dshwvFeIn{0%{opacity:0;transform:translateY(-4px)}100%{opacity:1;transform:none}}',
+  '.dshwv-fefade > *{animation:dshwvFeIn .2s ease-out both}',
+  '.dshwv-fesafewrap > div,.dshwv-fesafewrap .dshwv-menu-row{width:100%;box-sizing:border-box}',
+  '.dshwv-ferow{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12px;color:#203170;flex-wrap:wrap}',
+  // v853：标签列统一 64px —— 「文字默认色」「内容显示范围」这类长标签以前会把整行撑宽/换行，
+  //   导致同一节里各行的输入起点不齐、右侧留白忽大忽小。
+  '.dshwv-felab{flex:0 0 64px;color:#203170}',
+  '.dshwv-fenum{width:56px;box-sizing:border-box;border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-size:12px;padding:3px 6px}',
+  '.dshwv-fetext{width:88px;box-sizing:border-box;border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-size:12px;padding:3px 6px}',
+  '.dshwv-fecode{width:100%;box-sizing:border-box;border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-family:Consolas,monospace;font-size:11px;padding:4px 6px;height:64px;resize:vertical}',
+  '.dshwv-fenote{font-size:11px;color:#7d8db8;line-height:1.5;flex:1 1 100%;margin:2px 0 6px}',
+  '.dshwv-fechip{border:1px solid rgba(32,49,112,.4);border-radius:6px;background:#fff;color:#203170;font-size:12px;padding:3px 10px;cursor:pointer}',
+  '.dshwv-fechip.dshwv-fechip-on{background:#203170;color:#fff;border-color:#203170}',
+  '.dshwv-fechip-off{opacity:.4;cursor:default}',
+  '.dshwv-febtns{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}',
+  // v852：`.dshwv-fesep` 也没人用了（老版编辑器里的分隔线）⇒ 删掉
+  // v837：「内容限制范围与位移」也改成 dshwvFoldEntry + collapseSet 那一套 ⇒ 自绘的摘要行样式不再需要
   // 跑马灯选项:文字用实际渐变色渲染,并带与泡泡同款流动动画;当前项用 ✓ 前缀标记(避免背景高亮盖掉渐变)
   '.dshwv-qcolmenu .dshwv-rgbopt.optgrad{background-clip:text;-webkit-background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;background-size:200% auto;animation:dshwvRainbow 2.6s linear infinite;transition:transform .15s ease}',
   // 渐变选项的悬浮反馈:轻微放大+下划线(不增亮、不铺灰底,避免影响渐变可读性)
@@ -975,6 +1357,26 @@ menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleMenu
 
 var menuBox = document.createElement('div')
 menuBox.className = 'dshwv-menu'
+// v790（用户要求）：菜单底部一行版本小字（塞进菜单既有的 10px 下边距，不改变菜单高度）。
+//   文案由宿主下发：发布版 = 当前版本；开发版 = 下一个补丁号 + beta（见宿主 versionLabelOf）。
+var menuVerEl = document.createElement('div')
+menuVerEl.className = 'dshwv-ver'
+function setVersionLabel(text) {
+  try {
+    var s = String(text == null ? '' : text).trim()
+    // v794：拿到过就不再被"空值"清掉 —— 启动时余额请求可能先失败一次，
+    //   旧写法会把刚设好的版号又隐藏（用户反馈"刚启动时版号消失"）。
+    if (!s) {
+      if (lastVersionLabel) { menuVerEl.textContent = lastVersionLabel; menuVerEl.style.display = '' }
+      return
+    }
+    lastVersionLabel = (s.charAt(0) === 'v' ? s : 'v' + s)
+    menuVerEl.textContent = lastVersionLabel
+    menuVerEl.style.display = ''
+  } catch (err) {}
+}
+var lastVersionLabel = ''
+menuVerEl.style.display = 'none'
 function menuLabel(text) {
   var s = document.createElement('span')
   s.textContent = text
@@ -1198,7 +1600,12 @@ usageRecBtn.type = 'button'
 usageRecBtn.className = 'dshwv-roleimport'
 usageRecBtn.textContent = '- = 小鲸鱼记账 = -'
 usageRecBtn.title = '查看今日/近7天/全部消费记录'
-usageRecBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleUsagePanel() })
+usageRecBtn.addEventListener('click', function (e) {
+  e.stopPropagation()
+  // v793：「关于/自检」打开时，这个底部按钮也是「‹ 返回」
+  if (aboutPanelOpen) { hideAboutSub(); return }
+  toggleUsagePanel()
+})
 // —— 任务结束音(与按下/松开共用音效库;开启才可选,默认取已导入的 entity) ——
 // v720 起这两个控件不再占用主菜单,而是挂进「自定义提示」窗口(见 taskEndRowHost)。
 // 窗口是"保存/取消"语义,所以窗口打开期间设置先只落到内存(taskEndDefer),取消可还原。
@@ -1432,16 +1839,43 @@ function soundVolClamped(fallback) {
 //   ⇒ 只看"有没有值"无法区分「默认 100%」和「用户设了 100%」；若让每事件无条件优先，会把
 //   「只调过①区、没碰过②区」的老用户的任务结束音静默抬到 100%（见 SPEC §24）。
 //   ⚠️ 约定：本文件里 `soundVolClamped(` 只允许出现在本函数与它自己的定义处 —— 由 `_v778` 静态钉住。
+// v861（issue #197：所有音效"响两次"）——
+//   单页重复挂载已经被 window.__dshWhaleWidget 挡住，所以剩下最可能的原因是**同时存在多个挂件实例**
+//   （多标签 / 多个 index iframe / web + desktop 同时开着）：每个实例各自播一遍，听感就是"响两次"。
+//   这里做一次**跨实例认领**：同一 (事件 + 片段) 在 180ms 内只允许真正播放一次
+//   （localStorage 是同一 origin 共享的，各实例都能看到对方刚认领过的记录）。
+//   180ms 远小于任何"合法连续两次"的间隔（连点也 ≥ 200ms），所以不会误伤正常使用。
+function soundClaimOnce(key, ttlMs) {
+  try {
+    var k = String(key || '')
+    if (!k) return true
+    var now = Date.now()
+    var ttl = isFinite(Number(ttlMs)) && Number(ttlMs) > 0 ? Number(ttlMs) : 180
+    var raw = ''
+    try { raw = localStorage.getItem('dshw-snd-once') || '' } catch (err) { raw = '' }
+    if (raw) {
+      var i = raw.lastIndexOf('|')
+      if (i > 0) {
+        var prevKey = raw.slice(0, i)
+        var prevAt = Number(raw.slice(i + 1)) || 0
+        if (prevKey === k && now - prevAt < ttl) return false // 刚有人播过同一个音 ⇒ 这一次不播
+      }
+    }
+    try { localStorage.setItem('dshw-snd-once', k + '|' + now) } catch (err) {}
+  } catch (err) {}
+  return true
+}
 function soundVolumeOf(kind, override) {
   try {
     if (typeof override === 'number' && isFinite(override) && override >= 0) {
-      return Math.max(0, Math.min(1, override))
+      // v859：允许 200%（音量增益见 dshwvSound 的 GainNode）
+      return Math.max(0, Math.min(2, override))
     }
     if (kind) {
       var cfg = soundEventCfg(kind) || {}
       if (cfg.volSet === true) {
         var v = Number(cfg.vol)
-        if (isFinite(v) && v >= 0) return Math.max(0, Math.min(1, v))
+        if (isFinite(v) && v >= 0) return Math.max(0, Math.min(2, v)) // v859：最高 200%
       }
     }
     return soundVolClamped(0.9)
@@ -1450,11 +1884,15 @@ function soundVolumeOf(kind, override) {
 // v778：绑定音（按压 / 提问 / 授权 / 试听）—— 把 `{sel, vol}` **显式传进去**。
 //   旧实现靠"临时把全局 soundVol / usageSet.taskEnd 改掉、finally 再改回来"来传值；那正是
 //   "每轮结束音读错音量"的同源隐患：任何新增播放入口忘了临时改一下，就会静默读全局（正是 0.3.16 的 bug）。
-function playBindingSound(bind, ev) {
+function playBindingSound(bind, ev, opts) {
   try {
     if (!bind || !bind.on || soundOn === false) return
     var sel = bind.sel || ''
     if (!sel) return // 防御：空选择不出声（v762 起下拉里已无「静音」项，正常不会再为空）
+    // v861/v864：跨实例去重只针对**事件触发**的通知音；
+    //   ⚠️ v864（用户反馈）：**试听（面板 ▶）必须旁路** —— 那是用户按一次就要听一次的交互，
+    //   不能被"180ms 内同一个音只播一次"节流。opts.preview = true 时跳过认领。
+    if (!(opts && opts.preview) && !soundClaimOnce('bind:' + sel)) return
     playTaskEndSound({ sel: sel, vol: (ev && typeof ev.vol === 'number') ? ev.vol : undefined })
   } catch (err) {}
 }
@@ -1490,7 +1928,7 @@ function playTaskEndSound(opts) {
     var url = ''
     var altUrl = ''
     if (sel.indexOf('grp:') === 0) { playTaskEndGroupClick(sel.slice(4), o.vol); return }
-    if (sel.indexOf('frag:') === 0) url = '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(sel.slice(5))
+    if (sel.indexOf('frag:') === 0) url = '/dsh-whale/audio-fragment?id=' + encodeURIComponent(sel.slice(5))
     else if (sel.indexOf('preset:') === 0) {
       // v752：预设片段也改走片段路由（与本体按压同一套选择逻辑 + 备用路由）
       var parts = sel.split(':')
@@ -1499,6 +1937,8 @@ function playTaskEndSound(opts) {
       altUrl = su.alt || ''
     }
     if (!url) return
+    // v861：跨实例去重（见 soundClaimOnce）；试听（opts.preview）不节流
+    if (!(o && o.preview) && !soundClaimOnce('frag:' + String(o.sel || ''))) return
     var a = dshwvSound(url)
     if (altUrl) a._alt = altUrl
     // v778：音量统一走解析器（②区「提示音量」显式设置过就用它，否则跟随①区「按压音量」）
@@ -1638,7 +2078,7 @@ var soundPanelBtn = document.createElement('button')
 soundPanelBtn.type = 'button'
 soundPanelBtn.className = 'dshwv-roleimport'
 soundPanelBtn.style.flex = '1'
-soundPanelBtn.textContent = '全局设置'
+soundPanelBtn.textContent = '音效/提示泡泡设置'
 soundPanelBtn.title = '提示与音效设置：按压音量/音效组、每轮消耗提示、提问提示、授权提示'
 soundPanelBtn.addEventListener('click', function (e) { e.stopPropagation(); openSoundSettingsPanel() })
 row2.appendChild(soundPanelBtn)
@@ -1852,9 +2292,14 @@ usageArea.appendChild(usagePanel)
 // 底部固定动作行:始终可见;主菜单态=「用量记录」,用量态=「‹ 返回」
 var usageNavRow = menuRow()
 usageNavRow.style.flex = '0 0 auto'
+// v790（用户要求）：把最下方这个按钮行的**下边距**让给版本小字（5px → 0）。
+// 与菜单 padding-bottom 10 → 4 合起来正好腾出 11px = 版本行高 ⇒ 菜单总高不变（不会多占一行）。
+usageNavRow.style.marginBottom = '0'
 usageRecBtn.style.width = '100%'
 usageNavRow.appendChild(usageRecBtn)
 menuBox.appendChild(usageNavRow)
+// v790：版本小字挂在菜单最后（在"最下方按钮 ↔ 菜单底边"那段空隙里居中，见 .dshwv-ver 的注释）
+menuBox.appendChild(menuVerEl)
 var usagePanelOpen = false
 var usageRefreshTimer = null
 var usageMainEl = null // 用量子界面可刷新内容区(保留顶部返回条)
@@ -2036,6 +2481,664 @@ function hideUsageSub() {
   }, 230)
 }
 function closeUsagePanel() { hideUsageSub() }
+// ===== v793（用户要求）：点菜单底部版号 → 「关于 / 自检」子视图 =====
+// 与「小鲸鱼记账」同款观感（占满按钮上方区域 + 内部滚动 + 底部按钮变「‹ 返回」），
+// 但**刻意不复用**那套带刷新定时器/滚动恢复/悬浮守卫的编排代码 —— 这里只需要"进去、出来"两件事，
+// 复制一小段机制比改动那段已经很稳定的记账视图风险更低（记账视图有 `_v761` 326 项探针钉着）。
+var aboutPanel = null
+var aboutPanelOpen = false
+var aboutShowTimer = null
+var aboutHideTimer = null
+var aboutData = null
+var aboutLastUpdate = null
+var aboutSelfResult = null
+var aboutSelfDetail = ''
+var aboutCheckAt = 0
+var aboutUpdateSource = ''
+// v805：动作行的登记表（label → { line, val }），用于"只刷新那一行"而不是整屏重画
+var aboutRows = {}
+function aboutUpdateRow(label, text, cls) {
+  try {
+    var rec = aboutRows[label]
+    if (!rec || !rec.val) return false
+    rec.val.textContent = String(text == null ? '' : text)
+    rec.val.className = 'dshwv-about-v' + (cls ? ' ' + cls : '')
+    return true
+  } catch (err) { return false }
+}
+// v805（用户要求）：只刷新"挂件已运行"这一行 —— 重新读一次 about.json，但**不重画整个面板**
+function aboutRefreshUptimeRow() {
+  if (aboutRows['挂件已运行'] && aboutRows['挂件已运行'].val) aboutUpdateRow('挂件已运行', '刷新中…')
+  return fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+    if (!d || !d.ok) { aboutUpdateRow('挂件已运行', '刷新失败'); return }
+    aboutData = d
+    aboutUpdateRow('挂件已运行', aboutFmtUptime(d.runtime && d.runtime.uptimeSec))
+  }).catch(function () { aboutUpdateRow('挂件已运行', '刷新失败') })
+}
+function aboutEnsurePanel() {
+  if (aboutPanel) return aboutPanel
+  aboutPanel = document.createElement('div')
+  aboutPanel.className = 'dshwv-about'
+  try { if (usageArea) usageArea.appendChild(aboutPanel) } catch (err) {}
+  return aboutPanel
+}
+function aboutEl(tag, cls, text) {
+  var el = document.createElement(tag)
+  if (cls) el.className = cls
+  if (text !== undefined && text !== null) el.textContent = String(text)
+  return el
+}
+function aboutFmtTime(ms) {
+  try {
+    if (!ms) return '—'
+    var d = new Date(Number(ms))
+    var p = function (n) { return String(n).padStart(2, '0') }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
+  } catch (err) { return '—' }
+}
+function aboutFmtBytes(n) {
+  try {
+    var v = Number(n)
+    if (!isFinite(v) || v < 0) return '—'
+    if (v < 1024) return v + ' B'
+    if (v < 1048576) return (v / 1024).toFixed(1) + ' KB'
+    return (v / 1048576).toFixed(1) + ' MB'
+  } catch (err) { return '—' }
+}
+function aboutFmtUptime(sec) {
+  try {
+    var s = Math.max(0, Math.round(Number(sec) || 0))
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60)
+    if (h > 0) return h + ' 小时 ' + m + ' 分'
+    if (m > 0) return m + ' 分 ' + (s % 60) + ' 秒'
+    return s + ' 秒'
+  } catch (err) { return '—' }
+}
+// v795（用户反馈）：客户端类型**不能用 `navigator.windowControlsOverlay`** —— Chrome 桌面浏览器也有这个 API，
+//   于是 `npx @deepseek-ai/dsh web` 起来的网页端被误判成"官方桌面客户端"。
+//   现在以**宿主按请求头 UA 给出的判定**为准（官方桌面客户端是 Electron，UA 里必有 `Electron/`），
+//   前端只在拿不到宿主判定时用 UA 兜底。
+function aboutClientKind(short) {
+  var kind = ''
+  try { kind = (aboutData && aboutData.client && aboutData.client.kind) || '' } catch (err) {}
+  if (kind !== 'desktop' && kind !== 'web') {
+    try { kind = /electron/i.test(String(navigator.userAgent || '')) ? 'desktop' : 'web' } catch (err) { kind = '' }
+  }
+  if (kind === 'desktop') return short ? '桌面客户端' : '官方桌面客户端'
+  if (kind === 'web') return short ? '网页端' : '网页端（dsh web / 浏览器）'
+  return '未知'
+}
+// 简化显示用：路径只留最后一段（完整路径放在"点击复制"的完整文本里）
+function aboutShortPath(p) {
+  try {
+    var parts = String(p || '').split(/[\\/]/)
+    return parts[parts.length - 1] || String(p || '')
+  } catch (err) { return String(p || '') }
+}
+// 简化显示用：今天的只显示 HH:mm，其他显示 MM-DD HH:mm（完整时间在复制文本里）
+function aboutShortTime(ms) {
+  try {
+    if (!ms) return ''
+    var d = new Date(Number(ms)), now = new Date()
+    var p = function (n) { return String(n).padStart(2, '0') }
+    var same = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+    return same ? (p(d.getHours()) + ':' + p(d.getMinutes()))
+      : (p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()))
+  } catch (err) { return '' }
+}
+// 一行"键 · 简化值"，点整行复制完整文本（用户要求：简化显示 + 点击复制）
+// ⚠️ v796：判定"有没有"不能只看 `found` —— `build.host/widget` 这类条目没有 `found` 字段，
+//   只看它会把宿主/前端文件误显示成"未找到"（用户实测报的 bug）。这里以"有 path 或 bytes"为准。
+function aboutHasFile(file) {
+  try { return !!(file && (file.found === true || file.path || file.bytes != null)) } catch (err) { return false }
+}
+function aboutShortOf(file) {
+  try {
+    if (!aboutHasFile(file)) return '未找到'
+    var bits = []
+    if (file.path) bits.push(aboutShortPath(file.path))
+    if (file.bytes != null) bits.push(aboutFmtBytes(file.bytes))
+    var t = aboutShortTime(file.mtime)
+    if (t) bits.push(t)
+    return bits.length ? bits.join(' · ') : '已找到'
+  } catch (err) { return '—' }
+}
+function aboutFileFull(label, file) {
+  try {
+    if (!aboutHasFile(file)) return label + ': 未找到（试过 ' + ((file && file.candidates) || 0) + ' 个位置）'
+    return label + ': ' + (file.path || '(无路径)') + ' · ' + aboutFmtBytes(file.bytes) + ' · ' + aboutFmtTime(file.mtime)
+  } catch (err) { return label }
+}
+// v796：DSH 版本优先读页面上的 `window.__DSH_BOOT__`（只有 `dsh web` 会注入它），拿不到再用宿主读到的
+function aboutBootVersion() {
+  try {
+    var b = window.__DSH_BOOT__
+    if (!b) return ''
+    var cands = [b.version, b.dshVersion, b.appVersion, b.build && b.build.version, b.package && b.package.version, b.pkg && b.pkg.version]
+    for (var i = 0; i < cands.length; i++) {
+      var v = String(cands[i] == null ? '' : cands[i]).trim()
+      if (v) return v
+    }
+  } catch (err) {}
+  return ''
+}
+function aboutDshVersion(r) {
+  var boot = aboutBootVersion()
+  if (boot) return boot
+  try { return (r && r.dsh && r.dsh !== 'unknown') ? String(r.dsh) : '' } catch (err) { return '' }
+}
+// ⚠️ 隐私白名单：复制出去的文本只由这个函数组装，字段逐个挑，**绝不 stringify 整个 payload**
+function aboutDiagText(d) {
+  var L = []
+  try {
+    var p = d && d.plugin || {}, b = d && d.build || {}, r = d && d.runtime || {}
+    L.push('小鲸鱼挂件诊断信息')
+    L.push('版本: ' + (p.label || p.version || '?') + '（' + (p.channel === 'dev' ? '开发版' : '正式版') + '）')
+    L.push('客户端: ' + aboutClientKind())
+    L.push('宿主文件: ' + (b.host && b.host.path || '?') + ' · ' + aboutFmtBytes(b.host && b.host.bytes) + ' · ' + aboutFmtTime(b.host && b.host.mtime))
+    L.push('前端文件: ' + aboutFmtBytes(b.widget && b.widget.bytes) + ' · ' + aboutFmtTime(b.widget && b.widget.mtime))
+    L.push('宿主含开发机路径: ' + (b.hostHasDevPaths === true ? '是' : b.hostHasDevPaths === false ? '否' : '未知'))
+    L.push('环境: ' + (r.platform || '?') + '/' + (r.arch || '?') + ' node ' + (r.node || '?') + ' · dsh ' + (r.dsh || '?') + ' · 已运行 ' + aboutFmtUptime(r.uptimeSec))
+    L.push('数据目录: ' + (r.dataHome || '?'))
+    ;(d && d.data || []).forEach(function (f) {
+      L.push('数据·' + f.label + ': ' + (f.found ? (f.path + ' · ' + aboutFmtBytes(f.bytes) + ' · ' + aboutFmtTime(f.mtime)) : '未找到'))
+    })
+    if (d && d.ledger) L.push('记账: ' + (d.ledger.error ? ('读取失败 ' + d.ledger.error) : ('已记 ' + d.ledger.days + ' 天 · 最近观测 ' + aboutFmtTime(d.ledger.lastObservedAt) + (d.ledger.todayPartial ? ' · 今日为部分数据' : '') + (d.ledger.needsReview ? ' · 有待核对调整' : ''))))
+    if (d && d.balance) L.push('余额取数: ' + (d.balance.ok ? '成功' : '失败') + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : '') + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''))
+    else L.push('余额取数: 本次会话尚未取过')
+    if (d && d.codex) L.push('Codex 统计: ' + (d.codex.enabled ? ('已启用 · 最近扫描 ' + aboutFmtTime(d.codex.snapAt) + (d.codex.files != null ? (' · ' + d.codex.files + ' 个会话文件') : '')) : ('未启用（' + (d.codex.reason || '未配置') + '）')))
+    if (aboutSelfResult) L.push('自检: ' + aboutSelfResult + (aboutSelfDetail ? ('（' + aboutSelfDetail + '）') : ''))
+    // v805：来源**只在这里**出现（行里不显示），方便贴 issue 时知道是哪条路通的
+    if (aboutLastUpdate) L.push('检查更新: ' + aboutLastUpdate + (aboutUpdateSource ? ('（源 ' + aboutUpdateSource + '）') : ''))
+    L.push('（此文本不含密钥、账号 id、账本明细与会话内容）')
+  } catch (err) {}
+  return L.join('\n')
+}
+function aboutCopyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { aboutFlash('已复制到剪贴板') }, function () { aboutCopyFallback(text) })
+      return
+    }
+  } catch (err) {}
+  aboutCopyFallback(text)
+}
+function aboutCopyFallback(text) {
+  try {
+    var ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    // ⚠️ 必须走 DOM 守护登记器（dshwBodyAppend/Detach）—— 裸 document.body.appendChild 会被
+    //    探针 `_v743`/`_z-audit` 判为违规（SPA 换 body 后这类节点会变孤儿，或反过来被守护复活）
+    dshwBodyAppend(ta)
+    ta.select()
+    document.execCommand('copy')
+    dshwBodyDetach(ta)
+    aboutFlash('已复制到剪贴板')
+  } catch (err) { aboutFlash('复制失败，请手动选择文本') }
+}
+// v800（用户要求）：复制提示做成**菜单内**的小浮条（原来是整个界面底部的 toast）
+//   挂在 usageArea 里（它本来就是 position:relative + overflow:hidden），所以始终贴在菜单可视区底部，
+//   不会被内容滚动带走、也不会跑到页面别处。
+var aboutFlashEl = null
+var aboutFlashTimer = null
+function aboutEnsureFlash() {
+  if (aboutFlashEl && aboutFlashEl.parentNode) return aboutFlashEl
+  try {
+    aboutFlashEl = document.createElement('div')
+    aboutFlashEl.className = 'dshwv-about-flash'
+    if (usageArea) usageArea.appendChild(aboutFlashEl)
+  } catch (err) { aboutFlashEl = null }
+  return aboutFlashEl
+}
+function aboutFlash(msg) {
+  try {
+    var el = aboutEnsureFlash()
+    if (!el) return
+    el.textContent = String(msg == null ? '' : msg)
+    el.classList.add('dshwv-about-flash-on')
+    if (aboutFlashTimer) { clearTimeout(aboutFlashTimer); aboutFlashTimer = null }
+    aboutFlashTimer = setTimeout(function () {
+      aboutFlashTimer = null
+      try { if (aboutFlashEl) aboutFlashEl.classList.remove('dshwv-about-flash-on') } catch (err) {}
+    }, 1500)
+  } catch (err) {}
+}
+function aboutFlashHide() {
+  try {
+    if (aboutFlashTimer) { clearTimeout(aboutFlashTimer); aboutFlashTimer = null }
+    if (aboutFlashEl) aboutFlashEl.classList.remove('dshwv-about-flash-on')
+  } catch (err) {}
+}
+function aboutOpenLink(url) {
+  try {
+    var w = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!w) { aboutCopyText(url); aboutFlash('浏览器拦截了新窗口，链接已复制') }
+  } catch (err) { aboutCopyText(url); aboutFlash('打不开新窗口，链接已复制') }
+}
+function aboutRender() {
+  var el = aboutEnsurePanel()
+  // v805：整屏重画前记住滚动位置，画完还原 —— 否则"刷新数据"会把人拉回顶部
+  var keepScroll = 0
+  try { keepScroll = el.scrollTop || 0 } catch (err) {}
+  var d = aboutData || {}
+  el.innerHTML = ''
+  aboutRows = {}
+  var p = d.plugin || {}, b = d.build || {}, r = d.runtime || {}
+  var isDev = p.channel === 'dev'
+  var dshVer = aboutDshVersion(r)
+  // 顶行：标题 + 刷新图标（v803：挪到「小鲸鱼挂件」**右侧**）+ 版号徽标 + 通道徽标 + 客户端徽标
+  var h = aboutEl('div', 'dshwv-about-h')
+  h.appendChild(aboutEl('span', 'dshwv-about-name', '小鲸鱼挂件'))
+  // v799：刷新按钮是小圆形箭头图标（就是 DSH 那个刷新图标：圆环缺口在右上 + 实心小箭头）。
+  //   用内联 SVG 画，比字体符号稳（不受字体影响），颜色跟面板走。
+  var refreshBtn = aboutEl('button', 'dshwv-about-refresh')
+  refreshBtn.type = 'button'
+  refreshBtn.title = '刷新数据（重新向宿主读取）'
+  try {
+    refreshBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+      '<path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>'
+  } catch (err) { refreshBtn.textContent = '↻' }
+  refreshBtn.addEventListener('click', function (e) { e.stopPropagation(); aboutLoad(true) })
+  h.appendChild(refreshBtn)
+  h.appendChild(aboutEl('span', 'dshwv-about-badge dshwv-about-badge-ver', (p.label || p.version || '?')))
+  h.appendChild(aboutEl('span', 'dshwv-about-badge' + (isDev ? ' dshwv-about-badge-dev' : ''), isDev ? '开发版' : '正式版'))
+  h.appendChild(aboutEl('span', 'dshwv-about-badge', aboutClientKind(true) + (r.profile ? ' · ' + r.profile : '')))
+  el.appendChild(h)
+  // v797（用户要求）：标题行下方加一条分割线（与各分节标题的下边框同款）
+  el.appendChild(aboutEl('div', 'dshwv-about-hr'))
+
+  // 分节：先攒行，收尾时再补"节标题 + 右对齐的复制按钮"（复制 = 这一节的全部行）
+  var pending = null
+  function secEnd() {
+    if (!pending) return
+    // ⚠️ v800 修 bug：复制按钮的回调**必须先把本节数据取成局部常量** —— 原来直接用 `pending`，
+    //   而本函数结尾会 `pending = null`，点击时读 `pending.title` 直接抛错 ⇒ 按钮看起来"失效"（用户实测就是这么发现的）。
+    var secTitle = pending.title
+    var secLines = pending.lines.slice()
+    var secActions = pending.actions || []
+    var secBody = pending.body
+    // v798/v799（用户要求）：整节（标题 + 内容）包一层容器，鼠标停在**标题行**时整节一起有反应
+    //   —— 纯 CSS（`.dshwv-about-sec:hover + .dshwv-about-body`）实现，不挂事件监听，零开销。
+    var wrap = aboutEl('div', 'dshwv-about-secwrap')
+    var head = aboutEl('div', 'dshwv-about-sec')
+    head.appendChild(aboutEl('span', 'dshwv-about-sect', secTitle))
+    var acts = aboutEl('span', 'dshwv-about-secacts')
+    secActions.forEach(function (spec) {
+      var b = aboutEl('button', 'dshwv-about-iconbtn', spec[0])
+      b.type = 'button'
+      if (spec[2]) b.title = spec[2]
+      b.addEventListener('click', function (e) { e.stopPropagation(); spec[1]() })
+      acts.appendChild(b)
+    })
+    // v801（用户要求）：⧉ 只做**视觉提示**（默认隐藏，鼠标到这一行才显示），
+    //   它自己**不挂监听** —— 点击由整行（head）统一处理，避免点符号时复制两次。
+    var cp = aboutEl('span', 'dshwv-about-iconbtn dshwv-about-iconbtn-mark', '⧉')
+    acts.appendChild(cp)
+    head.appendChild(acts)
+    // 点标题行**任意位置** ⇒ 复制整节（用户要求）
+    head.title = '点击复制「' + secTitle + '」整节'
+    head.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      aboutCopyText(secTitle + '\n' + secLines.join('\n'))
+      aboutFlash('已复制：' + secTitle)
+    })
+    wrap.appendChild(head)
+    wrap.appendChild(secBody)
+    el.appendChild(wrap)
+    pending = null
+  }
+  function secStart(title, actions) {
+    secEnd()
+    pending = { title: title, actions: actions || [], lines: [], body: aboutEl('div', 'dshwv-about-body') }
+  }
+  // 行：简化显示；点整行复制**完整**文本（无图标，避免每行都挂个按钮）
+  function row(label, shortText, fullText, cls) {
+    var line = aboutEl('div', 'dshwv-about-row' + (fullText ? ' dshwv-about-copyable' : ''))
+    line.appendChild(aboutEl('span', 'dshwv-about-k', label))
+    line.appendChild(aboutEl('span', 'dshwv-about-v' + (cls ? ' ' + cls : ''), shortText))
+    if (fullText) {
+      line.title = '点击复制：' + fullText
+      line.addEventListener('click', function (e) {
+        try { e.stopPropagation() } catch (err) {}
+        aboutCopyText(fullText)
+        aboutFlash('已复制：' + label)
+      })
+      if (pending) pending.lines.push(fullText)
+    }
+    if (pending) pending.body.appendChild(line)
+  }
+  // v802（用户要求）：动作行 —— **不复制**、点击 = 重新执行（自检 / 检查更新 / 刷新数据）；
+  //   行可点（hover 淡底），v805 起**不再显示 ↻ 小图标**（用户嫌多余）。
+  //   每行登记进 aboutRows，供"只刷新这一行"用（见 aboutUpdateRow）。
+  function actRow(label, shortText, hint, cls, onClick) {
+    var line = aboutEl('div', 'dshwv-about-row dshwv-about-actrow')
+    line.appendChild(aboutEl('span', 'dshwv-about-k', label))
+    var valEl = aboutEl('span', 'dshwv-about-v' + (cls ? ' ' + cls : ''), shortText)
+    line.appendChild(valEl)
+    line.title = hint
+    line.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      onClick()
+    })
+    aboutRows[label] = { line: line, val: valEl }
+    if (pending) pending.body.appendChild(line)
+  }
+  secStart('版本与安装')
+  row('宿主文件', aboutShortOf(b.host), aboutFileFull('宿主文件', b.host))
+  row('前端文件', aboutShortOf(b.widget), aboutFileFull('前端文件', b.widget))
+  var lits = (p.hostVersionLiterals || [])
+  var consistent = lits.length > 0 && lits.every(function (x) { return x === p.version })
+  row('版本自洽', consistent ? '一致' : '不一致', '版本自洽: ' + (consistent ? '一致' : '不一致') + '（源码字面量 ' + (lits.join(' / ') || '?') + ' vs 上报 ' + (p.version || '?') + '）',
+    consistent ? 'dshwv-about-ok' : 'dshwv-about-bad')
+  row('宿主含开发机路径', b.hostHasDevPaths === true ? '是（开发版）' : b.hostHasDevPaths === false ? '否' : '未知',
+    '宿主含开发机路径: ' + (b.hostHasDevPaths === true ? '是' : b.hostHasDevPaths === false ? '否' : '未知') + '（true = 这份宿主是开发版，未走 strip）',
+    b.hostHasDevPaths === true ? 'dshwv-about-bad' : 'dshwv-about-ok')
+  secStart('运行环境')
+  row('客户端', aboutClientKind(true), '客户端: ' + aboutClientKind() + '（判定来源: ' + ((d.client && d.client.via) || '前端 UA 兜底') + '）' + (r.profile ? ' · profile ' + r.profile : ''))
+  row('平台 / Node', (r.platform || '?') + ' ' + (r.arch || '?') + ' · ' + (r.node || '?'), '平台: ' + (r.platform || '?') + ' ' + (r.arch || '?') + ' · Node ' + (r.node || '?'))
+  row('DSH 版本', dshVer || '未知', 'DSH: ' + (dshVer || 'unknown') + (r.profile ? ' · profile ' + r.profile : '') + ' · 数据目录 ' + (r.dataHome || '?') +
+    ' · 来源: ' + (aboutBootVersion() ? '页面 __DSH_BOOT__' : '宿主读取'))
+  // v803（用户要求）：「挂件已运行」也改成**点击刷新**（不再复制）—— 它是"活"的数字。
+  //   v805：只刷新这一行（重新读一次 about.json，但不重画整个面板）。
+  actRow('挂件已运行', aboutFmtUptime(r.uptimeSec),
+    '点击刷新这一行：重新向宿主读取运行时长（不重画整个面板）',
+    '', function () { aboutRefreshUptimeRow() })
+  secStart('数据落点')
+  ;(d.data || []).forEach(function (f) {
+    row(f.label, aboutShortOf(f), aboutFileFull(f.label, f), f.found ? '' : 'dshwv-about-bad')
+  })
+  secStart('状态')
+  if (d.ledger && d.ledger.error) row('记账', '读取失败', '记账: 读取失败 ' + d.ledger.error, 'dshwv-about-bad')
+  else if (d.ledger) {
+    var lg = []
+    lg.push(d.ledger.days + ' 天')
+    if (d.ledger.lastObservedAt) lg.push('观测 ' + aboutShortTime(d.ledger.lastObservedAt))
+    if (d.ledger.todayPartial) lg.push('今日部分数据')
+    if (d.ledger.needsReview) lg.push('有待核对')
+    row('记账', lg.join(' · '), '记账: 已记录 ' + d.ledger.days + ' 天 · 最近观测 ' + aboutFmtTime(d.ledger.lastObservedAt) +
+      (d.ledger.todayPartial ? ' · 今日为部分数据' : ' · 今日完整') + (d.ledger.needsReview ? ' · 有待核对调整' : ' · 无待核对'),
+      d.ledger.todayPartial || d.ledger.needsReview ? 'dshwv-about-bad' : '')
+  } else row('记账', '不可用', '记账: 不可用')
+  if (d.balance) {
+    row('余额取数', (d.balance.ok ? '成功' : '失败') + (d.balance.ms != null ? ' · ' + d.balance.ms + ' ms' : '') + (d.balance.at ? ' · ' + aboutShortTime(d.balance.at) : ''),
+      '余额取数: ' + (d.balance.ok ? '成功' : '失败') + ' · ' + (d.balance.ms != null ? d.balance.ms + ' ms' : '耗时未知') + ' · ' + aboutFmtTime(d.balance.at) + (d.balance.error ? (' · ' + d.balance.error) : ''),
+      d.balance.ok ? 'dshwv-about-ok' : 'dshwv-about-bad')
+    if (d.balance.error) row('余额失败原因', String(d.balance.error).slice(0, 22) + (String(d.balance.error).length > 22 ? '…' : ''), '余额失败原因: ' + d.balance.error, 'dshwv-about-bad')
+  } else row('余额取数', '本次会话尚未取过', '余额取数: 本次会话尚未取过（点一次鲸鱼会触发）')
+  if (d.codex && d.codex.enabled) {
+    row('Codex 统计', '已启用' + (d.codex.files != null ? ' · ' + d.codex.files + ' 个会话' : ''),
+      'Codex 统计: 已启用 · 最近扫描 ' + aboutFmtTime(d.codex.snapAt) + ' · 跳过 ' + (d.codex.skipped != null ? d.codex.skipped : '—') + ' · 延后 ' + (d.codex.deferred != null ? d.codex.deferred : '—'),
+      'dshwv-about-ok')
+  } else {
+    row('Codex 统计', '未启用', 'Codex 统计: 未启用 —— ' + ((d.codex && d.codex.reason) || '未配置 Codex 模型'))
+  }
+  // v798 起：打开面板时自动跑一次；v802（用户要求）：这两行**不复制**，点击 = 重新执行。
+  actRow('自检', aboutSelfResult || '检查中…',
+    '点击重新自检：只从浏览器访问本机两条插件路由（不联网、不耗 token）' + (aboutSelfDetail ? ('\n上次：' + aboutSelfDetail) : ''),
+    aboutSelfResult ? (/^通过/.test(aboutSelfResult) ? 'dshwv-about-ok' : 'dshwv-about-bad') : '',
+    function () { aboutSelfCheck() })
+  // v805（用户要求）：这一行**不显示来源**（来源只出现在"复制诊断信息"的文本里）
+  actRow('检查更新', aboutLastUpdate || '检查中…',
+    '点击重新检查 npm 上的最新版本（五个源并行：npmmirror / jsdelivr / unpkg / npmjs / npm-cli）',
+    '', function () { aboutCheckUpdate() })
+  secEnd()
+  // 动作区：2 列网格；「复制以上全部信息」放在**最后一行**（用户要求；v814 按要求改名）
+  var acts = aboutEl('div', 'dshwv-about-acts')
+  function btn(text, fn, primary) {
+    var bb = aboutEl('button', 'dshwv-about-btn' + (primary ? ' dshwv-about-btn-main' : ''), text)
+    bb.type = 'button'
+    bb.addEventListener('click', function (e) { e.stopPropagation(); fn() })
+    acts.appendChild(bb)
+  }
+  btn('仓库', function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget') })
+  btn('更新日志', function () { aboutOpenLink('https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/releases') })
+  btn('复制以上全部信息', function () { aboutCopyText(aboutDiagText(aboutData)) }, true)
+  el.appendChild(acts)
+  el.appendChild(aboutEl('div', 'dshwv-about-note', '点任意一行复制该行；每节标题右侧可整节复制。自检只访问本机两条插件路由（不联网、不耗 token）。前端改动需 Ctrl+F5，宿主改动需重启服务。'))
+  // v805：还原滚动位置（整屏刷新不跳回顶部）
+  try { if (keepScroll > 0) el.scrollTop = keepScroll } catch (err) {}
+}
+function aboutLoad(force) {
+  var el = aboutEnsurePanel()
+  if (!force && aboutData) { aboutRender(); aboutAutoProbe(); return }
+  el.innerHTML = ''
+  el.appendChild(aboutEl('div', 'dshwv-about-note', '读取中…'))
+  fetch('/dsh-whale/about.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+    aboutData = d && d.ok ? d : null
+    if (!aboutData) { el.innerHTML = ''; el.appendChild(aboutEl('div', 'dshwv-about-note', '读取失败：' + ((d && d.error) || '未知错误'))); return }
+    aboutRender()
+    aboutAutoProbe()
+  }).catch(function (err) {
+    el.innerHTML = ''
+    el.appendChild(aboutEl('div', 'dshwv-about-note', '读取失败：' + String((err && err.message) || err)))
+  })
+}
+// v798：打开面板（或点「刷新数据」）时自动跑一次自检与检查更新（用户要求：不做按钮）
+function aboutAutoProbe() {
+  try { aboutSelfCheck() } catch (err) {}
+  try {
+    var now = Date.now()
+    if (!aboutCheckAt || now - aboutCheckAt > 10 * 60 * 1000) aboutCheckUpdate()
+    else if (!aboutLastUpdate) aboutLastUpdate = '（10 分钟内已检查过）'
+  } catch (err) {}
+}
+function aboutSelfCheck() {
+  var targets = ['/dsh-whale/size.json', '/dsh-whale/wait.json']
+  aboutSelfResult = '检查中…'
+  aboutSelfDetail = ''
+  // v805：只更新「自检」这一行，不重画整个面板（重画会丢滚动位置、也会闪一下）
+  if (!aboutUpdateRow('自检', '检查中…')) aboutRender()
+  Promise.all(targets.map(function (u) {
+    var t0 = Date.now()
+    return fetch(u, { cache: 'no-store' }).then(function (r) {
+      return r.json().then(function (j) {
+        var n = (j && typeof j === 'object') ? Object.keys(j).length : 0
+        return { u: u, ok: !!r.ok, code: r.status, ms: Date.now() - t0, fields: n }
+      }, function () {
+        return { u: u, ok: !!r.ok, code: r.status, ms: Date.now() - t0, fields: -1 }
+      })
+    }).catch(function (err) {
+      return { u: u, ok: false, code: 0, ms: Date.now() - t0, fields: -1, err: String((err && err.message) || err).slice(0, 40) }
+    })
+  })).then(function (rs) {
+    var bad = rs.filter(function (x) { return !x.ok })
+    aboutSelfDetail = rs.map(function (x) {
+      return aboutShortPath(x.u) + ' ' + (x.ok ? '200' : (x.code ? ('HTTP ' + x.code) : '失败')) + ' · ' + x.ms + 'ms · ' +
+        (x.fields >= 0 ? (x.fields + ' 字段') : (x.err || '解析失败'))
+    }).join('；')
+    aboutSelfResult = bad.length ? ('失败：' + bad.length + '/' + rs.length + ' 条') : ('通过（' + rs.length + ' 条路由）')
+    // v805：只更新这一行（面板没渲染时才回退到整屏重画）
+    if (!aboutUpdateRow('自检', aboutSelfResult, /^通过/.test(aboutSelfResult) ? 'dshwv-about-ok' : 'dshwv-about-bad')) aboutRender()
+  })
+}
+function aboutCheckUpdate() {
+  aboutLastUpdate = '检查中…'
+  aboutCheckAt = Date.now()
+  // v805：只更新「检查更新」这一行（不重画整个面板）
+  if (!aboutUpdateRow('检查更新', '检查中…')) aboutRender()
+  fetch('/dsh-whale/update-check.json', { cache: 'no-store' }).then(function (r) { return r.json() }).then(function (d) {
+    // v805（用户要求）：来源**不显示在行里**，只留在 aboutUpdateSource 里，随「复制诊断信息」一起带出去
+    aboutUpdateSource = (d && d.source) ? String(d.source) : ''
+    if (!d || !d.ok) aboutLastUpdate = '检查失败：' + ((d && d.error) || '未知错误')
+    else if (d.channel === 'dev') aboutLastUpdate = '开发版（最新发布 ' + d.latest + '）'
+    else aboutLastUpdate = d.hasUpdate ? ('有新版本 ' + d.latest + '，当前 ' + d.current) : ('已是最新（' + d.current + '）')
+    if (!aboutUpdateRow('检查更新', aboutLastUpdate)) aboutRender()
+  }).catch(function (err) {
+    aboutUpdateSource = ''
+    aboutLastUpdate = '检查失败：' + String((err && err.message) || err)
+    if (!aboutUpdateRow('检查更新', aboutLastUpdate)) aboutRender()
+  })
+}
+function showAboutSub() {
+  try { if (aboutHideTimer) { clearTimeout(aboutHideTimer); aboutHideTimer = null } } catch (err) {}
+  // 记账视图开着时先切走（两者不会同时存在）
+  try { if (usagePanelOpen) { usagePanelOpen = false; usagePanel.style.display = 'none' } } catch (err) {}
+  aboutPanelOpen = true
+  aboutEnsurePanel()
+  var w0 = 300, h0 = 360
+  try {
+    var mb = menuBox.getBoundingClientRect()
+    if (mb.width > 0) w0 = Math.round(mb.width)
+    if (mb.height > 0) h0 = Math.round(mb.height)
+  } catch (err) {}
+  // 锁定外层 menuBox 当前宽高；子视图占按钮上方区域并内部滚动（与 showUsageSub 完全同款）
+  menuBox.style.width = w0 + 'px'
+  menuBox.style.maxWidth = w0 + 'px'
+  menuBox.style.height = h0 + 'px'
+  menuBox.style.overflow = 'hidden'
+  menuBox.style.display = 'flex'
+  menuBox.style.flexDirection = 'column'
+  try { if (menuRootView && usageArea && menuRootView.parentNode !== usageArea) usageArea.appendChild(menuRootView) } catch (err) {}
+  try {
+    usageArea.style.display = 'block'
+    // 关于内容从**下方**滑入；主菜单在**上方**同步滑出（zIndex 关系与记账视图一致）
+    aboutPanel.style.position = 'absolute'
+    aboutPanel.style.top = '0'
+    aboutPanel.style.left = '0'
+    aboutPanel.style.width = '100%'
+    aboutPanel.style.height = '100%'
+    aboutPanel.style.maxHeight = 'none'
+    aboutPanel.style.overflowY = 'auto'
+    aboutPanel.style.zIndex = '1'
+    aboutPanel.style.transform = 'translateY(100%)'
+    aboutPanel.style.transition = 'none'
+    aboutPanel.style.display = 'block'
+    aboutPanel.style.opacity = ''
+    if (menuRootView) {
+      menuRootView.style.display = 'block'
+      menuRootView.style.position = 'absolute'
+      menuRootView.style.top = '0'
+      menuRootView.style.left = '0'
+      menuRootView.style.width = '100%'
+      menuRootView.style.height = '100%'
+      menuRootView.style.zIndex = '2'
+      menuRootView.style.transform = 'translateY(0)'
+      menuRootView.style.transition = 'none'
+    }
+    setUsageNavBtn(true)
+    aboutLoad(false)
+    void usageArea.offsetHeight
+    aboutPanel.style.transition = 'transform .22s ease'
+    aboutPanel.style.transform = 'translateY(0)'
+    if (menuRootView) {
+      menuRootView.style.transition = 'transform .22s ease'
+      menuRootView.style.transform = 'translateY(-100%)'
+    }
+    // 动画结束后把主菜单叠层隐藏（仍留在 area 内，返回时复用同框滑回）——这一步是关键：
+    // 少了它就会看到"关于面板盖在主菜单上、两层糊在一起"（用户反馈的 bug 2）
+    if (aboutShowTimer) { clearTimeout(aboutShowTimer); aboutShowTimer = null }
+    aboutShowTimer = setTimeout(function () {
+      aboutShowTimer = null
+      try { if (aboutPanelOpen && menuRootView) menuRootView.style.display = 'none' } catch (err) {}
+    }, 240)
+  } catch (err) {}
+}
+function hideAboutSub() {
+  if (aboutShowTimer) { clearTimeout(aboutShowTimer); aboutShowTimer = null }
+  if (aboutHideTimer) { clearTimeout(aboutHideTimer); aboutHideTimer = null }
+  try { aboutFlashHide() } catch (err) {}
+  // 主菜单态（关于视图没开）被 closeMenu 误调时直接返回：不做整体滑回编排，
+  // 否则会把主菜单行瞬移进 usageArea，造成"内容瞬隐、仅底部按钮淡出"（与 hideUsageSub 同款守卫）
+  if (!aboutPanelOpen) { setUsageNavBtn(false); return }
+  aboutPanelOpen = false
+  if (!aboutPanel) { setUsageNavBtn(false); return }
+  setUsageNavBtn(false)
+  // 与记账视图同一套编排：主菜单临时叠进同一可视区（位于关于内容之下），
+  // 关于内容向下滑出、主菜单从上方滑入 ⇒ 观感是一张面板整体上下滑动
+  try {
+    if (menuRootView && usageArea && menuRootView.parentNode !== usageArea) usageArea.appendChild(menuRootView)
+  } catch (err) {}
+  try {
+    aboutPanel.style.position = 'absolute'
+    aboutPanel.style.top = '0'
+    aboutPanel.style.left = '0'
+    aboutPanel.style.width = '100%'
+    aboutPanel.style.height = '100%'
+    aboutPanel.style.zIndex = '2'
+    aboutPanel.style.transform = 'translateY(0)'
+    aboutPanel.style.opacity = '1'
+    aboutPanel.style.transition = 'none'
+    if (menuRootView) {
+      menuRootView.style.display = 'block'
+      menuRootView.style.position = 'absolute'
+      menuRootView.style.top = '0'
+      menuRootView.style.left = '0'
+      menuRootView.style.width = '100%'
+      menuRootView.style.height = '100%'
+      menuRootView.style.zIndex = '1'
+      menuRootView.style.transform = 'translateY(-100%)'
+      menuRootView.style.transition = 'none'
+    }
+    void usageArea.offsetHeight
+    aboutPanel.style.transition = 'transform .22s ease'
+    aboutPanel.style.transform = 'translateY(100%)'
+    if (menuRootView) {
+      menuRootView.style.transition = 'transform .22s ease'
+      menuRootView.style.transform = 'translateY(0)'
+    }
+  } catch (err) {}
+  aboutHideTimer = setTimeout(function () {
+    aboutHideTimer = null
+    try { if (aboutPanel) aboutPanel.style.display = 'none' } catch (err) {}
+    try {
+      if (aboutPanel) {
+        aboutPanel.style.transform = ''
+        aboutPanel.style.transition = ''
+        aboutPanel.style.width = ''
+        aboutPanel.style.height = ''
+        aboutPanel.style.position = ''
+        aboutPanel.style.top = ''
+        aboutPanel.style.left = ''
+        aboutPanel.style.zIndex = ''
+        aboutPanel.style.opacity = ''
+      }
+    } catch (err) {}
+    // 主菜单移回正常流位置（usageArea 之前），并清空全部内联样式 + 解除尺寸锁定
+    try {
+      if (menuRootView && usageArea) {
+        if (usageArea.contains(menuRootView)) menuBox.insertBefore(menuRootView, usageArea)
+        menuRootView.style.transform = ''
+        menuRootView.style.transition = ''
+        menuRootView.style.position = ''
+        menuRootView.style.top = ''
+        menuRootView.style.left = ''
+        menuRootView.style.width = ''
+        menuRootView.style.height = ''
+        menuRootView.style.zIndex = ''
+        menuRootView.style.display = ''
+      }
+    } catch (err) {}
+    try { usageArea.style.display = '' } catch (err) {}
+    try {
+      menuBox.style.width = ''
+      menuBox.style.maxWidth = ''
+      menuBox.style.height = ''
+      menuBox.style.overflow = ''
+      menuBox.style.display = ''
+      menuBox.style.flexDirection = ''
+    } catch (err) {}
+  }, 230)
+}
+function toggleAboutSub() {
+  if (aboutPanelOpen) { hideAboutSub(); return }
+  showAboutSub()
+}
+function closeAboutPanel() { hideAboutSub() }
+// v793：点版号 = 打开/关闭「关于 / 自检」
+// ⚠️ v817：**必须加 `menuOpen` 守卫** —— 菜单关闭时它是靠祖先的 `pointer-events:none` 挡点击的，
+//   一旦有人在 CSS 里给它开了 `pointer-events:auto`（v790-v801 就干过），它就会在看不见的时候抢点击
+//   （用户实测：点泡泡的带底色块 ⇒ 泡泡不翻页、反而打开了版号面板）。CSS 已收窄到 `.dshwv-menu-open` 下，
+//   这里再守一道，双保险。
+try {
+  menuVerEl.title = '点这里查看版本与自检信息'
+  menuVerEl.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (!menuOpen) return // 菜单没开 ⇒ 这一行不该接收任何点击
+    toggleAboutSub()
+  })
+} catch (err) {}
 function usageMoney(x, currency) { return apiFmtMoney(x, currency || 'CNY') }
 function usageDayLabel(day) {
   try {
@@ -2089,8 +3192,9 @@ function soundEventDefaults() {
     //    ⚠️ 与宿主 soundEventsDefaults() 的同名字段**必须逐字段一致**（由探针 §⑥ 跨端一致钉住）。
     // v774：出厂默认 = 作者当前用法：提问/授权**开着**（要冒泡），但音效**不响**（soundOn: false）。
     // 要响就把音效行的 [✓] 勾上；不想冒泡就取消入口行的 [✓]。
-    question: { on: true, soundOn: false, sel: 'frag:exp_orb', vol: 1, autoClose: true, ttlSec: 180, bubbleOn: true },
-    approval: { on: true, soundOn: false, sel: 'frag:exp_orb', vol: 1, autoClose: true, ttlSec: 180, bubbleOn: true },
+    // v859：出厂默认音效 = 随包内置的 ask_a / approve_a（与宿主 soundEventsDefaults() 逐字段一致）
+    question: { on: true, soundOn: false, sel: 'frag:ask_a', vol: 1, autoClose: true, ttlSec: 180, bubbleOn: true },
+    approval: { on: true, soundOn: false, sel: 'frag:approve_a', vol: 1, autoClose: true, ttlSec: 180, bubbleOn: true },
   }
 }
 // 读某个事件的设置：缺字段/类型不对一律回落默认（只读 usageSet，不写）
@@ -2100,7 +3204,8 @@ function soundEventCfg(kind) {
   var out = {}
   for (var k in def) {
     var v = src[k]
-    if (k === 'vol') { var n = Number(v); out.vol = (isFinite(n) && n >= 0 && n <= 1) ? n : def.vol }
+    // v859（用户要求）：每轮消耗/提问/授权的音量可以调到 200%（0–2）
+    if (k === 'vol') { var n = Number(v); out.vol = (isFinite(n) && n >= 0 && n <= 2) ? n : def.vol }
     else if (k === 'ttlSec') { var s = Number(v); out.ttlSec = (isFinite(s) && s >= 0) ? Math.round(s) : def.ttlSec }
     else if (k === 'sel') out.sel = (typeof v === 'string') ? v : def.sel
     else out[k] = (typeof v === 'boolean') ? v : def[k]
@@ -2159,6 +3264,9 @@ function openSoundSettingsPanel() {
     //   窗口期间只改缓冲，保存才 PUT，取消按快照还原，与其它设置项同一套语义。
     var bufWaitCharClose = !!(((usageSet || {}).wait || {}).charClose)
     var snapWaitCharClose = bufWaitCharClose
+    // v862b（用户要求）：「子智能体完成时不提示」的缓冲（键 = settings.subagent.mute；缺省 true = 不提示）
+    var bufSubagentMute = ((((usageSet || {}).subagent || {}).mute) !== false)
+    var snapSubagentMute = bufSubagentMute
     // 内存缓冲：窗口期间只改这里
     var sndBuf = {
       turnCost: soundEventCfg('turnCost'),
@@ -2341,11 +3449,13 @@ function openSoundSettingsPanel() {
       return b
     }
     // 独立音量滑块 + 百分比（只改缓冲，点「保存」才落盘）
-    function volSlider(getV, setV) {
+    // v859：加 opts.max（默认 1 = 100%）；每轮消耗/提问/授权三行传 2 = 最高 200%
+    function volSlider(getV, setV, opts) {
+      var vMax = (opts && isFinite(Number(opts.max)) && Number(opts.max) > 0) ? Number(opts.max) : 1
       var inp = document.createElement('input')
       inp.type = 'range'
       inp.min = '0'
-      inp.max = '1'
+      inp.max = String(vMax)
       inp.step = '0.05'
       inp.className = 'dshwv-range'
       inp.value = String(getV())
@@ -2429,10 +3539,18 @@ function openSoundSettingsPanel() {
     }
     // —— ① 按压音效 ——
     // v762 行序：音效组 → 音量（用户要求把「按压音效组」挪到「按压音量」**之前**）
-    var pressEnt = sndEntry('按压音效', soundOn !== false, function (b) {
-      // 与音效总开关同一个状态（setSoundOn 会同步那只保留但不再挂到菜单行的开关）
-      setSoundOn(b)
-    }, true)
+    // v867（用户要求）：① 区最上面新增一行「全部音效」—— 展开后是**四个通道**，
+    //   每个通道一行：`[标签] [✓] 滑块 百分比`（按压松开 / 消耗提示 / 提问 / 授权）。
+    //   这一行自己的 [✓] = 一键全开/全关（= 派生出来的 soundOn）。
+    //   四个通道行在 ②③④ 建好之后才 append（那时才拿得到它们的控件句柄），所以这里只建入口行。
+    var allEnt = sndEntry('全部音效', soundOn !== false, function (b) { setAllSoundChannels(b) }, true)
+    // v866（用户要求）：名字改回「按压音效」，并且这个 [✓] **真正只管按压/松开**
+    //   （以前它挂着全局 soundOn，关掉会把事件音一起关掉 —— 那正是用户觉得别扭的地方）。
+    //   全局开关改为**派生**（见 refreshSoundMaster()）：四个通道都关才真的关。
+    var pressEnt = sndEntry('按压音效', pressOn !== false, function (b) {
+      setPressOn(b)
+      try { syncSoundChannelRows() } catch (err) {} // v872：双保险（不依赖事件冒泡）
+    }, false)
     var pressOnChk = pressEnt.chk
     sndEntries.push({ kind: 'press', summary: pressEnt.summary, sel: null })
     var rPressGrp = row('按压音效组', pressEnt.body)
@@ -2487,7 +3605,7 @@ function openSoundSettingsPanel() {
     teSel.addEventListener('change', function () { bufTaskEndSel = teSel.value })
     rTe.appendChild(teSel)
     rTe.appendChild(playBtn('试听任务结束音', function () {
-      playPreview(function () { playBindingSound({ on: true, sel: bufTaskEndSel }, { vol: sndBuf.turnCost.vol }) })
+      playPreview(function () { playBindingSound({ on: true, sel: bufTaskEndSel }, { vol: sndBuf.turnCost.vol }, { preview: true }) })
     }))
     var teDrop = dshwCustSel(teSel, { scrollNames: true })
     try { teSel.__dshwDrop = teDrop } catch (err) {}
@@ -2496,11 +3614,12 @@ function openSoundSettingsPanel() {
     if (teSel.value) bufTaskEndSel = teSel.value
     // v778：②区「提示音量」—— 拖动即视为**用户显式设置**（volSet = true），此后该事件用自己的值；
     //   没拖过则保持"跟随①区按压音量"（见 soundVolumeOf），摘要里会写明，避免再出现"滑块看着能调、其实无效"。
+    // v859：每轮消耗提示的音量上限 200%
     var tcVol = volSlider(function () { return sndBuf.turnCost.vol }, function (v) {
       sndBuf.turnCost.vol = v
       sndBuf.turnCost.volSet = true
       try { refreshSummaries() } catch (err) {}
-    })
+    }, { max: 2 })
     var rTcVol = row('提示音量', tcEnt.body)
     rTcVol.appendChild(tcVol.input)
     rTcVol.appendChild(tcVol.pct)
@@ -2513,6 +3632,26 @@ function openSoundSettingsPanel() {
       { el: tcVol.input, label: rTcVol.firstChild },
     ])
     sndEntries.push({ kind: 'turnCost', summary: tcEnt.summary, sel: teSel })
+    // v862b（用户要求）：设置项「子智能体完成时不提示」—— 放在 ② 区（它管的就是"任务结束"这类提示）
+    try {
+      var sgChk = document.createElement('input')
+      sgChk.type = 'checkbox'
+      sgChk.className = 'dshwv-check'
+      sgChk.checked = bufSubagentMute !== false
+      sgChk.title = '子智能体（subagent）跑完自己的回合时，不弹"任务结束"提示与音效；关掉则和主会话一样提示'
+      sgChk.addEventListener('change', function () { bufSubagentMute = !!sgChk.checked })
+      var rSg = row('子智能体', tcEnt.body)
+      rSg.appendChild(sgChk)
+      rSg.appendChild(qLabel('完成时不提示'))
+      rSg.appendChild(dshwvAskDot(
+        '<div style="font-weight:600;margin-bottom:4px">子智能体完成时不提示</div>' +
+        '<div>子智能体（subagent）也有自己的回合：跑完时旧行为会像主会话一样弹一次"任务结束"提示/音效。</div>' +
+        '<div style="margin-top:4px">· 勾上（默认）：子智能体完成**不提示**，只有主会话的回合结束才提示。</div>' +
+        '<div>· 取消勾选：恢复旧行为（子智能体完成也提示）。</div>' +
+        '<div style="margin-top:4px;opacity:.75">金额与用量照常记账，这个开关只影响"提不提示"。</div>'
+      ))
+    } catch (err) {}
+
     // —— ③④ 提问提示 / 授权提示（结构完全相同）——
     var waitUI = {}
     function buildWait(kind, labelText, selLabel) {
@@ -2528,6 +3667,7 @@ function openSoundSettingsPanel() {
       // v764：**不再挂「自动关闭」那一行** —— 提问/授权的提示气泡是**常驻**的（宿主给的是挂起状态，
       // 前端 whaleSysPush({kind:'wait', ttlMs: 0}) 不布自动关闭计时器），所以那行改了也没有任何消费方，
       // 属于「看起来能设、其实什么都不做」的死控件。行序因此是：冒泡提示 → 音效行 → 提示音量。
+      // v862b（用户要求）：子智能体完成是否提示 —— 与「每轮消耗提示」同一区（它管的就是"任务结束"的提示）
       var rSel = row(selLabel, wEnt.body)
       // 音效行的 [✓] = 是否播这个音效，键 = events.<kind>.soundOn（v762 新增，默认 true）。
       // 提问/授权本来就被表头总开关默认关着（on: false），所以默认 true 不带来任何行为变化。
@@ -2545,14 +3685,15 @@ function openSoundSettingsPanel() {
       sel.addEventListener('change', function () { cfg.sel = sel.value })
       rSel.appendChild(sel)
       rSel.appendChild(playBtn('试听' + selLabel, function () {
-        playPreview(function () { playBindingSound({ on: true, sel: cfg.sel }, { vol: cfg.vol }) })
+        playPreview(function () { playBindingSound({ on: true, sel: cfg.sel }, { vol: cfg.vol }, { preview: true }) })
       }))
       var drop = dshwCustSel(sel, { scrollNames: true })
       try { sel.__dshwDrop = drop } catch (err) {}
       fillSoundSelect(sel, cfg.sel)
       // 同 ②：「静音」项删除后下拉不该留空，把兜底后的真实值写回缓冲
       if (sel.value) cfg.sel = sel.value
-      var vs = volSlider(function () { return cfg.vol }, function (v) { cfg.vol = v })
+      // v859：提问/授权的音量上限 200%
+      var vs = volSlider(function () { return cfg.vol }, function (v) { cfg.vol = v }, { max: 2 })
       var rVol = row('提示音量', wEnt.body)
       rVol.appendChild(vs.input)
       rVol.appendChild(vs.pct)
@@ -2567,6 +3708,132 @@ function openSoundSettingsPanel() {
     }
     buildWait('question', '提问提示', '提问提示音效')
     buildWait('approval', '授权提示', '授权提示音')
+    // ===== v867：四个通道行（全部音效）=====
+    //   ⚠️ 语义差异（与面板既有约定一致，见 ? 说明）：按压松开走 .dsh-size.json **即时落盘**；
+    //      消耗 / 提问 / 授权三项是**缓冲**，点面板「保存」才提交（与它们各自那一节的控件同源）。
+    var sndChannelUI = []
+    function sndChannelRow(label, onGet, onSet, volGet, volSet2, maxV) {
+      var r = row(label, allEnt.body)
+      var chk = document.createElement('input')
+      chk.type = 'checkbox'
+      chk.className = 'dshwv-check'
+      chk.checked = !!onGet()
+      chk.title = label + '：这一类的开关（关掉后这一类不出声，其它类不受影响）'
+      chk.addEventListener('change', function () {
+        // v870（用户报"四个框也无法取消勾选"）：点复选框时浏览器会**先发 input、再发 change**，
+        //   而 input 那一刻状态还没写、onGet() 仍是旧值 ⇒ 挂在 input 上的同步会把框"勾回旧值"。
+        //   这里改成：以**我刚写下去的值**为准（写后立刻回写 chk.checked），并且同步时**跳过自己**。
+        var want = !!chk.checked
+        try { onSet(want) } catch (err) {}
+        try { chk.checked = want } catch (err) {}
+        try { refreshSoundMaster() } catch (err) {}
+        try { syncSoundChannelRows(chk) } catch (err) {}
+        try { dshwvSndDbgPush(label, want, !!onGet()) } catch (err) {}
+      })
+      r.appendChild(chk)
+      var vs2 = volSlider(volGet, function (v) {
+        try { volSet2(v) } catch (err) {}
+        try { refreshSoundMaster() } catch (err) {}
+        try { syncSoundChannelRows() } catch (err) {}
+      }, { max: maxV })
+      r.appendChild(vs2.input)
+      r.appendChild(vs2.pct)
+      sndChannelUI.push({ label: label, chk: chk, input: vs2.input, pct: vs2.pct, onGet: onGet, volGet: volGet })
+      return r
+    }
+    // 双向同步：任一处改了音量/开关，四个通道行 + 顶部 [✓] + 各节摘要都跟着走
+    function syncSoundChannelRows(exceptEl) {
+      for (var i = 0; i < sndChannelUI.length; i++) {
+        var u = sndChannelUI[i]
+        // v870：刚被点击/正在聚焦的那个复选框**跳过**（避免用旧值把它回写）
+        try {
+          if (exceptEl && u.chk === exceptEl) continue
+          if (document.activeElement && document.activeElement === u.chk) continue
+        } catch (err) {}
+        try { u.chk.checked = !!u.onGet() } catch (err) {}
+        try {
+          var v = Number(u.volGet())
+          if (!isFinite(v) || v < 0) v = 0
+          u.input.value = String(v)
+          u.pct.textContent = Math.round(v * 100) + '%'
+        } catch (err) {}
+      }
+      // v873（用户指出）：状态是同一份，但**视图有好几个** ——
+      //   ① 小节「按压音效」的 [✓]、② 的「音效行 [✓]」、③④ 的「音效行 [✓]」都要一起刷，
+      //   否则会出现"顶行/四行改了、小节里的框没变"（用户截图那个现象的另一半原因）。
+      // ⚠️ v874（用户报"按压音效与下面几个开关都点不动了"）：这些"同源视图"**不能无条件写** ——
+      //   点小节 [✓] 时浏览器先发 input（此刻状态还没写、读到的是旧值），无条件写就会把框**写回旧值**，
+      //   随后 change 读到的还是旧值 ⇒ 表现为"点不动"。所以：**跳过当前聚焦（= 用户刚点的）那个控件**。
+      function twinWritable(el) {
+        try {
+          if (!el) return false
+          if (document.activeElement && document.activeElement === el) return false
+        } catch (err) {}
+        return true
+      }
+      try { if (twinWritable(pressOnChk)) pressOnChk.checked = pressOn !== false } catch (err) {}
+      try { if (twinWritable(teSoundChk)) teSoundChk.checked = bufTaskEndOn !== false } catch (err) {}
+      try { if (waitUI.question && waitUI.question.sound && twinWritable(waitUI.question.sound)) waitUI.question.sound.checked = sndBuf.question.soundOn !== false } catch (err) {}
+      try { if (waitUI.approval && waitUI.approval.sound && twinWritable(waitUI.approval.sound)) waitUI.approval.sound.checked = sndBuf.approval.soundOn !== false } catch (err) {}
+      // v869：顶行 [✓] 直接由"四行通道是否全开"决定 —— 这样它永远不会被派生出来的 soundOn 反向覆盖
+      // v871：但用户**刚点过**它时（400ms 内）或它正聚焦时，**绝不回写** —— 否则 input 阶段的旧值会把它勾回去
+      try {
+        var topFocused = false
+        try { topFocused = !!(document.activeElement && document.activeElement === allEnt.chk) } catch (err) {}
+        if (!topFocused && Date.now() >= sndTopLockUntil) {
+          var f = sndChannelFlags()
+          allEnt.chk.checked = !!(f.press && f.turnCost && f.question && f.approval)
+        }
+      } catch (err) {}
+      try { refreshSummaries() } catch (err) {}
+    }
+    // 一键全开 / 全关（顶部那一行的 [✓]）
+    function setAllSoundChannels(b) {
+      var on = b !== false
+      // v871：这是用户的直接操作 ⇒ 400ms 内不让任何同步改写顶行显示，并立刻按"用户的意思"显示
+      try { sndTopLockUntil = Date.now() + 400 } catch (err) {}
+      try { allEnt.chk.checked = on } catch (err) {}
+      try { setPressOn(on) } catch (err) {}
+      try { bufTaskEndOn = on; if (teSoundChk) teSoundChk.checked = on } catch (err) {}
+      try { sndBuf.question.soundOn = on; if (waitUI.question && waitUI.question.sound) waitUI.question.sound.checked = on } catch (err) {}
+      try { sndBuf.approval.soundOn = on; if (waitUI.approval && waitUI.approval.sound) waitUI.approval.sound.checked = on } catch (err) {}
+      try { refreshSoundMaster() } catch (err) {}
+      syncSoundChannelRows()
+    }
+    // v869：把四行的开关取值器登记到模块级 —— 顶行 [✓] 与 soundOn 派生都以"界面所见"为准
+    try {
+      sndChannelOnGetters = {
+        press: function () { return pressOn !== false },
+        turnCost: function () { return bufTaskEndOn !== false },
+        question: function () { return sndBuf.question.soundOn !== false },
+        approval: function () { return sndBuf.approval.soundOn !== false },
+      }
+    } catch (err) {}
+    sndChannelRow('按压松开音量',
+      function () { return pressOn !== false },
+      function (b) { setPressOn(b) },
+      function () { return Number(soundVol) || 0 },
+      function (v) {
+        try { setVol(v) } catch (err) {}
+        try { if (volInput) volInput.value = String(v) } catch (err) {}
+        try { if (volPct) volPct.textContent = Math.round((Number(v) || 0) * 100) + '%' } catch (err) {}
+      }, 1)
+    sndChannelRow('消耗提示音量',
+      function () { return bufTaskEndOn !== false },
+      function (b) { bufTaskEndOn = !!b; try { if (teSoundChk) teSoundChk.checked = !!b } catch (err) {} },
+      function () { return Number(sndBuf.turnCost.vol) || 0 },
+      function (v) { sndBuf.turnCost.vol = v; sndBuf.turnCost.volSet = true }, 2)
+    sndChannelRow('提问提示音量',
+      function () { return sndBuf.question.soundOn !== false },
+      function (b) { sndBuf.question.soundOn = !!b; try { if (waitUI.question && waitUI.question.sound) waitUI.question.sound.checked = !!b } catch (err) {} },
+      function () { return Number(sndBuf.question.vol) || 0 },
+      function (v) { sndBuf.question.vol = v }, 2)
+    sndChannelRow('授权提示音量',
+      function () { return sndBuf.approval.soundOn !== false },
+      function (b) { sndBuf.approval.soundOn = !!b; try { if (waitUI.approval && waitUI.approval.sound) waitUI.approval.sound.checked = !!b } catch (err) {} },
+      function () { return Number(sndBuf.approval.vol) || 0 },
+      function (v) { sndBuf.approval.vol = v }, 2)
+    syncSoundChannelRows()
     // v765：入口行右侧摘要的刷新 —— ① 打开面板时一次；② 卡片里任何 input/change 都刷新（控件都在卡内）；
     // ③ 点文档任意处也刷新一次（覆盖「音效组」这种从 body 级子面板里改、不发卡内事件的路径），
     //    该监听在 cleanup 里摘掉。摘要只写 textContent，成本很低。
@@ -2574,6 +3841,18 @@ function openSoundSettingsPanel() {
     try { document.addEventListener('click', sndDocRefresh, true) } catch (err) {}
     try { card.addEventListener('input', refreshSummaries) } catch (err) {}
     try { card.addEventListener('change', refreshSummaries) } catch (err) {}
+    // v867：卡内任何改动也同步「全部音效」那四行（两个视图看同一个值）
+    // v872：登记同步钩子（模块级写入口会直接调它）+ 监听挂到 document（capture）
+    //   —— 面板内所有控件（含手风琴入口行里的 [✓]）改动都会走到这里
+    try { sndSyncHook = syncSoundChannelRows } catch (err) {}
+    // ⚠️ v875（用户报"每轮消耗提示里关掉任务结束音，顶行与消耗提示行没跟着关；再打开才反着变一次"）：
+    //   根因是监听的**阶段**错了 —— 挂在 document 的**捕获**阶段 ⇒ document 的处理器先跑、
+    //   目标元素自己的 change（它才写 bufTaskEndOn）后跑 ⇒ 同步读到**旧值**，UI 永远慢一拍。
+    //   改成**冒泡阶段**：目标元素先写状态，冒泡到 document 时再同步 ⇒ 读到的就是新值。
+    //   （目标自己的处理器都在冒泡路径上更早执行；面板内部没有人对 change 调 stopPropagation。）
+    var sndSyncDoc = function () { try { syncSoundChannelRows() } catch (err) {} }
+    try { document.addEventListener('input', sndSyncDoc, false) } catch (err) {}
+    try { document.addEventListener('change', sndSyncDoc, false) } catch (err) {}
     refreshSummaries()
     // —— 底部按钮 ——
     var closed = false
@@ -2583,6 +3862,7 @@ function openSoundSettingsPanel() {
       try { dshwCustSelClose() } catch (err) {} // 收回可能还开着的自绘下拉（它是 body 上的固定层）
       try { closeAudioGroupPanel() } catch (err) {}
       try { stopPanelPreview() } catch (err) {} // v766：关窗时也停掉试听（别让声音跟着窗口一起"留在后台"）
+      try { sndChannelOnGetters = null } catch (err) {} // v869：面板关了就别再引用它的局部状态
       if (restore) {
         // 复用自菜单的控件在输入时就已提交 → 取消时按快照回滚
         try { if (Math.abs(Number(soundVol) - snapVol) > 1e-9) setVol(snapVol) } catch (err) {}
@@ -2597,11 +3877,15 @@ function openSoundSettingsPanel() {
         } catch (err) {}
         // v777：底部「点按角色关闭提示气泡」——回滚缓冲与控件（它只活在缓冲里，没保存过就没落盘）
         try { bufWaitCharClose = snapWaitCharClose } catch (err) {}
+        try { if (snapSubagentMute !== undefined) bufSubagentMute = snapSubagentMute } catch (err) {}
         try { if (waitCharChk) waitCharChk.checked = snapWaitCharClose } catch (err) {}
       }
       try { audioGroupPanel.style.zIndex = '' } catch (err) {}
       try { audioEditMask.style.zIndex = '' } catch (err) {}
       try { document.removeEventListener('click', sndDocRefresh, true) } catch (err) {}
+      try { document.removeEventListener('input', sndSyncDoc, false) } catch (err) {}
+      try { document.removeEventListener('change', sndSyncDoc, false) } catch (err) {}
+      try { sndSyncHook = null } catch (err) {}
       try { if (unregMask) unregMask() } catch (err) {}
       dshwBodyDetach(mask) // 走 detach 注销登记，否则 DOM 守护会把这个刚关掉的面板补挂回来
     }
@@ -2648,6 +3932,11 @@ function openSoundSettingsPanel() {
     function saveAll() {
       try {
         var ev = eventsPayload()
+        // v862b：子智能体完成是否提示（键 = settings.subagent.mute；缺省 true = 不提示）
+        try {
+          usageSet = usageSet || {}
+          usageSet.subagent = Object.assign({}, usageSet.subagent || {}, { mute: bufSubagentMute !== false })
+        } catch (err) {}
         // 任务结束音：沿用既有绑定键 {on, sel}。v762 起「播不播」由 ② 音效行的 [✓]
         // （= usageSet.taskEnd.on）表达，下拉只负责选**哪一个**音效（已无「静音」项）。
         usageSet = usageSet || {}
@@ -2663,7 +3952,12 @@ function openSoundSettingsPanel() {
           usageSet = usageSet || {}
           usageSet.wait = Object.assign({}, usageSet.wait || {}, { charClose: !!bufWaitCharClose })
         } catch (err) {}
-        saveUsageSettings({ events: ev, taskEnd: te, wait: { charClose: !!bufWaitCharClose } })
+        saveUsageSettings({
+          events: ev,
+          taskEnd: te,
+          wait: { charClose: !!bufWaitCharClose },
+          subagent: { mute: bufSubagentMute !== false }, // v862b
+        })
         // v763：按压音量 / 音效总开关 / 每轮消耗提示开关这三项**不在**上面这次 PUT 的覆盖范围里
         //（它们存在 .dsh-size.json，走 saveConfig()）⇒ 保存时必须各自按**当前内存值**提交一次，
         // 否则「恢复默认」对它们不生效（用户会觉得恢复默认对音量/开关没作用）。
@@ -2721,9 +4015,10 @@ function openSoundSettingsPanel() {
         // v762：「静音」项已删除 ⇒ 默认仍是「默认已选中内置音」。
         // v774：「恢复默认」的目标 = 新的出厂默认（宿主 usageSettingsDefaults().taskEnd）：
         //       on = **true**、sel = 内置 A（frag:end_a）。
-        bufTaskEndSel = 'frag:end_a' // = 宿主 usageSettingsDefaults().taskEnd.sel
-        bufTaskEndKeep = 'frag:end_a' // = 宿主 usageSettingsDefaults().taskEnd.sel
+        bufTaskEndSel = 'frag:cost_a' // v859 = 宿主 usageSettingsDefaults().taskEnd.sel
+        bufTaskEndKeep = 'frag:cost_a' // v859 = 宿主 usageSettingsDefaults().taskEnd.sel
         bufTaskEndOn = true // v774：② 音效行的 [✓] 复位（宿主 taskEnd.on 默认 true）
+        bufSubagentMute = true // v862b：默认 = 子智能体完成不提示
         // v778：②区「提示音量」也复位成"跟随①区"（volSet=false；滑块显示由 refreshSummaries 同步成①区值）
         try { sndBuf.turnCost.volSet = false } catch (err) {}
         // v777：底部「点按角色关闭提示气泡」恢复出厂默认（false = 只有点泡泡能收）
@@ -3021,6 +4316,19 @@ function usageAlertBudgetEditor(key, onSave) {
     }
     // v761：wait 模式 condBox 里只有说明（上面那一支已直接挂进 card），不重复挂一个空的盒子
     if (!isWait) card.appendChild(condBox)
+    // v851（第 4 条）：这一条提示/预警/预算**自己的泡泡框**（默认跟随保底框）
+    // v857（用户要求）：位置与样式都向 W2 看齐 —— 放在**模块调色板下面**、整行占满、无标签
+    //   （按钮内部就是"文字居中 + ▾ 右对齐"），换框也会立刻重画下面的预览。
+    var pickedFrameId = String(cfg.frameId || '')
+    var frameRowPick = null
+    try {
+      frameRowPick = qRow()
+      frameRowPick.style.cssText = 'display:flex;align-items:center;gap:6px;margin:6px 0 2px'
+      frameRowPick.appendChild(framePickButton(pickedFrameId, function (id) {
+        pickedFrameId = id || ''
+        try { renderBubblePv() } catch (err) {}
+      }))
+    } catch (err) {}
     // —— 以下完全复用 W2 组件(仅换宿主元素与目标步骤) ——
     var secPal = document.createElement('div')
     secPal.className = 'dshwv-bubsec dshwv-bubsec-first dshwv-bubsec-withq'
@@ -3044,6 +4352,8 @@ function usageAlertBudgetEditor(key, onSave) {
     bubblePalEl = document.createElement('div')
     bubblePalEl.className = 'dshwv-bubpal'
     card.appendChild(bubblePalEl)
+    // v857：选框行紧跟在模块调色板下面（和 W2 里 F2 那一行的位置一致）
+    try { if (frameRowPick) card.appendChild(frameRowPick) } catch (err) {}
     var secPv = document.createElement('div')
     secPv.className = 'dshwv-bubsec'
     secPv.textContent = isCost
@@ -3166,13 +4476,14 @@ function usageAlertBudgetEditor(key, onSave) {
         setTurnCostClose(turnCostCloseInput.value)
         // 内容与任务结束音效:一次 PUT 落账本设置(与预警/预算同一机制)
         usageSet = usageSet || {}
-        usageSet.turnCost = { lines: lines }
+        // v851：框一起落盘（宿主逐键合并 ⇒ frameId 直接透传；空串 = 跟随保底）
+        usageSet.turnCost = { lines: lines, frameId: pickedFrameId }
         taskEndDefer = false
         saveUsageSettings({
           taskEnd: usageSet.taskEnd || { on: false, sel: '' },
-          turnCost: { lines: lines },
+          turnCost: { lines: lines, frameId: pickedFrameId },
         })
-        var oCost = { lines: lines, autoClose: turnCostCloseMs > 0, ttlSec: Math.round(turnCostCloseMs / 1000) }
+        var oCost = { lines: lines, frameId: pickedFrameId, autoClose: turnCostCloseMs > 0, ttlSec: Math.round(turnCostCloseMs / 1000) }
         cleanup()
         if (onSave) onSave(oCost)
         return
@@ -3188,16 +4499,18 @@ function usageAlertBudgetEditor(key, onSave) {
         var evNext = {}
         try { for (var pk in prevEv) evNext[pk] = prevEv[pk] } catch (err) {}
         evNext.lines = lines
+        evNext.frameId = pickedFrameId // v851：这一类提示自己的框
         usageSet.events[waitKind] = evNext
         var patchEv = {}
-        patchEv[waitKind] = { lines: lines }
+        patchEv[waitKind] = { lines: lines, frameId: pickedFrameId }
         saveUsageSettings({ events: patchEv })
-        var oWait = { lines: lines }
+        var oWait = { lines: lines, frameId: pickedFrameId }
         cleanup()
         if (onSave) onSave(oWait)
         return
       }
-      var o = { on: chk.checked, lines: lines, autoClose: acChk.checked, ttlSec: Math.max(0, Number(secInp.value) || 0) }
+      // v851：把这一类提醒自己的框也带上（调用方负责写进 usageSet / 模型配置）
+      var o = { on: chk.checked, lines: lines, frameId: pickedFrameId, autoClose: acChk.checked, ttlSec: Math.max(0, Number(secInp.value) || 0) }
       if (isAlert) o.below = Math.max(0, Number(numInp.value) || 0)
       else o.amount = Math.max(0, Number(numInp.value) || 0)
       cleanup()
@@ -3229,19 +4542,78 @@ function usageAlertBudgetEditor(key, onSave) {
     // 包装 renderBubblePv:列表/预览后,鲸鱼预览里的占位符用实际值实时替换
     // ({below} 余额阈值 / {amount} 预算阈值 / {cost} 本轮消耗金额 / {session} 当前对话名)
     var renderPvSuper = bkRenderPv
-    renderBubblePv = function () {
-      try { renderPvSuper() } catch (err) {}
+    // ===== v858（用户反馈：余额预警的实时预览不刷新，拖模块也不变）=====
+    // 原来这里**只**依赖"renderBubblePv 被调用"这一条链，任何一处异常/漏调都表现为预览冻住。
+    // 现在改成：这个窗口自己抓一个"必然会被调用"的入口 ——
+    //   ① 卡片上所有交互（点击/拖动结束/放下/输入/选择）都冒泡到一个统一刷新（去抖）；
+    //   ② 渲染走 remindPvRefresh()，它自带兜底（bubblePreviewInto 不可用就退化成纯文本），
+    //      并把调用次数/错误记在 window.__dshwvPvDbg（排查用，正常时 errors 恒为 0）；
+    //   ③ 换框（pickedFrameId 变化）也立刻刷。
+    var pvElRef = bubblePvPrevEl
+    try {
+      window.__dshwvPvDbg = { calls: 0, errors: 0, last: '', kind: String(key || '') }
+    } catch (err) {}
+    var pvTimer = null
+    function remindPvModsNow() {
+      var it = bubbleEditTarget()
+      if (!it || !Array.isArray(it.modules)) return null
+      var below = (isAlert && numInp) ? Math.max(0, Number(numInp.value) || 0) : null
+      var amount = (!isAlert && !isCost && !isWait && numInp) ? Math.max(0, Number(numInp.value) || 0) : null
+      var cost = isCost ? '0.00' : null // 预览用示例金额(与 usageCostValue 的格式一致)
+      var sess = isWait ? soundSessionLabel() : null
+      return usageAlertModsResolved(it.modules, below, amount, cost, sess)
+    }
+    function remindPvFrameOpt() {
       try {
-        var it = bubbleEditTarget()
-        var below = (isAlert && numInp) ? Math.max(0, Number(numInp.value) || 0) : null
-        var amount = (!isAlert && !isCost && !isWait && numInp) ? Math.max(0, Number(numInp.value) || 0) : null
-        var cost = isCost ? '0.00' : null // 预览用示例金额(与 usageCostValue 的格式一致)
-        // v761（#161 C5）：{session} 要在这里就换成对话名（读不到显示「当前对话」，超长按 12 字符截断），
-        // 这样编辑器预览与真实泡泡看到的完全一致，而不是原样显示 `{session}`。
-        var sess = isWait ? soundSessionLabel() : null
-        if (it && Array.isArray(it.modules) && bubblePvPrevEl) bubblePreviewInto(bubblePvPrevEl, usageAlertModsResolved(it.modules, below, amount, cost, sess))
+        if (!pickedFrameId) return null
+        var f0 = frameById(pickedFrameId)
+        if (f0 && !f0.builtin) return { frame: f0 }
+      } catch (err) {}
+      return null
+    }
+    function remindPvRefresh() {
+      try {
+        if (!pvElRef) return
+        var mods = remindPvModsNow()
+        if (!mods) return
+        try { if (window.__dshwvPvDbg) window.__dshwvPvDbg.calls++ } catch (err) {}
+        try {
+          bubblePreviewInto(pvElRef, mods, null, remindPvFrameOpt())
+        } catch (err) {
+          // 兜底：渲染器万一不可用，至少把文字更新出来（避免"看起来完全没反应"）
+          try {
+            if (window.__dshwvPvDbg) { window.__dshwvPvDbg.errors++; window.__dshwvPvDbg.last = String(err && err.message || err) }
+          } catch (e2) {}
+          try {
+            var txt = ''
+            for (var mi = 0; mi < mods.length; mi++) {
+              var mm = mods[mi] || {}
+              if (mm.text != null) txt += String(mm.text)
+              else if (mm.type === 'image') txt += '[图片]'
+              else if (mm.type === 'today') txt += String(mm.tpl || '今日已用 {expense_ds}')
+            }
+            pvElRef.innerHTML = '<div class="dshwv-hint" style="white-space:pre-wrap">' + txt + '</div>'
+          } catch (e3) {}
+        }
       } catch (err) {}
     }
+    function remindPvSchedule() {
+      try {
+        if (pvTimer) return
+        pvTimer = setTimeout(function () { pvTimer = null; remindPvRefresh() }, 0)
+      } catch (err) { try { remindPvRefresh() } catch (e2) {} }
+    }
+    renderBubblePv = function () {
+      try { renderPvSuper() } catch (err) {}
+      remindPvRefresh()
+    }
+    // ① 任何交互都刷一次（拖动结束 / 放下 / 点击 / 输入 / 下拉选择）
+    try {
+      var pvEvents = ['click', 'pointerup', 'touchend', 'drop', 'dragend', 'change', 'input', 'keyup']
+      for (var pe = 0; pe < pvEvents.length; pe++) {
+        card.addEventListener(pvEvents[pe], remindPvSchedule, true)
+      }
+    } catch (err) {}
     if (numInp) {
       numInp.addEventListener('input', renderBubblePv)
       numInp.addEventListener('change', renderBubblePv)
@@ -3416,6 +4788,7 @@ function openModelAlertBudget(modelId, key, after) {
       var next = {
         on: !!o.on,
         lines: o.lines,
+        frameId: o.frameId || '', // v851：这一项的泡泡框（空 = 跟随保底）
         autoClose: o.autoClose !== false,
         ttlSec: o.ttlSec != null ? o.ttlSec : 6,
       }
@@ -3609,9 +4982,19 @@ function openApiModelPanel(modelId) {
     var balUrl = apiTextInput(bal.url || '', '余额接口 URL（自定义时必填）')
     var balUrlRow = apiPanelRow('余额接口', balUrl)
     card.appendChild(balUrlRow)
-    var authInp = apiTextInput(bal.auth == null ? 'Bearer {key}' : bal.auth, '请求头模板，{key} 会被替换成密钥')
+    var authInp = apiTextInput(bal.auth == null ? 'Bearer {key}' : bal.auth,
+      '默认 Bearer {key}；也可写多个头：x-api-key:{key};anthropic-version:2023-06-01（英文分号分隔）')
     var authRow = apiPanelRow('请求头', authInp)
     card.appendChild(authRow)
+    // v791（用户要求）：请求头支持"分号分隔的头名:值列表"（老写法不带冒号时仍按 Authorization 头处理）。
+    //   安全说明写在界面上：Host/Content-Length/Connection 等危险头会被忽略。
+    var authHint = document.createElement('div')
+    authHint.className = 'dshwv-bubhint'
+    authHint.style.margin = '0 0 6px'
+    authHint.textContent = '多个请求头用英文分号分隔，例：x-api-key:{key};anthropic-version:2023-06-01（{key} 会被替换成密钥）。' +
+      '不带冒号的写法（如 Bearer {key}）仍按 Authorization 头发送，老配置无需改。' +
+      'Host、Content-Length、Connection、Transfer-Encoding 等危险头一律被忽略。'
+    card.appendChild(authHint)
     // v789（issue #190）：余额接口不再只能是 GET —— 可选 POST/PUT… + JSON 请求体。
     //   请求体支持 {key}（密钥）、{base}（Base URL）、{uuid}（下面「请求参数」里的键）
     var balMethod = apiSelectEl([['GET', 'GET（默认）'], ['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH']],
@@ -3979,6 +5362,7 @@ function buildUsageSettingsArea() {
   var stA = S.alert || { on: false, below: 50 }
   var stB = S.budget || { on: false, amount: 20 }
   // 每项一行「名称 + 当前状态 + 编辑」;点「编辑」打开配置卡片
+  // v851：persist(o) 收到的 o 现在带 frameId ⇒ 这里原样并入 patch（保证不影响已有的按模型语义）
   function mkRow(labelTxt, key, stateFn, persist) {
     var row = menuRow()
     var lb = menuLabel(labelTxt)
@@ -5072,7 +6456,7 @@ function resPlayFragment(fid) {
   try {
     if (!fid) return
     if (resAudEl) { try { resAudEl.pause() } catch (err) {} resAudEl = null }
-    var a = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(fid))
+    var a = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(fid))
     // v778：资源窗口的片段试听也走音量解析器（它是"这一条片段本身的试听"，与按压音量同源）
     try { a.volume = soundVolumeOf('press') } catch (err) {}
     a.onended = function () { resAudEl = null }
@@ -5561,7 +6945,14 @@ function showUsagePopup(title, content, below, amount, rank, cfg) {
     var mods = []
     if (typeof content === 'string') mods = [{ type: 'text', text: content, size: 7, bold: true }]
     else if (Array.isArray(content)) mods = content
-    if (mods.length && whaleSysPush({ kind: 'alert', mods: usageAlertModsResolved(mods, below, amount), rank: (rank === 1 || rank === 2) ? rank : 2, ttlMs: usageRemindTtlMs(cfg) })) return
+    // v851：把这一条提醒/预算自己的框一并带进队列项（渲染时 sceneOpen 会用它画泡泡）
+    if (mods.length && whaleSysPush({
+      kind: 'alert',
+      mods: usageAlertModsResolved(mods, below, amount),
+      frameId: String((cfg && cfg.frameId) || ''),
+      rank: (rank === 1 || rank === 2) ? rank : 2,
+      ttlMs: usageRemindTtlMs(cfg),
+    })) return
     usagePopupCard(title, content, below, amount)
   } catch (err) {}
 }
@@ -7404,6 +8795,18 @@ var BUBBLE_DEFAULT_ITEMS = [
                                                                                "size":  16,
                                                                                "rgb":  "candy",
                                                                                "color":  ""
+                                                                           },
+                                                                           {
+                                                                               "t":  "你知道吗，我们的宇宙是虚拟的，因为垃圾会自发的产生但不会自发的消失，这是内存泄露",
+                                                                               "w":  3,
+                                                                               "bold":  true,
+                                                                               "size":  5,
+                                                                               "rgb":  "indigo",
+                                                                               "color":  "",
+                                                                               "italic":  false,
+                                                                               "ul":  false,
+                                                                               "bgRgb":  "",
+                                                                               "bg":  ""
                                                                            }
                                                                        ],
                                                              "size":  8
@@ -7746,6 +9149,15 @@ function bubbleIsChoice(step) { return !!(step && step.kind === 'choice') }
 function bubbleChoiceOptions(step) { return (step && step.kind === 'choice' && Array.isArray(step.options)) ? step.options : [] }
 function bubbleChoiceWeight(o) { return Math.max(1, Math.round(Number(o && o.w) || 1)) }
 function bubbleSingleFromItem(itm) { return { kind: 'custom', modules: (itm && Array.isArray(itm.modules)) ? itm.modules : [] } }
+// v821（P1）：把"这一项用哪个框 / 外观覆盖"原样摘出来（编辑器重建步骤时必须带上，否则一开一存就把设置抹掉）
+function frameFieldsOf(obj) {
+  var out = {}
+  try {
+    if (obj && typeof obj.frameId === 'string' && obj.frameId) out.frameId = obj.frameId
+    if (obj && obj.frameOverride && typeof obj.frameOverride === 'object') out.frameOverride = obj.frameOverride
+  } catch (err) {}
+  return out
+}
 // 任意单选步骤(或并列第一泡)规范成可独立渲染的完整泡 {kind:'custom', modules}
 function bubbleStepToBubble(step) {
   if (bubbleIsChoice(step)) { var o0 = bubbleChoiceOptions(step)[0]; step = o0 ? o0.item : null }
@@ -8257,7 +9669,8 @@ var bubbleEditorSnap = null
 function bubbleEditorDirty() {
   try {
     if (bubbleEditorSnap === null) return true
-    return bubbleEditorSnap !== JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked])
+    // v821：框库与保底框也算"有改动"（必须与打开时写进快照的数组完全一致，否则永远是脏的）
+    return bubbleEditorSnap !== JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, framesNow()])
   } catch (err) { return true }
 }
 // v783：打开编辑器前**先从宿主重读一遍配置**。为什么必须重读：泡泡配置只在页面加载时取一次
@@ -8306,21 +9719,49 @@ function openBubbleEditorWithCache() {
           var oi2 = src.options[oi] || {}
           var srcItem = oi2.item || {}
           var srcMods = Array.isArray(srcItem.modules) ? JSON.parse(JSON.stringify(srcItem.modules)) : (srcItem.kind === 'random' ? bubbleDefaultSecondModules() : [])
-          opts.push({ w: bubbleChoiceWeight(oi2), item: { kind: 'custom', modules: srcMods } })
+          // v821：框设置要跟着走（option 与 item 两处都认，item 优先 —— 与 applyBubbleCfgSeq 一致）
+          var oiFrame = Object.assign({}, frameFieldsOf(oi2), frameFieldsOf(srcItem))
+          opts.push(Object.assign({ w: bubbleChoiceWeight(oi2), item: Object.assign({ kind: 'custom', modules: srcMods }, oiFrame) }, oiFrame))
         }
-        if (opts.length === 1) { bubbleEditItems.push(bubbleSingleFromItem(opts[0].item)); continue }
-        if (opts.length >= 2) { bubbleEditItems.push({ kind: 'choice', options: opts }); continue }
+        if (opts.length === 1) { bubbleEditItems.push(Object.assign(bubbleSingleFromItem(opts[0].item), frameFieldsOf(opts[0]), frameFieldsOf(opts[0].item))); continue }
+        if (opts.length >= 2) { bubbleEditItems.push(Object.assign({ kind: 'choice', options: opts }, frameFieldsOf(src))); continue }
       }
-      bubbleEditItems.push({ kind: src.kind === 'random' ? 'random' : (src.kind === 'custom' ? 'custom' : 'normal'), modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined })
+      // v821：单选步骤同样要带上框设置（丢了它 = 打开一次编辑器再保存就把每泡泡的框抹掉）
+      bubbleEditItems.push(Object.assign({
+        kind: src.kind === 'random' ? 'random' : (src.kind === 'custom' ? 'custom' : 'normal'),
+        modules: src.modules ? JSON.parse(JSON.stringify(src.modules)) : undefined,
+      }, frameFieldsOf(src)))
     }
-    bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked]) // v727：含开关，改开关也算"有改动"
+    bubbleEditorSnap = JSON.stringify([bubbleEditItems, bubbleLib, bubbleTapAdvChk.checked, framesNow()]) // v727 含开关；v821 含框库与保底
     renderBubbleEditor()
+    // v821（P1）：窗口打开时刷新框库行（保底框名可能变了）+ 收起残留的下拉
+    try { frameLibToggle(false); frameLibRefresh() } catch (err) {}
     bubbleMask.style.display = 'flex'
   } catch (err) {}
+}
+// v840（用户报"点取消后，换的泡泡框仍然生效"）：
+//   框库/保底是**立即生效**的（换框要马上在桌面上看到），所以「取消」时必须把它们一起还原 ——
+//   快照 bubbleEditorSnap 的第 4 项就是打开窗口那一刻的 { frames, defaultFrameId }（framesNow()）。
+//   注意只有"取消"才还原；「保存」走 saveBubbleCfg 落盘，绝不能还原。
+function bubbleEditorRestoreFrames() {
+  try {
+    if (!bubbleEditorSnap) return false
+    var arr = JSON.parse(bubbleEditorSnap)
+    var snapFrames = arr ? arr[3] : null
+    if (!snapFrames || !Array.isArray(snapFrames.frames)) return false
+    bubbleFrames = framesNorm(JSON.parse(JSON.stringify(snapFrames.frames)), snapFrames.defaultFrameId)
+    try { frameMenuCloseAll() } catch (err) {}
+    try { frameLibRefresh() } catch (err) {}
+    try { frameInvalidateApplied() } catch (err) {}
+    try { frameReapplyCurrent() } catch (err) {}
+    return true
+  } catch (err) { return false }
 }
 function closeBubbleEditor() {
   bubbleMask.style.display = 'none'
   bubbleEditorSnap = null
+  // v826：窗口关了，挂在 body 上的浮层下拉也必须跟着收（否则它会飘在别的东西上面）
+  try { frameMenuCloseAll() } catch (err) {}
 }
 function bubbleEditorReset() {
   showConfirm('恢复为默认序列(首次=余额内容,再次=随机语句)?', function () {
@@ -8333,12 +9774,27 @@ function bubbleEditorSave() {
     var doSave = function () {
       var items = []
       for (var i = 0; i < bubbleEditItems.length; i++) items.push(bubbleStepToSaved(bubbleEditItems[i]))
+      // v821（P1）：删过框或框库变动后，把"指向已不存在框"的引用改回保底（决策 3：保存时改写并提示一次）
+      var scrubbed = framesScrubDanglingRefs(items)
       // v727：开关随本窗口的「保存」一起落盘；保存成功后立即生效（不必重载）
       var tapAdv = bubbleTapAdvChk.checked === true
-      saveBubbleCfg({ v: 1, items: items, lib: bubbleLib, tapAdvance: tapAdv }, function (ok) {
+      var payload = { v: 1, items: items, lib: bubbleLib, tapAdvance: tapAdv }
+      // v815：框库只在"需要持久化"时写（有自定义框 / 曾经写过 / 保底改过）⇒ 老配置零 churn
+      try {
+        if (framesShouldPersist()) {
+          var fnow = framesNow()
+          payload.frames = JSON.parse(JSON.stringify(fnow.frames))
+          payload.defaultFrameId = fnow.defaultFrameId
+        }
+      } catch (err) {}
+      saveBubbleCfg(payload, function (ok) {
         if (ok !== false) {
           bubbleTapAdvance = tapAdv
           closeBubbleEditor()
+          // v821：被删掉的框留下的引用已改回保底框 ⇒ 明确提示一次（决策 3）
+          if (scrubbed > 0) {
+            try { dshwvToast('有 ' + scrubbed + ' 处泡泡原本用的框已删除，已改回保底框', 'ok', 2600) } catch (err) {}
+          }
         }
       })
     }
@@ -8349,18 +9805,33 @@ function bubbleEditorSave() {
 }
 // 编辑器步骤 → 落盘配置项(单选 → custom;并列 → choice {options:[{w,item}]})
 function bubbleStepToSaved(step) {
+  // v815：把"本泡泡用哪个框 + 外观覆盖"原样带到落盘结构里（没有就不写，老配置零 churn）
+  var frameExtra = {}
+  try {
+    if (step && typeof step.frameId === 'string' && step.frameId) frameExtra.frameId = step.frameId
+    if (step && step.frameOverride && typeof step.frameOverride === 'object') frameExtra.frameOverride = step.frameOverride
+  } catch (err) {}
   if (bubbleIsChoice(step)) {
     var opts = bubbleChoiceOptions(step).map(function (o) {
       var itm = (o && o.item) || {}
       var mods = Array.isArray(itm.modules) ? itm.modules : bubbleDefaultModules(itm.kind === 'random' ? 'random' : 'normal')
       bubbleRowsCanon(mods) // F2:保存前规范化行键
-      return { w: bubbleChoiceWeight(o), item: { kind: 'custom', modules: mods } }
+      // v815：并列两侧各自带自己的框（A/B 泡可以不同框）
+      var sideExtra = {}
+      try {
+        if (o && typeof o.frameId === 'string' && o.frameId) sideExtra.frameId = o.frameId
+        if (o && o.frameOverride && typeof o.frameOverride === 'object') sideExtra.frameOverride = o.frameOverride
+        if (o && o.item && typeof o.item.frameId === 'string' && o.item.frameId) sideExtra.frameId = o.item.frameId
+        if (o && o.item && o.item.frameOverride && typeof o.item.frameOverride === 'object') sideExtra.frameOverride = o.item.frameOverride
+      } catch (err) {}
+      var saved = { w: bubbleChoiceWeight(o), item: Object.assign({ kind: 'custom', modules: mods }, sideExtra) }
+      return saved
     })
-    return { kind: 'choice', options: opts }
+    return Object.assign({ kind: 'choice', options: opts }, frameExtra)
   }
   var mods = Array.isArray(step.modules) ? step.modules : bubbleDefaultModules(step.kind)
   bubbleRowsCanon(mods) // F2:保存前规范化行键
-  return { kind: 'custom', modules: mods }
+  return Object.assign({ kind: 'custom', modules: mods }, frameExtra)
 }
 // —— 单泡编辑(W2):模块面板 + 泡泡预览行 ——
 var bubbleItemMask = null
@@ -8412,6 +9883,9 @@ function openBubbleItem(idx, side) {
     bubbleItemMask.style.display = 'flex'
     renderBubblePal()
     renderBubblePv()
+    // v821（P1·F2）：刷新"这个泡泡用哪个框"那一行（开着窗口时改过保底框也要跟着变）
+    try { frameStepToggle(false); frameStepRefresh() } catch (err) {}
+    // v827：原来的「外观覆盖（可选）」小节已按用户要求整段删除（这里不再需要初始化它）
   } catch (err) {}
 }
 // W2 顶部 A/B 侧切换(仅并列步骤显示)
@@ -8438,6 +9912,7 @@ function closeBubbleItem() {
   bubbleEditItemIdx = -1
   bubbleEditSide = -1
   if (bubbleItemSideEl) bubbleItemSideEl.innerHTML = ''
+  try { frameMenuCloseAll() } catch (err) {} // v826：同上，浮层下拉跟着窗口一起收
 }
 // ===== 快速编辑悬浮窗:文本模块(完整内容+样式,带实例预览)与随机语句单句 =====
 var qeditEl = null
@@ -9676,7 +11151,15 @@ function renderBubblePv() {
   // 真实泡泡形预览
   try {
     var rw = (root && (root.offsetWidth || root.getBoundingClientRect().width)) || 280
-    bubblePreviewInto(bubblePvPrevEl, it.modules || [], Math.min(rw, 408))
+    // v825（P3）：把"这个泡泡实际会用到的框 + 外观覆盖"交给预览 ⇒ 改覆盖/换框时预览立刻跟着变
+    //   （运行期读的是 item，所以这里也按 item 解析，与真实泡泡同一条规则）
+    var fr = null
+    var ov = null
+    try {
+      fr = resolveFrameForStep(it)
+      ov = (it && it.frameOverride && typeof it.frameOverride === 'object') ? it.frameOverride : null
+    } catch (err) {}
+    bubblePreviewInto(bubblePvPrevEl, it.modules || [], Math.min(rw, 408), { frame: fr, override: ov })
   } catch (err) {}
 }
 var bubbleRowDragIdx = null
@@ -9784,6 +11267,333 @@ bubbleAddBtn.className = 'dshwv-bubadd'
 bubbleAddBtn.textContent = '+ 添加泡泡(点完上一个后显示下一个)'
 bubbleAddBtn.addEventListener('click', bubbleAddMore)
 bubbleCard.appendChild(bubbleAddBtn)
+// ===== v821（P1·F1）：泡泡框库（入口在「点按角色推进泡泡队列」上方、分割线下方） =====
+// 结构：一行 `泡泡框：<保底框名> ▾` + 一个下拉（复用 .dshwv-rgbmenu 的观感与滚动条）。
+// 下拉每项 = 缩略图（**只画大泡泡**）+ 名字 + 4 个图标按钮（置顶 / 编辑 / 复制 / 删除）+ 底部「+ 新建泡泡框」。
+// 语义（决策记录 §10）：内置框只读（编辑/删除禁用，可复制）；置顶只影响排序；删框时若仍被引用 ⇒ 保存时改写为保底并提示。
+var frameLibRow = document.createElement('div')
+frameLibRow.className = 'dshwv-bubsec'
+// v824 曾经在这里加 `position:relative` 想让下拉"别开在屏幕外"；**v826 起不再需要**：
+//   下拉已改成**浮层**（挂 body + fixed，见 frameMenuSetOpen()）⇒ 它既不会开在屏幕外，
+//   也不会再把「自定义泡泡」卡片撑长（用户反馈：展开下拉会把整个菜单拉长）。
+frameLibRow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:#203170;border-top:1px solid rgba(32,49,112,.22);margin-top:8px;padding-top:8px'
+var frameLibBtn = document.createElement('button')
+frameLibBtn.type = 'button'
+// ⚠️ 锚点标记类（dshwv-frameanchor）：浮层的"点别处就收"要豁免锚点自身，否则点它会被先收掉再被 click 重开
+frameLibBtn.className = 'dshwv-roleimport dshwv-frameanchor dshwv-framebtn'
+// v831（用户要求）：文字**居中**、▾ **右对齐** ⇒ 按钮里放两层（箭头绝对定位在最右，正文占满整行居中）
+frameLibBtn.style.cssText = 'flex:1 1 auto;position:relative;text-align:center;min-width:0;padding-right:22px'
+var frameLibBtnText = document.createElement('span')
+frameLibBtnText.className = 'dshwv-framebtntext'
+frameLibBtn.appendChild(frameLibBtnText)
+var frameLibBtnArrow = document.createElement('span')
+frameLibBtnArrow.className = 'dshwv-framebtnarrow'
+frameLibBtnArrow.textContent = '▾'
+frameLibBtn.appendChild(frameLibBtnArrow)
+frameLibBtn.addEventListener('click', function (e) { e.stopPropagation(); frameLibToggle() })
+frameLibRow.appendChild(frameLibBtn)
+var frameLibMenu = document.createElement('div')
+frameLibMenu.className = 'dshwv-rgbmenu dshwv-framemenu'
+frameLibRow.appendChild(frameLibMenu)
+bubbleCard.appendChild(frameLibRow)
+// v833：文字写进内层 span；万一 span 没建成/被清掉，兜底写进按钮本身（出口不能变成空白）
+function frameLibSetLabel(txt) {
+  try {
+    var s = String(txt == null ? '' : txt)
+    if (frameLibBtnText) { frameLibBtnText.textContent = s; return }
+    if (frameLibBtn) frameLibBtn.textContent = s
+  } catch (err) {}
+}
+try { frameLibSetLabel(frameLibLabelText()) } catch (err) {}
+try { frameLibBtn.title = '选择保底泡泡框（点一下展开）' } catch (err) {}
+var frameLibOpen = false
+function frameLibLabelText() {
+  var f = framesNow()
+  var cur = frameById(f.defaultFrameId) || frameBuiltin()
+  return '泡泡框（保底）：' + cur.name
+}
+function frameLibRefresh() {
+  try { frameLibSetLabel(frameLibLabelText()) } catch (err) {}
+}
+// v831：刚复制出来的那张卡片要有一段"进场"过渡（用户要求）
+var frameLibNewId = ''
+function frameLibToggle(force) {
+  frameLibOpen = (force === undefined) ? !frameLibOpen : !!force
+  try {
+    if (frameLibOpen) { frameLibBuild(); frameMenuSetOpen(frameLibMenu, frameLibBtn) }
+    else frameMenuSetClosed(frameLibMenu)
+  } catch (err) {}
+}
+// ===== v826：框库 / 每泡泡两个下拉共用的"浮层 + 自动收口" =====
+// 为什么要改（用户反馈两点）：
+//   ① 下拉原来挂在卡片里（`.dshwv-rgbmenu` 是 absolute）⇒ 一展开就把「自定义泡泡」卡片**撑长**；
+//   ② 点别处它不会自己收。
+// 做法：复用本文件既有的 `dshwDropOpen()` —— 把菜单挂到 body、`position:fixed` 贴在锚点按钮下方、
+//   层级取 `max(26010, visibleTopZ()+10)`（不会被任何窗口盖住）。收口有四条：点别处 / 滚动 / 缩放窗口 / 关窗。
+var frameMenuOpenEl = null
+// v850：每个浮层菜单一个"收起动画计时器"（重复收起/再次展开时要能取消掉）
+var frameMenuCloseTimers = {}
+function frameMenuSetOpen(menu, anchor) {
+  try {
+    if (!menu) return
+    // 取消上一次"正在收起"的动画（否则刚展开又被 140ms 前的定时器摘掉 class）
+    try {
+      if (frameMenuCloseTimers[menu.__dshwKey || ''] ) { clearTimeout(frameMenuCloseTimers[menu.__dshwKey || '']); delete frameMenuCloseTimers[menu.__dshwKey || ''] }
+    } catch (e0) {}
+    try { menu.classList.remove('dshwv-rgbclosing') } catch (e1) {}
+    if (frameMenuOpenEl && frameMenuOpenEl !== menu) { frameMenuSetClosed(frameMenuOpenEl) }
+    frameMenuOpenEl = menu
+    dshwDropOpen(menu, anchor)
+  } catch (err) {}
+}
+function frameMenuSetClosed(menu) {
+  try {
+    if (menu && menu.classList && menu.classList.contains('dshwv-rgbopen')) {
+      // 先播"收起"过渡（保持可见），动画结束再真正隐藏
+      var key = menu.__dshwKey || (menu.__dshwKey = 'm' + Math.random().toString(36).slice(2, 8))
+      menu.classList.add('dshwv-rgbclosing')
+      try { if (frameMenuCloseTimers[key]) clearTimeout(frameMenuCloseTimers[key]) } catch (e1) {}
+      frameMenuCloseTimers[key] = setTimeout(function () {
+        try {
+          menu.classList.remove('dshwv-rgbclosing')
+          menu.classList.remove('dshwv-rgbopen')
+        } catch (e2) {}
+        try { delete frameMenuCloseTimers[key] } catch (e3) {}
+      }, 150)
+    } else {
+      try { if (menu) menu.classList.remove('dshwv-rgbopen') } catch (err) {}
+    }
+  } catch (err) {}
+  // ⚠️ 这里**不能**再无条件摘掉 .dshwv-rgbopen —— 那会让上面的"收起过渡"立刻失效（菜单瞬间消失）。
+  if (frameMenuOpenEl === menu) frameMenuOpenEl = null
+  // v838（用户报"收起后要点两次才能再打开"）：**把打开标记一起复位**。
+  //   根因：点别处收起时只摘了 class，`frameLibOpen` 还是 true ⇒ 下一次点按钮时
+  //   `frameLibToggle()` 先把它切成 false（看着像"这次点击被吞了"），再点一次才真正打开。
+  try { if (menu === frameLibMenu) frameLibOpen = false } catch (err) {}
+  try { if (menu === frameStepMenu) frameStepOpen = false } catch (err) {}
+}
+function frameMenuCloseAll() { if (frameMenuOpenEl) frameMenuSetClosed(frameMenuOpenEl) }
+try {
+  if (!window.__dshwFrameMenuBound) {
+    window.__dshwFrameMenuBound = true
+    // 点别处 ⇒ 收（豁免菜单自身与两个锚点按钮）
+    document.addEventListener('pointerdown', function (e) {
+      if (!frameMenuOpenEl) return
+      try {
+        // v838（用户报"删框的二次确认一弹出来，下拉就自己收了，想继续编辑还得再点开"）：
+        //   确认弹窗（.dshwv-confirmmask / .dshwv-confirmwin）与裁剪弹窗也一并豁免。
+        if (e.target && e.target.closest && (e.target.closest('.dshwv-framemenu') || e.target.closest('.dshwv-frameanchor') ||
+          e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-confirmwin') ||
+          e.target.closest('.dshwv-cropmask'))) return
+      } catch (err) {}
+      frameMenuCloseAll()
+    }, true)
+    window.addEventListener('resize', frameMenuCloseAll)
+    // 浮层是 fixed：滚动任何容器时它不会跟着走 ⇒ 直接收掉（比"飘在原处"干净）
+    document.addEventListener('scroll', frameMenuCloseAll, true)
+  }
+} catch (err) {}
+// 下拉项里的 4 个图标按钮（内联 SVG，避免字体/emoji 差异；颜色跟面板走）
+function frameIconSvg(kind) {
+  var P = {
+    pin: '<path d="M9 3h6v2h-1v5l2 2v2h-4v6l-1 1-1-1v-6H6v-2l2-2V5H7V3z"/>',
+    edit: '<path d="M4 17.2V20h2.8L17 9.8 14.2 7 4 17.2zM19.7 7.3a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0L15.3 5.7 18.1 8.5l1.6-1.2z"/>',
+    copy: '<path d="M8 3h9a2 2 0 0 1 2 2v9h-2V5H8V3zM5 7h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/>',
+    del: '<path d="M9 3h6l1 2h4v2H4V5h4l1-2zM6 9h12l-1 12H7L6 9z"/>',
+  }
+  return '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' + (P[kind] || '') + '</svg>'
+}
+function frameIconBtn(kind, title, onClick, disabled) {
+  var b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'dshwv-ficonbtn' + (disabled ? ' dshwv-ficonbtn-off' : '')
+  b.title = title
+  b.innerHTML = frameIconSvg(kind)
+  if (!disabled) b.addEventListener('click', function (e) { e.stopPropagation(); onClick() })
+  return b
+}
+// 框被哪些"第 n 次点击"引用（含并列 A/B 两侧）—— 删除时要用它提示
+function framesRefsOf(frameId) {
+  var n = 0
+  try {
+    var want = String(frameId || '')
+    for (var i = 0; i < bubbleEditItems.length; i++) {
+      var st = bubbleEditItems[i]
+      if (!st) continue
+      if (String(st.frameId || '') === want) { n++; continue }
+      var opts = bubbleChoiceOptions(st)
+      for (var j = 0; j < opts.length; j++) {
+        var o = opts[j] || {}
+        if (String(o.frameId || '') === want) { n++; continue }
+        if (o.item && String(o.item.frameId || '') === want) n++
+      }
+    }
+  } catch (err) {}
+  return n
+}
+// 落盘前把"指向已删框"的引用改写为保底（决策 3）
+function framesScrubDanglingRefs(items) {
+  var fixed = 0
+  try {
+    var ids = framesNow().frames.map(function (x) { return x.id })
+    var fixOne = function (obj) {
+      if (!obj || typeof obj !== 'object') return
+      if (obj.frameId && ids.indexOf(String(obj.frameId)) < 0) { delete obj.frameId; fixed++ }
+    }
+    for (var i = 0; i < (items || []).length; i++) {
+      var st = items[i]
+      if (!st) continue
+      fixOne(st)
+      var opts = bubbleChoiceOptions(st)
+      for (var j = 0; j < opts.length; j++) { fixOne(opts[j]); if (opts[j] && opts[j].item) fixOne(opts[j].item) }
+    }
+  } catch (err) {}
+  return fixed
+}
+function frameLibBuild() {
+  try {
+    // v834（用户要求）：重建前先把每张卡片的位置记下来 —— 重建后让**挪了位的老卡片平滑滑过去**
+    //   （FLIP：先量旧位置 → 重建 → 反向位移做起点 → 下一帧 transition 回 0）。
+    //   以前只有"新卡片弹出来"，老卡片是"啪"地跳到新位置。
+    var flipBefore = []
+    try {
+      var oldCards = frameLibMenu.querySelectorAll ? frameLibMenu.querySelectorAll('.dshwv-fcard') : []
+      for (var fi = 0; fi < oldCards.length; fi++) {
+        var oc = oldCards[fi]
+        if (!oc || !oc.getAttribute || !oc.getBoundingClientRect) continue
+        var ofid = String(oc.getAttribute('data-fid') || '')
+        if (!ofid) continue
+        var orc = oc.getBoundingClientRect()
+        if (!orc) continue
+        flipBefore.push({ id: ofid, x: orc.left, y: orc.top })
+      }
+    } catch (err) {}
+    frameLibMenu.innerHTML = ''
+    var f = framesNow()
+    // v829（用户给了样图）：下拉内容改成**卡片网格** —— 顶部一条通栏「＋ 新建」，
+    // 下面每张卡片 = 大泡泡缩略图 + 一条图标脚（置顶/编辑/复制/删除），当前保底框高亮。
+    // 仍然是**浮层**（frameMenuSetOpen → dshwDropOpen），所以不会把「自定义泡泡」窗口撑长。
+    var add0 = document.createElement('div')
+    add0.className = 'dshwv-fadd'
+    add0.textContent = '＋'
+    add0.title = '新建泡泡框'
+    add0.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      openFrameEditor('new', null)
+    })
+    frameLibMenu.appendChild(add0)
+    var grid = document.createElement('div')
+    grid.className = 'dshwv-fgrid'
+    frameLibMenu.appendChild(grid)
+    f.frames.forEach(function (frame) {
+      var row = document.createElement('div')
+      // v831（用户样图）：默认**只看缩略图**；鼠标悬浮时才出现"顶部名字胶囊 + 底部图标脚"
+      row.className = 'dshwv-fcard' + (frame.id === f.defaultFrameId ? ' dshwv-fcard-on' : '') +
+        (frame.id === frameLibNewId ? ' dshwv-fcard-new' : '')
+      row.title = frame.name + (frame.builtin ? '（内置，只读）' : '')
+      try { row.setAttribute('data-fid', frame.id) } catch (err) {}
+      // 缩略图：只画大泡泡（用户要求"只显示最大的框框"）
+      var th = document.createElement('span')
+      th.className = 'dshwv-fthumb'
+      th.innerHTML = frameThumbMarkup(frame, null)
+      row.appendChild(th)
+      var nm = document.createElement('span')
+      nm.className = 'dshwv-fcardname'
+      nm.textContent = frame.name + (frame.builtin ? '' : (frame.pinned > 0 ? ' 📌' : ''))
+      nm.title = frame.builtin ? '内置保底框（只读，可复制）' : ('置顶序号 ' + (frame.pinned || 0))
+      row.appendChild(nm)
+      var foot = document.createElement('div')
+      foot.className = 'dshwv-fcardfoot'
+      row.appendChild(foot)
+      var acts = document.createElement('span')
+      acts.className = 'dshwv-facts'
+      foot.appendChild(acts)
+      // 选择（点这张卡片）= 设为保底，并且**自动收回下拉**（v849：用户要求选完就收）
+      row.addEventListener('click', function (e) {
+        try { e.stopPropagation() } catch (err) {}
+        f.defaultFrameId = frame.id
+        bubbleFrames = f
+        frameLibRefresh()
+        frameInvalidateApplied()
+        frameLibToggle(false) // 收起（内部会复位 frameLibOpen 并摘掉浮层）
+      })
+      acts.appendChild(frameIconBtn('pin', frame.builtin ? '内置框固定排最后，不可置顶' : '置顶（只影响列表排序）', function () {
+        try {
+          var maxP = 0
+          f.frames.forEach(function (x) { if (x.pinned > maxP) maxP = x.pinned })
+          frame.pinned = frame.pinned > 0 ? 0 : (maxP + 1)
+          var sorted = framesNorm(f.frames, f.defaultFrameId) // 复用归一化里的排序规则
+          bubbleFrames = sorted
+          frameLibRefresh(); frameLibBuild()
+        } catch (err) {}
+      }, frame.builtin))
+      acts.appendChild(frameIconBtn('edit', frame.builtin ? '内置框只读：请先「复制」再改' : '编辑这个泡泡框', function () {
+        // v823（P2）：接入真正的形状编辑器（P1 时这里只给一句提示）
+        openFrameEditor('edit', frame.id)
+      }, frame.builtin))
+      acts.appendChild(frameIconBtn('copy', '复制成一个新的框（可再编辑）', function () {
+        try {
+          var copy = frameNormOne(JSON.parse(JSON.stringify(frame)), f.frames.length)
+          copy.id = 'frame_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
+          copy.name = (frame.name + ' 副本').slice(0, 24)
+          copy.builtin = false
+          copy.createdAt = Date.now()
+          copy.pinned = 0
+          // v825（P3）：复制内置框时把安全区落成"历史文字框"⇒ 副本的文字位置与内置框一致
+          if (frame.builtin === true || frame.id === BUILTIN_FRAME_ID) copy.safe = frameLegacySafe()
+          f.frames.push(copy)
+          var sorted = framesNorm(f.frames, f.defaultFrameId)
+          bubbleFrames = sorted
+          frameLibNewId = copy.id // v831：新卡片带一段进场过渡
+          frameLibRefresh(); frameLibBuild()
+        } catch (err) {}
+      }))
+      acts.appendChild(frameIconBtn('del', frame.builtin ? '内置保底框不可删除' : '删除这个框（二次确认）', function () {
+        try {
+          var refs = framesRefsOf(frame.id)
+          var tip = '删除泡泡框「' + frame.name + '」?' +
+            (refs > 0 ? ('\n它正被 ' + refs + ' 处「第 n 次点击」使用 —— 保存时会自动改回保底框。') : '')
+          showConfirm(tip, function () {
+            try {
+              f.frames = f.frames.filter(function (x) { return x.id !== frame.id })
+              if (f.defaultFrameId === frame.id) f.defaultFrameId = BUILTIN_FRAME_ID
+              bubbleFrames = framesNorm(f.frames, f.defaultFrameId)
+              frameLibRefresh(); frameLibBuild(); frameInvalidateApplied()
+              if (refs > 0) { try { dshwvToast('已删除；保存后相关泡泡会改回保底框', 'ok') } catch (err) {} }
+            } catch (err) {}
+          }, '删除')
+        } catch (err) {}
+      }, frame.builtin))
+      grid.appendChild(row)
+    })
+    // v834：FLIP 的 Last/Invert/Play —— 老卡片挪位就滑过去；新卡片（不在 flipBefore 里）走进场动画
+    try {
+      var newCards = frameLibMenu.querySelectorAll ? frameLibMenu.querySelectorAll('.dshwv-fcard') : []
+      for (var ni = 0; ni < newCards.length; ni++) {
+        var nc = newCards[ni]
+        if (!nc || !nc.getAttribute || !nc.getBoundingClientRect) continue
+        var nfid = String(nc.getAttribute('data-fid') || '')
+        var was = null
+        for (var bi = 0; bi < flipBefore.length; bi++) { if (flipBefore[bi].id === nfid) { was = flipBefore[bi]; break } }
+        if (!was) continue
+        var nrc = nc.getBoundingClientRect()
+        var dx = was.x - nrc.left
+        var dy = was.y - nrc.top
+        if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue
+        nc.style.transition = 'none'
+        nc.style.transform = 'translate(' + frameR2(dx) + 'px,' + frameR2(dy) + 'px)'
+        ;(function (node) {
+          try {
+            var force = node.offsetWidth // 强制回流：把上面的反向位移"落"成动画起点
+            node.style.transition = 'transform .22s ease'
+            node.style.transform = 'none'
+          } catch (err) {}
+        })(nc)
+      }
+    } catch (err) {}
+    frameLibRefresh()
+  } catch (err) {}
+}
 // v727：点按角色推进泡泡队列（设置只在「自定义泡泡」窗口里，随本窗口的「保存」一起落盘）
 var bubbleTapAdvRow = document.createElement('div')
 bubbleTapAdvRow.className = 'dshwv-bubsec'
@@ -9834,9 +11644,11 @@ function bubbleBtn(label, cls, fn) {
   return b
 }
 bubbleBtns.appendChild(bubbleBtn('取消', 'dshwv-bubbtn-no', function () {
+  // v840：取消 = 连"框库/保底"的改动一起丢弃（换框是立即生效的，不还原就会"取消不掉"）
+  var leave = function () { bubbleEditorRestoreFrames(); closeBubbleEditor() }
   // 未做任何修改:直接关闭,不再二次确认
-  if (bubbleEditorDirty()) showConfirm('放弃未保存的更改?', function () { closeBubbleEditor() })
-  else closeBubbleEditor()
+  if (bubbleEditorDirty()) showConfirm('放弃未保存的更改?', leave)
+  else leave()
 }))
 bubbleBtns.appendChild(bubbleBtn('重置', 'dshwv-bubbtn-no', bubbleEditorReset))
 bubbleBtns.appendChild(bubbleBtn('保存', 'dshwv-bubbtn-ok', bubbleEditorSave))
@@ -9874,6 +11686,213 @@ bubbleItemCard.appendChild(bubbleSecPal)
 bubblePalEl = document.createElement('div')
 bubblePalEl.className = 'dshwv-bubpal'
 bubbleItemCard.appendChild(bubblePalEl)
+// ===== v821（P1·F2）：这个泡泡用哪个框（在「泡泡内容预览」分割线上方） =====
+// 只提供**预览 / 置顶 / 选择**（用户决策：不进编辑与删除）；另有「跟随保底」= 清掉本泡泡的框。
+// 写入位置：单选步骤写在步骤上；并列步骤写在**对应那一侧**（与落盘结构一致）。
+var frameStepRow = document.createElement('div')
+frameStepRow.className = 'dshwv-bubsec'
+// v824 曾在这里加 `position:relative`；**v826 起不需要**：下拉已改成浮层（见 frameMenuSetOpen()）
+frameStepRow.style.cssText = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:#203170'
+var frameStepBtn = document.createElement('button')
+frameStepBtn.type = 'button'
+// v849（用户要求）：与「自定义泡泡」里的框下拉同款 —— 文字居中、▾ 右对齐（两层结构）
+frameStepBtn.className = 'dshwv-roleimport dshwv-frameanchor dshwv-framebtn'
+frameStepBtn.style.cssText = 'flex:1 1 auto;position:relative;text-align:center;min-width:0;padding-right:22px'
+var frameStepBtnText = document.createElement('span')
+frameStepBtnText.className = 'dshwv-framebtntext'
+frameStepBtn.appendChild(frameStepBtnText)
+var frameStepBtnArrow = document.createElement('span')
+frameStepBtnArrow.className = 'dshwv-framebtnarrow'
+frameStepBtnArrow.textContent = '▾'
+frameStepBtn.appendChild(frameStepBtnArrow)
+frameStepBtn.addEventListener('click', function (e) { e.stopPropagation(); frameStepToggle() })
+frameStepRow.appendChild(frameStepBtn)
+var frameStepMenu = document.createElement('div')
+frameStepMenu.className = 'dshwv-rgbmenu dshwv-framemenu'
+frameStepRow.appendChild(frameStepMenu)
+bubbleItemCard.appendChild(frameStepRow)
+var frameStepOpen = false
+// 当前编辑步骤里"承载框设置"的对象（单选=步骤本身；并列=对应那一侧）
+function frameStepHost() {
+  try {
+    var step = bubbleEditItems[bubbleEditItemIdx]
+    if (!step) return null
+    if (bubbleIsChoice(step)) {
+      var opts = bubbleChoiceOptions(step)
+      var o = opts[(bubbleEditSide === 0 || bubbleEditSide === 1) ? bubbleEditSide : 0]
+      return o || null
+    }
+    return step
+  } catch (err) { return null }
+}
+function frameStepCurrent() {
+  var host = frameStepHost()
+  var id = host && host.frameId ? String(host.frameId) : ''
+  return id ? frameById(id) : null
+}
+// ===== v851（第 4 条）：系统泡泡各自的"泡泡框" =====
+// 覆盖：每轮消耗(cost) / 余额预警(alert) / 今日预算(budget) / 提问与授权(wait)。
+// 落点：usageSet 里各自配置的 `frameId`（宿主 writeUsageSettings() 是**逐键 Object.assign**、
+//   没有字段白名单 ⇒ 新字段直接透传落盘，**不需要改宿主、也不用重启**）。
+function sysFrameIdOf(kind) {
+  try {
+    var u = usageSet || {}
+    // 队列项自己带的优先（自定义 API 模型的余额预警/今日预算框就存在模型配置里 ⇒ 由推送方带过来）
+    if (whaleSysItem && typeof whaleSysItem.frameId === 'string' && whaleSysItem.frameId) return whaleSysItem.frameId
+    if (kind === 'cost') return String(((u.turnCost || {}).frameId) || '')
+    if (kind === 'alert') return String(((u.alert || {}).frameId) || '')
+    if (kind === 'budget') return String(((u.budget || {}).frameId) || '')
+    if (kind === 'wait') {
+      var wk = (whaleSysItem && whaleSysItem.waitKind) ? String(whaleSysItem.waitKind) : ''
+      if (!wk) return ''
+      var ev = ((u.events || {})[wk]) || {}
+      return String(ev.frameId || '')
+    }
+  } catch (err) {}
+  return ''
+}
+// 通用"泡泡框选择器"：按钮（文字居中 + ▾ 右对齐）+ 与 W2/F1 同款的卡片网格下拉
+//   —— 没有"＋ 添加新泡泡"那一行、也没有卡片下方四个编辑按钮（这里只负责选）。
+// ⚠️ 不复用 lib 里的开关变量（frameLibOpen/frameStepOpen）：**以 frameMenuOpenEl 为准**判断开合，
+//    这样"点别处收起"之后不会残留"还以为开着"的状态（v838 踩过的两次点击才开的老坑）。
+function framePickButton(curId, onPick) {
+  var wrap = document.createElement('span')
+  wrap.style.cssText = 'display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0'
+  var btn = document.createElement('button')
+  btn.type = 'button'
+  btn.className = 'dshwv-roleimport dshwv-frameanchor dshwv-framebtn'
+  btn.style.cssText = 'flex:1 1 auto;position:relative;text-align:center;min-width:0;padding-right:22px'
+  var tx = document.createElement('span')
+  tx.className = 'dshwv-framebtntext'
+  var ar = document.createElement('span')
+  ar.className = 'dshwv-framebtnarrow'
+  ar.textContent = '▾'
+  btn.appendChild(tx)
+  btn.appendChild(ar)
+  var menu = document.createElement('div')
+  menu.className = 'dshwv-rgbmenu dshwv-framemenu'
+  wrap.appendChild(btn)
+  wrap.appendChild(menu)
+  var cur = String(curId || '')
+  function label() {
+    var f = cur ? frameById(cur) : null
+    var t2 = f ? ('泡泡框：' + f.name) : ('跟随保底（' + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）')
+    try { tx.textContent = t2 } catch (err) {}
+    try { btn.title = t2 } catch (err) {}
+  }
+  function build() {
+    menu.innerHTML = ''
+    var grid = document.createElement('div')
+    grid.className = 'dshwv-fgrid'
+    menu.appendChild(grid)
+    function card(frame, lab, id) {
+      var c = document.createElement('div')
+      c.className = 'dshwv-fcard' + ((id ? (id === cur) : !cur) ? ' dshwv-fcard-on' : '')
+      c.title = lab
+      var th = document.createElement('span')
+      th.className = 'dshwv-fthumb'
+      th.innerHTML = frameThumbMarkup(frame || frameBuiltin(), null)
+      c.appendChild(th)
+      var nm = document.createElement('span')
+      nm.className = 'dshwv-fcardname'
+      nm.textContent = lab
+      c.appendChild(nm)
+      c.addEventListener('click', function (e) {
+        try { e.stopPropagation() } catch (err) {}
+        cur = id || ''
+        label()
+        try { if (onPick) onPick(cur) } catch (err) {}
+        frameMenuSetClosed(menu) // 选完自动收回（与 F1/F2 一致）
+      })
+      grid.appendChild(c)
+    }
+    card(frameById(framesNow().defaultFrameId) || frameBuiltin(), '跟随保底框', '')
+    framesNow().frames.forEach(function (f) {
+      card(f, f.name + (f.builtin ? '（内置）' : ''), f.id)
+    })
+  }
+  btn.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (frameMenuOpenEl === menu) { frameMenuSetClosed(menu); return }
+    build()
+    frameMenuSetOpen(menu, btn)
+  })
+  label()
+  return wrap
+}
+function frameStepRefresh() {
+  try {
+    var f = frameStepCurrent()
+    var txt = '泡泡框：' + (f ? f.name : ('跟随保底（' + ((frameById(framesNow().defaultFrameId) || frameBuiltin()).name) + '）'))
+    // 文字写进内层 span（▾ 是独立元素、贴右）；span 万一不在就退回写按钮本身
+    if (frameStepBtnText) frameStepBtnText.textContent = txt
+    else frameStepBtn.textContent = txt
+    try { frameStepBtn.title = txt } catch (err) {}
+  } catch (err) {}
+}
+function frameStepSet(id) {
+  try {
+    var host = frameStepHost()
+    if (!host) return
+    if (id) host.frameId = id
+    else delete host.frameId
+    // 运行期读的是 item.frameId（并列情况下 bubblePickChoiceStep 返回 item）⇒ 同步镜像一份
+    if (host.item && typeof host.item === 'object') {
+      if (id) host.item.frameId = id
+      else delete host.item.frameId
+    }
+    frameStepRefresh()
+    // v857（用户反馈）：换框后下面的**实时预览**要立刻跟着变 —— 之前只刷了按钮文字，
+    //   预览要等下一次别的操作才重画（那段真实泡泡预览在 renderBubblePv() 里）。
+    try { if (typeof renderBubblePv === 'function') renderBubblePv() } catch (err) {}
+  } catch (err) {}
+}
+function frameStepToggle(force) {
+  frameStepOpen = (force === undefined) ? !frameStepOpen : !!force
+  try {
+    if (!frameStepOpen) { frameMenuSetClosed(frameStepMenu); return }
+    frameStepMenu.innerHTML = ''
+    var host = frameStepHost()
+    var curId = host && host.frameId ? String(host.frameId) : ''
+    // v849（用户要求）：内容样式与「自定义泡泡」的框库**一致**（同一套卡片网格 + 缩略图 + 悬浮出名字），
+    //   但**去掉**"＋ 添加新泡泡"那一行，也**去掉**卡片下面那四个编辑按钮 —— 这里只负责"选"。
+    var grid2 = document.createElement('div')
+    grid2.className = 'dshwv-fgrid'
+    frameStepMenu.appendChild(grid2)
+    function stepCard(frame, label, onPick, isFollow) {
+      var card = document.createElement('div')
+      card.className = 'dshwv-fcard' + ((isFollow ? !curId : (frame && frame.id === curId)) ? ' dshwv-fcard-on' : '')
+      card.title = label
+      var th = document.createElement('span')
+      th.className = 'dshwv-fthumb'
+      th.innerHTML = frameThumbMarkup(frame || frameBuiltin(), null)
+      card.appendChild(th)
+      var nm = document.createElement('span')
+      nm.className = 'dshwv-fcardname'
+      nm.textContent = label
+      card.appendChild(nm)
+      card.addEventListener('click', function (e) {
+        try { e.stopPropagation() } catch (err) {}
+        onPick()
+        frameStepToggle(false) // 选完自动收回
+      })
+      grid2.appendChild(card)
+    }
+    // ① 跟随保底
+    stepCard(frameById(framesNow().defaultFrameId) || frameBuiltin(), '跟随保底框', function () { frameStepSet('') }, true)
+    // ② 库里的每个框（只提供"选择"：点即选、没有置顶/编辑/复制/删除）
+    framesNow().frames.forEach(function (frame) {
+      stepCard(frame, frame.name + (frame.builtin ? '（内置）' : ''), function () { frameStepSet(frame.id) }, false)
+    })
+    frameMenuSetOpen(frameStepMenu, frameStepBtn) // v826：浮层（不再撑高卡片、点别处自收）
+    frameStepRefresh()
+  } catch (err) {}
+}
+// ===== v827（用户要求）：W2 里的「外观覆盖（可选）」小节**整段删掉** =====
+// 用户的原始提示词只要求这里"添加自选泡泡框的下拉菜单…只提供预览、置顶与选择"，不要求逐泡泡的外观微调；
+// v826 又进一步要求"只提供已有框的选择，不提供其他调整"⇒ 这一节（v825 加的）撤掉。
+// ⚠️ 删的只是 **UI**：`frameOverride` 仍在数据模型/净化/落盘/渲染里（`mergeSlotPaint()` 照旧合并，
+//   `frameFieldsOf()`/`bubbleStepToSaved()` 照旧带它）—— 老配置里若已有覆盖值，行为与渲染一字不变。
 var bubbleSecPv = document.createElement('div')
 bubbleSecPv.className = 'dshwv-bubsec'
 bubbleSecPv.textContent = '泡泡内容预览'
@@ -10074,7 +12093,9 @@ function visibleTopZ() {
     function () { return snapMask }, function () { return usageMoreMask },
     function () { return qeditEl }, function () { return dshwvTplHelpEl },
     function () { return dshwvHintEl }, function () { return apiModelMaskEl },
-    function () { return accountingMask }, function () { return window.__dshwRemindMask }
+    function () { return accountingMask }, function () { return window.__dshwRemindMask },
+    // v823（P2）：泡泡框编辑器（从 W1 里打开 ⇒ 靠 dshwLayerUp 抬到 20510）
+    function () { return frameEditMask }
   ]
   function eff(el) {
     try {
@@ -11871,11 +13892,20 @@ textBox.appendChild(hintEl)
 
 var bubbleBox = document.createElement('div')
 bubbleBox.className = 'dshwv-pop'
-bubbleBox.innerHTML = '<svg viewBox="0 0 1026 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
-  '<path class="dshwv-bshape" fill="#FFFFFF" stroke="#203170" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" d="M 827 248 A 373 232 0 1 0 81 246 A 373 232 0 0 0 301 465 A 57 32 10 0 0 413 484 A 373 232 0 0 0 827 248 Z"/>' +
-  '<ellipse class="dshwv-b1" cx="352" cy="561" rx="37.5" ry="26" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
-  '<ellipse class="dshwv-b2" cx="442" cy="646" rx="24.5" ry="18" fill="#FFFFFF" stroke="#203170" stroke-width="18"/>' +
-  '</svg>'
+// v815：形状改为**框驱动**；v822 修复：SVG 单独装在一个 `.dshwv-shapewrap` 里。
+//   ⚠️ 血的教训：`bubbleBox` 里除了 SVG 还挂着 gifEl 与 textBox（泡泡内容）——
+//     展示时若整段重写 `bubbleBox.innerHTML`，就会把**内容和动图一起删掉**（用户实测"泡泡内什么都不显示了"）。
+//     所以运行期只重写这层专属容器，兄弟节点一个都不碰。
+//   ⚠️ 内置经典框的输出与历史写死值**逐字符一致**（探针 `_v815` 冻结比对），所以外观零变化。
+//   ⚠️ 再包一层兜底：无论渲染器怎么抽风，都不能让挂件在初始化时挂掉（v815 首版就是这么消失的）。
+var bubbleShapeBox = document.createElement('div')
+bubbleShapeBox.className = 'dshwv-shapewrap'
+try {
+  bubbleShapeBox.innerHTML = frameSvgMarkup(resolveFrameForStep(null), null)
+} catch (err) {
+  bubbleShapeBox.innerHTML = FRAME_CLASSIC_MARKUP
+}
+bubbleBox.appendChild(bubbleShapeBox)
 var gifEl = document.createElement('img')
 gifEl.className = 'dshwv-gif'
 gifEl.src = GIF_URL
@@ -12325,6 +14355,2701 @@ var bubbleLib = [] // 可选模块库(当前会话编辑用,随配置保存):[{i
 //   关闭（默认）= 点鲸鱼时，正在看第 2 项及以后 → 回到第 1 项（旧行为）
 //   开启       = 点鲸鱼 = 往后推进一项；已是最后一项 → 收起泡泡（与「点泡泡」一致），下次点按从第 1 项开始
 var bubbleTapAdvance = false
+
+// ===== v815：自定义泡泡框 —— 数据模型 / 归一化 / 渲染（P0：只读，外观必须与历史逐字符一致） =====
+// 背景：泡泡形状原先是**写死**在 bubbleBox.innerHTML 里的（大泡泡 path + 两个小泡泡 ellipse）。
+// 现在改成"框"驱动：一个框 = 三个槽位（big/small1/small2），每个槽位可换形状/图片/外观；
+// 每个"第 n 次点击"泡泡可指定框、并可**逐字段覆盖**单槽位外观（决策 7a）；没指定的走保底框。
+// ⚠️ P0 铁律：内置经典框渲染出的 SVG 必须与历史写死值**逐字符一致**（探针冻结比对），
+//    否则所有老用户的默认外观都会变 —— 这是这一阶段唯一的验收标准。
+// ⚠️ 常量（BUILTIN_FRAME_ID / FRAME_W / FRAME_H / FRAME_CLASSIC_* / FRAME_PRESETS / FRAME_CLASSIC_MARKUP）
+//    已上移到文件前部（BUBBLE_URL 之后）—— 它们必须在泡泡构建之前就绪，否则挂件会在初始化时抛错消失。
+function framePaintDefaults() {
+  return {
+    bgOn: true, bg: '#FFFFFF', bgAlpha: 1,
+    lineOn: true, line: '#203170', lineW: 18, lineAlpha: 1,
+    dashOn: false, dash: '0',
+    cap: 'round', join: 'round',
+  }
+}
+function frameSlotDefaults(kind) {
+  var base = { dx: 0, dy: 0, scale: 1, kind: 'svg', svgPreset: 'classic', svgCode: '', imgId: '', imgScale: 1, imgOpacity: 1, paint: framePaintDefaults() }
+  if (kind === 'small1' || kind === 'small2') base.on = true
+  return base
+}
+// 内置经典框：只读（归一化时会被强制还原成这里的值），任何人改不动
+function frameBuiltin() {
+  return {
+    id: BUILTIN_FRAME_ID,
+    name: '经典（内置）',
+    builtin: true,
+    pinned: 0,
+    createdAt: 0,
+    textColor: '',
+    safe: { x: 190, y: 90, w: 646, h: 400 },
+    slots: {
+      big: frameSlotDefaults('big'),
+      small1: frameSlotDefaults('small1'),
+      small2: frameSlotDefaults('small2'),
+    },
+  }
+}
+function frameNum(v, def, min, max) {
+  var n = Number(v)
+  if (!isFinite(n)) n = def
+  if (typeof min === 'number' && n < min) n = min
+  if (typeof max === 'number' && n > max) n = max
+  return Math.round(n * 1000) / 1000
+}
+// 形状颜色来自用户输入 ⇒ 必须白名单（只放行 #rgb/#rrggbb/rgb()/rgba()/transparent/none）
+function frameColor(v, def) {
+  var s = String(v == null ? '' : v).trim()
+  if (/^#[0-9a-fA-F]{3}$/.test(s) || /^#[0-9a-fA-F]{6}$/.test(s)) return s
+  if (/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+)\s*)?\)$/.test(s)) return s
+  if (s === 'transparent' || s === 'none') return s
+  return def
+}
+function frameNormPaint(raw) {
+  var d = framePaintDefaults()
+  var p = raw && typeof raw === 'object' ? raw : {}
+  var out = {}
+  out.bgOn = p.bgOn === undefined ? d.bgOn : p.bgOn !== false
+  out.bg = frameColor(p.bg, d.bg)
+  out.bgAlpha = frameNum(p.bgAlpha, d.bgAlpha, 0, 1)
+  out.lineOn = p.lineOn === undefined ? d.lineOn : p.lineOn !== false
+  out.line = frameColor(p.line, d.line)
+  out.lineW = frameNum(p.lineW, d.lineW, 0, 120)
+  out.lineAlpha = frameNum(p.lineAlpha, d.lineAlpha, 0, 1)
+  out.dashOn = p.dashOn === true
+  out.dash = /^[0-9][0-9.,\s]*$/.test(String(p.dash == null ? '' : p.dash).trim()) ? String(p.dash).trim().slice(0, 40) : d.dash
+  out.cap = (p.cap === 'butt' || p.cap === 'square' || p.cap === 'round') ? p.cap : d.cap
+  out.join = (p.join === 'miter' || p.join === 'bevel' || p.join === 'round') ? p.join : d.join
+  return out
+}
+function frameNormSlot(raw, kind) {
+  var d = frameSlotDefaults(kind)
+  var s = raw && typeof raw === 'object' ? raw : {}
+  var out = {
+    dx: frameNum(s.dx, d.dx, -FRAME_W, FRAME_W),
+    dy: frameNum(s.dy, d.dy, -FRAME_H, FRAME_H),
+    scale: frameNum(s.scale, d.scale, 0.2, 4),
+    kind: s.kind === 'image' ? 'image' : 'svg',
+    svgPreset: FRAME_PRESETS.indexOf(s.svgPreset) >= 0 ? s.svgPreset : d.svgPreset,
+    svgCode: String(s.svgCode == null ? '' : s.svgCode).slice(0, 8000),
+    imgId: String(s.imgId == null ? '' : s.imgId).slice(0, 64),
+    imgScale: frameNum(s.imgScale, d.imgScale, 0.1, 6),
+    imgOpacity: frameNum(s.imgOpacity, d.imgOpacity, 0, 1),
+    paint: frameNormPaint(s.paint),
+  }
+  if (kind === 'small1' || kind === 'small2') out.on = s.on === undefined ? true : s.on !== false
+  return out
+}
+function frameNormSafe(raw) {
+  var d = frameBuiltin().safe
+  var s = raw && typeof raw === 'object' ? raw : {}
+  var w = frameNum(s.w, d.w, 40, FRAME_W)
+  var h = frameNum(s.h, d.h, 40, FRAME_H)
+  var x = frameNum(s.x, d.x, 0, FRAME_W - w)
+  var y = frameNum(s.y, d.y, 0, FRAME_H - h)
+  return { x: x, y: y, w: w, h: h }
+}
+function frameNormOne(raw, idx) {
+  var s = raw && typeof raw === 'object' ? raw : {}
+  var id = String(s.id == null ? '' : s.id).trim().slice(0, 64)
+  if (!id) id = 'frame_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
+  var slotsIn = s.slots && typeof s.slots === 'object' ? s.slots : {}
+  return {
+    id: id,
+    name: String(s.name == null ? '' : s.name).trim().slice(0, 24) || ('泡泡框' + (idx + 1)),
+    builtin: s.builtin === true,
+    pinned: Math.round(frameNum(s.pinned, 0, 0, 9999)),
+    createdAt: Math.round(frameNum(s.createdAt, Date.now(), 0, 1e15)),
+    textColor: frameColor(s.textColor, ''),
+    safe: frameNormSafe(s.safe),
+    slots: {
+      big: frameNormSlot(slotsIn.big, 'big'),
+      small1: frameNormSlot(slotsIn.small1, 'small1'),
+      small2: frameNormSlot(slotsIn.small2, 'small2'),
+    },
+  }
+}
+// 归一化整份框库：**永远包含内置经典框**，且它的内容被强制还原（内置框只读，决策 2）
+function framesNorm(list, defId) {
+  var out = []
+  var seenBuiltin = false
+  var arr = Array.isArray(list) ? list : []
+  for (var i = 0; i < arr.length && out.length < 50; i++) {
+    var f = frameNormOne(arr[i], i)
+    if (f.id === BUILTIN_FRAME_ID) { seenBuiltin = true; continue }
+    out.push(f)
+  }
+  var def = String(defId == null ? '' : defId)
+  if (!out.some(function (x) { return x.id === def }) && def !== BUILTIN_FRAME_ID) def = BUILTIN_FRAME_ID
+  // 排序：置顶优先（pinned 降序），其次新建时间倒序；内置框固定排最后（只在"保底"处出现）
+  out.sort(function (a, b) { return (b.pinned - a.pinned) || (b.createdAt - a.createdAt) })
+  return { frames: out.concat([frameBuiltin()]), defaultFrameId: def }
+}
+var bubbleFrames = null // 运行期框库 {frames, defaultFrameId}；null = 还没从配置同步过（走内置）
+function syncFramesFromCfg() {
+  try {
+    var cfg = bubbleCfg && typeof bubbleCfg === 'object' ? bubbleCfg : {}
+    bubbleFrames = framesNorm(cfg.frames, cfg.defaultFrameId)
+  } catch (err) { bubbleFrames = framesNorm(null, null) }
+  return bubbleFrames
+}
+function framesNow() {
+  if (!bubbleFrames) syncFramesFromCfg()
+  return bubbleFrames
+}
+// 只有"用户真的自定义过"才把 frames 写回配置 —— 老配置永不被塞进新字段（零 churn）
+function framesAreCustom() {
+  var f = framesNow()
+  var custom = f.frames.some(function (x) { return x.id !== BUILTIN_FRAME_ID })
+  return custom || f.defaultFrameId !== BUILTIN_FRAME_ID
+}
+// 是否该把 frames 写回配置：① 有自定义框；② 保底被改过；③ 配置里**本来就有** frames
+//   （③ 是为了"删掉最后一个自定义框"也能落盘：否则删完就写不回去，配置里会残留旧框）
+function framesShouldPersist() {
+  try {
+    if (framesAreCustom()) return true
+    return !!(bubbleCfg && Array.isArray(bubbleCfg.frames))
+  } catch (err) { return false }
+}
+function frameById(id) {
+  var f = framesNow()
+  var want = String(id == null ? '' : id)
+  for (var i = 0; i < f.frames.length; i++) if (f.frames[i].id === want) return f.frames[i]
+  return null
+}
+// 三级兜底：本泡泡指定 → 保底默认 → 内置经典（任何一级失效都不会渲染异常）
+function resolveFrameForStep(step) {
+  try {
+    var f = framesNow()
+    var byStep = step && step.frameId ? frameById(step.frameId) : null
+    if (byStep) return byStep
+    var byDef = f.defaultFrameId ? frameById(f.defaultFrameId) : null
+    if (byDef) return byDef
+  } catch (err) {}
+  return frameBuiltin()
+}
+// 单槽位外观 = 框的 paint ← 被 items[i].frameOverride 逐字段覆盖（决策 7a=乙）
+function mergeSlotPaint(frame, override, slot) {
+  var base = framePaintDefaults()
+  try {
+    if (frame && frame.slots && frame.slots[slot] && frame.slots[slot].paint) base = frame.slots[slot].paint
+  } catch (err) {}
+  var ov = override && typeof override === 'object' && override[slot] && typeof override[slot] === 'object' ? override[slot] : null
+  if (!ov) return base
+  var known = frameNormPaint(ov) // 先归一，未知字段自动丢弃
+  var out = {}
+  for (var k in base) if (Object.prototype.hasOwnProperty.call(base, k)) out[k] = base[k]
+  for (var k2 in known) {
+    if (!Object.prototype.hasOwnProperty.call(known, k2)) continue
+    if (!Object.prototype.hasOwnProperty.call(ov, k2)) continue // 只覆盖"用户真的给过"的字段
+    out[k2] = known[k2]
+  }
+  return out
+}
+function frameNumStr(n) {
+  var v = Math.round(Number(n) * 100) / 100
+  return String(isFinite(v) ? v : 0)
+}
+function frameShapeAttrs(paint, mode) {
+  // 属性顺序与历史写死值保持一致（P0 逐字符比对要求）：
+  //   path    = class fill stroke stroke-width stroke-linejoin stroke-linecap d
+  //   ellipse = class cx cy rx ry fill stroke stroke-width（历史里**没有** linejoin/linecap）
+  var a = ''
+  a += ' fill="' + (paint.bgOn ? paint.bg : 'none') + '"'
+  a += ' stroke="' + (paint.lineOn ? paint.line : 'none') + '"'
+  if (paint.lineOn && paint.lineW > 0) a += ' stroke-width="' + frameNumStr(paint.lineW) + '"'
+  if (mode === 'path') {
+    if (paint.join) a += ' stroke-linejoin="' + paint.join + '"'
+    if (paint.cap) a += ' stroke-linecap="' + paint.cap + '"'
+  }
+  if (paint.dashOn && paint.dash && paint.dash !== '0') a += ' stroke-dasharray="' + paint.dash + '"'
+  if (paint.bgOn && paint.bgAlpha < 1) a += ' fill-opacity="' + frameNumStr(paint.bgAlpha) + '"'
+  if (paint.lineOn && paint.lineAlpha < 1) a += ' stroke-opacity="' + frameNumStr(paint.lineAlpha) + '"'
+  return a
+}
+// v830（用户要求）：图片槽位的**命中形状** —— 与"预设/自定义代码"画同一个轮廓，但填成"看不见"：
+//   `fill-opacity` 取一个极小值（1/255 量级）⇒ 人眼看不见，但浏览器认为**有填充** ⇒ 轮廓内可点、
+//   轮廓外的透明角落穿透到页面。这样"图片框"的点击区域就与形状轮廓一致（而不是整张图矩形的四角）。
+//   ⚠️ 不要写成 `fill="transparent"` / `fill="none"`：前者在部分实现里会被当成"没有填充"⇒ 整块点不到，
+//      后者按规范就是"不可命中"。极小的 fill-opacity 是这里唯一稳的写法。
+function frameHitShapeMarkup(slot, paint, code, preset, base, cls, dx, dy, sc) {
+  try {
+    // ⚠️ 直接用字面量，不走 frameShapeAttrs/frameNumStr —— 后者会把 0.004 四舍五入成 0
+    //    （fill-opacity="0" 在部分实现里会被当成"没有画" ⇒ 整块点不到，正是要避免的坑）
+    var HITA = ' fill="#FFFFFF" fill-opacity="0.004" stroke="none"'
+    var kind = cls || 'dshwv-bshape'
+    // v879（用户反馈"图片框上有区域点不到，像是还按旧形状判定"）：
+    //   命中形状以前**一律**按 svgCode / svgPreset 生成 —— 而图片槽位这两个字段通常是空的，
+    //   于是退回 classic：大泡泡变成"鲸鱼轮廓"、小泡泡变成椭圆 ⇒ 图片上落在旧形状之外的区域**点不到**。
+    //   现在：图片槽位的命中形状 = **覆盖这张图片矩形**的透明矩形（与 `<image>` 用同一套几何：
+    //   frameImageGeom 的 x/y/width/height ⇒ 所见即所得，点哪儿都算）。图片本身是 pointer-events:none，
+    //   这块矩形排在它后面（同层、更靠上），所以点击由它接管。
+    if (slot && slot.kind === 'image' && slot.imgId) {
+      try {
+        var gbox = base
+          ? { x: base.cx - base.rx, y: base.cy - base.ry, w: base.rx * 2, h: base.ry * 2 }
+          : FRAME_BOX
+        var attrs = frameImageGeom(gbox, dx || 0, dy || 0, sc || 1, slot)
+        var mx = / x="([^"]+)"/.exec(attrs)
+        var my = / y="([^"]+)"/.exec(attrs)
+        var mw = / width="([^"]+)"/.exec(attrs)
+        var mh = / height="([^"]+)"/.exec(attrs)
+        if (mx && my && mw && mh) {
+          var rx0 = Number(mx[1]), ry0 = Number(my[1]), rw0 = Number(mw[1]), rh0 = Number(mh[1])
+          // v880（用户拍板）：命中区 = 图片**不透明部分的包围盒** —— 可见处全可点、透明边距**照旧穿透**。
+          //   · 复用编辑器那套"按 imgId 量一次、缓存"的能力（frameEditOpaqueCache / frameEditOpaqueEnsure）；
+          //   · 还没量到 ⇒ 先用整张图矩形顶着（保证"点得到"），并**后台量一次**，量到后原地重画一次
+          //     把命中区收紧（不会反复重画：缓存与 pending 都有去重）；
+          //   · 量不到（全透明 / 读不出像素）⇒ 一直用整图矩形，绝不变成"整块点不到"。
+          var id0 = String(slot.imgId)
+          // ⚠️ 存在性守卫：这两样由编辑器那一段定义，而本文件常被离线探针"按片段切出来"单独 eval
+          //   （切片里没有它们时，裸引用会抛 ReferenceError，被外层 try 吞掉 ⇒ 整块命中形状消失）。
+          var ob = (typeof frameEditOpaqueCache !== 'undefined' && frameEditOpaqueCache) ? frameEditOpaqueCache[id0] : null
+          if (ob && isFinite(ob.ar) && ob.ar > 0 && rw0 > 0 && rh0 > 0) {
+            var dw = rw0
+            var dh = rh0
+            if (ob.ar > rw0 / rh0) dh = rw0 / ob.ar
+            else dw = rh0 * ob.ar
+            var ox0 = rx0 + (rw0 - dw) / 2
+            var oy0 = ry0 + (rh0 - dh) / 2
+            var hx = ox0 + dw * ob.fx
+            var hy = oy0 + dh * ob.fy
+            var hw = dw * ob.fw
+            var hh = dh * ob.fh
+            // 太小的命中区（近乎全透明）没有意义 ⇒ 退回整图矩形，避免"看起来点不到"
+            if (hw >= 8 && hh >= 8) {
+              return '<rect class="' + kind + '"' + HITA + ' x="' + frameNumStr(hx) + '" y="' + frameNumStr(hy) +
+                '" width="' + frameNumStr(hw) + '" height="' + frameNumStr(hh) + '"/>'
+            }
+          } else {
+            try {
+              if (typeof frameEditOpaqueEnsure === 'function') {
+                frameEditOpaqueEnsure(id0, function () {
+                  try { if (typeof frameReapplyCurrent === 'function') frameReapplyCurrent() } catch (err) {} // 量到后原地重画：命中区收紧、透明处恢复穿透
+                })
+              }
+            } catch (err) {}
+          }
+          return '<rect class="' + kind + '"' + HITA + ' x="' + mx[1] + '" y="' + my[1] +
+            '" width="' + mw[1] + '" height="' + mh[1] + '"/>'
+        }
+      } catch (err) {}
+    }
+    if (!base) {
+      // 大泡泡：代码优先，其次预设，最后经典
+      if (code) return '<g class="' + kind + '"' + HITA + '>' + code + '</g>'
+      var d = (preset === 'roundrect' || preset === 'zigzag') ? framePresetBoxD(preset) : FRAME_CLASSIC_BIG_D
+      if (!d) d = FRAME_CLASSIC_BIG_D
+      return '<path class="' + kind + '"' + HITA + ' d="' + d + '"/>'
+    }
+    // 小泡泡：代码 ⇒ 画布坐标；预设 ⇒ 映射进它自己的小框；经典 ⇒ 椭圆
+    if (code) {
+      var trc = 'translate(' + frameNumStr(base.cx + (dx || 0)) + ' ' + frameNumStr(base.cy + (dy || 0)) + ') scale(' + frameNumStr(sc || 1) + ') translate(' + frameNumStr(-base.cx) + ' ' + frameNumStr(-base.cy) + ')'
+      return '<g class="' + kind + '"' + HITA + ' transform="' + trc + '">' + code + '</g>'
+    }
+    if (preset === 'roundrect' || preset === 'zigzag') {
+      var d2 = framePresetBoxD(preset)
+      if (d2) {
+        var bcx = FRAME_BOX.x + FRAME_BOX.w / 2
+        var bcy = FRAME_BOX.y + FRAME_BOX.h / 2
+        var kx = (base.rx * (sc || 1)) / (FRAME_BOX.w / 2)
+        var ky = (base.ry * (sc || 1)) / (FRAME_BOX.h / 2)
+        var trp = 'translate(' + frameNumStr(base.cx + (dx || 0)) + ' ' + frameNumStr(base.cy + (dy || 0)) + ') scale(' + frameNumStr(kx) + ' ' + frameNumStr(ky) + ') translate(' + frameNumStr(-bcx) + ' ' + frameNumStr(-bcy) + ')'
+        return '<path class="' + kind + '"' + HITA + ' transform="' + trp + '" d="' + d2 + '"/>'
+      }
+    }
+    return '<ellipse class="' + kind + '" cx="' + frameNumStr(base.cx + (dx || 0)) + '" cy="' + frameNumStr(base.cy + (dy || 0)) +
+      '" rx="' + frameNumStr(base.rx * (sc || 1)) + '" ry="' + frameNumStr(base.ry * (sc || 1)) + '"' + HITA + '/>'
+  } catch (err) { return '' }
+}
+// v828（P4）：图片槽位的几何 —— 按"槽位自己的框"铺满（preserveAspectRatio meet ⇒ 不拉伸变形），
+//   偏移/缩放/透明度来自槽位；transparent 的 fill/stroke 让框级 paint 不干扰图片。
+function frameImageGeom(box, dx, dy, sc, slot) {
+  try {
+    var b = box || FRAME_BOX
+    var s = isFinite(sc) && sc > 0 ? Number(sc) : 1
+    var ox = Number(dx) || 0
+    var oy = Number(dy) || 0
+    var op = (slot && isFinite(slot.imgOpacity)) ? Number(slot.imgOpacity) : 1
+    if (!(op >= 0)) op = 1
+    if (op > 1) op = 1
+    var sc2 = (slot && isFinite(slot.imgScale) && Number(slot.imgScale) > 0) ? Number(slot.imgScale) : 1
+    var w = b.w * s * sc2
+    var h = b.h * s * sc2
+    var x = b.x * s + (b.x + b.w / 2) * (1 - s) + ox + (b.w * s * (1 - sc2)) / 2
+    var y = b.y * s + (b.y + b.h / 2) * (1 - s) + oy + (b.h * s * (1 - sc2)) / 2
+    var url = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(String(slot && slot.imgId ? slot.imgId : ''))
+    return ' href="' + url + '" x="' + frameNumStr(x) + '" y="' + frameNumStr(y) + '"' +
+      ' width="' + frameNumStr(w) + '" height="' + frameNumStr(h) + '"' +
+      ' preserveAspectRatio="xMidYMid meet"' + (op < 1 ? ' opacity="' + frameNumStr(op) + '"' : '')
+  } catch (err) { return '' }
+}
+// 生成整段 <svg>：经典形状必须与历史写死值**逐字符一致**
+// ⚠️ 这个函数**绝不允许抛错**：它出问题就等于整个挂件挂不上（v815 首版真的这么消失过一次）。
+//    所以外面包一层 try/catch + 常量存在性检查，任何异常都退化成 FRAME_CLASSIC_MARKUP（= 历史外观）。
+function frameSvgMarkup(frame, override, opts) {
+  try {
+    if (!FRAME_CLASSIC_BIG_D || !FRAME_CLASSIC_SMALL || !FRAME_CLASSIC_SMALL.length) return FRAME_CLASSIC_MARKUP
+    var o = opts || {}
+    var f = frame || frameBuiltin()
+    var slots = f.slots || {}
+    var bigP = mergeSlotPaint(f, override, 'big')
+    var s1P = mergeSlotPaint(f, override, 'small1')
+    var s2P = mergeSlotPaint(f, override, 'small2')
+    var big = slots.big || frameSlotDefaults('big')
+    var s1 = slots.small1 || frameSlotDefaults('small1')
+    var s2 = slots.small2 || frameSlotDefaults('small2')
+    var body = ''
+    // ---- 大泡泡 ----
+    // ⚠️ classic 分支的拼接表达式**一个字都不许动**：P0 的"逐字符一致"是硬约束，加功能只能**新增分支**。
+    // v828（按用户最初的提示词）：**SVG 代码框常驻**，语义 = "留空则用上面选的预设，填了就按代码画"
+    //   ⇒ 所以顺序是"先看代码、再看预设"（老数据里 `svgPreset:'custom'` + 有代码的框，
+    //     以及"预设=经典 + 又填了代码"的框，都走同一条代码分支，行为可预期）。
+    var bigPreset = String(big.svgPreset || 'classic')
+    var bigCode = frameSvgClean(big.svgCode)
+    var bigInner = ''
+    // v828（P4 图片模式）：槽位可以是图片 —— `<image>` 由**客户端自己拼**（宿主白名单仍不放行 image/href，
+    //   用户写进 svgCode 的 `<image href=…>` 照样会被 frameSvgSanitize() 剥掉，负样本仍在探针里）。
+    //   URL 只可能来自站内图库路由（`/dsh-whale/bubble-img.png?id=<encodeURIComponent(id)>`）⇒ 拼不出外链。
+    if (big.kind === 'image' && big.imgId) {
+      // v830：图片 + **命中形状**（fill-opacity 极小 ⇒ 看不见，但"有填充"⇒ 轮廓内可点）
+      bigInner = '<image class="dshwv-bshape"' + frameImageGeom(FRAME_BOX, 0, 0, 1, big) + '/>' + frameHitShapeMarkup(big, bigP, bigCode, bigPreset)
+    } else if (bigCode) {
+      // 自定义代码：先过客户端净化（与宿主同一套白名单），再作为 <g class="dshwv-bshape"> 的**子节点**渲染 ——
+      // 放在 g 上而不是直接铺进 svg，是为了让"底色/描边/线宽"这些框级 paint 继续生效
+      // （fill/stroke/stroke-width/linecap/linejoin 都可继承，用户代码里显式写了的属性仍然优先）。
+      bigInner = '<g class="dshwv-bshape"' + frameShapeAttrs(bigP, 'path') + '>' + bigCode + '</g>'
+    } else if (bigPreset === 'roundrect' || bigPreset === 'zigzag') {
+      var presetD = framePresetBoxD(bigPreset)
+      if (presetD) bigInner = '<path class="dshwv-bshape"' + frameShapeAttrs(bigP, 'path') + ' d="' + presetD + '"/>'
+      else { framePresetWarnOnce(bigPreset); bigInner = '<path class="dshwv-bshape"' + frameShapeAttrs(bigP, 'path') + ' d="' + FRAME_CLASSIC_BIG_D + '"/>' }
+    } else {
+      if (bigPreset !== 'classic') framePresetWarnOnce(bigPreset)
+      bigInner = '<path class="dshwv-bshape"' + frameShapeAttrs(bigP, 'path') + ' d="' + FRAME_CLASSIC_BIG_D + '"/>'
+    }
+    // 位移/缩放（默认值 ⇒ 空串 ⇒ classic 输出逐字符不变）
+    var bigTr = frameBigTransform(big)
+    body += bigTr ? ('<g transform="' + bigTr + '">' + bigInner + '</g>') : bigInner
+    // ---- 两个小泡泡（v828：也支持预设与自定义代码）----
+    // 坐标语义（已与用户确认）：
+    //   · **预设**（圆角矩形/锯齿）⇒ 把 FRAME_BOX 坐标系里的那条路径**等比映射进这个小泡泡的框**
+    //     （否则一个 746x464 的矩形塞进 75x52 的小泡泡会变成巨型矩形）；
+    //   · **自定义代码** ⇒ 与大泡泡同一套**画布坐标**（用户自己写位置/大小），位置与缩放靠本槽位的位移/缩放调。
+    //   · classic（默认）⇒ 历史椭圆，逐字符不变。
+    function smallMarkup(base, slot, paint, cls) {
+      if (!base) return ''
+      if (!slot || slot.on === false) return ''
+      var sc = isFinite(slot.scale) ? slot.scale : 1
+      var dx = Number(slot.dx) || 0
+      var dy = Number(slot.dy) || 0
+      var code = frameSvgClean(slot.svgCode)
+      // 图片模式（v828）：小泡泡各放各的图 —— 按它自己的小框铺满 + 位移/缩放/透明度
+      if (slot.kind === 'image' && slot.imgId) {
+        var bx = { x: base.cx - base.rx, y: base.cy - base.ry, w: base.rx * 2, h: base.ry * 2 }
+        // v830：图片 + 命中形状（与"预设/代码"同形，只是不可见）
+        return '<image class="' + cls + '"' + frameImageGeom(bx, dx, dy, sc, slot) + '/>' +
+          frameHitShapeMarkup(slot, paint, frameSvgClean(slot.svgCode), String(slot.svgPreset || 'classic'), base, cls, dx, dy, sc)
+      }
+      if (code) {
+        var trc = 'translate(' + frameNumStr(base.cx + dx) + ' ' + frameNumStr(base.cy + dy) + ') scale(' + frameNumStr(sc) + ') translate(' + frameNumStr(-base.cx) + ' ' + frameNumStr(-base.cy) + ')'
+        return '<g class="' + cls + '"' + frameShapeAttrs(paint, 'path') + ' transform="' + trc + '">' + code + '</g>'
+      }
+      var preset = String(slot.svgPreset || 'classic')
+      if (preset === 'roundrect' || preset === 'zigzag') {
+        var d2 = framePresetBoxD(preset)
+        if (d2) {
+          var bcx = FRAME_BOX.x + FRAME_BOX.w / 2
+          var bcy = FRAME_BOX.y + FRAME_BOX.h / 2
+          var kx = (base.rx * sc) / (FRAME_BOX.w / 2)
+          var ky = (base.ry * sc) / (FRAME_BOX.h / 2)
+          var trp = 'translate(' + frameNumStr(base.cx + dx) + ' ' + frameNumStr(base.cy + dy) + ') scale(' + frameNumStr(kx) + ' ' + frameNumStr(ky) + ') translate(' + frameNumStr(-bcx) + ' ' + frameNumStr(-bcy) + ')'
+          return '<path class="' + cls + '"' + frameShapeAttrs(paint, 'path') + ' transform="' + trp + '" d="' + d2 + '"/>'
+        }
+      }
+      var cx = frameNumStr(base.cx + (slot.dx || 0))
+      var cy = frameNumStr(base.cy + (slot.dy || 0))
+      var rx = frameNumStr(base.rx * sc)
+      var ry = frameNumStr(base.ry * sc)
+      return '<ellipse class="' + cls + '" cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '"' + frameShapeAttrs(paint, 'ellipse') + '/>'
+    }
+    body += smallMarkup(FRAME_CLASSIC_SMALL[0], s1, s1P, 'dshwv-b1')
+    body += smallMarkup(FRAME_CLASSIC_SMALL[1], s2, s2P, 'dshwv-b2')
+    return '<svg viewBox="0 0 1026 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' + body + '</svg>'
+  } catch (err) {
+    try { console.warn('[dsh-whale] 泡泡框渲染失败，已退回经典形状：' + String((err && err.message) || err)) } catch (e2) {}
+    return FRAME_CLASSIC_MARKUP
+  }
+}
+// v834（用户要求）：缩略图**把三个泡泡都画出来**（v821 时只画大泡泡）；viewBox 收到"所有内容"的范围，
+//   这样大泡泡 + 两个小泡泡都在画面里、又不浪费四周空白（小泡泡在 y≈535–699，所以下边要收到 700）。
+function frameThumbMarkup(frame, override) {
+  try {
+    return frameSvgMarkup(frame, override).replace('viewBox="0 0 1026 700"', 'viewBox="40 10 950 690"')
+  } catch (err) { return FRAME_CLASSIC_MARKUP }
+}
+var framePresetWarned = {}
+function framePresetWarnOnce(preset) {
+  try {
+    // ⚠️ framePresetWarned 是后置 var（初始化时可能是 undefined）⇒ 自愈式初始化，绝不抛错
+    if (!framePresetWarned) framePresetWarned = {}
+    if (framePresetWarned[preset]) return
+    framePresetWarned[preset] = true
+    console.warn('[dsh-whale] 泡泡框预设 ' + preset + ' 尚未实现，暂按经典形状渲染')
+  } catch (err) {}
+}
+// 把框写进真实泡泡（保持类名不变 ⇒ 现有 CSS 过渡/动画与 measureBubbleCenter 都照旧）
+// ⚠️ v822：只重写 `.dshwv-shapewrap`（专属形状容器），**绝不能**写 `bubbleBox.innerHTML` ——
+//   那会把 gifEl（动图）与 textBox（泡泡内容）一起删掉（用户实测过"泡泡内什么都不显示"）。
+function applyBubbleFrame(frame, override) {
+  try {
+    if (!bubbleBox) return false
+    if (!bubbleShapeBox || !bubbleShapeBox.parentNode) {
+      bubbleShapeBox = document.createElement('div')
+      bubbleShapeBox.className = 'dshwv-shapewrap'
+      bubbleBox.insertBefore(bubbleShapeBox, bubbleBox.firstChild || null)
+    }
+    bubbleShapeBox.innerHTML = frameSvgMarkup(frame, override)
+    // v823（P2·决策 7b）：框级**默认**文字色 —— 写到 .dshwv-text 上，靠 CSS 继承生效。
+    //   为什么这样就是"内容里逐行设的颜色优先"：bubbleRowsTo() 只给**显式设过颜色**的行写内联 color，
+    //   没设的行本来就从 .dshwv-text 继承。所以这里写一次即可，绝不会盖掉逐行颜色。
+    //   空值 ⇒ 清掉内联样式，回到 CSS 默认色 #536ba9（老配置行为一字不变）。
+    try {
+      if (textBox) textBox.style.color = (frame && frame.textColor) ? String(frame.textColor) : ''
+    } catch (err) {}
+    applyBubbleTextFrame(frame)
+    return true
+  } catch (err) { return false }
+}
+// ===== v825（P3）：安全区（safe）真正生效 =====
+// 背景：`safe` 矩形从 P0 起就存在，但一直**没有任何消费方**（文字走 --dshw-vx/--dshw-vy 那套"bbox 中心 + 66%x64%"）。
+// 这里把它换算成 .dshwv-text 的 left/top/width/height（**保留 CSS 的 translate(-50%,-50%)** ⇒ 仍是"以中心定位"）。
+//
+// ⚠️ 为什么**内置经典框不走这条路**（这是 P3 最重要的一条取舍）：
+//   历史文字位置 = 大泡泡 bbox 中心（`measureBubbleCenter()` 用 getBBox **实测**后写进 --dshw-vx/--dshw-vy）+ 66%x64%。
+//   它有两个特性：① 形状换一点、文字跟着动；② 实测值会在 rAF/load/resize 后自校正。
+//   而 `safe` 是**静态常量**（内置框写死 {190,90,646,400}）—— 直接换过去会让所有老用户的默认文字位置**位移**
+//   （实测中心 ≈ 454/247 画布单位，而那个 safe 的中心是 513/290），这与 P0 起就钉死的"老配置外观零变化"冲突。
+//   ⇒ 规则：内置框保持 legacy；**自定义框**用框自己的 safe（新建/复制时会把 safe 初始化为"历史文字框"，
+//     所以复制出来的框看起来与内置框一模一样，用户再自己拖安全区）。
+//   ⚠️ 老配置里没有自定义框 ⇒ 行为一字不变；`--dshw-vx/--dshw-vy` 作为"没有 safe 时"的兜底保留。
+var SAFE_LEGACY_W = 0.66 // 与 .dshwv-text 的 width:66% 对应
+var SAFE_LEGACY_H = 0.64 // 与 .dshwv-text 的 height:64% 对应
+// "历史文字框"：中心取当前实测中心（没有实测值时用 CSS 兜底 44.25%/36%），尺寸取 66%x64%
+function frameLegacySafe() {
+  var w = SAFE_LEGACY_W * FRAME_W
+  var h = SAFE_LEGACY_H * FRAME_H
+  var cx = (isFinite(dshwCenterX) ? Number(dshwCenterX) : 44.25) / 100 * FRAME_W
+  var cy = (isFinite(dshwCenterY) ? Number(dshwCenterY) : 36) / 100 * FRAME_H
+  return frameNormSafe({ x: cx - w / 2, y: cy - h / 2, w: w, h: h })
+}
+// 框级安全区 → .dshwv-text 的内联几何（百分比）；返回 null = 走 legacy（内置框 / 取不到）
+function frameTextStyleOf(frame) {
+  try {
+    if (!frame) return null
+    if (frame.builtin === true || frame.id === BUILTIN_FRAME_ID) return null
+    var s = frameNormSafe(frame.safe)
+    if (!(s.w > 0) || !(s.h > 0)) return null
+    // v847（用户最新要求，**覆盖 v845 的"从顶部开始"**）：安全框内的文字**水平竖直都居中**。
+    //   top 取安全区中心（配 CSS 的 translate(-50%,-50%) 就是正中心）；宽度仍取安全区宽度（硬约束、超了折行）；
+    //   height 继续给出（老配置/其它消费者可能读它），渲染层被 CSS 的 height:auto 盖掉 ⇒ 行数变多时上下对称长出来。
+    return {
+      left: ((s.x + s.w / 2) / FRAME_W * 100) + '%',
+      top: ((s.y + s.h / 2) / FRAME_H * 100) + '%',
+      width: (s.w / FRAME_W * 100) + '%',
+      height: (s.h / FRAME_H * 100) + '%',
+    }
+  } catch (err) { return null }
+}
+// 把安全区写到真实泡泡的文字层；内置框/取不到 ⇒ 清掉内联几何，交回 --dshw-vx/--dshw-vy（老行为）
+function applyBubbleTextFrame(frame) {
+  try {
+    if (!textBox || !textBox.style) return
+    var st = frameTextStyleOf(frame)
+    if (!st) {
+      textBox.style.left = ''
+      textBox.style.top = ''
+      textBox.style.width = ''
+      textBox.style.height = ''
+      try { textBox.classList.remove('dshwv-textsafe') } catch (err) {}
+      return
+    }
+    textBox.style.left = st.left
+    textBox.style.top = st.top
+    textBox.style.width = st.width
+    textBox.style.height = st.height
+    // v838：挂了安全区 ⇒ 允许换行（收窄安全区时文字跟着折行）
+    try { textBox.classList.add('dshwv-textsafe') } catch (err) {}
+  } catch (err) {}
+}
+// ===== v821（P1）：展示时按"这一项用的框"重画形状 =====
+// 为什么要缓存签名：连续几项都用同一个框时（绝大多数情况）不必反复重建 innerHTML。
+var frameAppliedSig = null
+function frameSigOf(frame, override) {
+  try { return JSON.stringify([frame || null, override || null]) } catch (err) { return String(Date.now()) }
+}
+function applyBubbleFrameFor(x) {
+  try {
+    var frame = resolveFrameForStep(x)
+    var override = (x && x.frameOverride && typeof x.frameOverride === 'object') ? x.frameOverride : null
+    var sig = frameSigOf(frame, override)
+    if (sig === frameAppliedSig && bubbleBox && bubbleBox.querySelector('svg')) return true
+    if (applyBubbleFrame(frame, override)) {
+      frameAppliedSig = sig
+      // v823（P2）：记住"当前真实泡泡用的是哪个框"（**只存 id**，框库对象会被 framesNorm 整体换新）——
+      //   编辑器保存后据此原地重画一次，用户不必等下一轮点按才看到新形状。
+      frameAppliedId = (frame && frame.id) ? String(frame.id) : ''
+      frameAppliedOverride = override
+      return true
+    }
+  } catch (err) {}
+  return false
+}
+// 系统泡泡（消耗/预警/等待）没有"第 n 次点击"上下文 ⇒ 一律用保底框
+function applyDefaultFrame() { return applyBubbleFrameFor(null) }
+// 框被编辑/删除后调用：强制下一次重画
+function frameInvalidateApplied() { frameAppliedSig = null }
+// v823（P2）：「当前真实泡泡用的是哪个框」——只存 id 与覆盖（框库对象会被 framesNorm 换新）
+var frameAppliedId = ''
+var frameAppliedOverride = null
+// 框库被改过之后原地重画当前泡泡（泡泡正显示时才做；否则等下一次展示自然生效）
+function frameReapplyCurrent() {
+  try {
+    if (!bubbleShown) return
+    applyBubbleFrameFor({ frameId: frameAppliedId, frameOverride: frameAppliedOverride })
+    // v846：框变了（尤其内容限制范围的宽度变了）⇒ 顺便把内容行重建一次，
+    //   让"折行/宽度"按新的安全区重新算一遍（以前只有下次弹泡泡才会重排）。
+    if (bubbleLiveMods && textBox) bubbleRowsTo(textBox, bubbleLiveMods)
+  } catch (err) {}
+}
+
+// ===== v823（P2）：泡泡框编辑器（新建 / 编辑 / 另存为）—— 见 PLAN §12 的 P2 开工清单 =====
+// 这一层的三条设计约束（都是从 P0/P1 的事故里换来的）：
+//   ① **只动自己的预览舞台**：真实泡泡的形状只在"保存后"由 applyBubbleFrame() 重画一次；
+//      本窗口运行期绝不碰真实 bubbleBox 的兄弟节点（v822：整段重写会把内容与动图删掉）；
+//   ② **一切写操作落在草稿副本 frameEditDraft 上** ⇒「取消」天然丢弃，「重置」= 回到打开时快照，
+//      真实框库只在点保存/另存为/存为新样式时才被替换（与现有窗口"取消绝不落盘"的语义一致）；
+//   ③ **保存一律走 framesNorm()**（PLAN §12 第 7 条）——不绕过归一化写原始数据，内置框因此永远改不动。
+// 本段的加载期代码只做 createElement/appendChild：任何读框库/读配置的动作都推迟到 openFrameEditor()。
+var frameEditMask = null
+var frameEditCard = null
+var frameEditTitleEl = null
+var frameEditNameInp = null
+var frameEditStageBox = null
+var frameEditStageEl = null
+var frameEditSafeRow = null // v828：内容限制范围那一行（在预览下面）
+
+var frameEditShapeBox = null
+var frameEditSlotsEl = null
+var frameEditAttrsEl = null
+var frameEditBtnsEl = null
+var frameEditFields = null // { x, y, scRange, scNum }：拖动时要跟着刷新的数值框
+var frameEditDraft = null
+var frameEditSnap = ''
+var frameEditMode = 'new' // new | edit | saveas
+var frameEditSel = 'big' // big | small1 | small2 | all
+var frameEditDrag = null // { slot, x0, y0, dx0, dy0, u }
+var frameEditU = 1 // 预览里 1 个画布单位 = 多少 px
+var frameEditOrig = null // edit 模式下打开时的原始框（另存为时用来比较/命名）
+function frameEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+function frameEditSlotsAll() { return ['big', 'small1', 'small2'] }
+function frameEditTargets() { return frameEditSel === 'all' ? frameEditSlotsAll() : [frameEditSel] }
+function frameEditHasBig() { return frameEditTargets().indexOf('big') >= 0 }
+function frameEditSlotOf(kind) {
+  try { return frameEditDraft && frameEditDraft.slots ? frameEditDraft.slots[kind] : null } catch (err) { return null }
+}
+function frameEditSlotLabel(kind) {
+  if (kind === 'big') return '大泡泡'
+  return kind === 'small2' ? '小泡泡2' : '小泡泡1'
+}
+function frameEditMarkDirty() {
+  try { if (frameEditNameInp) frameEditDraft.name = String(frameEditNameInp.value || '').slice(0, 24) } catch (err) {}
+}
+function frameEditIsDirty() {
+  try { return JSON.stringify(frameEditDraft) !== frameEditSnap } catch (err) { return true }
+}
+// 预览内容 = 用户**当前「首次点击弹出内容」**的真实数据（PLAN 决策 14）
+function frameEditPreviewMods() {
+  try {
+    var step = (bubbleEditItems && bubbleEditItems.length) ? bubbleEditItems[0] : null
+    if (step) {
+      if (bubbleIsChoice(step)) {
+        var o = bubbleChoiceOptions(step)[0]
+        var it = o && o.item
+        if (it && Array.isArray(it.modules)) return JSON.parse(JSON.stringify(it.modules))
+      } else if (Array.isArray(step.modules)) {
+        return JSON.parse(JSON.stringify(step.modules))
+      } else {
+        return bubbleDefaultModules(step.kind === 'random' ? 'random' : 'normal')
+      }
+    }
+    var dq = bubbleDefaultQueue()
+    if (dq && dq[0] && Array.isArray(dq[0].modules)) return JSON.parse(JSON.stringify(dq[0].modules))
+  } catch (err) {}
+  return []
+}
+// ── 预览舞台（含选中框）──
+function frameEditSelectionDraw() {
+  try {
+    var svg = frameEditShapeBox ? frameEditShapeBox.querySelector('svg') : null
+    if (!svg) return
+    var old = svg.querySelectorAll('.dshwv-fesel')
+    for (var k = 0; k < old.length; k++) { try { old[k].parentNode.removeChild(old[k]) } catch (err) {} }
+    if (!frameEditSel || !frameEditDraft) return
+    var kinds = frameEditTargets()
+    for (var i = 0; i < kinds.length; i++) {
+      var kind = kinds[i]
+      var sl = frameEditSlotOf(kind)
+      if (!sl) continue
+      if (kind !== 'big' && sl.on === false) continue // 已删除的小泡泡不画选中框
+      // v842（用户要求）：虚线框围住的是**内容包围盒**（图片 = 不透明部分；SVG = 真实几何），
+      //   不再是"槽位的名义框" —— 图片四角是透明的时，虚线框会贴着图案本身。
+      var box = frameEditSlotContentBox(kind) || frameSlotBox(frameEditDraft, kind)
+      var pad = 8
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      r.setAttribute('class', 'dshwv-fesel')
+      r.setAttribute('x', String(frameR2(box.x - pad)))
+      r.setAttribute('y', String(frameR2(box.y - pad)))
+      r.setAttribute('width', String(frameR2(Math.max(1, box.w + pad * 2))))
+      r.setAttribute('height', String(frameR2(Math.max(1, box.h + pad * 2))))
+      r.setAttribute('rx', '6')
+      r.setAttribute('fill', 'none')
+      r.setAttribute('stroke', '#3a56a8')
+      r.setAttribute('stroke-width', '3')
+      r.setAttribute('stroke-dasharray', '10 8')
+      r.setAttribute('pointer-events', 'none')
+      svg.appendChild(r)
+    }
+  } catch (err) {}
+}
+function frameEditPreviewRefresh() {
+  try {
+    if (!frameEditStageBox || !frameEditDraft) return
+    // v835（用户要求）：预览**按实机大小**显示 —— 实机泡泡宽 = 挂件根节点的宽度（--dshw-base 解析后的 px），
+    //   高 = 宽 x 700/1026（`.dshwv-pop` 就是 1026:700 的宽高比）。根节点量不到才退回"填满预览框"。
+    var realW = 0
+    try {
+      var rootEl = document.querySelector ? document.querySelector('.dshwv-root') : null
+      if (rootEl && rootEl.getBoundingClientRect) realW = Math.round(rootEl.getBoundingClientRect().width || 0)
+    } catch (err) {}
+    // v837（用户要求）：外面那圈**虚线框的宽度**要贴着"真实可显示的泡泡宽度"，不再是整列宽 ——
+    //   先把上一次设过的宽度清掉再量，否则会自我反馈。
+    try { frameEditStageBox.style.width = '' } catch (err) {}
+    var colW = Math.max(180, Math.round(frameEditStageBox.clientWidth || 380))
+    var fitW = colW - 18
+    var W = (realW > 60) ? realW : fitW
+    // 实机尺寸比编辑窗口还宽时只能等比缩（否则会撑破卡片）；这种情形会在 ? 说明里点出来
+    if (W > fitW) W = fitW
+    var H = Math.round(W * FRAME_H / FRAME_W)
+    frameEditU = W / FRAME_W
+    frameEditStageBox.innerHTML = ''
+    var stage = document.createElement('div')
+    stage.className = 'dshwv-festage'
+    stage.style.width = W + 'px'
+    stage.style.height = H + 'px'
+    stage.style.setProperty('--dshw-u', frameEditU + 'px')
+    try {
+      stage.style.setProperty('--dshw-vx', dshwCenterX + '%')
+      stage.style.setProperty('--dshw-vy', dshwCenterY + '%')
+    } catch (err) {}
+    // 形状层：与真实泡泡**同一个渲染器**（frameSvgMarkup）⇒ 预览不会与真实长得不一样
+    var shape = document.createElement('div')
+    shape.className = 'dshwv-feshapewrap'
+    shape.style.position = 'absolute'
+    shape.style.left = '0'
+    shape.style.top = '0'
+    shape.style.width = '100%'
+    shape.style.height = '100%'
+    shape.innerHTML = frameSvgMarkup(frameEditDraft, null)
+    stage.appendChild(shape)
+    // 文字层：真实首次点击内容，位置/字号/换行全用真实 CSS 与 u
+    var tb = document.createElement('div')
+    tb.className = 'dshwv-text'
+    tb.style.opacity = '1'
+    tb.style.transition = 'none'
+    tb.style.color = frameEditDraft.textColor ? String(frameEditDraft.textColor) : ''
+    frameEditTextApply(tb) // v825（P3）：按安全区摆文字（内置框那条规则在 frameTextStyleOf 里保持 legacy）
+    frameEditTextBox = tb // v831：内容限制范围一动，就靠它就地重摆文字
+    stage.appendChild(tb)
+    stage.addEventListener('pointerdown', frameEditStageDown)
+    frameEditStageBox.appendChild(stage)
+    // 虚线框宽度 = 预览(真实泡泡)宽度 + 内边距；比列还宽时收到列宽（不会撑破卡片）
+    try {
+      frameEditStageBox.style.margin = '0 auto'
+      frameEditStageBox.style.width = Math.min(W + 18, colW) + 'px'
+    } catch (err) {}
+    frameEditStageEl = stage
+    frameEditShapeBox = shape
+    bubbleRowsTo(tb, frameEditPreviewMods())
+    frameEditSelectionDraw()
+    frameEditSafeDraw()
+  } catch (err) {}
+}
+// ── v825（P3）：安全区叠加层（半透明矩形 + 8 把手）──
+// 交互约定：**拖边框 = 移动安全区**（8 个把手 = 缩放），**拖形状 = 拖泡泡**（不冲突：
+//   边框用一条透明的粗描边做命中区，内部仍然留给形状拖动）。
+// ⚠️ 坑 80 的规矩：这种"祖先 pointer-events:none + 子元素 auto"的混用必须带**状态门**——
+//   这里的门是 `frameEditSafeOn`（关闭时**整层不渲染**）+ 命中处理里再判一次。
+var frameEditSafeOn = true
+var frameEditTextBox = null // v831：预览里的文字层（内容限制范围变化时只刷它）
+var frameEditSafeDrag = null // { mode, x0, y0, x, y, w, h, u }
+function frameEditSafeDraw() {
+  try {
+    var svg = frameEditShapeBox ? frameEditShapeBox.querySelector('svg') : null
+    if (!svg || !frameEditDraft) return
+    var old = svg.querySelectorAll('.dshwv-fesafeg')
+    for (var i = 0; i < old.length; i++) { try { old[i].parentNode.removeChild(old[i]) } catch (err) {} }
+    if (!frameEditSafeOn) return
+    var s = frameNormSafe(frameEditDraft.safe)
+    var g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    g.setAttribute('class', 'dshwv-fesafeg')
+    var vis = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    vis.setAttribute('class', 'dshwv-fesaferect')
+    vis.setAttribute('x', String(frameR2(s.x)))
+    vis.setAttribute('y', String(frameR2(s.y)))
+    vis.setAttribute('width', String(frameR2(s.w)))
+    vis.setAttribute('height', String(frameR2(s.h)))
+    vis.setAttribute('fill', 'rgba(58,86,168,.10)')
+    vis.setAttribute('stroke', '#3a56a8')
+    vis.setAttribute('stroke-width', '3')
+    vis.setAttribute('stroke-dasharray', '16 8')
+    // v829：内容限制范围优先拖动时，视觉矩形自己接指针（否则它的内部点不到）
+    vis.setAttribute('pointer-events', 'auto') // v830：它的**内部**始终可拖（与形状各占各的区域，互不抢）
+    g.appendChild(vis)
+    // 命中区：**只有边框**可拖（透明的粗描边），内部留给形状
+    var hit = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    hit.setAttribute('class', 'dshwv-fesafehit')
+    hit.setAttribute('x', String(frameR2(s.x)))
+    hit.setAttribute('y', String(frameR2(s.y)))
+    hit.setAttribute('width', String(frameR2(s.w)))
+    hit.setAttribute('height', String(frameR2(s.h)))
+    hit.setAttribute('fill', 'none')
+    hit.setAttribute('stroke', 'transparent')
+    hit.setAttribute('stroke-width', '26')
+    hit.setAttribute('pointer-events', 'stroke')
+    g.appendChild(hit)
+    var HS = 18 // 把手边长（画布单位）
+    var pts = [
+      [s.x, s.y, 'nw'], [s.x + s.w / 2, s.y, 'n'], [s.x + s.w, s.y, 'ne'], [s.x + s.w, s.y + s.h / 2, 'e'],
+      [s.x + s.w, s.y + s.h, 'se'], [s.x + s.w / 2, s.y + s.h, 's'], [s.x, s.y + s.h, 'sw'], [s.x, s.y + s.h / 2, 'w'],
+    ]
+    for (var k = 0; k < pts.length; k++) {
+      var h = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      h.setAttribute('class', 'dshwv-fesafeh')
+      h.setAttribute('data-h', pts[k][2])
+      h.setAttribute('x', String(frameR2(pts[k][0] - HS / 2)))
+      h.setAttribute('y', String(frameR2(pts[k][1] - HS / 2)))
+      h.setAttribute('width', String(HS))
+      h.setAttribute('height', String(HS))
+      h.setAttribute('rx', '4')
+      h.setAttribute('fill', '#ffffff')
+      h.setAttribute('stroke', '#3a56a8')
+      h.setAttribute('stroke-width', '3')
+      h.setAttribute('pointer-events', 'auto')
+      g.appendChild(h)
+    }
+    svg.appendChild(g)
+  } catch (err) {}
+}
+function frameSafeSnap(v, list) {
+  for (var i = 0; i < list.length; i++) if (Math.abs(v - list[i]) <= 6) return list[i]
+  return v
+}
+function frameSafeSnapShift(x, w, list) {
+  var a = frameSafeSnap(x, list)
+  if (a !== x) return a
+  var b = frameSafeSnap(x + w, list)
+  if (b !== x + w) return b - w
+  return x
+}
+// 吸附目标（决策 13：阈值 6 画布单位）= 画布中线/边缘 + 另外两个槽位的包围盒边
+function frameSafeSnapTargets() {
+  var xs = [0, FRAME_W / 2, FRAME_W]
+  var ys = [0, FRAME_H / 2, FRAME_H]
+  try {
+    var kinds = ['big', 'small1', 'small2']
+    for (var i = 0; i < kinds.length; i++) {
+      var sl = frameEditSlotOf(kinds[i])
+      if (!sl) continue
+      if (kinds[i] !== 'big' && sl.on === false) continue
+      var b = frameSlotBox(frameEditDraft, kinds[i])
+      var ox = Number(sl.dx) || 0
+      var oy = Number(sl.dy) || 0
+      xs.push(frameR2(b.x + ox), frameR2(b.x + ox + b.w), frameR2(b.x + ox + b.w / 2))
+      ys.push(frameR2(b.y + oy), frameR2(b.y + oy + b.h), frameR2(b.y + oy + b.h / 2))
+    }
+  } catch (err) {}
+  return { xs: xs, ys: ys }
+}
+function frameEditSetSafe(rect) {
+  try {
+    if (!frameEditDraft) return
+    frameEditDraft.safe = frameNormSafe(rect) // 归一化负责 w,h ≥ 40 与"不越出画布"
+    frameEditMarkDirty()
+    frameEditSafeDraw()
+    frameEditSafeFieldsRefresh()
+    // v831（用户反馈"内容限制范围内的内容不跟着走，要动一下泡泡框才刷新"）：
+    //   内容限制范围只影响**文字层**，所以这里就地重摆文字（不重建整个预览 —— 拖拽时每帧重建会顿）
+    frameEditTextRefresh()
+  } catch (err) {}
+}
+// v831：只刷文字层（内容限制范围一变就调用；重建整个预览太重，拖动时会顿）
+function frameEditTextRefresh() {
+  try {
+    if (!frameEditTextBox || !frameEditDraft) return
+    frameEditTextBox.style.color = frameEditDraft.textColor ? String(frameEditDraft.textColor) : ''
+    frameEditTextApply(frameEditTextBox)
+  } catch (err) {}
+}
+function frameEditSafeHandleAt(target) {
+  try {
+    if (!frameEditSafeOn || !target || !target.closest) return ''
+    var h = target.closest('.dshwv-fesafeh')
+    if (h) return String(h.getAttribute('data-h') || '')
+    if (target.closest('.dshwv-fesafehit')) return 'move'
+    // v830（用户要求）：不再需要开关 —— 它里面就是它（形状在它外面的那圈、以及其它槽位上照旧可拖）
+    if (target.closest('.dshwv-fesaferect')) return 'move'
+  } catch (err) {}
+  return ''
+}
+function frameEditSafeDragBegin(mode, clientX, clientY) {
+  try {
+    if (!frameEditDraft) return
+    var s = frameNormSafe(frameEditDraft.safe)
+    frameEditSafeDrag = {
+      mode: mode, x0: clientX, y0: clientY,
+      x: s.x, y: s.y, w: s.w, h: s.h,
+      u: frameEditU > 0 ? frameEditU : 1,
+    }
+    frameEditSafeDragMoveTo(clientX, clientY) // 立刻吸附一次（手感）
+  } catch (err) {}
+}
+function frameEditSafeDragMoveTo(clientX, clientY) {
+  try {
+    if (!frameEditSafeDrag || !frameEditDraft) return
+    var d = frameEditSafeDrag
+    var dx = (clientX - d.x0) / d.u
+    var dy = (clientY - d.y0) / d.u
+    var st = frameSafeSnapTargets()
+    var nx = d.x, ny = d.y, nw = d.w, nh = d.h
+    var m = d.mode
+    if (m === 'move') {
+      nx = frameSafeSnapShift(Math.max(0, Math.min(FRAME_W - d.w, d.x + dx)), d.w, st.xs)
+      ny = frameSafeSnapShift(Math.max(0, Math.min(FRAME_H - d.h, d.y + dy)), d.h, st.ys)
+    } else {
+      if (m.indexOf('w') >= 0) {
+        var l = frameSafeSnap(d.x + dx, st.xs)
+        l = Math.max(0, Math.min(d.x + d.w - 40, l))
+        nw = d.x + d.w - l
+        nx = l
+      }
+      if (m.indexOf('e') >= 0) {
+        var r2 = frameSafeSnap(d.x + d.w + dx, st.xs)
+        r2 = Math.max(d.x + 40, Math.min(FRAME_W, r2))
+        nw = r2 - d.x
+      }
+      if (m.indexOf('n') >= 0) {
+        var t = frameSafeSnap(d.y + dy, st.ys)
+        t = Math.max(0, Math.min(d.y + d.h - 40, t))
+        nh = d.y + d.h - t
+        ny = t
+      }
+      if (m.indexOf('s') >= 0) {
+        var b2 = frameSafeSnap(d.y + d.h + dy, st.ys)
+        b2 = Math.max(d.y + 40, Math.min(FRAME_H, b2))
+        nh = b2 - d.y
+      }
+    }
+    frameEditSetSafe({ x: nx, y: ny, w: nw, h: nh })
+  } catch (err) {}
+}
+function frameEditSafeDragEnd() { frameEditSafeDrag = null }
+// 方向键微调（决策 13）：1 / Shift 10 / Alt 0.2（画布单位）
+function frameEditSafeKey(e, field) {
+  try {
+    var step = e.shiftKey ? 10 : (e.altKey ? 0.2 : 1)
+    var d = (e.key === 'ArrowLeft') ? -step : (e.key === 'ArrowRight') ? step : (e.key === 'ArrowUp') ? -step : (e.key === 'ArrowDown') ? step : 0
+    if (!d) return
+    try { e.preventDefault() } catch (err) {}
+    var s = frameNormSafe(frameEditDraft.safe)
+    if (field === 'x') s.x += d
+    else if (field === 'y') s.y += d
+    else if (field === 'w') s.w += d
+    else s.h += d
+    frameEditSetSafe(s)
+  } catch (err) {}
+}
+// ── v825（P3）：自动估算（PLAN §4）──
+// ① 把大泡泡的几何做成 Path2D（classic/roundrect/zigzag 有解析式；custom 只认代码里的 d="…"）
+// ② 96x66 栅格上填/描（描边宽度按真实值）→ ③ 两遍 chamfer 距离变换 → ④ "距边缘 ≥ 阈值"的像素上
+// ⑤ 直方图 + 栈求**最大内接矩形**（O(W*H)）→ ⑥ 收缩 3% 作余量 → ⑦ 失败一律回落并给原因。
+var FRAME_SAFE_SW = 96
+var FRAME_SAFE_SH = 66
+function frameBigPathsOf(frame) {
+  try {
+    if (typeof Path2D !== 'function') return []
+    var big = frame && frame.slots ? frame.slots.big : null
+    var preset = big ? String(big.svgPreset || 'classic') : 'classic'
+    var d = ''
+    if (preset === 'classic') d = FRAME_CLASSIC_BIG_D
+    else if (preset === 'roundrect' || preset === 'zigzag') d = framePresetBoxD(preset)
+    if (d) return [new Path2D(d)]
+    var code = frameSvgClean(big ? big.svgCode : '')
+    var out = []
+    var re = / d="([^"]+)"/g
+    var m
+    while ((m = re.exec(code))) { try { out.push(new Path2D(m[1])) } catch (err) {} }
+    return out
+  } catch (err) { return [] }
+}
+// 两遍 chamfer（3-4 距离）距离变换：实体像素到"非实体像素"的近似距离（单位 = 采样像素）
+function frameSafeDistance(mask, W, H) {
+  var INF = 1e9
+  var d = new Array(W * H)
+  var i
+  for (i = 0; i < W * H; i++) d[i] = mask[i] ? INF : 0
+  function at(x, y) { return (x < 0 || y < 0 || x >= W || y >= H) ? 0 : d[y * W + x] }
+  var x, y
+  for (y = 0; y < H; y++) {
+    for (x = 0; x < W; x++) {
+      if (!mask[y * W + x]) continue
+      var v = d[y * W + x]
+      v = Math.min(v, at(x - 1, y) + 3, at(x, y - 1) + 3, at(x - 1, y - 1) + 4, at(x + 1, y - 1) + 4)
+      d[y * W + x] = v
+    }
+  }
+  for (y = H - 1; y >= 0; y--) {
+    for (x = W - 1; x >= 0; x--) {
+      if (!mask[y * W + x]) continue
+      var v2 = d[y * W + x]
+      v2 = Math.min(v2, at(x + 1, y) + 3, at(x, y + 1) + 3, at(x + 1, y + 1) + 4, at(x - 1, y + 1) + 4)
+      d[y * W + x] = v2
+    }
+  }
+  return d
+}
+// 最大内接矩形（只统计 distance ≥ distMin 的像素）
+function frameSafeLargestRect(dist, W, H, distMin) {
+  var heights = new Array(W)
+  var i
+  for (i = 0; i < W; i++) heights[i] = 0
+  var best = null
+  for (var y = 0; y < H; y++) {
+    for (var x = 0; x < W; x++) heights[x] = (dist[y * W + x] >= distMin) ? heights[x] + 1 : 0
+    var stack = []
+    for (var x2 = 0; x2 <= W; x2++) {
+      var hh = (x2 < W) ? heights[x2] : 0
+      var start = x2
+      while (stack.length && stack[stack.length - 1][1] > hh) {
+        var top = stack.pop()
+        var area = top[1] * (x2 - top[0])
+        if (!best || area > best.area) best = { area: area, x: top[0], y: y - top[1] + 1, w: x2 - top[0], h: top[1] }
+        start = top[0]
+      }
+      if (!stack.length || stack[stack.length - 1][1] < hh) stack.push([start, hh])
+    }
+  }
+  if (!best || best.w < 1 || best.h < 1) return null
+  return { x: best.x, y: best.y, w: best.w, h: best.h }
+}
+// 在真画布上跑一遍；返回 { safe, why }（safe=null ⇒ 调用处回落默认并提示）
+function frameSafeEstimateFromCanvas(frame) {
+  var now = function () { try { return (window.performance && window.performance.now) ? window.performance.now() : Date.now() } catch (err) { return Date.now() } }
+  try {
+    if (typeof Path2D !== 'function') return { safe: null, why: '这个浏览器不支持形状测量' }
+    var paths = frameBigPathsOf(frame)
+    if (!paths.length) return { safe: null, why: '这个形状没有可测量的路径' }
+    var cv = document.createElement('canvas')
+    cv.width = FRAME_SAFE_SW
+    cv.height = FRAME_SAFE_SH
+    var ctx = cv.getContext ? cv.getContext('2d') : null
+    if (!ctx) return { safe: null, why: '取不到画布（无法测量）' }
+    var t0 = now()
+    var sx = FRAME_SAFE_SW / FRAME_W
+    var sy = FRAME_SAFE_SH / FRAME_H
+    var big = frame && frame.slots ? frame.slots.big : null
+    var paint = mergeSlotPaint(frame, null, 'big')
+    var sc = (big && isFinite(big.scale)) ? Number(big.scale) : 1
+    var cx = FRAME_BOX.x + FRAME_BOX.w / 2
+    var cy = FRAME_BOX.y + FRAME_BOX.h / 2
+    var ex = (Number(big && big.dx) || 0) + cx - sc * cx
+    var ey = (Number(big && big.dy) || 0) + cy - sc * cy
+    ctx.setTransform(sx * sc, 0, 0, sy * sc, sx * ex, sy * ey)
+    ctx.clearRect(-FRAME_W, -FRAME_H, FRAME_W * 3, FRAME_H * 3)
+    ctx.fillStyle = '#000'
+    ctx.strokeStyle = '#000'
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.lineWidth = Math.max(1, Number(paint.lineW) || 0)
+    var i
+    for (i = 0; i < paths.length; i++) {
+      if (paint.bgOn) ctx.fill(paths[i])
+      if (paint.lineOn) ctx.stroke(paths[i])
+    }
+    var img = ctx.getImageData(0, 0, FRAME_SAFE_SW, FRAME_SAFE_SH).data
+    var mask = new Array(FRAME_SAFE_SW * FRAME_SAFE_SH)
+    var inside = 0
+    for (i = 0; i < FRAME_SAFE_SW * FRAME_SAFE_SH; i++) {
+      var a = img[i * 4 + 3] > 8
+      mask[i] = a
+      if (a) inside++
+    }
+    if (inside < FRAME_SAFE_SW * FRAME_SAFE_SH * 0.08) return { safe: null, why: '形状内部几乎没有干净区域（是不是没开底色？）' }
+    var dist = frameSafeDistance(mask, FRAME_SAFE_SW, FRAME_SAFE_SH)
+    var distMin = Math.max(1, Math.ceil(6 * sx)) // 距边缘 ≥ 6 画布单位（采样后至少 1 格）
+    var rect = frameSafeLargestRect(dist, FRAME_SAFE_SW, FRAME_SAFE_SH, distMin)
+    if (!rect) return { safe: null, why: '形状内部找不到足够的干净区域' }
+    var out = { x: rect.x / sx, y: rect.y / sy, w: rect.w / sx, h: rect.h / sy }
+    out.x += out.w * 0.015 // 收缩 3% 作余量
+    out.y += out.h * 0.015
+    out.w *= 0.97
+    out.h *= 0.97
+    if (out.w < 40 || out.h < 40) return { safe: null, why: '干净区域太小（不足 40 画布单位）' }
+    if (now() - t0 > 16) return { safe: null, why: '测量超时（>16ms）' }
+    return { safe: frameNormSafe(out), why: '' }
+  } catch (err) { return { safe: null, why: '测量失败' } }
+}
+// v829：图片槽位没有可测路径 ⇒ 直接把**图片自己的框**当作内容限制范围（自动导入后调用一次就够用）
+// v842：任意槽位"图片实际画出来的矩形"（与渲染器 frameImageGeom 的数学一致）
+function frameEditImageRectOf(kind) {
+  try {
+    var sl = frameEditSlotOf(kind)
+    if (!sl || sl.kind !== 'image' || !sl.imgId) return null
+    var b = (kind === 'big') ? FRAME_BOX : frameSlotBox(frameEditDraft, kind)
+    if (!b) return null
+    var s = (isFinite(sl.scale) && Number(sl.scale) > 0) ? Number(sl.scale) : 1
+    var sc2 = (isFinite(sl.imgScale) && Number(sl.imgScale) > 0) ? Number(sl.imgScale) : 1
+    var dx = Number(sl.dx) || 0
+    var dy = Number(sl.dy) || 0
+    var w = b.w * s * sc2
+    var h = b.h * s * sc2
+    var x = b.x * s + (b.x + b.w / 2) * (1 - s) + dx + (b.w * s * (1 - sc2)) / 2
+    var y = b.y * s + (b.y + b.h / 2) * (1 - s) + dy + (b.h * s * (1 - sc2)) / 2
+    return { x: x, y: y, w: w, h: h }
+  } catch (err) { return null }
+}
+// v842：槽位的**内容包围盒**（画布坐标，含缩放/位移）
+//   · 图片 ⇒ 图片矩形里"不透明部分"那一块（按 xMidYMid meet 映射；没量过就先按整张图算）
+//   · SVG（预设/自定义代码）⇒ 真实渲染元素的 getBBox()，再套上"以框中心缩放 + 位移"
+function frameEditSlotContentBox(kind) {
+  try {
+    var sl = frameEditSlotOf(kind)
+    if (!sl) return null
+    if (sl.kind === 'image' && sl.imgId) {
+      var r = frameEditImageRectOf(kind)
+      if (!r) return null
+      var ob = frameEditOpaqueCache[String(sl.imgId)]
+      if (!ob) {
+        // 缺缓存：先用整张图顶着，同时补量一次（量完再重画虚线框）
+        frameEditOpaqueEnsure(sl.imgId, function () { try { frameEditSelectionDraw() } catch (err) {} })
+        return r
+      }
+      var dw = r.w
+      var dh = r.h
+      if (ob.ar > r.w / r.h) dh = r.w / ob.ar
+      else dw = r.h * ob.ar
+      var ox = r.x + (r.w - dw) / 2
+      var oy = r.y + (r.h - dh) / 2
+      return { x: ox + dw * ob.fx, y: oy + dh * ob.fy, w: dw * ob.fw, h: dh * ob.fh }
+    }
+    // v878：形状类（SVG）一律用**画布坐标下的真实包围盒** —— 它已经包含 scale 与 dx/dy，
+    //   所以这里**不再**乘 scale、也**不再**加位移（旧实现在椭圆模式下重复施加 ⇒ 框比泡泡走得远）。
+    var onCanvas = frameEditShapeBoxOnCanvas(kind)
+    if (onCanvas && onCanvas.w > 0 && onCanvas.h > 0) return onCanvas
+    // 量不到（元素还没渲染 / getBBox 不可用）⇒ 退回按**标称小框** + scale + 位移估算
+    var box = frameSlotBox(frameEditDraft, kind)
+    if (!box) return null
+    var s = (isFinite(sl.scale) && Number(sl.scale) > 0) ? Number(sl.scale) : 1
+    var dx = Number(sl.dx) || 0
+    var dy = Number(sl.dy) || 0
+    var C = { x: box.x + box.w / 2, y: box.y + box.h / 2 }
+    var nw = kind === 'big'
+      ? { w: FRAME_BOX.w, h: FRAME_BOX.h }
+      : (function () {
+        var base = FRAME_CLASSIC_SMALL[kind === 'small2' ? 1 : 0]
+        return base ? { w: base.rx * 2, h: base.ry * 2 } : { w: FRAME_BOX.w, h: FRAME_BOX.h }
+      })()
+    return { x: C.x - nw.w * s / 2 + dx, y: C.y - nw.h * s / 2 + dy, w: nw.w * s, h: nw.h * s }
+  } catch (err) { return null }
+}
+// v842：以**内容包围盒的中心**为基准缩放 —— 缩放前后把这个中心钉住（只补 dx/dy）。
+//   做法：把 dx/dy 临时清零，分别量出"旧 scale / 新 scale"下的内容中心，差值就是补偿量。
+// which: 'scale'（通用缩放，0.2–4）| 'imgScale'（图片自己的缩放，0.1–6）
+//   v843：**图片模式里显示的是 imgScale 那一个滑块** —— 它以前完全没走这个补偿，所以"缩放中心还是不对"。
+function frameEditScaleAboutContent(kind, newValue, which) {
+  try {
+    var sl = frameEditSlotOf(kind)
+    if (!sl) return
+    var field = (which === 'imgScale') ? 'imgScale' : 'scale'
+    var lo = (field === 'imgScale') ? 0.1 : 0.2
+    var hi = (field === 'imgScale') ? 6 : 4
+    var v0 = (isFinite(sl[field]) && Number(sl[field]) > 0) ? Number(sl[field]) : 1
+    var v1 = frameClampNum(newValue, lo, hi)
+    if (Math.abs(v1 - v0) < 1e-6) return
+    var dx0 = Number(sl.dx) || 0
+    var dy0 = Number(sl.dy) || 0
+    sl.dx = 0
+    sl.dy = 0
+    sl[field] = v0
+    var b0 = frameEditSlotContentBox(kind)
+    sl[field] = v1
+    var b1 = frameEditSlotContentBox(kind)
+    sl[field] = v0
+    sl.dx = dx0
+    sl.dy = dy0
+    if (!b0 || !b1) return
+    var c0x = b0.x + b0.w / 2
+    var c0y = b0.y + b0.h / 2
+    var c1x = b1.x + b1.w / 2
+    var c1y = b1.y + b1.h / 2
+    sl.dx = frameR2(dx0 + (c0x - c1x))
+    sl.dy = frameR2(dy0 + (c0y - c1y))
+  } catch (err) {}
+}
+function frameEditBigImageSafe() {
+  try {
+    var big = frameEditSlotOf('big')
+    if (!big || big.kind !== 'image' || !big.imgId) return null
+    var sc = (isFinite(big.scale) && Number(big.scale) > 0) ? Number(big.scale) : 1
+    var sc2 = (isFinite(big.imgScale) && Number(big.imgScale) > 0) ? Number(big.imgScale) : 1
+    var w = FRAME_BOX.w * sc * sc2
+    var h = FRAME_BOX.h * sc * sc2
+    var cx = FRAME_BOX.x + FRAME_BOX.w / 2 + (Number(big.dx) || 0)
+    var cy = FRAME_BOX.y + FRAME_BOX.h / 2 + (Number(big.dy) || 0)
+    return frameNormSafe({ x: cx - w / 2 + w * 0.015, y: cy - h / 2 + h * 0.015, w: w * 0.97, h: h * 0.97 })
+  } catch (err) { return null }
+}
+// v838（用户要求）：量出图片里**不透明部分**的包围盒（比例 0–1），用来收紧内容限制范围。
+//   同源图片 ⇒ canvas 不会被污染，可以直接读像素。量不到（CORS/解码失败/全透明）回调 null。
+var frameEditOpaqueCache = {} // imgId -> { fx, fy, fw, fh, ar }（图片"不透明部分"的比例包围盒）
+var frameEditOpaquePending = {} // imgId -> true：正在量（防重复量）
+// v850（用户反馈）：这个缓存只在**内存**里，刷新页面就没了 ⇒ 再打开编辑器时"内容包围盒"退回整张图大小。
+//   现在加上"按需补量"：谁要用到而缓存里没有，就自动量一次（量完回调），并保证同一个图不会并发量多次。
+function frameEditOpaqueEnsure(imgId, cb) {
+  try {
+    var id = String(imgId || '')
+    if (!id) { if (cb) cb(null); return }
+    if (frameEditOpaqueCache[id]) { if (cb) cb(frameEditOpaqueCache[id]); return }
+    if (frameEditOpaquePending[id]) { if (cb) cb(null); return }
+    frameEditOpaquePending[id] = true
+    frameEditImageOpaqueRaw(id, function (res) {
+      try { delete frameEditOpaquePending[id] } catch (e0) {}
+      if (cb) cb(res || null)
+    })
+  } catch (err) { if (cb) cb(null) }
+}
+function frameEditImageOpaque(cb) {
+  try {
+    var big = frameEditSlotOf('big')
+    var id = big && big.imgId ? String(big.imgId) : ''
+    if (!id) { if (cb) cb(null); return }
+    frameEditOpaqueEnsure(id, cb)
+  } catch (err) { if (cb) cb(null) }
+}
+// 真正去量像素（按 imgId）—— 与原来那段逻辑一致，只是抽出来供"补量"复用
+function frameEditImageOpaqueRaw(id, cb) {
+  try {
+    var im = new Image()
+    im.onload = function () {
+      try {
+        var iw = im.naturalWidth || im.width || 0
+        var ih = im.naturalHeight || im.height || 0
+        if (!iw || !ih) { if (cb) cb(null); return }
+        var k = Math.min(1, 360 / Math.max(iw, ih)) // 采样即可：不需要原分辨率
+        var cw = Math.max(1, Math.round(iw * k))
+        var ch = Math.max(1, Math.round(ih * k))
+        var cv = document.createElement('canvas')
+        cv.width = cw
+        cv.height = ch
+        var cx = cv.getContext('2d')
+        cx.drawImage(im, 0, 0, cw, ch)
+        var data = cx.getImageData(0, 0, cw, ch).data
+        var minX = cw, minY = ch, maxX = -1, maxY = -1
+        for (var y = 0; y < ch; y++) {
+          for (var x = 0; x < cw; x++) {
+            if (data[(y * cw + x) * 4 + 3] > 8) { // alpha 阈值：忽略几乎全透明的边缘杂点
+              if (x < minX) minX = x
+              if (x > maxX) maxX = x
+              if (y < minY) minY = y
+              if (y > maxY) maxY = y
+            }
+          }
+        }
+        if (maxX < 0) { if (cb) cb(null); return }
+        var res = {
+          fx: minX / cw, fy: minY / ch,
+          fw: (maxX - minX + 1) / cw, fh: (maxY - minY + 1) / ch,
+          ar: iw / ih,
+        }
+        // v842：缓存起来 —— 「虚线框 = 内容包围盒」和「以内容中心为基准缩放」都要**同步**拿到它
+        try { frameEditOpaqueCache[String(id)] = res } catch (err) {}
+        if (cb) cb(res)
+      } catch (err) { if (cb) cb(null) }
+    }
+    im.onerror = function () { if (cb) cb(null) }
+    im.src = '/dsh-whale/bubble-img.png?id=' + encodeURIComponent(id)
+  } catch (err) { if (cb) cb(null) }
+}
+// v850：内容包围盒在缺缓存时**自动补量**，量完刷新一下虚线框/叠加层（不动几何、不打断拖动）
+function frameEditOpaqueWarmup(kinds) {
+  try {
+    if (!frameEditDraft) return
+    var list = Array.isArray(kinds) ? kinds : ['big', 'small1', 'small2']
+    for (var i = 0; i < list.length; i++) {
+      (function (kind) {
+        var sl = frameEditSlotOf(kind)
+        if (!sl || sl.kind !== 'image' || !sl.imgId) return
+        if (frameEditOpaqueCache[String(sl.imgId)]) return
+        frameEditOpaqueEnsure(sl.imgId, function () {
+          try { frameEditSelectionDraw() } catch (err) {}
+        })
+      })(list[i])
+    }
+  } catch (err) {}
+}
+// v841（用户要求，重写"导入后的识别"）：
+//   ① 量出**内容**的包围盒 —— 图片按 alpha（不透明部分），SVG 代码按几何（getBBox）；
+//   ② 把它的**中心**挪到"原本（默认）大泡泡的中心"（FRAME_BOX 的中心）上；
+//   ③ 安全区**不再自动识别**什么形状，改成：以同一个中心为中心，大小取**原本大泡泡的安全区大小**。
+//   （原来那套"按形状/图片估算安全区"的行为按用户要求去掉；「自动估算」按钮仍在，想估就点它。）
+function frameEditBigCenter() {
+  return { x: FRAME_BOX.x + FRAME_BOX.w / 2, y: FRAME_BOX.y + FRAME_BOX.h / 2 }
+}
+// 图片：算出"真正画出来的矩形"里、不透明部分的中心（画布坐标）
+function frameEditImageContentCenter(slot, cb) {
+  try {
+    // v848：这里以前复用了 frameEditBigImageSafe() —— 它给的是**安全区**（四边内缩 1.5%），
+    //   而且过了 frameNormSafe()（会被**钳进画布**）。图片允许拖到画布外之后，这个被钳过的矩形
+    //   会让"内容中心"的系统性偏差每次都不一样 ⇒ 每点一次「自动估算」图片就朝一个方向挪一点、直到跑没影。
+    //   现在换成纯几何的 frameEditImageRectOf()（与渲染器 frameImageGeom 同一套数学，不内缩、不钳制）。
+    var rect = frameEditImageRectOf('big')
+    if (!slot || slot.kind !== 'image' || !slot.imgId || !rect) { cb(null); return }
+    frameEditImageOpaque(function (box) {
+      try {
+        if (!box) { cb(null); return }
+        var bw = rect.w
+        var bh = rect.h
+        var dw = bw
+        var dh = bh
+        if (box.ar > bw / bh) { dh = bw / box.ar } else { dw = bh * box.ar }
+        var ox = rect.x + (bw - dw) / 2
+        var oy = rect.y + (bh - dh) / 2
+        cb({
+          x: ox + dw * (box.fx + box.fw / 2),
+          y: oy + dh * (box.fy + box.fh / 2),
+          w: dw * box.fw,
+          h: dh * box.fh,
+        })
+      } catch (err) { cb(null) }
+    })
+  } catch (err) { cb(null) }
+}
+// SVG：用真实渲染出来的形状量几何包围盒（预览 svg 的 viewBox 就是 0 0 1026 700 ⇒ 直接是画布单位）
+function frameEditSvgContentBox(kind) {
+  try {
+    var svg = frameEditShapeBox ? frameEditShapeBox.querySelector('svg') : null
+    if (!svg) return null
+    var cls = kind === 'small1' ? '.dshwv-b1' : (kind === 'small2' ? '.dshwv-b2' : '.dshwv-bshape')
+    var el = svg.querySelector(cls)
+    if (!el || !el.getBBox) return null
+    var b = el.getBBox()
+    if (!b || !b.width || !b.height) return null
+    return { x: b.x, y: b.y, w: b.width, h: b.height }
+  } catch (err) { return null }
+}
+// v878（用户报"拖动小气泡时虚线框比小泡泡走得远"）：虚线框必须画在**画布坐标下的真实包围盒**上。
+//   三种模式在 getBBox() 上的语义并不一致：
+//     · classic 椭圆：cx/cy/rx/ry 已经把 scale 与 dx/dy **烘焙进属性**了 ⇒ getBBox() 就是画布坐标；
+//     · 自定义代码 / 预设：形状在 <g>/<path> 的 transform 里 ⇒ getBBox() **不含**自身 transform。
+//   以前 frameEditSlotContentBox() 对三者**一律**再乘一次 scale、再加一次 dx/dy ⇒
+//   椭圆模式下位移被算成 dx*(1+s) 倍（s=0.5 就是 1.5 倍），看起来就是"框比泡泡走得远"。
+//   这里统一：getBBox() + 元素自身 transform 矩阵 = 画布坐标（与预览所见一致）。
+//   （渲染器只用 translate/scale，没有旋转 ⇒ 变换四角求外接矩形是精确的。）
+function frameEditShapeBoxOnCanvas(kind) {
+  try {
+    var svg = frameEditShapeBox ? frameEditShapeBox.querySelector('svg') : null
+    if (!svg) return null
+    var cls = kind === 'small1' ? '.dshwv-b1' : (kind === 'small2' ? '.dshwv-b2' : '.dshwv-bshape')
+    var el = svg.querySelector(cls)
+    if (!el || !el.getBBox) return null
+    var b
+    try { b = el.getBBox() } catch (err) { return null }
+    if (!b || !b.width || !b.height) return null
+    var local = { x: b.x, y: b.y, w: b.width, h: b.height }
+    var m = null
+    try {
+      var c = el.transform && el.transform.baseVal ? el.transform.baseVal.consolidate() : null
+      if (c && c.matrix) m = c.matrix
+    } catch (err) {}
+    if (!m) return local
+    var ident = (m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0)
+    if (ident) return local
+    var xs = [], ys = []
+    var pts = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]]
+    for (var i = 0; i < pts.length; i++) {
+      var X = m.a * pts[i][0] + m.c * pts[i][1] + m.e
+      var Y = m.b * pts[i][0] + m.d * pts[i][1] + m.f
+      if (!isFinite(X) || !isFinite(Y)) return local
+      xs.push(X); ys.push(Y)
+    }
+    var minx = Math.min.apply(null, xs), maxx = Math.max.apply(null, xs)
+    var miny = Math.min.apply(null, ys), maxy = Math.max.apply(null, ys)
+    return { x: minx, y: miny, w: maxx - minx, h: maxy - miny }
+  } catch (err) { return null }
+}
+// 把一个槽位的"内容中心"对到默认大泡泡的中心上（只改 dx/dy）
+function frameEditCenterSlot(kind, cx, cy) {
+  try {
+    var sl = frameEditSlotOf(kind)
+    if (!sl) return false
+    var t = frameEditBigCenter()
+    sl.dx = frameR2((Number(sl.dx) || 0) + (t.x - cx))
+    sl.dy = frameR2((Number(sl.dy) || 0) + (t.y - cy))
+    return true
+  } catch (err) { return false }
+}
+// 导入图片/SVG 之后的统一收尾：对齐中心 + 安全区回到"默认大小、以该中心为中心"
+//   kind: 'big' | 'small1' | 'small2'
+function frameEditAfterImport(kind) {
+  try {
+    if (!frameEditDraft) return
+    var sl = frameEditSlotOf(kind)
+    if (!sl) return
+    var finish = function (c) {
+      try {
+        // ② 中心对齐（兼容旧调用：传了 c 才按差值对齐；v848 起图片/SVG 分支都是直接写绝对值）
+        if (c) frameEditCenterSlot(kind, c.x, c.y)
+        // ③ 安全区：中心 = 默认大泡泡的中心、大小 = 原本大泡泡的安全区大小
+        var leg = frameLegacySafe()
+        var t = frameEditBigCenter()
+        frameEditSetSafe(frameNormSafe({
+          x: t.x - leg.w / 2,
+          y: t.y - leg.h / 2,
+          w: leg.w,
+          h: leg.h,
+        }))
+        frameEditMarkDirty()
+        frameEditPreviewRefresh()
+        frameEditSafeFieldsRefresh()
+        frameEditSafeDraw()
+      } catch (err) {}
+    }
+    if (sl.kind === 'image') {
+      // v848：先把 dx/dy 清零再量，然后**绝对赋值**（不是"在当前基础上再加一个差值"）——
+      //   这样结果与"当前在哪"完全无关 ⇒ 幂等：连点多少次都停在同一处，也绝不会累积漂移。
+      var keepDx = Number(sl.dx) || 0
+      var keepDy = Number(sl.dy) || 0
+      sl.dx = 0
+      sl.dy = 0
+      frameEditImageContentCenter(sl, function (c) {
+        try {
+          if (c) {
+            var t0 = frameEditBigCenter()
+            sl.dx = frameR2(t0.x - c.x)
+            sl.dy = frameR2(t0.y - c.y)
+          } else {
+            sl.dx = keepDx
+            sl.dy = keepDy
+          }
+        } catch (err) {}
+        finish(null) // 中心已经在上面按绝对值写好，finish 只负责安全区与刷新
+      })
+      return
+    }
+    // SVG 代码：几何包围盒是"标称坐标"里的 ⇒ 同样先清零、再算绝对值
+    var gb = frameEditSvgContentBox(kind)
+    if (gb) {
+      var box = frameSlotBox(frameEditDraft, kind)
+      var sc = (isFinite(sl.scale) && Number(sl.scale) > 0) ? Number(sl.scale) : 1
+      var bcx = box.x + box.w / 2
+      var bcy = box.y + box.h / 2
+      var gc = { x: gb.x + gb.w / 2, y: gb.y + gb.h / 2 }
+      var tgt = frameEditBigCenter()
+      sl.dx = frameR2(tgt.x - (bcx + (gc.x - bcx) * sc))
+      sl.dy = frameR2(tgt.y - (bcy + (gc.y - bcy) * sc))
+    }
+    finish(null)
+  } catch (err) {}
+}
+// silent=true ⇒ 成功时不弹提示（自动触发的场景），失败照样提示
+function frameEditAutoSafe(silent) {
+  try {
+    var imgSafe = frameEditBigImageSafe()
+    if (imgSafe) {
+      frameEditSetSafe(imgSafe) // 先给"整张图的框"当即时反馈
+      if (!silent) { try { dshwvToast('已按图片范围自动估算内容限制范围', 'ok', 2000) } catch (err) {} }
+      // v838（用户要求）：再按**不透明部分**收紧一次（异步量像素）。
+      //   量不到 ⇒ 用**默认的文字安全框**（用户要求"把默认的文字安全框大小作为默认"）。
+      frameEditImageOpaque(function (box) {
+        try {
+          if (!box) {
+            frameEditSetSafe(frameLegacySafe())
+            frameEditSafeFieldsRefresh()
+            frameEditSafeDraw()
+            return
+          }
+          // 图片在框里是 preserveAspectRatio="xMidYMid meet" 居中显示的 ⇒ 先算出"真正画出来的矩形"，
+          // 再把不透明部分的比例映射进去（否则宽高比不一致时安全区会偏）。
+          var bw = imgSafe.w
+          var bh = imgSafe.h
+          var dw = bw
+          var dh = bh
+          if (box.ar > bw / bh) { dh = bw / box.ar } else { dw = bh * box.ar }
+          var ox = imgSafe.x + (bw - dw) / 2
+          var oy = imgSafe.y + (bh - dh) / 2
+          var pad = 0.01
+          var refined = frameNormSafe({
+            x: ox + dw * box.fx + dw * box.fw * pad,
+            y: oy + dh * box.fy + dh * box.fh * pad,
+            w: Math.max(40, dw * box.fw * (1 - pad * 2)),
+            h: Math.max(40, dh * box.fh * (1 - pad * 2)),
+          })
+          frameEditSetSafe(refined)
+          frameEditSafeFieldsRefresh()
+          frameEditSafeDraw()
+        } catch (err) {}
+      })
+      return
+    }
+    var r = frameSafeEstimateFromCanvas(frameEditDraft)
+    if (r && r.safe) {
+      frameEditSetSafe(r.safe)
+      if (!silent) { try { dshwvToast('已按形状自动估算内容限制范围（可再手动微调）', 'ok', 2200) } catch (err) {} }
+    } else {
+      frameEditSetSafe(frameLegacySafe())
+      try { dshwvToast('自动估算失败（' + String((r && r.why) || '未知原因') + '），已用默认内容限制范围', 'no', 3600) } catch (err) {}
+    }
+  } catch (err) {}
+}
+// 把安全换算成 .dshwv-text 的几何 —— 编辑器预览也照真实泡泡的规则走
+function frameEditTextApply(tb) {
+  try {
+    if (!tb) return
+    var st = frameTextStyleOf(frameEditDraft)
+    if (!st) {
+      tb.style.left = ''
+      tb.style.top = ''
+      tb.style.width = ''
+      tb.style.height = ''
+      try { tb.classList.remove('dshwv-textsafe') } catch (err) {}
+      return
+    }
+    tb.style.left = st.left
+    tb.style.top = st.top
+    tb.style.width = st.width
+    tb.style.height = st.height
+    try { tb.classList.add('dshwv-textsafe') } catch (err) {}
+  } catch (err) {}
+}
+// ── 拖动（决策 5：画布内 + 至少 30% 可见；等比缩放以泡泡中心为基准）──
+function frameEditSlotAt(target) {
+  try {
+    if (!target || !target.closest) return ''
+    if (target.closest('.dshwv-b1')) return 'small1'
+    if (target.closest('.dshwv-b2')) return 'small2'
+    if (target.closest('.dshwv-bshape')) return 'big'
+  } catch (err) {}
+  return ''
+}
+function frameEditStageDown(e) {
+  try {
+    // ① 安全区的把手/边框优先（帧编辑态才有效，见 frameEditSafeOn 的状态门）
+    var sm = frameEditSafeHandleAt(e.target)
+    if (sm) {
+      try { e.preventDefault(); e.stopPropagation() } catch (err) {}
+      frameEditSafeDragBegin(sm, e.clientX, e.clientY)
+      return
+    }
+    // ② 否则按形状拖动
+    var kind = frameEditSlotAt(e.target)
+    if (!kind) return
+    try { e.preventDefault(); e.stopPropagation() } catch (err) {}
+    frameEditDragBegin(kind, e.clientX, e.clientY)
+  } catch (err) {}
+}
+function frameEditDragBegin(kind, clientX, clientY) {
+  try {
+    var sl = frameEditSlotOf(kind)
+    if (!sl || !frameEditDraft) return
+    if (frameEditSel !== kind) {
+      frameEditSel = kind
+      frameEditSlotsRefresh()
+      frameEditAttrsBuild()
+    }
+    frameEditDrag = {
+      slot: kind, x0: clientX, y0: clientY,
+      dx0: Number(sl.dx) || 0, dy0: Number(sl.dy) || 0,
+      u: frameEditU > 0 ? frameEditU : 1,
+    }
+    frameEditDragMoveTo(clientX, clientY) // 立刻按钳制范围吸附一次（拖到边界外时手感是"贴住"）
+  } catch (err) {}
+}
+function frameEditDragMoveTo(clientX, clientY) {
+  try {
+    if (!frameEditDrag || !frameEditDraft) return
+    var d = frameEditDrag
+    var sl = frameEditSlotOf(d.slot)
+    if (!sl) return
+    var dx = d.dx0 + (clientX - d.x0) / d.u
+    var dy = d.dy0 + (clientY - d.y0) / d.u
+    var cl = frameClampSlotOffsetFor(sl, frameSlotBox(frameEditDraft, d.slot), dx, dy)
+    sl.dx = frameR2(cl.dx)
+    sl.dy = frameR2(cl.dy)
+    frameEditMarkDirty()
+    frameEditPreviewRefresh()
+    frameEditFieldsRefresh()
+    frameEditMoveFieldsRefresh()
+  } catch (err) {}
+}
+function frameEditDragEnd() { frameEditDrag = null }
+function frameEditStageMove(e) {
+  if (frameEditSafeDrag) {
+    try { e.preventDefault() } catch (err) {}
+    frameEditSafeDragMoveTo(e.clientX, e.clientY)
+    return
+  }
+  if (!frameEditDrag) return
+  try { e.preventDefault() } catch (err) {}
+  frameEditDragMoveTo(e.clientX, e.clientY)
+}
+function frameEditStageUp() {
+  frameEditDragEnd()
+  frameEditSafeDragEnd()
+}
+// 改缩放/位移后统一走这里：写进所选槽位 → 重新钳制位移 → 重画
+function frameEditApplyGeometry(kinds, mutate) {
+  try {
+    for (var i = 0; i < kinds.length; i++) {
+      var sl = frameEditSlotOf(kinds[i])
+      if (!sl) continue
+      mutate(sl, kinds[i])
+      var cl = frameClampSlotOffsetFor(sl, frameSlotBox(frameEditDraft, kinds[i]), Number(sl.dx) || 0, Number(sl.dy) || 0)
+      sl.dx = frameR2(cl.dx)
+      sl.dy = frameR2(cl.dy)
+    }
+    frameEditPreviewRefresh()
+    frameEditFieldsRefresh()
+    frameEditMoveFieldsRefresh()
+  } catch (err) {}
+}
+function frameEditSetScale(v) {
+  // v842（用户要求）：缩放以**内容包围盒的中心**为基准（图片/自绘 SVG 都不会因为缩放而漂走）
+  var n = frameClampNum(v, 0.2, 4)
+  var kinds = frameEditTargets()
+  for (var i = 0; i < kinds.length; i++) frameEditScaleAboutContent(kinds[i], n)
+  frameEditApplyGeometry(kinds, function (sl) { sl.scale = frameR2(n) })
+  frameEditMarkDirty()
+}
+function frameEditNudgeScale(delta) {
+  var sl = frameEditSlotOf(frameEditTargets()[0])
+  var cur = (sl && isFinite(sl.scale)) ? Number(sl.scale) : 1
+  frameEditSetScale(cur + delta)
+}
+function frameEditSetOffset(axis, v) {
+  var n = frameClampNum(v, -FRAME_W, FRAME_W)
+  frameEditApplyGeometry(frameEditTargets(), function (sl) {
+    if (axis === 'y') sl.dy = frameR2(n); else sl.dx = frameR2(n)
+  })
+  frameEditMarkDirty()
+}
+// 删除 / 恢复小泡泡（决策 4：数量固定 2 个，可删不可增）
+function frameEditSetSlotOn(kind, on) {
+  try {
+    if (kind === 'big') { dshwvToast('大泡泡不可删除（它承载全部内容）', 'no'); return }
+    var sl = frameEditSlotOf(kind)
+    if (!sl) return
+    sl.on = on !== false
+    frameEditMarkDirty()
+    frameEditSlotsRefresh()
+    frameEditPreviewRefresh()
+    frameEditAttrsBuild()
+  } catch (err) {}
+}
+// ── 属性写入（“全选 = 三个槽位一起改”，与 PLAN §12 第 2 条一致）──
+function frameEditPaintCommon(key) {
+  var kinds = frameEditTargets()
+  var has = false, same = true, val = null
+  for (var i = 0; i < kinds.length; i++) {
+    var sl = frameEditSlotOf(kinds[i])
+    if (!sl || !sl.paint) continue
+    var v = sl.paint[key]
+    if (!has) { val = v; has = true } else if (String(v) !== String(val)) same = false
+  }
+  return { same: same, val: val, has: has }
+}
+function frameEditSetPaint(key, val) {
+  try {
+    var kinds = frameEditTargets()
+    for (var i = 0; i < kinds.length; i++) {
+      var sl = frameEditSlotOf(kinds[i])
+      if (sl && sl.paint) sl.paint[key] = val
+    }
+    frameEditMarkDirty()
+    frameEditPreviewRefresh()
+  } catch (err) {}
+}
+// v829（用户要求）：点预设 ⇒ **把该预设当前的代码写进下面的 SVG 代码框**（代码框始终反映"现在画的是什么"）。
+//   小泡泡会自动带上"映射进它自己小框"的那层 transform，所以代码框里看到的就是它真实的形状。
+function framePresetCodeFor(kind, preset) {
+  try {
+    var p = (preset === 'roundrect' || preset === 'zigzag') ? preset : 'classic'
+    if (kind === 'big') {
+      var d = (p === 'classic') ? FRAME_CLASSIC_BIG_D : framePresetBoxD(p)
+      return d ? ('<path d="' + d + '"/>') : ''
+    }
+    var base = FRAME_CLASSIC_SMALL[kind === 'small2' ? 1 : 0]
+    if (!base) return ''
+    if (p === 'classic') {
+      return '<ellipse cx="' + frameNumStr(base.cx) + '" cy="' + frameNumStr(base.cy) + '" rx="' + frameNumStr(base.rx) + '" ry="' + frameNumStr(base.ry) + '"/>'
+    }
+    var d2 = framePresetBoxD(p)
+    if (!d2) return ''
+    var bcx = FRAME_BOX.x + FRAME_BOX.w / 2
+    var bcy = FRAME_BOX.y + FRAME_BOX.h / 2
+    var kx = base.rx / (FRAME_BOX.w / 2)
+    var ky = base.ry / (FRAME_BOX.h / 2)
+    return '<g transform="translate(' + frameNumStr(base.cx) + ' ' + frameNumStr(base.cy) + ') scale(' + frameNumStr(kx) + ' ' + frameNumStr(ky) + ') translate(' + frameNumStr(-bcx) + ' ' + frameNumStr(-bcy) + ')"><path d="' + d2 + '"/></g>'
+  } catch (err) { return '' }
+}
+function frameEditSetPreset(preset) {
+  try {
+    var v = (FRAME_PRESETS.indexOf(preset) >= 0) ? preset : 'classic'
+    var kinds = frameEditTargets()
+    for (var i = 0; i < kinds.length; i++) {
+      var sl = frameEditSlotOf(kinds[i])
+      if (!sl) continue
+      sl.svgPreset = v
+      sl.svgCode = framePresetCodeFor(kinds[i], v)
+    }
+    frameEditMarkDirty()
+    frameEditAttrsBuild() // 代码框要跟着显示新预设的代码
+    frameEditPreviewRefresh()
+    frameEditAfterImport('big') // v841：换预设 ⇒ 中心对齐 + 安全区回默认大小
+    frameEditSafeFieldsRefresh()
+  } catch (err) {}
+}
+// v828（P4）：切换这个槽位的模式（svg / image）—— 对"所选槽位"统一生效
+function frameEditSetKind(kind) {
+  try {
+    var k = (kind === 'image') ? 'image' : 'svg'
+    var kinds = frameEditTargets()
+    for (var i = 0; i < kinds.length; i++) {
+      var sl = frameEditSlotOf(kinds[i])
+      if (sl) sl.kind = k
+    }
+    frameEditMarkDirty()
+    frameEditPreviewRefresh()
+  } catch (err) {}
+}
+// v828（P4）图片模式的属性行：选图（内置图库 / 上传 / 裁剪）+ 缩放 + 透明度
+//   图片一律走站内图库（`imgId` → `/dsh-whale/bubble-img.png?id=…`），宿主白名单不需要放行 image/href；
+//   裁剪弹窗复用角色导入那一套（`openCropModal` 第三个参数把导出目标改成泡泡图库，角色那条路一个字没动）。
+function frameEditImageRows(commonOf, host) {
+  try {
+    var kinds = frameEditTargets()
+    var into = host || frameEditAttrsEl
+    function setAll(field, val) {
+      for (var i = 0; i < kinds.length; i++) {
+        var sl = frameEditSlotOf(kinds[i])
+        if (sl) sl[field] = val
+      }
+      frameEditMarkDirty()
+      frameEditPreviewRefresh()
+    }
+    var idCom = commonOf('imgId')
+    var curId = idCom.same ? idCom.val : ''
+    // ① 选择图片
+    var picRow = frameEditRowIn(into, '图片')
+    var sel = document.createElement('select')
+    sel.className = 'dshwv-feinp'
+    sel.style.flex = '1 1 140px'
+    sel.title = '从图片库里选（内置图 + 你自己上传的）'
+    function fillSel() {
+      sel.innerHTML = ''
+      var o0 = document.createElement('option')
+      o0.value = ''
+      o0.textContent = '（未选择）'
+      sel.appendChild(o0)
+      for (var i = 0; i < bubbleImgList.length; i++) {
+        var o = document.createElement('option')
+        o.value = bubbleImgList[i].id
+        o.textContent = bubbleImgList[i].name || bubbleImgList[i].id
+        sel.appendChild(o)
+      }
+      if (curId) sel.value = curId
+    }
+    fillSel()
+    if (!bubbleImgList.length) loadBubbleImgs(function () { try { fillSel() } catch (err) {} })
+    sel.addEventListener('change', function () {
+      setAll('imgId', sel.value)
+      frameEditImageThumbSync()
+      frameEditAfterImport('big') // v841：选图 ⇒ 按不透明部分对齐中心 + 安全区回默认大小
+      frameEditSafeFieldsRefresh()
+    })
+    picRow.appendChild(sel)
+    var upInput = document.createElement('input')
+    upInput.type = 'file'
+    upInput.accept = 'image/png,image/gif'
+    upInput.style.display = 'none'
+    var upBtn = document.createElement('button')
+    upBtn.type = 'button'
+    upBtn.className = 'dshwv-fechip'
+    upBtn.textContent = '上传新图'
+    upBtn.title = '直接上传（保持原比例，GIF 动图也能用）'
+    var fileAction = 'upload'
+    upBtn.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      fileAction = 'upload'
+      upInput.value = ''
+      try { upInput.click() } catch (err) {}
+    })
+    upInput.addEventListener('change', function () {
+      try {
+        var f = upInput.files && upInput.files[0]
+        if (!f) return
+        if (fileAction === 'crop') {
+          // 复用角色导入那套裁剪/缩放窗口（方形导出）；GIF 不走裁剪（会丢动图）
+          var isGif = /\.gif$/i.test(String(f.name || '')) || String(f.type || '').toLowerCase() === 'image/gif'
+          if (isGif) { try { dshwvToast('GIF 动图不能用裁剪窗口（会丢动画），已改为直接上传', 'ok', 2600) } catch (err) {} }
+          else {
+            var frc = new FileReader()
+            frc.onload = function () {
+              openCropModal(String(frc.result || ''), f.name, 'bubble-img', function (newId) {
+                if (newId) setAll('imgId', newId)
+                curId = newId || curId
+                frameEditAfterImport('big') // v841：裁剪完 ⇒ 同上
+                frameEditAttrsBuild()
+              })
+            }
+            frc.readAsDataURL(f)
+            return
+          }
+        }
+        var before = {}
+        for (var i = 0; i < bubbleImgList.length; i++) before[bubbleImgList[i].id] = 1
+        bubbleUploadImg(f, function (ok) {
+          if (!ok) { try { dshwvToast('上传失败（只支持 PNG / GIF）', 'no') } catch (err) {} ; return }
+          var newId = ''
+          for (var j = 0; j < bubbleImgList.length; j++) if (!before[bubbleImgList[j].id]) { newId = bubbleImgList[j].id; break }
+          if (!newId && bubbleImgList.length) newId = bubbleImgList[bubbleImgList.length - 1].id
+          if (newId) setAll('imgId', newId)
+          curId = newId
+          frameEditAfterImport('big') // v841：上传完 ⇒ 同上
+          frameEditAttrsBuild()
+        })
+      } catch (err) {}
+    })
+    picRow.appendChild(upBtn)
+    picRow.appendChild(upInput)
+    // v853（用户要求）：**删掉编辑泡泡框里的「裁剪…」按钮** —— 图片导入只保留"选图 / 上传新图"。
+    //   ⚠️ 角色导入那条裁剪流程**一个字都没动**（`openCropModal(dataUrl, fileName)` 的老调用、裁剪窗口、
+    //      以及 `confirmCrop()` 里的角色分支全部保留）；这里只是不再给它第二个入口。
+    // ② 缩放 + 透明度（v829：去掉原来那一行"预览"缩略图 —— 上面的大预览已经能看到图了，功能冗余）
+    frameEditImageThumbSync = function () {} // 保留这个名字，调用点不用改
+    var scComN = Number(commonOf('imgScale').val)
+    if (!isFinite(scComN) || scComN <= 0) scComN = 1
+    var scRow = frameEditRowIn(into, '缩放')
+    var scR = document.createElement('input')
+    scR.type = 'range'
+    scR.className = 'dshwv-range'
+    scR.min = '0.1'
+    scR.max = '6'
+    scR.step = '0.05'
+    scR.value = String(scComN)
+    scR.title = '图片缩放（0.1–6）'
+    var scT = document.createElement('span')
+    scT.className = 'dshwv-volpct'
+    scT.textContent = frameR2(scComN) + '×'
+    scR.addEventListener('input', function () {
+      scT.textContent = frameR2(Number(scR.value)) + '×'
+      var val = frameClampNum(Number(scR.value), 0.1, 6)
+      // v843：以**内容包围盒的中心**为基准缩放（先补 dx/dy，再写 imgScale）
+      var ks = frameEditTargets()
+      for (var qi = 0; qi < ks.length; qi++) frameEditScaleAboutContent(ks[qi], val, 'imgScale')
+      setAll('imgScale', val)
+    })
+    scRow.appendChild(scR)
+    scRow.appendChild(scT)
+    var opComN = Number(commonOf('imgOpacity').val)
+    if (!isFinite(opComN)) opComN = 1
+    var opRow = frameEditRowIn(into, '透明度')
+    var opR = document.createElement('input')
+    opR.type = 'range'
+    opR.className = 'dshwv-range'
+    opR.min = '0'
+    opR.max = '100'
+    opR.step = '1'
+    opR.value = String(Math.round(opComN * 100))
+    var opT = document.createElement('span')
+    opT.className = 'dshwv-volpct'
+    opT.textContent = opR.value + '%'
+    opR.addEventListener('input', function () {
+      opT.textContent = opR.value + '%'
+      setAll('imgOpacity', frameClampNum(Number(opR.value) / 100, 0, 1))
+    })
+    opRow.appendChild(opR)
+    opRow.appendChild(opT)
+  } catch (err) {}
+}
+var frameEditImageThumbSync = function () {}
+function frameEditSetTextColor(css) {
+  try {
+    frameEditDraft.textColor = frameColor(css, '')
+    frameEditMarkDirty()
+    frameEditPreviewRefresh()
+  } catch (err) {}
+}
+// ── 自绘下拉（复用 F1 那套 .dshwv-rgbmenu 观感；外点关闭由既有的全局 pointerdown 收口）──
+function frameEditDrop(curText, opts, onPick) {
+  var wrap = document.createElement('div')
+  wrap.className = 'dshwv-rgbwrap'
+  var head = document.createElement('button')
+  head.type = 'button'
+  head.className = 'dshwv-rgbhead'
+  head.textContent = curText
+  wrap.appendChild(head)
+  var menu = document.createElement('div')
+  menu.className = 'dshwv-rgbmenu'
+  for (var i = 0; i < opts.length; i++) {
+    (function (o) {
+      var it = document.createElement('div')
+      it.className = 'dshwv-rgbopt'
+      it.textContent = o[1]
+      it.addEventListener('click', function (e) {
+        try { e.stopPropagation() } catch (err) {}
+        menu.classList.remove('dshwv-rgbopen')
+        bubbleRgbOpenMenu = null
+        try { onPick(o[0]) } catch (err) {}
+      })
+      menu.appendChild(it)
+    })(opts[i])
+  }
+  wrap.appendChild(menu)
+  head.addEventListener('click', function (e) {
+    try { e.stopPropagation() } catch (err) {}
+    if (bubbleRgbOpenMenu === menu) { menu.classList.remove('dshwv-rgbopen'); bubbleRgbOpenMenu = null; return }
+    if (bubbleRgbOpenMenu) bubbleRgbOpenMenu.classList.remove('dshwv-rgbopen')
+    menu.classList.add('dshwv-rgbopen')
+    bubbleRgbOpenMenu = menu
+  })
+  return wrap
+}
+// ── 左侧槽位列表 ──
+function frameEditSlotsRefresh() {
+  try {
+    if (!frameEditSlotsEl || !frameEditDraft) return
+    frameEditSlotsEl.innerHTML = ''
+    var defs = [['all', '全选'], ['big', '大泡泡'], ['small1', '小泡泡1'], ['small2', '小泡泡2']]
+    for (var i = 0; i < defs.length; i++) {
+      (function (kind, label) {
+        var b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'dshwv-feslot' + (frameEditSel === kind ? ' dshwv-feslot-on' : '')
+        var sl = frameEditSlotOf(kind)
+        var off = (kind !== 'big' && kind !== 'all' && sl && sl.on === false)
+        if (off) b.className += ' dshwv-feslot-off'
+        b.textContent = label + (off ? '（已删除）' : '')
+        b.addEventListener('click', function (e) {
+          try { e.stopPropagation() } catch (err) {}
+          frameEditSel = kind
+          frameEditSlotsRefresh()
+          frameEditAttrsBuild()
+          frameEditSelectionDraw()
+        })
+        frameEditSlotsEl.appendChild(b)
+      })(defs[i][0], defs[i][1])
+    }
+  } catch (err) {}
+}
+// ── 右侧属性区（随选中项重建；数值刷新走 frameEditFieldsRefresh）──
+function frameEditRowIn(host, label) {
+  var row = document.createElement('div')
+  row.className = 'dshwv-ferow'
+  var lb = document.createElement('span')
+  lb.className = 'dshwv-felab'
+  lb.textContent = label || ''
+  row.appendChild(lb)
+  ;(host || frameEditAttrsEl).appendChild(row)
+  return row
+}
+function frameEditRow(label) { return frameEditRowIn(frameEditAttrsEl, label) }
+function frameEditNoteIn(host, text) {
+  var n = document.createElement('div')
+  n.className = 'dshwv-fenote'
+  n.textContent = text
+  ;(host || frameEditAttrsEl).appendChild(n)
+  return n
+}
+function frameEditNote(text) { return frameEditNoteIn(frameEditAttrsEl, text) }
+// v835（用户要求）：右侧属性区改成**和「提示与音效设置」菜单同一套折叠**（复用 dshwvFoldEntry + collapseSet）。
+//   折叠状态记在 frameEditFoldOpen 里（重建属性区时保持用户展开的那几节，不会一改参数就全收回去）。
+var frameEditFoldOpen = { shape: true, look: false } // v837：大小/其它并入「外观」⇒ 只剩两节
+function frameEditFold(key, label, summaryText) {
+  var e = dshwvFoldEntry(frameEditAttrsEl, label, {
+    first: false, // v855：由「内容显示范围与位移」当第一节（它自带 first:true），其余不再给"首节"大上边距
+    summary: summaryText || '',
+    onRowClick: function (willOpen) { frameEditFoldOpen[key] = !!willOpen },
+  })
+  // v855：折叠体统一不要那 10px 缩进（各节左边缘对齐，内容也多出 10px 可用宽度）
+  try { e.body.style.paddingLeft = '0' } catch (err) {}
+  if (frameEditFoldOpen[key]) { try { collapseSet(e.body, true, true) } catch (err) {} }
+  return e.body
+}
+function frameEditCheck(row, key, title) {
+  var c = document.createElement('input')
+  c.type = 'checkbox'
+  c.className = 'dshwv-check'
+  var com = frameEditPaintCommon(key)
+  c.checked = com.val !== false
+  if (!com.same) { try { c.indeterminate = true } catch (err) {} }
+  c.title = com.same ? (title || '') : '所选槽位当前不一致；改动会同时写入它们'
+  c.addEventListener('change', function () { frameEditSetPaint(key, c.checked === true) })
+  row.appendChild(c)
+  return c
+}
+function frameEditColor(row, key, defColor) {
+  var inp = document.createElement('input')
+  inp.type = 'color'
+  inp.className = 'dshwv-colnat'
+  var com = frameEditPaintCommon(key)
+  var v = String(com.val == null ? '' : com.val)
+  inp.value = /^#[0-9a-fA-F]{6}$/.test(v) ? v : defColor
+  if (!/^#[0-9a-fA-F]{6}$/.test(v)) { try { inp.title = '当前值不是 #rrggbb（' + v + '），选色后会替换它' } catch (err) {} }
+  inp.addEventListener('input', function () { frameEditSetPaint(key, inp.value) })
+  inp.addEventListener('change', function () { frameEditSetPaint(key, inp.value) })
+  row.appendChild(inp)
+  return inp
+}
+function frameEditAlpha(row, key, label) {
+  var r = document.createElement('input')
+  r.type = 'range'
+  r.className = 'dshwv-range'
+  r.min = '0'; r.max = '100'; r.step = '1'
+  var com = frameEditPaintCommon(key)
+  var n = Number(com.val)
+  if (!isFinite(n)) n = 1
+  r.value = String(Math.round(n * 100))
+  var pct = document.createElement('span')
+  pct.className = 'dshwv-volpct'
+  pct.textContent = r.value + '%'
+  r.title = label || ''
+  r.addEventListener('input', function () {
+    pct.textContent = r.value + '%'
+    frameEditSetPaint(key, frameClampNum(Number(r.value) / 100, 0, 1))
+  })
+  row.appendChild(r)
+  row.appendChild(pct)
+  return r
+}
+// v826：`frameEditCapJoinRow()`（线帽/线接两个下拉）**已按用户要求删除**。
+//   模型字段与渲染照旧（paint.cap / paint.join 仍在 framePaintDefaults() 与 frameShapeAttrs() 里消费），
+//   只是不再提供修改入口 —— 老配置的值不会被改写。
+// v857（用户要求）：切「SVG代码 / 图片导入」、以及「外观」这一节新建出来时，整列加过渡
+//   （重建后重放一次"淡入 + 轻微下移"，避免切换时硬生生跳变）
+function frameEditAttrsFade() {
+  try {
+    if (!frameEditAttrsEl) return
+    frameEditAttrsEl.classList.remove('dshwv-fefade')
+    try { void frameEditAttrsEl.offsetWidth } catch (err) {} // 触发重排，动画才会重放
+    frameEditAttrsEl.classList.add('dshwv-fefade')
+  } catch (err) {}
+}
+function frameEditAttrsBuild() {
+  try {
+    if (!frameEditAttrsEl || !frameEditDraft) return
+    frameEditAttrsEl.innerHTML = ''
+    var hasBig = frameEditHasBig()
+    var kinds = frameEditTargets()
+    // 当前选中槽位的"共同值"（全选时若不一致 ⇒ 留空/显示占位，改一次就统一写回 —— 用户最初的提示词要求）
+    function commonOf(key) {
+      var has = false, same = true, val = ''
+      for (var i = 0; i < kinds.length; i++) {
+        var sl = frameEditSlotOf(kinds[i])
+        if (!sl) continue
+        var v = String(sl[key] == null ? '' : sl[key])
+        if (!has) { val = v; has = true } else if (v !== val) same = false
+      }
+      return { same: same, val: val }
+    }
+    // 模式（v828：图片模式这轮就做，见下面的 image 分支）
+    // v835：整节套进折叠（标题旁带摘要，一眼看出当前是 SVG 还是图片、用的哪个预设）
+    var presetNameOf = { classic: '经典椭圆', roundrect: '圆角矩形', zigzag: '方形锯齿', custom: '自定义代码' }
+    var lookBody = null // v837：「外观」这一节的折叠体（大小 / 小泡泡开关 / 文字默认色都并进来）
+    var com0 = commonOf('svgPreset')
+    var shapeSummary = (curMode === 'image') ? '图片'
+      : (presetNameOf[(com0.same ? (com0.val || 'classic') : 'classic')] || '')
+    if (curMode === 'mix') shapeSummary = '混合模式'
+    // v852（用户要求）：模式（① SVG 代码 / ② 图片导入）放在「形状与内容」**上方** ——
+    //   常驻可见（不随折叠藏起来），因为它决定下面那一节里出现哪些设置。
+    // v853：这一行去掉「模式」两个字，文案改成 SVG代码 / 图片导入。
+    // v856（用户要求）：换个样式 —— 做成"分段控件"，两枚**等宽**拼起来，**总宽度与下面各行一致**（铺满属性区）。
+    var modeRow = document.createElement('div')
+    modeRow.className = 'dshwv-ferow'
+    modeRow.style.cssText = 'display:flex;width:100%;box-sizing:border-box;gap:0;margin:0 0 6px;' +
+      'border:1px solid rgba(32,49,112,.4);border-radius:6px;overflow:hidden'
+    frameEditAttrsEl.appendChild(modeRow)
+    var curMode = 'svg'
+    var modeSeen = ''
+    for (var mi = 0; mi < kinds.length; mi++) {
+      var msl = frameEditSlotOf(kinds[mi])
+      if (!msl) continue
+      var mk = msl.kind === 'image' ? 'image' : 'svg'
+      if (!modeSeen) { modeSeen = mk; curMode = mk } else if (modeSeen !== mk) curMode = 'mix'
+    }
+    // v854（用户要求）：「内容显示范围与位移」放在芯片的**下一行**
+    frameEditSafeSection()
+    var shapeBody = frameEditFold('shape', '形状与内容', shapeSummary)
+    // v852（用户要求）：**图片模式没有「外观」这一节**（底色/描边/虚线本来就不适用）
+    //   ⇒ 原来挂在「外观」里的 文字默认色 / 删除小泡泡 也并进「形状与内容」。
+    if (curMode === 'image') lookBody = shapeBody
+    var svgChip = document.createElement('button')
+    svgChip.type = 'button'
+    svgChip.className = 'dshwv-fechip' + (curMode === 'svg' ? ' dshwv-fechip-on' : '')
+    svgChip.style.cssText = 'flex:1 1 0;min-width:0;border:0;border-radius:0;padding:5px 0;text-align:center;' +
+      'font-size:12px;background:' + (curMode === 'svg' ? '#203170' : '#fff') + ';color:' + (curMode === 'svg' ? '#fff' : '#203170')
+    svgChip.textContent = 'SVG代码'
+    svgChip.title = '用矢量形状（预设 / 自定义代码）'
+    svgChip.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      frameEditSetKind('svg')
+      frameEditAttrsBuild()
+    })
+    modeRow.appendChild(svgChip)
+    var imgChip = document.createElement('button')
+    imgChip.type = 'button'
+    imgChip.className = 'dshwv-fechip' + (curMode === 'image' ? ' dshwv-fechip-on' : '')
+    imgChip.style.cssText = 'flex:1 1 0;min-width:0;border:0;border-left:1px solid rgba(32,49,112,.4);border-radius:0;' +
+      'padding:5px 0;text-align:center;font-size:12px;background:' + (curMode === 'image' ? '#203170' : '#fff') +
+      ';color:' + (curMode === 'image' ? '#fff' : '#203170')
+    imgChip.textContent = '图片导入'
+    imgChip.title = '这个槽位放一张图片（内置图库或自己上传）'
+    imgChip.addEventListener('click', function (e) {
+      try { e.stopPropagation() } catch (err) {}
+      frameEditSetKind('image')
+      frameEditAttrsBuild()
+    })
+    modeRow.appendChild(imgChip)
+    if (curMode === 'mix') frameEditNote('所选槽位的模式不一致；点上面任一模式会把它们统一。')
+    // ── ① SVG 模式：预设（三个）+ **常驻**的 SVG 代码框（v828 按用户最初的提示词）──
+    //    语义：**留空 = 用上面选的预设；填了 = 按代码画**；代码按 1026x700 画布坐标。
+    //    （小泡泡的"预设"会自动适配它自己的小框；代码则与大泡泡同一套坐标 —— 已与用户确认）
+    if (curMode !== 'image') {
+      var pCom = commonOf('svgPreset')
+      var nameOf = { classic: '经典椭圆', roundrect: '圆角矩形', zigzag: '方形锯齿', custom: '自定义（见下方代码）' }
+      var presetKey = pCom.same ? (pCom.val || 'classic') : 'classic'
+      var row = frameEditRowIn(shapeBody, '预设')
+      row.appendChild(frameEditDrop(nameOf[presetKey] || nameOf.classic, [
+        ['classic', nameOf.classic], ['roundrect', nameOf.roundrect], ['zigzag', nameOf.zigzag],
+      ], function (v) { frameEditSetPreset(v) }))
+      if (!pCom.same) {
+        var mixTag = document.createElement('span')
+        mixTag.className = 'dshwv-fenote'
+        mixTag.style.margin = '0'
+        mixTag.textContent = '所选槽位不一致，选一次即统一'
+        row.appendChild(mixTag)
+      }
+      var codeRow = frameEditRowIn(shapeBody, 'SVG 代码')
+      var code = document.createElement('textarea')
+      code.className = 'dshwv-fecode'
+      code.spellcheck = false
+      var cCom = commonOf('svgCode')
+      code.value = cCom.same ? cCom.val : ''
+      code.placeholder = '<path d="M 100 100 L 900 100 L 900 400 L 100 400 Z"/>'
+      // 输入时就地净化：所见即所存（存盘后宿主 frameSvgSanitize() 还会再洗一遍，两道闸门是刻意的）
+      function codeApply(rewrite) {
+        var clean = frameSvgClean(code.value)
+        if (rewrite) code.value = clean
+        for (var ci = 0; ci < kinds.length; ci++) {
+          var csl = frameEditSlotOf(kinds[ci])
+          if (csl) csl.svgCode = clean
+        }
+        frameEditMarkDirty()
+        frameEditPreviewRefresh()
+      }
+      code.addEventListener('input', function () { codeApply(false) })
+      code.addEventListener('change', function () {
+        codeApply(true)
+        frameEditAfterImport(frameEditSel === 'small1' ? 'small1' : (frameEditSel === 'small2' ? 'small2' : 'big')) // v841：改代码 ⇒ 几何对齐 + 安全区回默认
+        frameEditSafeFieldsRefresh()
+      })
+      codeRow.appendChild(code)
+    } else {
+      frameEditImageRows(commonOf, shapeBody) // ── ② 图片模式（v835：挂进「形状与内容」这一节）──
+    }
+    // 底色 / 描边 / 虚线（v828：**只在 SVG 模式**出现 —— 图片模式的属性按用户最初的提示词
+    //   只有"缩放 / 透明度 / 文字默认颜色"，不给"改了没效果"的控件）
+    if (curMode !== 'image') {
+    lookBody = frameEditFold('look', '外观', (function () {
+      var c = frameEditPaintCommon('lineW')
+      return (isFinite(Number(c.val)) ? Number(c.val) : 18) + 'px 描边'
+    })())
+    var bgRow = frameEditRowIn(lookBody, '底色')
+    frameEditCheck(bgRow, 'bgOn', '关掉 = 形状内部透明')
+    frameEditColor(bgRow, 'bg', '#FFFFFF')
+    frameEditAlpha(bgRow, 'bgAlpha', '底色透明度')
+    var lnRow = frameEditRowIn(lookBody, '描边')
+    frameEditCheck(lnRow, 'lineOn', '关掉 = 没有描边')
+    frameEditColor(lnRow, 'line', '#203170')
+    var wInp = document.createElement('input')
+    wInp.type = 'number'
+    wInp.className = 'dshwv-fenum'
+    wInp.min = '0'; wInp.max = '120'; wInp.step = '1'
+    var wCom = frameEditPaintCommon('lineW')
+    wInp.value = String(isFinite(Number(wCom.val)) ? Number(wCom.val) : 18)
+    wInp.title = '描边粗细（0–120）'
+    wInp.addEventListener('input', function () { frameEditSetPaint('lineW', frameClampNum(Number(wInp.value), 0, 120)) })
+    lnRow.appendChild(wInp)
+    frameEditAlpha(lnRow, 'lineAlpha', '描边透明度')
+    var dashRow = frameEditRowIn(lookBody, '虚线')
+    frameEditCheck(dashRow, 'dashOn', '描边改成虚线')
+    var dashInp = document.createElement('input')
+    dashInp.type = 'text'
+    dashInp.className = 'dshwv-fetext'
+    var dCom = frameEditPaintCommon('dash')
+    dashInp.value = String(dCom.val == null ? '0' : dCom.val)
+    dashInp.placeholder = '例如 18 12'
+    dashInp.title = '描边虚线样式：数字 + 空格/逗号（如 18 12）'
+    dashInp.addEventListener('input', function () {
+      var v = String(dashInp.value || '').trim()
+      if (!/^[0-9][0-9.,\s]*$/.test(v)) return
+      frameEditSetPaint('dash', v.slice(0, 40))
+    })
+    dashRow.appendChild(dashInp)
+    if (hasBig) {
+      // v826（用户要求）：**删去「线帽/线接」设置项** —— 只保留"虚线"。
+      //   模型里的 cap/join 字段与 frameNormPaint() 的默认值**不动**（老配置里的值原样保留、
+      //   归一化也不会改写它们；渲染时照旧读 paint.cap/join），只是不再给用户改的入口。
+    }
+    } // ← v828：SVG 模式专属属性行结束
+    // v829：位移已移到"内容限制范围"下面那一行（默认收起）；
+    //   这里的缩放只在 **SVG 模式**出现 —— 图片模式自己那行"缩放"就是它，避免同一件事做两份
+    if (curMode !== 'image') {
+    var sizeBody = lookBody // v837：整体缩放并入「外观」
+    var scRow = frameEditRowIn(sizeBody, '缩放')
+    var scRange = document.createElement('input')
+    scRange.type = 'range'
+    scRange.className = 'dshwv-range'
+    scRange.min = '0.2'; scRange.max = '4'; scRange.step = '0.05'
+    var sl0 = frameEditSlotOf(frameEditTargets()[0])
+    scRange.value = String((sl0 && isFinite(sl0.scale)) ? Number(sl0.scale) : 1)
+    scRange.title = '等比缩放（以泡泡中心为基准）'
+    scRange.addEventListener('input', function () { frameEditSetScale(Number(scRange.value)) })
+    var scNum = document.createElement('input')
+    scNum.type = 'number'
+    scNum.className = 'dshwv-fenum'
+    scNum.min = '0.2'; scNum.max = '4'; scNum.step = '0.05'
+    scNum.value = scRange.value
+    scNum.title = '等比缩放（0.2–4）'
+    scNum.addEventListener('input', function () { frameEditSetScale(Number(scNum.value)) })
+    var minus = document.createElement('button')
+    minus.type = 'button'
+    minus.className = 'dshwv-fechip'
+    minus.textContent = '−'
+    minus.title = '缩小 0.1'
+    minus.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditNudgeScale(-0.1) })
+    var plus = document.createElement('button')
+    plus.type = 'button'
+    plus.className = 'dshwv-fechip'
+    plus.textContent = '＋'
+    plus.title = '放大 0.1'
+    plus.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditNudgeScale(0.1) })
+    scRow.appendChild(minus)
+    scRow.appendChild(scRange)
+    scRow.appendChild(scNum)
+    scRow.appendChild(plus)
+    } // ← v829：缩放在图片模式由"图片"那一节的滑块承担
+    // 小泡泡删除 / 恢复
+    if (frameEditSel === 'small1' || frameEditSel === 'small2') {
+      var slx = frameEditSlotOf(frameEditSel)
+      var miscBody = lookBody || (lookBody = frameEditFold('look', '外观', ''))
+      var onRow = frameEditRowIn(miscBody, '小泡泡')
+      var onBtn = document.createElement('button')
+      onBtn.type = 'button'
+      onBtn.className = 'dshwv-fechip'
+      var hidden = !!(slx && slx.on === false)
+      onBtn.textContent = hidden ? '恢复这个小泡泡' : '删除这个小泡泡'
+      onBtn.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditSetSlotOn(frameEditSel, hidden) })
+      onRow.appendChild(onBtn)
+    }
+    // 文字默认色（框级；决策 7b）
+    if (hasBig) {
+      var txBody = miscBody || lookBody || (lookBody = frameEditFold('look', '外观', ''))
+      var txRow = frameEditRowIn(txBody, '文字默认色')
+      var txInp = document.createElement('input')
+      txInp.type = 'color'
+      txInp.className = 'dshwv-colnat'
+      txInp.value = /^#[0-9a-fA-F]{6}$/.test(String(frameEditDraft.textColor || '')) ? String(frameEditDraft.textColor) : '#536ba9'
+      txInp.addEventListener('input', function () { frameEditSetTextColor(txInp.value) })
+      txInp.addEventListener('change', function () { frameEditSetTextColor(txInp.value) })
+      txRow.appendChild(txInp)
+      var txDef = document.createElement('button')
+      txDef.type = 'button'
+      txDef.className = 'dshwv-fechip'
+      txDef.textContent = '默认'
+      txDef.title = '清掉框级文字色（回到 #536ba9）'
+      txDef.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; frameEditSetTextColor(''); frameEditAttrsBuild() })
+      txRow.appendChild(txDef)
+    }
+    // ── v828：安全区**不再放在右侧属性区**（用户最初的提示词：它是"真实预览下面一行"，
+    //    见 frameEditSafeSection() 与 openFrameEditor() 里的调用）──
+    // 名称/位移/缩放的输入框句柄交给 frameEditFieldsRefresh 同步（拖动时实时更新）
+    frameEditFields = { scRange: scRange, scNum: scNum }
+    frameEditFieldsRefresh()
+    // v857（用户要求）：切「SVG代码 / 图片导入」时、以及「外观」这一节新建出来时，整列淡入过渡
+    frameEditAttrsFade()
+  } catch (err) {}
+}
+// 内容限制范围 + 位移（v830：**一个收起块**）
+//   · 摘要行：「内容限制范围与位移」+ 右侧箭头；**收起时两行都藏起来**（用户要求“简洁”）
+//   · 展开后：一行矩形数值（x/y/宽/高 + 「自动估算」+ 显示叠加层）+ 一行位移（x/y）
+//   · 预览里：拖它的**内部**=移动它（无需模式开关）、拖 8 个把手=缩放；
+//     形状在它轮廓外的那圈照旧可直接拖（两者各占各的区域，不需要切换）
+//   · 「自动估算」兼任重置；方向键 1 / Shift 10 / Alt 0.2；吸附阈值 6（决策 13）
+var frameEditSafeFields = null
+var frameEditMoveFields = null
+var frameEditSafeOpen = false
+function frameEditSafeSection() {
+  try {
+    if (!frameEditSafeRow) {
+      frameEditSafeRow = document.createElement('div')
+      // v855（真正的原因）：以前这里用的是 `.dshwv-ferow`（**flex 容器**）⇒ 里面的"入口行/折叠体"
+      //   成了 flex item，宽度按内容收缩 ⇒ 这一栏永远占不满，背景条也是短的。
+      //   换成块级容器 + 子元素 100% 宽 ⇒ 真正铺满属性区。
+      frameEditSafeRow.className = 'dshwv-fesafewrap'
+    }
+    frameEditSafeRow.style.cssText = 'display:block;width:100%;box-sizing:border-box;margin:0 0 6px'
+    if (frameEditAttrsEl) frameEditAttrsEl.appendChild(frameEditSafeRow)
+    if (!frameEditDraft) return
+    frameEditSafeRow.innerHTML = ''
+    frameEditSafeFields = null
+    frameEditMoveFields = null
+    // ① 入口行（v837：改成与右侧属性区**同一套折叠** —— dshwvFoldEntry + collapseSet，
+    //    观感/动画/悬停与「提示与音效设置」完全一致）；摘要里直接显示当前矩形尺寸
+    var safeNow = frameNormSafe(frameEditDraft.safe)
+    var e = dshwvFoldEntry(frameEditSafeRow, '内容显示范围与位移', {
+      first: true,
+      summary: '', // v854（用户要求）：右端不再显示数值
+      onRowClick: function (willOpen) { frameEditSafeOpen = !!willOpen },
+      titleTail: '（内容显示范围 = 文字只会落在这个矩形里；位移 = 这个槽位的 x/y 微调）',
+    })
+    // v852（用户要求）：把「自动估算」放到这一栏的**右侧**（不展开也能点）
+    try {
+      var autoBtnTop = document.createElement('button')
+      autoBtnTop.type = 'button'
+      autoBtnTop.className = 'dshwv-fechip'
+      autoBtnTop.textContent = '自动估算'
+      autoBtnTop.title = '按你定的规则重算：量出内容的包围盒 → 中心对准原本大泡泡的中心 → 内容显示范围取原本大泡泡的大小'
+      autoBtnTop.addEventListener('click', function (ev) {
+        try { ev.stopPropagation() } catch (err) {} // 别把这一行展开/收起
+        frameEditAfterImport('big')
+        frameEditSafeFieldsRefresh() // v854：不重建整栏（重建会把它挪到属性区末尾），只刷数值
+      })
+      try { e.row.insertBefore(autoBtnTop, e.summary) } catch (err) { e.row.appendChild(autoBtnTop) }
+    } catch (err) {}
+    if (frameEditSafeOpen) { try { collapseSet(e.body, true, true) } catch (err) {} }
+    // 展开体不要那 10px 缩进（这一行要占满菜单宽度，用户要求）
+    try { e.body.style.paddingLeft = '0' } catch (err) {}
+    var safeHelpText = (
+      '<div style="font-weight:600;margin-bottom:4px">内容显示范围与位移</div>' +
+      '<div>· <b>内容显示范围</b>：文字只会落在这个矩形里（只管大泡泡）。' +
+      '预览里拖它的<b>内部</b>可移动、拖 <b>8 个方块</b>可缩放；' +
+      '方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>' +
+      '<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当“重置”用）</div>' +
+      '<div>· <b>位移</b>：这个槽位的 x/y（画布单位），与拖动等价；会被钳制在“完全留在可显示范围内”</div>' +
+      '<div>· 形状在它轮廓外的那圈照旧可直接拖（两者各占各的区域，不需要切换）</div>' +
+      '<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>'
+    )
+    var safeDot = dshwvAskDot(safeHelpText)
+    try { safeDot.addEventListener('click', function (ev) { try { ev.stopPropagation() } catch (e2) {} }) } catch (err) {}
+    e.row.appendChild(safeDot)
+    // v838（用户报"改过之后点它不展开内容了"）：折叠体里的控件**照旧全部创建**（只是被 collapseSet 藏起来）
+    //   —— 这正是本项目 dshwvFoldEntry 的规矩（懒创建会让"展开"变成展开一个空盒子）。
+    // ② 矩形数值那一行（v853：左侧补上「内容显示范围：」）
+    var rowA = document.createElement('div')
+    rowA.className = 'dshwv-ferow'
+    rowA.style.width = '100%'
+    var rowALab = document.createElement('span')
+    rowALab.className = 'dshwv-felab'
+    rowALab.style.flex = '0 0 auto'
+    rowALab.textContent = '内容显示范围：'
+    rowA.appendChild(rowALab)
+    var fields = {}
+    var defs = [['x', 'x'], ['y', 'y'], ['w', '宽'], ['h', '高']]
+    for (var i = 0; i < defs.length; i++) {
+      (function (key, label) {
+        var lb = document.createElement('span')
+        lb.className = 'dshwv-felab'
+        lb.style.flex = '0 0 auto'
+        lb.textContent = label
+        rowA.appendChild(lb)
+        var inp = document.createElement('input')
+        inp.type = 'number'
+        inp.className = 'dshwv-fenum'
+        inp.step = '1'
+        // v853（用户要求）：这一行要**占满菜单宽度** ⇒ 四个数值框可伸缩（原来固定 56px，右侧一大片空着）
+        inp.style.flex = '1 1 52px'
+        inp.style.width = 'auto'
+        inp.style.minWidth = '48px'
+        inp.title = '内容显示范围（画布单位 0–1026 / 0–700）；方向键 1、Shift 10、Alt 0.2'
+        inp.addEventListener('input', function () {
+          var s = frameNormSafe(frameEditDraft.safe)
+          s[key] = frameClampNum(Number(inp.value), (key === 'w' || key === 'h') ? 40 : 0, (key === 'w') ? FRAME_W : (key === 'h' ? FRAME_H : FRAME_W))
+          frameEditSetSafe(s)
+        })
+        inp.addEventListener('keydown', function (e) { frameEditSafeKey(e, key) })
+        rowA.appendChild(inp)
+        fields[key] = inp
+      })(defs[i][0], defs[i][1])
+    }
+    // v831（用户要求）：**去掉"显示叠加层"开关** —— 那一层始终显示
+    e.body.appendChild(rowA)
+    // ③ 位移那一行
+    var rowB = document.createElement('div')
+    rowB.className = 'dshwv-ferow'
+    rowB.style.width = '100%'
+    var mlb = document.createElement('span')
+    mlb.className = 'dshwv-felab'
+    mlb.style.flex = '0 0 auto'
+    mlb.textContent = '位移'
+    rowB.appendChild(mlb)
+    var mFields = {}
+    var mDefs = [['x', 'x'], ['y', 'y']]
+    for (var k2 = 0; k2 < mDefs.length; k2++) {
+      (function (key, label) {
+        var lb2 = document.createElement('span')
+        lb2.className = 'dshwv-felab'
+        lb2.style.flex = '0 0 auto'
+        lb2.textContent = label
+        rowB.appendChild(lb2)
+        var inp2 = document.createElement('input')
+        inp2.type = 'number'
+        inp2.className = 'dshwv-fenum'
+        inp2.step = '1'
+        inp2.style.flex = '1 1 52px'
+        inp2.style.width = 'auto'
+        inp2.style.minWidth = '48px'
+        inp2.title = '位移（画布单位，也可以直接拖预览里的泡泡）'
+        inp2.addEventListener('input', function () { frameEditSetOffset(key, Number(inp2.value)) })
+        rowB.appendChild(inp2)
+        mFields[key] = inp2
+      })(mDefs[k2][0], mDefs[k2][1])
+    }
+    e.body.appendChild(rowB)
+    frameEditSafeFields = fields
+    frameEditMoveFields = mFields
+    frameEditSafeFieldsRefresh()
+    frameEditMoveFieldsRefresh()
+  } catch (err) {}
+}
+function frameEditMoveFieldsRefresh() {
+  try {
+    if (!frameEditMoveFields || !frameEditDraft) return
+    var kinds = frameEditTargets()
+    function commonNum(key) {
+      var has = false, same = true, val = 0
+      for (var i = 0; i < kinds.length; i++) {
+        var sl = frameEditSlotOf(kinds[i])
+        if (!sl) continue
+        var v = Number(sl[key]) || 0
+        if (!has) { val = v; has = true } else if (v !== val) same = false
+      }
+      return { same: same, val: val }
+    }
+    var cx = commonNum('dx')
+    var cy = commonNum('dy')
+    if (frameEditMoveFields.x) {
+      frameEditMoveFields.x.value = cx.same ? String(frameR2(cx.val)) : ''
+      frameEditMoveFields.x.placeholder = cx.same ? '' : '多个'
+    }
+    if (frameEditMoveFields.y) {
+      frameEditMoveFields.y.value = cy.same ? String(frameR2(cy.val)) : ''
+      frameEditMoveFields.y.placeholder = cy.same ? '' : '多个'
+    }
+  } catch (err) {}
+}
+function frameEditSafeFieldsRefresh() {
+  try {
+    if (!frameEditSafeFields || !frameEditDraft || !frameEditSafeFields.x) return
+    var s = frameNormSafe(frameEditDraft.safe)
+    if (document.activeElement !== frameEditSafeFields.x) frameEditSafeFields.x.value = String(frameR2(s.x))
+    if (document.activeElement !== frameEditSafeFields.y) frameEditSafeFields.y.value = String(frameR2(s.y))
+    if (document.activeElement !== frameEditSafeFields.w) frameEditSafeFields.w.value = String(frameR2(s.w))
+    if (document.activeElement !== frameEditSafeFields.h) frameEditSafeFields.h.value = String(frameR2(s.h))
+  } catch (err) {}
+}
+function frameEditFieldsRefresh() {
+  try {
+    if (!frameEditFields || !frameEditDraft) return
+    var kinds = frameEditTargets()
+    function commonNum(key) {
+      var has = false, same = true, val = null
+      for (var i = 0; i < kinds.length; i++) {
+        var sl = frameEditSlotOf(kinds[i])
+        if (!sl) continue
+        var v = Number(sl[key]) || 0
+        if (!has) { val = v; has = true } else if (v !== val) same = false
+      }
+      return { same: same, val: val }
+    }
+    var cx = commonNum('dx'), cy = commonNum('dy')
+    if (frameEditFields.x) {
+      frameEditFields.x.value = cx.same ? String(frameR2(cx.val || 0)) : ''
+      frameEditFields.x.placeholder = cx.same ? '' : '多个'
+    }
+    if (frameEditFields.y) {
+      frameEditFields.y.value = cy.same ? String(frameR2(cy.val || 0)) : ''
+      frameEditFields.y.placeholder = cy.same ? '' : '多个'
+    }
+    var sl0 = frameEditSlotOf(kinds[0])
+    var sc = (sl0 && isFinite(sl0.scale)) ? Number(sl0.scale) : 1
+    if (frameEditFields.scRange) frameEditFields.scRange.value = String(sc)
+    if (frameEditFields.scNum && document.activeElement !== frameEditFields.scNum) frameEditFields.scNum.value = String(frameR2(sc))
+  } catch (err) {}
+}
+// ── 标题 / 底部按钮 ──
+function frameEditTitleBuild() {
+  try {
+    if (!frameEditTitleEl) return
+    frameEditTitleEl.innerHTML = ''
+    var t = document.createElement('span')
+    if (frameEditMode === 'edit') t.textContent = '编辑泡泡框：' + String((frameEditDraft && frameEditDraft.name) || '')
+    else if (frameEditMode === 'saveas') t.textContent = '另存为泡泡框'
+    else t.textContent = '新建泡泡框'
+    frameEditTitleEl.appendChild(t)
+    frameEditTitleEl.appendChild(dshwvAskDot(
+      '<div style="font-weight:600;margin-bottom:4px">泡泡框编辑器</div>' +
+      '<div>· 预览里<b>拖动</b>任一泡泡可移动（钳制在画布内、至少 30% 可见）</div>' +
+      '<div>· 左侧选<b>大泡泡/小泡泡1/小泡泡2/全选</b>，右侧改属性</div>' +
+      '<div>· 小泡泡只能删（隐藏）不能加；大泡泡不可删</div>' +
+      '<div>· 三个内置预设：经典椭圆 / 圆角矩形 / 方形锯齿；也可写自定义 SVG 代码</div>' +
+      '<div>· 「取消」不会改动任何东西；「重置」回到<b>打开这个窗口时</b>的样子</div>' +
+      '<div>· <b>内容限制范围</b>：文字只会落在这个矩形里（只管大泡泡）。预览里拖它的<b>边框</b>可移动、' +
+      '拖 8 个方块可缩放；方向键 1 / Shift 10 / Alt 0.2；靠近中线·边缘·其它泡泡时吸附（6）</div>' +
+      '<div>· 「自动估算」按当前形状找一块尽量大的干净区域；失败或用不上时回落默认（也能当"重置"用）</div>' +
+      '<div>· SVG 代码：留空用上面选的预设，填了按代码画（按 1026×700 画布坐标）；只放行 path/ellipse/circle/rect/' +
+      'polygon/polyline/g 与几何·描边属性，脚本/事件/外链会被剥掉</div>' +
+      '<div>· 图片：走站内图库；"上传新图"保持原比例（GIF 也能用），"裁剪…"复用角色导入的裁剪窗口</div>' +
+      '<div>· 预览用的是你「首次点击」的真实内容；虚线框 = 当前选中的槽位</div>' +
+      '<div style="margin-top:4px;opacity:.75">保存进框库后，还要在「自定义泡泡」窗口点<b>保存</b>才会落盘生效。</div>'
+    ))
+  } catch (err) {}
+}
+function frameEditBtnsBuild() {
+  try {
+    if (!frameEditBtnsEl) return
+    frameEditBtnsEl.innerHTML = ''
+    function btn(label, cls, fn) {
+      var b = document.createElement('button')
+      b.type = 'button'
+      b.className = 'dshwv-bubbtn ' + cls
+      b.textContent = label
+      b.addEventListener('click', function (e) { try { e.stopPropagation() } catch (err) {}; try { fn() } catch (err) {} })
+      frameEditBtnsEl.appendChild(b)
+      return b
+    }
+    btn('取消', 'dshwv-bubbtn-no', function () {
+      if (frameEditIsDirty()) showConfirm('放弃这个泡泡框的未保存修改?', function () { frameEditClose() })
+      else frameEditClose()
+    })
+    btn('重置', 'dshwv-bubbtn-no', function () {
+      if (!frameEditSnap) return
+      frameEditDraft = JSON.parse(frameEditSnap)
+      frameEditSel = 'big'
+      if (frameEditNameInp) frameEditNameInp.value = String(frameEditDraft.name || '')
+      frameEditTitleBuild()
+      frameEditSlotsRefresh()
+      frameEditAttrsBuild() // v854：同上（重置也走属性区那一遍）
+      frameEditPreviewRefresh()
+    })
+    // v848（用户要求）：保存/存为新样式 文案加"并应用"，并且**真的立刻应用**（见 frameEditCommit 的 applyNow）
+    if (frameEditMode === 'edit') btn('另存为并应用', 'dshwv-bubbtn-no', function () { frameEditCommit('saveas') })
+    if (frameEditMode === 'edit') btn('保存并应用', 'dshwv-bubbtn-ok', function () { frameEditCommit('save') })
+    else btn(frameEditMode === 'new' ? '存为新样式并应用' : '另存为并应用', 'dshwv-bubbtn-ok', function () { frameEditCommit(frameEditMode === 'new' ? 'new' : 'saveas') })
+  } catch (err) {}
+}
+function frameEditClose() {
+  try { if (frameEditMask) frameEditMask.style.display = 'none' } catch (err) {}
+  frameEditDrag = null
+}
+function frameEditCopyName(name) {
+  try {
+    var base = String(name || '泡泡框')
+    var used = framesNow().frames.some(function (x) { return x.name === base })
+    if (!used) return base.slice(0, 24)
+    return (base + ' 副本').slice(0, 24)
+  } catch (err) { return String(name || '泡泡框').slice(0, 24) }
+}
+// 打开编辑器。mode: 'new'（新建，可"存为新样式'）/ 'edit'（编辑已有）/ 'saveas'（另存为一个新框）
+function openFrameEditor(mode, frameId) {
+  try {
+    whaleZClean()
+    frameEditMode = (mode === 'edit' || mode === 'saveas') ? mode : 'new'
+    var list = framesNow()
+    var base = null
+    if (frameEditMode === 'new') {
+      // v839（用户要求）：新建一律以**默认（内置经典）框**为模板 ——
+      //   之前是以"当前保底框"为模板，于是新建出来的框会顺带带上你正在用的那套外观/图片，
+      //   看起来就像"拿错了模板"。想基于某个已有框改，请用那张卡片上的「复制」或「编辑 → 另存为」。
+      var seed = frameBuiltin()
+      base = frameNormOne(JSON.parse(JSON.stringify(seed)), list.frames.length)
+      base.id = ''
+      base.builtin = false
+      base.pinned = 0
+      base.createdAt = Date.now()
+      base.name = ('泡泡框' + (list.frames.filter(function (x) { return !x.builtin }).length + 1)).slice(0, 24)
+      base.slots.big.svgPreset = 'classic'
+      // 安全区 = "历史文字框"⇒ 一建出来文字位置就与内置经典框一致（不会莫名跳位）
+      base.safe = frameLegacySafe()
+      frameEditOrig = null
+    } else {
+      var src = frameById(frameId)
+      if (!src) { dshwvToast('这个泡泡框已经不存在了', 'no'); return }
+      if (src.builtin) { dshwvToast('内置框只读：请先「复制」或「另存为」', 'no'); return }
+      base = frameNormOne(JSON.parse(JSON.stringify(src)), 0)
+      frameEditOrig = JSON.parse(JSON.stringify(base))
+      if (frameEditMode === 'saveas') {
+        base.id = ''
+        base.pinned = 0
+        base.createdAt = Date.now()
+        base.name = frameEditCopyName(base.name)
+      }
+    }
+    frameEditDraft = base
+    frameEditSnap = JSON.stringify(base)
+    frameEditSel = 'big'
+    frameEditDrag = null
+    if (frameEditNameInp) frameEditNameInp.value = String(base.name || '')
+    frameEditTitleBuild()
+    frameEditSlotsRefresh()
+    frameEditAttrsBuild() // v854：这一栏现在由属性区那一遍建（芯片下一行）
+    frameEditBtnsBuild()
+    frameEditMask.style.display = 'flex'
+    dshwLayerUp(frameEditMask, 20500) // 从 W1(20500) 里打开 ⇒ 自动落到 20510，永远不会被父窗口盖住
+    try { frameLibToggle(false) } catch (err) {}
+    frameEditPreviewRefresh()
+    frameEditOpaqueWarmup(null) // v850：图片槽位的不透明包围盒是按需缓存 ⇒ 打开时预热，刷新页面后也一致
+  } catch (err) {
+    try { dshwvToast('打开泡泡框编辑器失败（已跳过，其他功能不受影响）', 'no') } catch (e2) {}
+  }
+}
+// 保存：'save'（写回原框）/ 'new' / 'saveas'（都新增一个框）。一律走 framesNorm() 归一化。
+function frameEditCommit(kind) {
+  try {
+    if (!frameEditDraft) return
+    var list = framesNow()
+    var draft = frameNormOne(JSON.parse(JSON.stringify(frameEditDraft)), list.frames.length)
+    draft.builtin = false
+    var frames = list.frames.slice()
+    var saved = null
+    var addNew = (kind !== 'save') || frameEditMode !== 'edit' || !frameEditOrig
+    if (addNew) {
+      draft.id = 'frame_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6)
+      draft.createdAt = Date.now()
+      draft.pinned = 0
+      if (frameEditMode === 'saveas' || (kind === 'saveas')) draft.name = frameEditCopyName(draft.name)
+      frames.push(draft)
+      saved = draft
+    } else {
+      // 编辑保存：id / 创建时间 / 置顶序号都保持不变（置顶只影响排序，决策 11）
+      draft.id = String(frameEditOrig.id)
+      draft.createdAt = Number(frameEditOrig.createdAt) || Date.now()
+      draft.pinned = Number(frameEditOrig.pinned) || 0
+      var replaced = false
+      frames = frames.map(function (x) {
+        if (x.id === draft.id) { replaced = true; return draft }
+        return x
+      })
+      if (!replaced) frames.push(draft)
+      saved = draft
+    }
+    // v848（用户要求）：保存 = **并应用** ——
+    //   · 新建 / 另存为：把刚存的这个框**设为保底框**（defaultFrameId），这样它立刻接管桌面上所有"跟随保底"的泡泡；
+    //   · 编辑保存：id 不变；如果它本来就是保底框，同样立刻重画。
+    var applyNow = true
+    var nextDefault = list.defaultFrameId
+    if (applyNow && saved && kind !== 'save') nextDefault = saved.id
+    if (applyNow && saved && frameEditMode === 'new') nextDefault = saved.id
+    var sorted = framesNorm(frames, nextDefault)
+    bubbleFrames = sorted
+    frameEditClose()
+    frameInvalidateApplied()
+    frameLibRefresh()
+    frameLibBuild()
+    frameReapplyCurrent() // 泡泡正显示时立刻看到新形状（否则等下一轮点按自然生效）
+    // W1 的实况预览也跟着刷新一次（它按"当前项 + 框"渲染）
+    try { if (typeof renderBubbleEditor === 'function' && bubbleMask && bubbleMask.style.display !== 'none') renderBubbleEditor() } catch (err) {}
+    try {
+      var nm = frameEsc(saved.name)
+      var asDefault = (kind !== 'save')
+      dshwvToast(kind === 'save'
+        ? ('已更新并应用泡泡框「' + nm + '」')
+        : ('已保存并应用「' + nm + '」' + (asDefault ? '（已设为保底框）' : '')), 'ok', 2600)
+    } catch (err) {}
+  } catch (err) {
+    try { dshwvToast('保存泡泡框失败（未改动任何数据）', 'no') } catch (e2) {}
+  }
+}
+// ── 加载期：把编辑器窗口建出来（只 createElement/appendChild，不读框库）──
+try {
+  frameEditMask = document.createElement('div')
+  frameEditMask.className = 'dshwv-framemask'
+  frameEditMask.style.display = 'none'
+  frameEditCard = document.createElement('div')
+  frameEditCard.className = 'dshwv-framecard'
+  frameEditTitleEl = document.createElement('div')
+  frameEditTitleEl.className = 'dshwv-fetitle'
+  frameEditCard.appendChild(frameEditTitleEl)
+  var frameEditNameRow = document.createElement('div')
+  frameEditNameRow.className = 'dshwv-fename'
+  // v854：去掉「框名」两个字、这一行**居中**、输入框**短一点**。
+  // v856（用户要求）：那条分割线挪到名称栏**下面** ⇒ 顺序 = 预览 → 名字 → 分割线 → 内容显示范围与位移。
+  frameEditNameRow.style.cssText = 'justify-content:center;border-bottom:1px solid rgba(32,49,112,.12);margin:6px 0 0;padding-bottom:6px'
+  frameEditNameInp = document.createElement('input')
+  frameEditNameInp.type = 'text'
+  frameEditNameInp.className = 'dshwv-feinp'
+  frameEditNameInp.style.cssText = 'flex:0 0 auto;width:200px;max-width:62%;text-align:center'
+  frameEditNameInp.maxLength = 24
+  frameEditNameInp.placeholder = '泡泡框名（最多 24 字）'
+  frameEditNameInp.addEventListener('input', function () {
+    try { frameEditDraft.name = String(frameEditNameInp.value || '').slice(0, 24) } catch (err) {}
+  })
+  frameEditNameRow.appendChild(frameEditNameInp)
+  // v853（用户要求）：框名这一行挪到**「内容显示范围与位移」上面**（也就是预览下方）——
+  //   顺序：标题 → 预览 → 框名 → 内容显示范围与位移 → 左右版。这里先不挂，等预览挂完再挂。
+  frameEditStageBox = document.createElement('div')
+  frameEditStageBox.className = 'dshwv-festagebox'
+  frameEditCard.appendChild(frameEditStageBox)
+  frameEditCard.appendChild(frameEditNameRow)
+  // v854（用户要求）：这一栏搬进**右侧属性区**，紧跟「SVG代码 / 图片导入」芯片的下一行；
+  //   元素本身是常驻的（frameEditSafeSection() 每次重建时把它重新挂进属性区）⇒ 这里不再建在卡片上。
+  // v830（用户要求）：位移并进同一个收起块 —— 不再单独占一行
+  var frameEditBody = document.createElement('div')
+  frameEditBody.className = 'dshwv-febody'
+  frameEditSlotsEl = document.createElement('div')
+  frameEditSlotsEl.className = 'dshwv-feslots'
+  frameEditBody.appendChild(frameEditSlotsEl)
+  frameEditAttrsEl = document.createElement('div')
+  frameEditAttrsEl.className = 'dshwv-feattrs'
+  frameEditBody.appendChild(frameEditAttrsEl)
+  frameEditCard.appendChild(frameEditBody)
+  frameEditBtnsEl = document.createElement('div')
+  frameEditBtnsEl.className = 'dshwv-febtns'
+  frameEditCard.appendChild(frameEditBtnsEl)
+  frameEditMask.appendChild(frameEditCard)
+  dshwBodyAppend(frameEditMask)
+  document.addEventListener('pointermove', frameEditStageMove, true)
+  document.addEventListener('pointerup', frameEditStageUp, true)
+  document.addEventListener('pointercancel', frameEditStageUp, true)
+  window.addEventListener('resize', function () {
+    try { if (frameEditMask && frameEditMask.style.display !== 'none') frameEditPreviewRefresh() } catch (err) {}
+  })
+} catch (err) {}
+
 function bubbleCloneModule(m) {
   return JSON.parse(JSON.stringify(m || {}))
 }
@@ -12344,9 +17069,17 @@ function bubbleLibDel(id) {
 function applyBubbleCfgSeq() {
   try {
     if (!bubbleCfg || !Array.isArray(bubbleCfg.items) || !bubbleCfg.items.length) return
+    // v815：框库随配置一起同步（老配置没有 frames ⇒ 走内置经典框）
+    try { syncFramesFromCfg() } catch (err) {}
     var seq = []
     for (var i = 0; i < bubbleCfg.items.length; i++) {
       var it = bubbleCfg.items[i]
+      // v815：把"本泡泡用哪个框 + 外观覆盖"带进运行序列（渲染时按它选框）
+      var itFrame = {}
+      try {
+        if (it && typeof it.frameId === 'string' && it.frameId) itFrame.frameId = it.frameId
+        if (it && it.frameOverride && typeof it.frameOverride === 'object') itFrame.frameOverride = it.frameOverride
+      } catch (err) {}
       if (it && it.kind === 'choice' && Array.isArray(it.options)) {
         var opts = []
         for (var ci = 0; ci < it.options.length && ci < 2; ci++) {
@@ -12356,13 +17089,23 @@ function applyBubbleCfgSeq() {
           if (cit.kind === 'custom' && Array.isArray(cit.modules)) citem = { kind: 'custom', modules: cit.modules }
           else if (cit.kind === 'random') citem = { kind: 'random' }
           else citem = { kind: 'normal' }
-          opts.push({ w: bubbleChoiceWeight(co), item: citem })
+          // 并列两侧各自带框：item 上的优先，其次 option 上的
+          var sideFrame = {}
+          try {
+            if (co && typeof co.frameId === 'string' && co.frameId) sideFrame.frameId = co.frameId
+            if (co && co.frameOverride && typeof co.frameOverride === 'object') sideFrame.frameOverride = co.frameOverride
+            if (cit && typeof cit.frameId === 'string' && cit.frameId) sideFrame.frameId = cit.frameId
+            if (cit && cit.frameOverride && typeof cit.frameOverride === 'object') sideFrame.frameOverride = cit.frameOverride
+          } catch (err) {}
+          // v821（P1）：并列两侧除了把框挂在 option 上（编辑器用），**也挂到 item 上** ——
+          //   运行期 bubblePickChoiceStep() 返回的是 option.item，挂在 item 上才拿得到框。
+          opts.push(Object.assign({ w: bubbleChoiceWeight(co), item: Object.assign({}, citem, sideFrame) }, sideFrame))
         }
-        if (opts.length) { seq.push({ kind: 'choice', options: opts }); continue }
+        if (opts.length) { seq.push(Object.assign({ kind: 'choice', options: opts }, itFrame)); continue }
       }
-      if (it && it.kind === 'custom' && Array.isArray(it.modules)) seq.push({ kind: 'custom', modules: it.modules })
-      else if (it && it.kind === 'random') seq.push({ kind: 'random' })
-      else seq.push({ kind: 'normal' })
+      if (it && it.kind === 'custom' && Array.isArray(it.modules)) seq.push(Object.assign({ kind: 'custom', modules: it.modules }, itFrame))
+      else if (it && it.kind === 'random') seq.push(Object.assign({ kind: 'random' }, itFrame))
+      else seq.push(Object.assign({ kind: 'normal' }, itFrame))
     }
     if (seq.length) bubbleSeq = seq
   } catch (err) {}
@@ -12562,6 +17305,20 @@ function bubbleClearModuleRows() {
 }
 function sceneOpen(kind, renderFn, ttlMs) {
   var wasOpen = bubbleShown
+  // v821（P1）：系统泡泡（消耗 / 预警 / 等待）没有"第 n 次点击"上下文 ⇒ 默认用**保底框**；
+  //   队列泡泡（normal/random/custom）由 bubbleShowSeqNext() 在调用前按该项的框画好。
+  // v851（第 4 条）：系统泡泡现在**各自也能选框**（usageSet.<kind>.frameId）——没选才跟随保底。
+  try {
+    if (kind === 'cost' || kind === 'alert' || kind === 'wait') {
+      var sysFid = sysFrameIdOf(kind)
+      if (sysFid && frameById(sysFid)) {
+        // 走渲染器同一套：内置框/找不到的 id 会自动回落（resolveFrameForStep 的三级回退）
+        applyBubbleFrameFor({ frameId: sysFid })
+      } else {
+        applyDefaultFrame()
+      }
+    }
+  } catch (err) {}
   bubbleClearAll()
   bubbleClearModuleRows()
   bubbleLiveMods = null
@@ -12676,6 +17433,15 @@ function bubbleShowSeqNext() {
   bubbleSeqIdx++
   var item = bubbleIsChoice(step) ? bubblePickChoiceStep(step) : step
   if (!item) { hideBubble(); return }
+  // v821（P1）：先按"这一项用的框"重画形状，再渲染内容（形状与内容同一帧出现，不会闪）
+  //   并列步骤：优先用选中那一侧自己的框；那一侧没设、但**步骤级**设了 ⇒ 用步骤级的（兼容旧数据/手工配置）
+  try {
+    var frameCtx = item
+    if (step !== item && !item.frameId && step.frameId) {
+      frameCtx = { frameId: step.frameId, frameOverride: item.frameOverride || step.frameOverride }
+    }
+    applyBubbleFrameFor(frameCtx)
+  } catch (err) {}
   if (item.kind === 'random') {
     var lines = pickRandomLines()
     bubbleRandomLines = lines
@@ -13676,7 +18442,28 @@ function bubbleRowsTo(parentEl, mods) {
     try {
       var compFs = window.getComputedStyle ? parseFloat(window.getComputedStyle(blk.el).fontSize) : 0
       var multNow = bubbleModuleFontU(blk.fSize)
-      var capPx = compFs && multNow ? 560 * compFs / multNow : 0
+      // v846（用户反馈"安全区拉窄还是没折行"的**真正原因**）：
+      //   这里原本按**写死的 560u** 判定折行，而且会给每一行写**内联** white-space / maxWidth，
+      //   内联样式优先级高于 CSS ⇒ 安全区比 560u 窄时，文字照样不折（我前面加的那些 CSS 规则全被它盖掉）。
+      //   现在：**框用了内容限制范围时，折行上限 = 文字层自己的宽度（就是安全区宽度）**，
+      //   并按用户确认的"只在词间/标点处换行、不拆数字"来写内联样式（不加 anywhere/break-word）。
+      var safePx = 0
+      try {
+        if (parentEl && parentEl.clientWidth && parentEl.classList && parentEl.classList.contains('dshwv-textsafe')) {
+          safePx = parentEl.clientWidth
+        }
+      } catch (err) {}
+      if (safePx > 0) {
+        // 有安全区：**什么都不写内联**（清掉可能残留的旧值）—— 折行/宽度完全交给 CSS
+        //   （`.dshwv-textsafe .dshwv-trow{white-space:normal;word-break:normal;overflow-wrap:normal;max-width:100%}`）。
+        //   这样安全区一变（拖矩形/改数值/换框）就立刻重排，不必等行被重建。
+        blk.el.style.maxWidth = ''
+        blk.el.style.whiteSpace = ''
+        blk.el.style.overflowWrap = ''
+        blk.el.style.wordBreak = ''
+        return
+      }
+      var capPx = (compFs && multNow) ? 560 * compFs / multNow : 0
       if (capPx > 0 && blk.el.scrollWidth > capPx + 2) {
         blk.el.style.maxWidth = capPx + 'px'
         blk.el.style.whiteSpace = 'normal'
@@ -13839,9 +18626,12 @@ function bubbleRenderModules(mods) {
 }
 // 编辑器真实泡泡预览:用与真实相同的宽度 B 排版(保证换行判定一致),
 // 再整体 CSS 缩放放入卡片,因此预览与实际逐像素同排版
-function bubblePreviewInto(container, mods, widthPx) {
+// v825（P3）：可选第 4 个参数 opts = { frame, override } —— 传了就用**这一项真正会用到的框 + 覆盖**渲染，
+//   否则照旧"抄真实泡泡当前的 SVG"（老调用点行为一字不变）。
+function bubblePreviewInto(container, mods, widthPx, opts) {
   try {
     if (!container) return
+    var o = opts || {}
     container.innerHTML = ''
     // 真实泡泡当前宽度(挂件缩放后)
     var B = Math.max(120, (root && (root.offsetWidth || root.getBoundingClientRect().width)) || 300)
@@ -13877,8 +18667,11 @@ function bubblePreviewInto(container, mods, widthPx) {
     stage.style.width = '100%'
     stage.style.height = Math.round(W * 700 / 1026) + 'px'
     try {
-      var svgEl = bubbleBox.querySelector('svg')
-      if (svgEl) stage.innerHTML = svgEl.outerHTML
+      if (o.frame) stage.innerHTML = frameSvgMarkup(o.frame, o.override || null)
+      else {
+        var svgEl = bubbleBox.querySelector('svg')
+        if (svgEl) stage.innerHTML = svgEl.outerHTML
+      }
     } catch (err) {}
     // 预览:隐藏底部两个小泡泡(尾巴),仅预览不影响真实泡泡
     try {
@@ -13890,6 +18683,36 @@ function bubblePreviewInto(container, mods, widthPx) {
     tb.className = 'dshwv-text'
     tb.style.opacity = '1'
     tb.style.transition = 'none'
+    // v823（P2）：形状是从真实泡泡抄来的，文字色也照抄一份 —— 否则设了"框级文字默认色"后，
+    //   编辑器预览会显示成默认灰蓝、真实泡泡却是用户设的颜色（"预览一个样、真实另一个样"）。
+    //   逐行显式设过颜色的行仍然优先（它们自带内联 color，继承不会盖掉）。
+    //   v825（P3）：指定了 opts.frame 时，颜色/几何都按**那个框**算（而不是照抄真实泡泡）。
+    try {
+      if (o.frame) tb.style.color = o.frame.textColor ? String(o.frame.textColor) : ''
+      else tb.style.color = textBox && textBox.style ? String(textBox.style.color || '') : ''
+    } catch (err) {}
+    // v825（P3）：安全区几何 —— 指定框时按它的 safe 算，否则照抄真实泡泡的文字层
+    try {
+      var stq = o.frame ? frameTextStyleOf(o.frame) : null
+      if (stq) {
+        tb.style.left = stq.left
+        tb.style.top = stq.top
+        tb.style.width = stq.width
+        tb.style.height = stq.height
+        // v847：**必须把这一个类也带上** —— 文字层的定位规则（居中/高度 auto/换行）全在 `.dshwv-textsafe` 上。
+        //   以前只抄了 left/top/width/height，没抄这个类 ⇒ 预览用的是"旧假设"（垂直居中偏移）⇒ 内容偏上。
+        try { tb.classList.add('dshwv-textsafe') } catch (err) {}
+      } else if (!o.frame && textBox && textBox.style) {
+        tb.style.left = String(textBox.style.left || '')
+        tb.style.top = String(textBox.style.top || '')
+        tb.style.width = String(textBox.style.width || '')
+        tb.style.height = String(textBox.style.height || '')
+        try {
+          if (textBox.classList && textBox.classList.contains('dshwv-textsafe')) tb.classList.add('dshwv-textsafe')
+          else tb.classList.remove('dshwv-textsafe')
+        } catch (err) {}
+      }
+    } catch (err) {}
     stage.appendChild(tb)
     pop.appendChild(stage)
     container.appendChild(pop)
@@ -13977,7 +18800,8 @@ function showCostBubble(amount) {
     if (tcCfg.bubbleOn === false) return
   } catch (err) {}
   // 进入系统泡泡队列(等级3):若同批有预警/预算,则排在它们之后展示
-  whaleSysPush({ kind: 'cost', amount: amount, rank: 3 })
+  // v851：带上"每轮消耗提示"自己的框（空 = 跟随保底）
+  whaleSysPush({ kind: 'cost', amount: amount, frameId: sysFrameIdOf('cost'), rank: 3 })
 }
 function hideCostBubble() {
   // 与手动点击“第 n 次点击”一致:有下一项时保持打开淡切,无下一项才收起
@@ -14454,6 +19278,9 @@ function refresh(manual) {
         state.usageLabel = data.usageLabel || '本地估算'
         if (data.stale) state.usageLabel += ' · 余额未刷新'
         state.isPeak = !!data.isPeak
+  // v790（用户要求）：菜单底部那行版本小字（宿主下发 versionLabel；老宿主没有就退回 version）
+  // v794：宿主现在**成功失败都带** versionLabel ⇒ 余额失败也不会让版号空着
+  setVersionLabel(data.versionLabel || data.version)
         state.peakNextChangeAt = isFinite(Number(data.peakNextChangeAt)) ? Number(data.peakNextChangeAt) : null
         state.peakHolidays = Array.isArray(data.peakHolidays) ? data.peakHolidays : null
         checkUsageAlerts(nb, state.todayUsage)
@@ -14505,6 +19332,9 @@ function refresh(manual) {
 }
 var soundOn = true
 var soundVol = 0.9
+// v866（用户要求）：按压/松开音的**独立**开关 —— 以前 ① 区那个 [✓] 其实是全局 soundOn 兼着当它用，
+//   用户希望它"真正只管按压"。true/false 落 .dsh-size.json 的 pressOn；soundOn 改为**派生**（见 refreshSoundMaster()）。
+var pressOn = true
 var soundSet = 'duck'
 var usageMode = 'ledger'
 var peakMode = 'default'
@@ -14528,24 +19358,34 @@ var configSavePending = false   // 加载期间被挡下的保存，加载完成
 var dshwvToastEl = null
 var dshwvToastTimer = null
 // 固定定位的小提示条（自动消失；同一时刻只留一条）
-function dshwvToast(msg) {
+// v796（用户反馈）：① 复制类提示**别停 8 秒**（太久）② 别复用深红"报错条"外观（用户觉得像系统自带的、与主题不一致）
+//   ⇒ 加 kind：'ok' 用与菜单一致的浅色卡片 + 1.4 秒；'err'（默认值，既有调用不用改）仍是深红 + 8 秒。
+function dshwvToast(msg, kind, ms) {
   try {
+    var isOk = kind === 'ok'
     if (!dshwvToastEl || !dshwvToastEl.parentNode) {
       var el = document.createElement('div')
       el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:2147483600;' +
-        'max-width:min(560px,calc(100vw - 32px));box-sizing:border-box;padding:10px 14px;border-radius:10px;' +
-        'background:#8a1f1f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,.28);' +
-        'pointer-events:none;text-align:center'
+        'max-width:min(560px,calc(100vw - 32px));box-sizing:border-box;line-height:1.6;pointer-events:none;text-align:center'
       dshwBodyAppend(el)
       dshwvToastEl = el
     }
+    // 每次调用都重设外观（同一条 toast 可能先是报错、随后又提示成功）
+    dshwvToastEl.style.padding = isOk ? '7px 14px' : '10px 14px'
+    dshwvToastEl.style.borderRadius = '10px'
+    dshwvToastEl.style.fontSize = isOk ? '12px' : '13px'
+    dshwvToastEl.style.background = isOk ? '#fff' : '#8a1f1f'
+    dshwvToastEl.style.color = isOk ? '#203170' : '#fff'
+    dshwvToastEl.style.border = isOk ? '1px solid rgba(32,49,112,.35)' : 'none'
+    dshwvToastEl.style.boxShadow = isOk ? '0 8px 22px rgba(15,25,60,.18)' : '0 6px 20px rgba(0,0,0,.28)'
+    dshwvToastEl.style.fontWeight = isOk ? '600' : ''
     dshwvToastEl.innerHTML = msg
     if (dshwvToastTimer) clearTimeout(dshwvToastTimer)
     dshwvToastTimer = setTimeout(function () {
       // v744：toast 也是登记过的 body 节点，必须 detach（否则 DOM 守护会把它补挂回来 → 提示条永不消失）
       try { if (dshwvToastEl) dshwBodyDetach(dshwvToastEl) } catch (err) {}
       dshwvToastEl = null
-    }, 8000)
+    }, typeof ms === 'number' ? ms : (isOk ? 1400 : 8000))
   } catch (err) {}
 }
 function configSaveFailNotice(detail) {
@@ -14561,7 +19401,11 @@ function configSaveFailNotice(detail) {
     '<br>已自动重试一次。若持续失败，请检查 DSH 数据目录是否可写。')
 }
 function configPayload() {
-  return JSON.stringify({ scale: state.scale, sound: soundOn, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
+  // v868（用户报"取消勾选按压音效没效果、重开又勾上"）：载荷里**漏了 pressOn** ——
+  //   宿主白名单、读侧合并、客户端回填都做了，唯独这里没发 ⇒ 宿主 pickB 走"沿用旧值(true)" ⇒ 永远存不住。
+  //   与 v863 的 subagent.mute 是同一类"半截活"：新键必须走完 **四件套**
+  //   ① 客户端 PUT 载荷 → ② 宿主写侧白名单 → ③ 宿主读侧合并 → ④ 客户端回填。
+  return JSON.stringify({ scale: state.scale, sound: soundOn, pressOn: pressOn !== false, vol: soundVol, soundSet: soundSet, usageMode: usageMode, peakMode: peakMode, bubbleOn: bubbleOn, turnCostOn: turnCostOn, turnCostCloseMs: turnCostCloseMs, scrollGapOn: scrollGapOn, scrollGapPx: scrollGapPx, menuBtnHide: menuBtnHide, codexStatsOn: codexStatsOn })
 }
 // 真正的 PUT：读响应 → 失败（网络异常 / HTTP!=200 / {ok:false}）静默重试一次 → 仍失败才提示
 function configPut(payload, retried) {
@@ -14769,6 +19613,100 @@ function setVol(v) {
 // v753（issue #135）：显式音效总开关（菜单「音量」右边那个勾选框）。
 // 它同时管三件事：① 出声与否（播放路径都看 soundOn）；② 关掉时**立刻挂起** AudioContext，
 // 把系统睡眠交还给用户，而不是等 1 分钟空闲；③ 重新打开时立刻预热，恢复"点按即响"的跟手度。
+// v869（用户报"点全部音效前面那个框无法取消勾选"）：根因是**派生逻辑反向覆盖** ——
+//   顶行 [✓] 显示的是 soundOn，而 soundOn 由 refreshSoundMaster() 算，那里读的是**已持久化**的
+//   usageSet.taskEnd.on（面板正在改的是缓冲 bufTaskEndOn）⇒ 三个事件通道仍被判成"开" ⇒ soundOn 又变 true ⇒ 勾回去。
+//   修法：① 顶行 [✓] 改成**直接读四行通道的开关**（不绕 soundOn）；② 派生 soundOn 时优先用面板登记的取值器。
+var sndChannelOnGetters = null // { press, turnCost, question, approval } -> boolean（由面板登记，关面板清空）
+// v870：排查用的环形缓冲（用户若仍遇到"勾不回来"，让他把 window.__dshwvSndDbg 发我即可定位）
+var dshwvSndDbg = []
+// v871（用户报"『全部音效』前面的框还是点不动"）：顶行 [✓] 也中了同一个 input 顺序坑 ——
+//   点它时浏览器先发 input，此刻四个通道**还是开**（change 还没跑）⇒ 同步把顶行勾回 true，
+//   随后 change 读到的是 true ⇒ setAllSoundChannels(true) 反而"全开"。
+//   修：顶行被用户操作后加 400ms 短路锁，期间同步**不写**它。
+var sndTopLockUntil = 0
+// v872（用户截图反馈："按压松开音量的开关没有同步"）：
+//   ① 区「按压音效」那个 [✓] 改的是同一个 pressOn，但它走的是 dshwvFoldEntry 的 change，
+//   我原来只靠"卡上的 change 冒泡"去同步四行 ⇒ 实测没同步（节上未勾、行上仍勾）。
+//   改成：写状态的人**直接**触发同步 —— 面板把 syncSoundChannelRows 登记到 sndSyncHook，
+//   setPressOn() 这类模块级写入口调用它；关面板时清空（不再引用已关面板的局部状态）。
+var sndSyncHook = null
+function sndSyncNow() {
+  try { if (typeof sndSyncHook === 'function') sndSyncHook() } catch (err) {}
+}
+try { window.__dshwvSndDbg = dshwvSndDbg } catch (err) {}
+function dshwvSndDbgPush(label, want, got) {
+  try {
+    dshwvSndDbg.push({ at: Date.now(), label: String(label), want: !!want, got: !!got })
+    if (dshwvSndDbg.length > 8) dshwvSndDbg.shift()
+  } catch (err) {}
+}
+function sndChannelFlags() {
+  var out = { press: pressOn !== false, turnCost: false, question: false, approval: false }
+  try {
+    if (sndChannelOnGetters) {
+      out.press = !!sndChannelOnGetters.press()
+      out.turnCost = !!sndChannelOnGetters.turnCost()
+      out.question = !!sndChannelOnGetters.question()
+      out.approval = !!sndChannelOnGetters.approval()
+      return out
+    }
+  } catch (err) {}
+  try {
+    var tc = soundEventCfg('turnCost') || {}
+    out.turnCost = tc.bubbleOn !== false && taskEndSoundOn()
+  } catch (err) {}
+  try { var q = soundEventCfg('question') || {}; out.question = q.on !== false && q.soundOn !== false } catch (err) {}
+  try { var a = soundEventCfg('approval') || {}; out.approval = a.on !== false && a.soundOn !== false } catch (err) {}
+  return out
+}
+// v866：由各通道状态**派生**全局开关 soundOn —— 任一声道可响（按压 = pressOn && soundVol>0；三个事件 = soundOn 键/音量）
+//   ⇒ soundOn = true（音频上下文保持可用）；四个通道全关 ⇒ false（沿用原来"挂起上下文、交还系统睡眠"的副作用）。
+function soundChannelOns() {
+  var out = { press: false, turnCost: false, question: false, approval: false }
+  // v869：面板开着时以**界面为准**（四行的开关 + 实时音量），否则退回持久化取值
+  try {
+    if (sndChannelOnGetters) {
+      out.press = !!sndChannelOnGetters.press() && Number(soundVol) > 0
+      out.turnCost = !!sndChannelOnGetters.turnCost() && Number(soundVolumeOf('turnCost')) > 0
+      out.question = !!sndChannelOnGetters.question() && Number(soundVolumeOf('question')) > 0
+      out.approval = !!sndChannelOnGetters.approval() && Number(soundVolumeOf('approval')) > 0
+      return out
+    }
+  } catch (err) {}
+  try { out.press = pressOn !== false && Number(soundVol) > 0 } catch (err) {}
+  try {
+    var tc = soundEventCfg('turnCost') || {}
+    out.turnCost = (typeof turnCostOn === 'undefined' ? true : turnCostOn !== false) && (tc.bubbleOn !== false) && taskEndSoundOn() && Number(soundVolumeOf('turnCost')) > 0
+  } catch (err) {}
+  try { var q = soundEventCfg('question') || {}; out.question = q.on !== false && q.soundOn !== false && Number(soundVolumeOf('question')) > 0 } catch (err) {}
+  try { var a = soundEventCfg('approval') || {}; out.approval = a.on !== false && a.soundOn !== false && Number(soundVolumeOf('approval')) > 0 } catch (err) {}
+  return out
+}
+function taskEndSoundOn() {
+  try { return ((usageSet || {}).taskEnd || {}).on !== false } catch (err) { return true }
+}
+function refreshSoundMaster() {
+  try {
+    var o = soundChannelOns()
+    var any = !!(o.press || o.turnCost || o.question || o.approval)
+    if (any !== (soundOn !== false)) {
+      soundOn = any
+      try { soundToggle.checked = soundOn } catch (err) {}
+      if (!soundOn) { try { dshwvAudioSuspendNow() } catch (err) {} }
+    }
+  } catch (err) {}
+}
+// v866：按压/松开音开关（落 .dsh-size.json 的 pressOn）
+function setPressOn(v) {
+  pressOn = v !== false
+  try { refreshSoundMaster() } catch (err) {}
+  try { sndSyncNow() } catch (err) {} // v872：立刻把四行/顶行同步过来
+  try {
+    var p = saveConfig()
+    if (p && typeof p.then === 'function') p.catch(function () {})
+  } catch (err) {}
+}
 function setSoundOn(v) {
   soundOn = v !== false
   try { soundToggle.checked = soundOn } catch (err) {}
@@ -14790,6 +19728,9 @@ function setSoundSet(v) {
   saveConfig()
 }
 var SQUISH = 'scaleY(0.88) scaleX(1.05)'
+// 极短轻点的 down/up 可能落在同一帧：补上压扁起点后立即回弹，不延迟松手复位。
+var PRESS_VISUAL_TAP_MS = 32
+var pressVisualStartedAt = 0
 var pressAudio = null
 var releaseAudio = null
 var pressing = false
@@ -14800,7 +19741,7 @@ var releasePlayed = false
 // 起因：issue 里那台机器上 /dsh-whale/sound/press.mp3?set=… 会被本机的一层东西（代理/安全软件）
 // 拦成**空的 204**（响应头里没有 Date、还多出 pragma: no-cache，不是本进程发出的），
 // 0 字节送进 decodeAudioData 就抛 EncodingError → 只剩静音；
-// 而同一台机器上 /dsh-whale/audio-fragment.wav?id=<片段> 是 200 且能解码。
+// 而同一台机器上 /dsh-whale/audio-fragment?id=<片段> 是 200 且能解码。
 // 两边的字节是**同一个文件**（预设 ya1→assets/Ya1.mp3；自定义组→它引用的那个片段），
 // 所以音色、时长、衔接时序都不变；同时少一层"组→片段"的宿主侧间接。
 // 返回 { url, alt, empty }：url=首选（片段路由）、alt=兜底（老的声音组路由，失败时自动切换）、
@@ -14816,7 +19757,7 @@ function soundSlotUrls(slot, groupId) {
   var legacy = '/dsh-whale/sound/' + (slot === 'press' ? 'press' : 'release') + '.mp3?set=' + encodeURIComponent(gid)
   // 组信息还没到（audio.json 未返回）或找不到组 → 与旧行为完全一致，走老路由
   if (!frag) return { url: legacy, alt: '', empty: false }
-  return { url: '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(frag), alt: legacy, empty: false }
+  return { url: '/dsh-whale/audio-fragment?id=' + encodeURIComponent(frag), alt: legacy, empty: false }
 }
 function applySoundSet() {
   try {
@@ -14906,13 +19847,30 @@ function playReleaseAt(delaySec) {
   } catch (err) {}
 }
 function pressDown() {
+  pressVisualStartedAt = performance.now()
   body.style.transform = SQUISH
   pressing = true
+  // v868（用户报"取消勾选按压音效没效果"）：pressOn 以前只是存了个状态、**没接到播放上**。
+  //   闸门放在这里（真实点按的唯一入口），试听走 playPress() 直接调用 ⇒ 试听始终有声。
+  if (pressOn === false) return
   playPress()
 }
 function pressUp() {
+  if (performance.now() - pressVisualStartedAt < PRESS_VISUAL_TAP_MS) {
+    var previousTransition = body.style.transition
+    body.style.transition = 'none'
+    body.style.transform = SQUISH
+    // 提交压扁样式，让同帧松手也能从这里启动原有 CSS 回弹过渡。
+    void body.offsetWidth
+    body.style.transition = previousTransition
+  }
   body.style.transform = 'scaleY(1) scaleX(1)'
   pressing = false
+  // v868：静音按压时松开音也不响（顺手把 releasePlayed 标记收干净，避免下次误触发）
+  if (pressOn === false) {
+    try { releasePlayed = true } catch (err) {}
+    return
+  }
   if (pressEnded) {
     // hold (or released after Ya1 finished) → Ya2 now
     playRelease()
@@ -14937,13 +19895,15 @@ function pressUp() {
 var menuOpen = false
 var menuClosedAt = 0 // 最近一次关闭菜单的时刻(用于避免"关掉后同一次手势又把它长按打开")
 function toggleMenu() {
+  // v865（issue #237 后半）：打开菜单时补读一次 size 配置（别的端/别的标签改过也能立刻生效）
+  try { resyncSizeCfg() } catch (err) {}
   menuOpen = !menuOpen
   if (menuOpen) positionMenu()
   menuBox.classList.toggle('dshwv-menu-open', menuOpen)
   if (menuOpen && !menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible')
   // 汉堡按钮关闭菜单时同样复位用量子界面(用量态时滑回主菜单态,
   // 主菜单态时 hideUsageSub 守卫直接返回),避免下次打开仍停留在用量视图
-  if (!menuOpen) closeUsagePanel()
+  if (!menuOpen) { closeUsagePanel(); closeAboutPanel() }
 }
 function closeMenu() {
   menuOpen = false
@@ -14952,6 +19912,7 @@ function closeMenu() {
   closeRolePanel()
   closeAudioGroupPanel()
   closeUsagePanel()
+  closeAboutPanel()
   root.style.transition = ''
   snapCheck()
 }
@@ -15529,6 +20490,9 @@ function deleteRole(id) {
 }
 // —— 导入：文件 → 裁剪弹窗 → 上传 ——
 var cropState = null
+// v828：裁剪结果的去处 —— 'role'（默认，角色导入那条老路）| 'bubble-img'（泡泡框编辑器的图片模式）
+var cropTarget = 'role'
+var cropTargetCb = null
 // 手写 GIF 帧数解析：返回图像分隔符(0x2C)数量（1 = 静态，>1 = 动图）
 function countGifFrames(bytes) {
   try {
@@ -15634,8 +20598,11 @@ function onRoleFileChosen(input) {
     reader.readAsArrayBuffer(f)
   } catch (err) {}
 }
-function openCropModal(dataUrl, fileName) {
+function openCropModal(dataUrl, fileName, target, cb) {
   try {
+    // v828：第三个/第四个参数只在泡泡框编辑器的图片模式里用；角色的调用点（两个参数）行为完全不变
+    cropTarget = (target === 'bubble-img') ? 'bubble-img' : 'role'
+    cropTargetCb = (typeof cb === 'function') ? cb : null
     var imgEl = new Image()
     imgEl.onload = function () {
       cropState = {
@@ -15778,7 +20745,9 @@ function flipCrop(axis) {
 function confirmCrop() {
   try {
     if (!cropState) return
-    var name = (cropNameInput.value || '').trim().slice(0, 16) || '新角色'
+    // v828：裁剪窗口多了一个"导出到泡泡图库"的目标（角色那条路一个字节都没动）
+    var toBubbleImg = (cropTarget === 'bubble-img')
+    var name = (cropNameInput.value || '').trim().slice(0, 16) || (toBubbleImg ? '泡泡图' : '新角色')
     // 用与预览一致的变换把当前可视画面放大导出为 610×610，
     // 保证所见即所得（含旋转/缩放/位移），且保留透明背景
     var s = cropState.baseScale * cropState.zoom
@@ -15797,6 +20766,28 @@ function confirmCrop() {
     // 直接绘制，不铺底色——保留原图透明背景（PNG 透明素材不会被染成白色）
     octx.drawImage(cropState.img, -w / 2, -h / 2, w, h)
     var dataUrl = out.toDataURL('image/png')
+    if (toBubbleImg) {
+      // 同一个裁剪结果 → 泡泡图库（`bubbleImgList` / `/dsh-whale/bubble-img-upload.json`）
+      fetch('/dsh-whale/bubble-img-upload.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'upload', name: name, data: dataUrl }),
+      })
+        .then(function (r) { return r.json() })
+        .then(function (d) {
+          if (d && d.ok && Array.isArray(d.images)) {
+            bubbleImgList = d.images
+            var newId = ''
+            for (var i = bubbleImgList.length - 1; i >= 0; i--) { if (!bubbleImgList[i].builtin) { newId = bubbleImgList[i].id; break } }
+            if (cropTargetCb) { try { cropTargetCb(newId) } catch (err) {} }
+          } else {
+            try { dshwvToast('裁剪结果没能存进图片库', 'no') } catch (err) {}
+          }
+        })
+        .catch(function () {})
+        .finally(function () { hideCropModal() })
+      return
+    }
     fetch(ROLE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15823,6 +20814,9 @@ function hideCropModal() {
   cropMask.style.display = 'none'
   cropState = null
   cropDrag = null
+  // v828：目标与回调一次性用完就清（默认回到"角色"这条路）
+  cropTarget = 'role'
+  cropTargetCb = null
 }
 
 // —— 自定义音效组：列表 / 选择 / 置顶 / 删除 / 编辑 / 音频裁剪 ——
@@ -16130,19 +21124,19 @@ function audioEditPreviewEnsure(force) {
       if (audioEditPreviewRelease) { audioEditPreviewRelease.pause(); audioEditPreviewRelease = null }
     } catch (err) {}
     if (pressId) {
-      audioEditPreviewEl = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(pressId))
+      audioEditPreviewEl = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(pressId))
       audioEditPreviewEl.preload = 'auto'
       audioEditPreviewEl.volume = soundVol
     }
     if (releaseId) {
-      audioEditPreviewRelease = dshwvSound('/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(releaseId))
+      audioEditPreviewRelease = dshwvSound('/dsh-whale/audio-fragment?id=' + encodeURIComponent(releaseId))
       audioEditPreviewRelease.preload = 'auto'
       audioEditPreviewRelease.volume = soundVol
     }
     // v745：试听也要预热（否则第一次点按试听同样是"按下音慢半拍"）
     dshwvWarm([
-      pressId ? '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(pressId) : '',
-      releaseId ? '/dsh-whale/audio-fragment.wav?id=' + encodeURIComponent(releaseId) : '',
+      pressId ? '/dsh-whale/audio-fragment?id=' + encodeURIComponent(pressId) : '',
+      releaseId ? '/dsh-whale/audio-fragment?id=' + encodeURIComponent(releaseId) : '',
     ])
     audioEditPreviewReady = true
     return true
@@ -16947,7 +21941,7 @@ function onDocPointerDown(e) {
     if (e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') ||
         e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') ||
         e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
-        e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
+        e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-framemask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
         e.target.closest('.dshwv-resmask') ||
         e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
     // 菜单内的下拉切换按钮/导入按钮：它们自己的 click 负责开合，pointerdown 不干预
@@ -17010,7 +22004,7 @@ function onDocClickStopper(e) {
     if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') ||
         e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-cropmask') || e.target.closest('.dshwv-confirmmask') ||
         e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-audiomask') ||
-        e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
+        e.target.closest('.dshwv-snapmask') || e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-framemask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
         e.target.closest('.dshwv-resmask') ||
         e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
   }
@@ -17031,7 +22025,7 @@ function onDocContextMenu(e) {
       if (e.target.closest('.dshwv-pop') || e.target.closest('.dshwv-menu') || e.target.closest('.dshwv-menu-btn') ||
           e.target.closest('.dshwv-rolelist') || e.target.closest('.dshwv-audiolist') || e.target.closest('.dshwv-cropmask') ||
           e.target.closest('.dshwv-confirmmask') || e.target.closest('.dshwv-audiomask') || e.target.closest('.dshwv-snapmask') ||
-          e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
+          e.target.closest('.dshwv-bubmask') || e.target.closest('.dshwv-framemask') || e.target.closest('.dshwv-qedit') || e.target.closest('.dshwv-usagepanel') || e.target.closest('.dshwv-usage-mask') ||
           e.target.closest('.dshwv-resmask') ||
           e.target.closest('.dshwv-custmenu') || e.target.closest('.dshwv-custbtn')) return
     }
@@ -17054,7 +22048,7 @@ function widgetUiHit(target) {
   return !!(target.closest('.dshwv-pop') || target.closest('.dshwv-menu') || target.closest('.dshwv-menu-btn') ||
     target.closest('.dshwv-rolelist') || target.closest('.dshwv-audiolist') || target.closest('.dshwv-cropmask') ||
     target.closest('.dshwv-confirmmask') || target.closest('.dshwv-audiomask') || target.closest('.dshwv-snapmask') ||
-    target.closest('.dshwv-bubmask') || target.closest('.dshwv-qedit') || target.closest('.dshwv-usagepanel') ||
+    target.closest('.dshwv-bubmask') || target.closest('.dshwv-framemask') || target.closest('.dshwv-qedit') || target.closest('.dshwv-usagepanel') ||
     target.closest('.dshwv-usage-mask') || target.closest('.dshwv-resmask') || target.closest('.dshwv-custmenu') ||
     target.closest('.dshwv-custbtn') || target.closest('.dshwv-rolebtn') || target.closest('.dshwv-audiobtn') ||
     target.closest('.dshwv-roleimport') || target.closest('.dshwv-audioimport'))
@@ -17193,7 +22187,7 @@ function onDocPointerMoveCursor(e) {
   }
   var el = null
   try { el = document.elementFromPoint(e.clientX, e.clientY) } catch (err) {}
-  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
+  if (el && el.closest && (el.closest('.dshwv-pop') || el.closest('.dshwv-menu') || el.closest('.dshwv-menu-btn') || el.closest('.dshwv-rolelist') || el.closest('.dshwv-cropmask') || el.closest('.dshwv-confirmmask') || el.closest('.dshwv-audiolist') || el.closest('.dshwv-audiomask') || el.closest('.dshwv-snapmask') || el.closest('.dshwv-bubmask') || el.closest('.dshwv-framemask') || el.closest('.dshwv-qedit') || el.closest('.dshwv-usagepanel') || el.closest('.dshwv-usage-mask') || el.closest('.dshwv-resmask') || el.closest('.dshwv-custmenu') || el.closest('.dshwv-custbtn'))) {
     setWidgetCursor('')
     if (!menuBtnHide) menuBtn.classList.add('dshwv-menu-btn-visible')
     return
@@ -17344,15 +22338,25 @@ loadUsageSettings(function () {
   } catch (err) {}
 })
 loadBubbleCfg()
-fetch(SIZE_URL, { cache: 'no-store' })
-  .then(function (r) { return r.json() })
-  .then(function (d) {
+// v865（issue #237 后半："size 配置仅在页面加载时读一次 ⇒ 改了不生效"）——
+//   把"读 size 配置并应用"抽成可重入函数：启动读一次，之后**回到标签页 / 打开菜单**时各补一次
+//   （低频 + 2 秒去抖，不做轮询）。应用体与原启动链**完全同一份代码**，所以面板控件
+//   （总开关 / 总量滑杆 / 缩放 / 自动关闭等）都会跟着回填，不会出现"值变了界面没变"。
+function sizeCfgApply(d) {
+    // v794：启动就读一次版号（宿主 GET size.json 现在也带 versionLabel）
+    //   ⇒ 菜单底部那行小字不必等余额请求成功，也就不会"刚启动时消失"
+    try { if (d) setVersionLabel(d.versionLabel || d.version) } catch (err) {}
     if (d && typeof d.scale === 'number' && d.scale >= MIN_SCALE - 0.1 && d.scale <= MAX_SCALE + 0.1) {
       state.scale = d.scale
       root.style.setProperty('--dshw-scale', String(d.scale))
       scaleInput.value = String(d.scale)
       scaleNumber.value = String(scaleToDisplay(d.scale))
       settle()
+    }
+    // v866：按压/松开音的独立开关（缺字段时沿用现有值，绝不落默认 —— 与宿主 issue #97 的约定一致）
+    if (d && typeof d.pressOn === 'boolean') {
+      pressOn = d.pressOn !== false
+      try { if (pressOnChk) pressOnChk.checked = pressOn } catch (err) {}
     }
     if (d && typeof d.vol === 'number') {
       soundVol = d.vol
@@ -17434,12 +22438,34 @@ fetch(SIZE_URL, { cache: 'no-store' })
     // v734（issue #97）：首次 GET 应用完成 —— 从这一刻起才允许 saveConfig() 落盘
     configLoaded = true
     if (configSavePending) { configSavePending = false; try { saveConfig() } catch (err) {} }
+}
+function loadSizeCfg() {
+  return fetch(SIZE_URL, { cache: 'no-store' })
+    .then(function (r) { return r.json() })
+    .then(function (d) { sizeCfgApply(d) })
+    .catch(function () {
+      // 读取失败：绝不能拿内存里的默认值去 PUT（那正是「设置被洗成默认值」）
+      refresh(false)
+      dshwvToast('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
+    })
+}
+loadSizeCfg()
+// v865：低频补读（回到标签页 / 打开菜单时）—— 2 秒去抖，避免密集事件里反复请求
+var sizeCfgAt = 0
+function resyncSizeCfg() {
+  try {
+    var last = Number(sizeCfgAt) || 0
+    var now = Date.now()
+    if (now - last < 2000) return
+    sizeCfgAt = now
+    loadSizeCfg()
+  } catch (err) {}
+}
+try {
+  document.addEventListener('visibilitychange', function () {
+    try { if (!document.hidden) resyncSizeCfg() } catch (err) {}
   })
-  .catch(function () {
-    // 读取失败：绝不能拿内存里的默认值去 PUT（那正是「设置被洗成默认值」）
-    refresh(false)
-    dshwvToast('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
-  })
+} catch (err) {}
 setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS)
 
 // —— 每轮对话消耗检测：轮询 last-turn.json，出现新 seq 时弹消耗金额泡泡 ——

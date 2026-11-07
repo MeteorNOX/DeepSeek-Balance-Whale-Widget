@@ -49,6 +49,24 @@ const HOST_PREFIX = '/dsh-whale/'
 
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
 const has = (rel) => fs.existsSync(path.join(ROOT, rel))
+// v0.4.0：判断"这个路径有没有被 git 跟踪"（打包内容与 git 仓库的一致性检查要用）
+//   —— 不在 git 仓库里（例如 CI 解压出的 tarball 目录）时返回 true，即**跳过**这类检查。
+let _gitRepoCache = null
+function isGitRepo() {
+  if (_gitRepoCache !== null) return _gitRepoCache
+  try { execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }); _gitRepoCache = true }
+  catch (e) { _gitRepoCache = false }
+  return _gitRepoCache
+}
+const _gitTrackCache = new Map()
+function gitTracks(rel) {
+  if (_gitTrackCache.has(rel)) return _gitTrackCache.get(rel)
+  let ok = true
+  try { ok = execFileSync('git', ['ls-files', '--error-unmatch', rel], { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().length > 0 }
+  catch (e) { ok = false }
+  _gitTrackCache.set(rel, ok)
+  return ok
+}
 
 // ---------------------------------------------------------------------------
 // 工具：按括号配对取出从 at 处开始的整段调用实参
@@ -290,6 +308,37 @@ run('3', '检查打包后是否可以运行', (problems, notes) => {
     }
   }
   if (pkg.main && !has(pkg.main)) problems.push('package.json 的 main 指向不存在的文件：' + pkg.main)
+  // v0.4.0 补（真机反馈：git 安装的用户报 `ENOENT ... node_modules/dsh-whale-widget/icon.png`）：
+  //   `files` 里列的每一项都必须**真的在 git 仓库里**（被跟踪）—— 否则：
+  //     · npm / zip 安装：没事（打包时按磁盘取，图标在本地存在）；
+  //     · **git URL 安装**：克隆下来就少了这个文件 ⇒ DSH 读插件元信息（package.json 的 icon 字段）时 ENOENT。
+  //   icon.png 正好踩中这个坑（本地有、从来没 add 过）。这里做一道通用防线：白名单里的路径都要被 git 跟踪。
+  if (files && isGitRepo()) {
+    for (const f of files) {
+      const rel = String(f).replace(/^\.\//, '').replace(/\/$/, '')
+      if (!rel) continue
+      if (!has(rel)) { problems.push('files 白名单里的路径在磁盘上不存在：' + rel); continue }
+      const abs = path.join(ROOT, rel)
+      if (fs.statSync(abs).isDirectory()) {
+        // v0.4.0b（用户追问"以后新增默认音效会不会也踩同样的坑"）：目录要**逐个文件**查。
+        //   只查目录本身是不够的 —— 只要目录里有**一个**文件被跟踪，`git ls-files assets` 就是成功的，
+        //   于是"新增了资源却忘了 git add"会被漏掉（git 安装缺文件、npm 安装正常，正是最阴的那种）。
+        const walkUntracked = (dir, pre) => {
+          for (const f of fs.readdirSync(dir)) {
+            const p2 = path.join(dir, f)
+            const r2 = pre + f
+            if (fs.statSync(p2).isDirectory()) walkUntracked(p2, r2 + '/')
+            else if (!gitTracks(r2)) {
+              problems.push('files 白名单目录里的 "' + r2 + '" **没有被 git 跟踪** —— npm/zip 安装没事，但 git 安装的用户会缺这个文件')
+            }
+          }
+        }
+        walkUntracked(abs, rel.replace(/\/$/, '') + '/')
+      } else if (!gitTracks(rel)) {
+        problems.push('files 白名单里的 "' + rel + '" **没有被 git 跟踪** —— npm/zip 安装没事，但 git 安装的用户会缺这个文件（例如插件图标 icon.png 缺失会让 DSH 报 ENOENT）')
+      }
+    }
+  }
   const patch = pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch
   if (!patch) problems.push('package.json 缺少 dsh.bundle.patch —— DSH 找不到挂载声明')
   else {
@@ -338,7 +387,14 @@ run('3', '检查打包后是否可以运行', (problems, notes) => {
     if (!tgz) throw new Error('npm pack 没有产出 .tgz（目录内容：' + fs.readdirSync(packDir).join(',') + '）')
     tarball = path.join(packDir, tgz)
     const inPack = new Set(
-      execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+      // ⚠️ 不要给选项、也不要用绝对路径 —— 本机同时存在两种 tar，各自的坑正好相反：
+      //    · Windows 自带 `C:\Windows\System32\tar.exe` 是 **bsdtar**，**不认** GNU 专有的 `--force-local`
+      //      （"Option --force-local is not supported"）⇒ v818/v819 加的 `--force-local` 让它永远红；
+      //    · Git for Windows 的 **GNU tar** 遇到带盘符的绝对路径（C:\…）会当成"远程主机"
+      //      （"Cannot connect to C: resolve failed"）。
+      //    ⇒ 通用写法：把 cwd 切到 tarball 所在目录、只传裸文件名。两种实现都成立，且不再挑 PATH 顺序。
+      execFileSync('tar', ['-tzf', path.basename(tarball)],
+        { cwd: path.dirname(tarball), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
         .split('\n').map((s) => s.trim().replace(/^package\//, '')).filter(Boolean),
     )
     const pkgSizeKb = Math.round(fs.statSync(tarball).size / 1024)

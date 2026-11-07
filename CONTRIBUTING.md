@@ -32,20 +32,20 @@
 
 ```
 dsh-whale-widget/
-├── package.json                     36 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
+├── package.json                     38 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml                 15 行   插件挂载声明
 ├── ROLE-LINES.md                         角色台词的配置、接口与兼容行为
-├── README.md                       492 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
-├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
+├── README.md                       516 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
+├── PROVENANCE.md                    37 行   素材来源与许可范围（动 assets/ 前必读）
 ├── whale-widget-prompt.md          202 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
 │
 ├── lib/
-│   ├── index.js                            宿主侧本体：24 条路由 + 记账接线 + 音效/图片/角色服务
+│   ├── index.js                  4,973 行   宿主侧本体：27 条路由 + 记账接线 + 音效/图片/角色服务
 │   ├── role-lines.mjs                      角色台词校验、请求限额与原子文件存储
 │   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
-│   ├── whale-widget.js          17,553 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
+│   ├── whale-widget.js          22,579 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
 │   ├── DSH2.png / DSniang1.png / DSniang02.png   角色图与 README 展示图
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
@@ -95,4 +95,4 @@ dsh-whale-widget/
 
 ### 关于那两个超大文件
 
-`assets/whale-widget.js`（17,553 行）和 `lib/index.js`（4,245 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+`assets/whale-widget.js`（22,579 行）和 `lib/index.js`（4,973 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合

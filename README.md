@@ -4,21 +4,22 @@
 
 DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图 + DeepSeek API 余额 + 今日已用 + 每轮对话消耗，并且**泡泡内容可以完全自定义**（点击序列、模块化排版、并列加权出泡、随机语句/随机图片）。标准 DSH bundle 插件，`dsh plugin` 一键安装，无需任何会话令牌。
 
+> ⚠️ **Codex 版小鲸鱼已迁至独立仓库** → <https://github.com/Yang-huai406/Codex-Whale-Public>（**已安装用户无需重装**；详见下方「两条分支怎么选」）
+<!-- 迁移横幅（v0.3.19 起）：迁移稳定后（约 2026-11，或发过 1–2 个版本）可只删这一行 blockquote，保留下方分支表与「致谢」——别让它长期占着第一屏 -->
+
 ## 两条分支怎么选
 
-本仓库有两条**互不兼容**的产品线，按你要挂在哪里选一条：
+本仓库现在只维护**一条产品线**（`main`，同一个包同时支持 DSH Web 与官方桌面客户端）。按你要挂在哪里选：
 
 | 你要挂在哪 | 用哪条分支 | 安装方式 |
 |---|---|---|
 | **DSH Web 界面右下角**（就是这个 README 描述的插件） | `main`（默认分支） | `dsh plugin --profile web add dsh-whale-widget`（推荐，装 npm 已发布版）；也可以从本仓库装 `dsh plugin --profile web add github:MeteorNOX/DeepSeek-Balance-Whale-Widget`，但那样装的是 **main 当前状态、不跟随已发布版本** |
 | **官方桌面客户端（Electron）右下角** | `main`（同一个包） | ⚠️ **不能用** `--profile web`（桌面端读的是 `desktop` profile，CLI 也拒绝 `--profile desktop`）—— 在桌面端会话里**让 DSH 自己装**，见下方「官方桌面端（Electron 客户端）请先看这一节」 |
-| **Codex 桌面应用**（跟随 Codex 窗口、无独立网页） | [`For-Codex`](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/tree/For-Codex) | 该分支的 `api-balance-whale`：解压到 `%USERPROFILE%\plugins\api-balance-whale`，再按分支内的 [安装说明](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/blob/For-Codex/docs/INSTALL-AND-ROLLBACK-0.2.0.md) 注册计划任务（也可以直接交给 Codex 自己装喵~） |
+| **Codex 桌面应用**（跟随 Codex 窗口、无独立网页） | ⚠️ **已迁出本仓库** | [新仓库](https://github.com/Yang-huai406/Codex-Whale-Public) · [最新版下载](https://github.com/Yang-huai406/Codex-Whale-Public/releases/latest) · **已安装用户无需重装**<br>**Codex 版迁移公告**：本次迁移保留了**开发历史、历代版本与作者贡献**，并清理了旧图片中的非必要元数据（贡献者致谢见文末「致谢」）。后续更新、问题反馈与版本发布都在新仓库；反馈问题时请注明**版本、系统和复现步骤**，勿上传密钥、完整配置或未脱敏日志。 |
 
-⚠️ **两条分支互不兼容**：`For-Codex` 的插件不能用 `dsh plugin … add` 装进 DSH 网页；本主分支的插件也不能在 Codex 桌面里运行。上表第一行是本仓库默认分支（`main`）的能力，第二行是另一个分支的能力。
+⚠️ **两条线互不兼容**：Codex 版不能用 `dsh plugin … add` 装进 DSH 网页，本仓库的插件也不能在 Codex 桌面里运行。
 
-⚠️ 同一分支的两种安装方式（npm 名 / `github:`）**二选一、别混用** —— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget`。
-
-> 两条产品线**各自独立维护**（无共享代码/无跨分支依赖）：`main` = DSH Web 插件，`For-Codex` = Codex 桌面端口，各自的版本线、发布方式与测试互不影响。
+⚠️ **安装方式二选一、别混用**（npm 名 / `github:`）—— 它们是同一个包名，先后安装会并存冲突；已经是 `github:` 装的，要换 npm 名请先 `dsh plugin --profile web remove dsh-whale-widget`。
 
 ## 特性
 
@@ -33,7 +34,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 ### 交互
 
-- 🖱️ **拖拽 + 吸附**：四边吸附区可自定义（按比例或像素），角落可组合；可关闭吸附自由摆放
+- 🖱️ **拖拽 + 吸附**：四边吸附区可自定义（按比例或像素），角落可组合；可关闭吸附自由摆放。**顶部吸附默认值为 0，表示关闭**；想开启请到「菜单 → 吸附与翻转 → 自定义」，选择「比例吸附」或「绝对吸附」，把上侧数值调为正值后点「确认」。上吸附以挂件盒中心进入吸附区为判据，大尺寸挂件需要相应扩大上侧区域；改回 0 可关闭顶部吸附（#152）。
 - 🔄 贴左吸附时整体**水平镜像翻转**（文字同步反向、带动画）
 - 🧸 **按压 Q 弹**玩偶效果（按压时底部坐标不变）
 - 🎚️ **主菜单**：角色、大小滑块、**音效与提示**（这行只剩入口按钮「全局设置」，音效总开关已搬进面板）、气泡全局开关 + 「按压泡泡设置」、避让滚动条、吸附设置、隐藏菜单按钮、资源管理（含余额预警、今日预算、小鲸鱼记账）
@@ -55,6 +56,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - 🎨 **逐模块样式**：字体（含自定义字体）、字号、加粗/斜体/下划线、纯色或**跑马灯渐变**配色、底色；文本与随机语句支持悬浮快捷编辑
 - 🖐️ **拖拽排版**：桌面端原生拖拽、移动端长按拖拽；模块可并入某行首/尾、可拆行、整行可排序；**每行最多 6 个模块、泡泡最多 6 行**，图片类模块独占一行且一个泡泡只允许一个
 - 📚 **模块库**：把常用模块"另存"进库，之后在任意泡泡里点击或拖入复用
+- 🏷️ **菜单底部显示当前版本**（**居中**在最下方按钮与菜单底边之间的空隙里，一行 9px 小字；这行**不改变菜单高度** —— 按钮下边距与菜单下内边距各让出一部分、正好等于这行高度。**开发版**显示"下一个版本号 + beta"，例如 `v0.3.19-beta`）
 
 ### 提醒
 
@@ -106,6 +108,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 ### Codex 模式（本地会话统计）
 
+> ℹ️ **先分清楚**：这一节说的是本插件**读取本机 Codex 会话日志**的能力（属于 `main`，就是把 Codex 当数据源），
+> 与**「Codex 版小鲸鱼」挂件**（跟随 Codex 窗口的那个端口）是两回事 —— 后者**已迁出本仓库**，见「两条分支怎么选」里的「Codex 版迁移公告」。
+
 > ⚠️ **限制**：Codex 支持目前只是**部分接口适配**，本挂件**不能安装到 Codex 里**（它是 DSH Web 插件，Codex 仅作为数据来源被读取）；订阅窗口没有真实订阅样本可验证，遇异常欢迎反馈。
 
 挂件可以直接读本机 Codex 的会话日志统计 token 用量 —— 因此**不限于 DSH 内部**，你在 Codex CLI / 桌面版里跑的消耗也能看到。
@@ -120,8 +125,9 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 ```text
 dsh-whale-widget/
-├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml）
-├── ROLE-LINES.md                         角色台词的配置、接口与兼容行为
+├── package.json              # DSH bundle 插件元数据（dsh.bundle.patch 指向 cordis.patch.yml；顶层 icon 指向 icon.png）
+├── icon.png                  # 插件列表图标（256×256 PNG，含透明；宿主读成 data URL 塞进 meta.icon，必须是正方形）
+├── ROLE-LINES.md             # 角色台词的配置、接口与兼容行为
 ├── README.md                 # 本文件
 ├── cordis.patch.yml          # 插件挂载声明
 ├── lib/
@@ -175,15 +181,21 @@ error: profile "desktop" is managed exclusively by the Electron application
 
 所以下面「方式 A~D」里的 `--profile web` 命令**对桌面端不适用** —— 按它装完，插件落在 `web` profile 里，而桌面窗口读的是 `desktop` profile，一个字也读不到。表现就是「右下角什么都没有（连 ☰ 也没有）、控制台也不报错」。
 
-**桌面端的正确装法：让桌面端里的 DSH 自己装。**
+**桌面端的正确装法：明确使用当前宿主内置的 `plugin_manager`。**
 
-在桌面客户端的会话里直接说一句就够了（例如「把 dsh-whale-widget 装上」）—— 它会调用内置的 `plugin_manager` 工具，而那个工具的**作用域就是当前 profile**（桌面端 = `desktop`），由客户端自带的插件管理器在 profile 目录内用**自带的 pnpm** 完成安装，并把 `dsh-whale-widget` 写进该 profile 的 `dsh.profile.bundles`。需要指定版本时也可以写 `dsh-whale-widget@<版本号>`（例如 `dsh-whale-widget@0.3.13`，**填当下的最新版**）这样的安装规格。
+在桌面客户端的会话里可直接说：
 
-> 等价的手工路径是在该 profile 目录里用客户端自带的 pnpm 装一次、再手工写进 `dsh.profile.bundles`，但**不推荐** —— 那是客户端自己管理的目录。
+> 请使用当前桌面端内置的 `plugin_manager` 安装 `dsh-whale-widget`。先核对当前 profile 和是否已有同名插件；已有安装时先报告来源与版本。按该工具支持的操作完成后，告诉我安装结果及是否需要重启。
 
-**生效方式（实测）**：新装一个包通常**热生效**（工具返回 `"application":"applied"`）；**换版本（升级）需要重启客户端**（返回 `"restart-required"`）。
+`plugin_manager` 的作用域是当前 profile（桌面端为 `desktop`），由宿主使用其自带的包管理器完成安装与挂载登记。需要固定版本时，将安装规格改成 `dsh-whale-widget@<目标版本>`。这条说明用于减少安装前后的无关探索（#194）；不需要自行构造认证 cookie、调用底层 RPC 或改写宿主管理的 profile 文件。工具不可用或操作不受支持时，先说明缺少哪项宿主能力，不绕过桌面端限制改用 `--profile web`。
 
-> ⚠️ **但"热生效"并不总是够**：有用户实测**新装之后右下角仍然什么都没有，重开一次客户端就出现了**（issue #162）。所以：**装完没看到挂件，先重开客户端**（命令行侧的 `dsh web` 同理：重启 + 浏览器 `Ctrl+F5`），再去按下面两条自检排查。
+**首次安装与升级的生效方式**（#162）：
+
+- **首次安装**：工具可能返回 `"application":"applied"`，但这不保证当前窗口已显示挂件。若装完没有出现，完全退出客户端（含系统托盘）后重新打开，再按下方两条自检排查。
+- **升级已有安装**：先核对已安装的来源、实际版本和目标版本，优先通过内置工具支持的更新/升级操作沿用同一来源；不要为了更新无故在 npm、GitHub 和本地目录之间切换。返回 `"restart-required"` 时完全退出并重开，随后重新核对实际版本。
+- **旧宿主没有更新入口**：例如 #162 报告的桌面端 `0.1.7-rc.2`，页面没有升级入口，重新“添加”带版本的同名包也可能只返回“已安装”。先检查该宿主内置工具是否支持同来源更新；若工具也不支持，保留当前安装，按宿主支持的升级方案处理。只有明确需要卸载再安装或迁移来源时，才先保留原来源、精确版本和用户数据的恢复办法；不要把卸载、删除依赖目录/锁文件当作通用更新步骤。
+
+命令行侧的 `dsh web` 使用自己的 `web` profile：更新后重启宿主，再在浏览器按 `Ctrl+F5`。
 
 **装完怎么自检**（两条分别对应宿主半区与客户端半区）：
 
@@ -264,14 +276,18 @@ dsh plugin --profile web add link:.
 dsh plugin --profile web add dsh-whale-widget
 ```
 
-### 给 AI 的安装说明（直接复制给 AI 助手）
+### 给 AI 的安装说明（Web 使用；桌面端使用上面的 `plugin_manager` 提示）
 
 ```
 请帮我安装插件 dsh-whale-widget。可能的来源有两种：GitHub 仓库
 MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件的「完整资源包」。
 
-步骤：
-1. 确保 pnpm 可用（没有就先：npm install -g pnpm）
+先确认运行形态：如果当前是官方桌面客户端，请使用宿主内置 plugin_manager，
+不要执行下面的 Web 命令，也不要自行构造认证/RPC或修改 desktop profile。
+
+以下步骤仅用于 dsh web：
+1. 确认 DSH 安装器使用的 pnpm 可用；若提示找不到 pnpm，先报告安装器所用路径和版本，
+   按该 DSH 版本的安装说明处理，不直接假定需要全局安装或重装插件。
 2. 在 Web profile 安装（按我实际拿到的来源任选一种）：
 
    【来源一：从 GitHub 安装】
@@ -303,8 +319,8 @@ MeteorNOX/DeepSeek-Balance-Whale-Widget，或者我本地已经有这个插件�
         dsh plugin --profile web add file:<资源包目录>
       （file: 以后源目录改动不会同步，需要重新 add）
 
-3. 如果报 pnpm 阻止构建脚本（allowBuilds 相关），在 ~/.dsh/profiles/web/pnpm-workspace.yaml 的
-   allowBuilds 下加对应 key，然后重跑
+3. 如果报 pnpm 阻止构建脚本（allowBuilds 相关），先确认被阻止的是哪个包。
+   本插件没有安装/编译脚本；不要因此放行所有依赖的构建脚本，按具体报错处理。
 4. 重启 dsh web，然后 F5 刷新浏览器
 
 安装后验证：
@@ -412,15 +428,22 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
 - `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
+- `/dsh-whale/about.json` → 200 JSON：菜单底部版号那行点开后的「关于 / 自检」面板数据源（版本、通道、文件路径与时间、数据落点、记账/余额/Codex 状态；路径已脱敏，**点开才请求**）
+- `/dsh-whale/update-check.json` → 200 JSON：检查更新（`{ok, current, latest, hasUpdate, source}`）；**点了才联网**，镜像优先（npmmirror → jsdelivr → unpkg → npmjs）+ `npm view` 兜底，宿主侧 10 分钟缓存
 - 浏览器 F5 后右下角出现挂件
 
-> ⚠️ **关于上面这些 `curl`**：全部 **24 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
+> ⚠️ **关于上面这些 `curl`**：全部 **27 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
 > 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
 
 ## 常见问题
 
+- **安装失败，只看到 `exit 1` / `pnpm failed`**：这些是汇总错误，不能据此认定插件代码有错，也不能直接归因网络。若明确出现“找不到 pnpm / 不是内部或外部命令”（#145），先检查宿主安装器使用的包管理器与启动环境；桌面端尤其要区分宿主自带工具和终端 PATH 中的工具。诊断时请提供：
+  - 操作系统/架构、DSH（含桌面壳）和市场版本，实际 profile（`web` 或 `desktop`），首次安装还是升级。
+  - 安装入口（内置工具、界面或命令行）、执行的安装规格/命令、来源（npm / GitHub / 本地目录）、已安装版本与目标版本；Node、pnpm、npm、git 版本能确定的就写，不能确定的标为未知。
+  - 本次操作的错误码和**最早的底层报错及少量上下文**。优先在本机检查错误信息指向的 `.plugin-manager/logs/operation-*/pnpm.log`，再对照 `hub.log`；同时说明是否使用代理/镜像、失败请求的目标域名和状态码。`ERR_PNPM_ADDING_TO_ROOT`、`Invalid time value`、`Failed to fetch` 应分别定位，不按同一原因处理。
+  - **公开前先脱敏**：删除 API key、token、cookie、认证头、含凭据的 URL、个人目录用户名及无关会话内容；只保留定位所需的片段，不原样上传完整日志、凭据文件或整个 profile。没有足够证据时先保留当前安装和数据，不批量删除 `node_modules`、锁文件或修改全局 registry。相关issue由报告者验证效果后决定是否关闭。
 - **挂件不出现**：
   - **Web（`dsh web`）**：确认安装命令成功；`dsh --profile web --dump-config` 里能看到 `dsh-whale-widget`；重启 `dsh web` 后 F5。
   - **官方桌面端**：先确认装对了 profile —— 桌面端读的是 **`desktop` profile**，**不能**用 `--profile web`（而 `--profile desktop` 会被 CLI 拒绝，这是设计如此）。正确入口见上面「**官方桌面端（Electron 客户端）请先看这一节**」，并用那里的**两条自检**判断是「没装到位」还是「装了但没渲染」。**新装也建议重开一次客户端**（issue #162：热生效不一定够）。
@@ -469,6 +492,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 致谢
 
+- **Codex 版小鲸鱼的迁移与后续维护**：经协商，**Codex 端口已迁至独立仓库 [Codex-Whale-Public](https://github.com/Yang-huai406/Codex-Whale-Public)**（由 [@Yang-huai406](https://github.com/Yang-huai406) 维护）—— 迁移保留了开发历史、作者贡献与历代版本，并清理了旧图片中的非必要元数据；原作者 **月匠（MeteorNOX）** 与 **macOS 适配贡献者 [@1llysviel](https://github.com/1llysviel)** 的贡献一并保留。**已安装的用户无需因迁移重新安装**，后续请从新仓库获取更新。感谢这次把历史完整接过去的处理方式。
 - **0.3.17 的「②区『提示音量』滑块其实不生效 + ②区『冒泡提示』没人读」**由一位 **QQ 群友**（未留 GitHub 账号）做了一轮完整的代码分析后报告：他复现了"拖到最低仍出声"、定位到 `playTaskEndSound()` 读的是①区全局音量、并附了可复用的补丁与两个预打版压缩包供对比。**这两个都是真 bug**（第二个是我顺着他的思路查出来的），0.3.17 已按"解析器 + 三态音量"的方式修复（比补丁覆盖面更广：**音效组那条路也修了**），并新增了一条 CI 检查专门拦这类"控件有值、没有消费方"的问题。感谢他的报告。
 - **0.3.16 的「换 / 删 API key 后旧记账被分本隐藏」**（切换当天金额被覆盖、更早的天数退化成「本地估算」）由 GitHub 用户 [@0Sakura721](https://github.com/0Sakura721) 在 [#163](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/163) 中报告，并**直接给出了根因位置**（`lib/index.js` 里用密钥哈希当账户标识、`accounting.mjs` 的 `observeBalance` / `currentBook` 只读 active 本）与数据佐证 —— 让这次能一次做实"数据没丢、只是没有入口"这个判断。0.3.16 据此修复（旧本日期照常显示并标注「已观测消费 · 历史账户」）。感谢他。
 - **0.3.16 的「下载管理器抢走挂件音效请求」**（IDM 等每次打开 DSH 弹下载框、关音效也照样弹）由 GitHub 用户 [@VaeKaras](https://github.com/VaeKaras) 在 [#158](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget/issues/158) 中报告，复现步骤、被抢的 URL 形态与"关音效无效"的观察都很完整 —— README 据此新增该已知问题与站点排除做法。感谢他。
