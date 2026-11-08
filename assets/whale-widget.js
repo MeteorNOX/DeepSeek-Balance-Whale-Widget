@@ -6171,7 +6171,9 @@ function fillUsagePanel(d) {
       n.title = String(row.model || '未知')
       r.appendChild(n)
       var c = document.createElement('span')
-      c.textContent = usageMoney(row.cost)
+      // 免费车道/未计价模型：宿主按其真实归零，这里直接标出来，不显示 ¥0.00 这种容易误读的金额
+      c.textContent = row.free ? '免费' : (row.unpriced ? '未计价' : usageMoney(row.cost))
+      if (row.free || row.unpriced) c.title = row.free ? '免费车道：该模型不产生费用' : '未计价模型：会话里查不到单价，宿主按 0 记账'
       r.appendChild(c)
       todayBox.appendChild(r)
     })
@@ -7022,13 +7024,22 @@ function usageMultiBookNote(allDays, today) {
 }
 function usageAggModels(daysArr) {
   var map = {}
+  var flags = {}
   ;(daysArr || []).forEach(function (day) {
     ;(day.models || []).forEach(function (mm) {
       var k = mm && mm.model ? mm.model : '未知'
       map[k] = (map[k] || 0) + (Number(mm.cost) || 0)
+      // 免费/未计价：跨天合并时，只有每天都是这个口径才保留标记
+      var f = flags[k] || { free: true, unpriced: true }
+      if (!mm || mm.free !== true) f.free = false
+      if (!mm || mm.unpriced !== true) f.unpriced = false
+      flags[k] = f
     })
   })
-  return Object.keys(map).map(function (k) { return { model: k, cost: map[k] } }).sort(function (a, b) { return b.cost - a.cost })
+  return Object.keys(map).map(function (k) {
+    var f = flags[k] || {}
+    return { model: k, cost: map[k], free: f.free === true, unpriced: f.unpriced === true }
+  }).sort(function (a, b) { return b.cost - a.cost })
 }
 // 模型显示名(v653):官方把 V4.1-Flash 的模型名定为 deepseek-flash,旧名 deepseek-v4-flash /
 // deepseek-v4-flash-vision-exp 也仍由同一颗 V4.1-Flash 提供服务并按 Flash 计价。
@@ -7051,7 +7062,7 @@ function usageRatioRows(body, secTitle, agg, totalLabel) {
     body.appendChild(no)
     return
   }
-  var sum = agg.reduce(function (a, x) { return a + x.cost }, 0) || 1
+  var sum = agg.reduce(function (a, x) { return a + x.cost }, 0)
   var costEls = []
   agg.forEach(function (row, i) {
     var wr = document.createElement('div')
@@ -7061,23 +7072,26 @@ function usageRatioRows(body, secTitle, agg, totalLabel) {
     lab.textContent = usageModelLabel(row.model)
     lab.title = String(row.model || '未知')
     wr.appendChild(lab)
+    // 免费/未计价行：占比条留空、百分比写「—」，金额列写「免费」「未计价」
+    var noMoney = row.free === true || row.unpriced === true
+    var pctVal = (noMoney || sum <= 0) ? 0 : Math.round(row.cost / sum * 100)
     var track = document.createElement('div')
     track.className = 'dshwv-usage-ratio-track'
     var fill = document.createElement('div')
     fill.className = 'dshwv-usage-ratio-fill'
-    fill.style.width = Math.round(row.cost / sum * 100) + '%'
+    fill.style.width = pctVal + '%'
     fill.style.background = USAGE_PALETTE[i % USAGE_PALETTE.length]
     track.appendChild(fill)
     wr.appendChild(track)
     // 百分比紧跟占比条右侧(固定预留,保证条长一致)
     var pct = document.createElement('span')
     pct.className = 'dshwv-usage-ratio-pct'
-    pct.textContent = Math.round(row.cost / sum * 100) + '%'
+    pct.textContent = noMoney ? '—' : pctVal + '%'
     wr.appendChild(pct)
     // 花费列紧邻百分比,整组等宽右对齐
     var cost = document.createElement('span')
     cost.className = 'dshwv-usage-ratio-cost'
-    cost.textContent = usageMoney(row.cost)
+    cost.textContent = row.free === true ? '免费' : (row.unpriced === true ? '未计价' : usageMoney(row.cost))
     cost.title = cost.textContent
     wr.appendChild(cost)
     costEls.push(cost)
@@ -7454,8 +7468,9 @@ function fillUsageRecordsWindow(d) {
               r2.appendChild(n2)
               var c2 = document.createElement('span')
               c2.style.flex = '0 0 auto'
-              c2.textContent = usageMoney(ev.cost)
-              c2.title = '本地估算：' + Number(ev.cost || 0).toFixed(8) + ' CNY'
+              c2.textContent = ev.free ? '免费' : (ev.unpriced ? '未计价' : usageMoney(ev.cost))
+              c2.title = ev.free ? '免费车道：本轮未产生费用'
+                : (ev.unpriced ? '未计价模型：宿主按 0 记账' : '本地估算：' + Number(ev.cost || 0).toFixed(8) + ' CNY')
               r2.appendChild(c2)
               detail.appendChild(r2)
             }
@@ -17362,8 +17377,20 @@ function bubbleRenderRandom(lines) {
 }
 // 每轮消耗提示(v720):内容改为可编辑的模块列表,与余额预警/预算同一条渲染链路。
 // 旧版是写死的三段(label/amount/hint),现在的默认内容(usageTurnCostDefaultLines)复刻它的观感。
-function bubbleRenderCostMods(amount) {
-  bubbleRenderModules(usageAlertModsResolved(usageTurnCostLines(), null, null, usageCostValue(amount)))
+function bubbleRenderCostMods(amount, mode) {
+  // mode: 'free' 整轮免费 / 'unpriced' 整轮未计价（宿主新增）
+  var isFree = mode === 'free'
+  var isUnpriced = mode === 'unpriced'
+  var mods = usageAlertModsResolved(usageTurnCostLines(), null, null, usageCostValue(amount))
+  if (isFree || isUnpriced) {
+    // 免费车道不吃钱：金额照实显示 0.00，再补一行说明，避免被读成"这一轮真的花了 0 元"以外的含义
+    mods.push({
+      type: 'text',
+      text: isFree ? '免费车道 · 本轮不计费' : '未计价模型 · 本轮按 0 记',
+      size: 3, bold: true, rgb: 'forest', color: '', bgRgb: '', bg: '', italic: false,
+    })
+  }
+  bubbleRenderModules(mods)
 }
 // 等待交互提示（v761 / #161 C5）：内容取 events.<kind>.lines（缺失/空 → 默认模板），
 // 走与预警/预算/消耗同一条模块渲染链路。`{session}` 在这里就替换成当前对话名
@@ -18767,7 +18794,7 @@ function hideBubble() {
   lastHintText = null
   bubbleCloseVisual()
 }
-function showCostBubble(amount) {
+function showCostBubble(amount, mode) {
   if (!bubbleOn || !turnCostOn) return
   // v778：②区「冒泡提示」勾选框（events.turnCost.bubbleOn）以前**只写不读** —— 取消勾选照样弹。
   //   同类问题（"控件有值、没有消费方"）与本次修的音量滑块同源，一并接上：
@@ -18778,7 +18805,7 @@ function showCostBubble(amount) {
   } catch (err) {}
   // 进入系统泡泡队列(等级3):若同批有预警/预算,则排在它们之后展示
   // v851：带上"每轮消耗提示"自己的框（空 = 跟随保底）
-  whaleSysPush({ kind: 'cost', amount: amount, frameId: sysFrameIdOf('cost'), rank: 3 })
+  whaleSysPush({ kind: 'cost', amount: amount, mode: mode || 'paid', frameId: sysFrameIdOf('cost'), rank: 3 })
 }
 function hideCostBubble() {
   // 与手动点击“第 n 次点击”一致:有下一项时保持打开淡切,无下一项才收起
@@ -18820,7 +18847,7 @@ function whaleSysQueueInsert(item) {
 function whaleSysOpenItem(item) {
   whaleSysItem = item
   if (item.kind === 'cost') {
-    sceneOpen('cost', function () { bubbleRenderCostMods(item.amount) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
+    sceneOpen('cost', function () { bubbleRenderCostMods(item.amount, item.mode) }, turnCostCloseMs > 0 ? turnCostCloseMs : 0)
   } else if (item.kind === 'wait') {
     // 等待交互：常驻（ttl 0 = sceneOpen 不布自动关闭计时器），内容在渲染时按当前设置取
     sceneOpen('wait', function () { bubbleRenderWaitMods(item.waitKind) }, 0)
@@ -22292,7 +22319,7 @@ function pollLastTurn() {
             try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
             playTaskEndSound()
             if (d.turn !== null && d.amount !== null) {
-              showCostBubble(Number(d.amount))
+              showCostBubble(Number(d.amount), d.mode)
             }
           } else {
             // 记忆值已过期（host 端重置/文件丢失）：拉齐到当前值，避免永久不弹
@@ -22306,7 +22333,7 @@ function pollLastTurn() {
           try { localStorage.setItem('dshw-last-seq', String(lastCostSeq)) } catch (err) {}
           playTaskEndSound()
           if (d.turn !== null && d.amount !== null) {
-            showCostBubble(Number(d.amount))
+            showCostBubble(Number(d.amount), d.mode)
           }
         }
       })
