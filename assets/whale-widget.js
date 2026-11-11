@@ -21532,6 +21532,39 @@ audioEditReleaseBtn.addEventListener('click', function (e) { e.stopPropagation()
 var hitCanvas = null
 var hitReady = false
 var hitFailed = false // 命中图加载失败（如图片 404/资源缺失）：退回矩形区域判定，绝不吞掉整页事件
+var hitRebuildAt = 0 // 重建去重：一次前后台切换可能同时命中 visibility 与周期自检
+// issue #326：安卓 WebView 退到后台会回收 canvas 后备存储，getImageData 不抛错、只返回全透明，
+// 但 hitReady 仍为 true ⇒ isWhaleHit 恒为假 ⇒ 挂件可见却完全点不动。建图时那次健康检查
+// 只在 onload 那一刻执行，拦不住运行期的失效，所以这里补一个运行期存活检查。
+function hitCanvasAlive() {
+  try {
+    if (!hitCanvas || !hitReady) return false
+    var c = hitCanvas.getContext('2d')
+    if (!c) return false
+    var opaque = 0
+    for (var gy = 0; gy < 8; gy++) {
+      for (var gx = 0; gx < 8; gx++) {
+        var px = Math.min(609, Math.floor(610 * (gx + 0.5) / 8))
+        var py = Math.min(609, Math.floor(610 * (gy + 0.5) / 8))
+        if (c.getImageData(px, py, 1, 1).data[3] > 10) opaque++
+      }
+    }
+    return opaque > 0
+  } catch (err) {
+    return false
+  }
+}
+function rebuildHitTest(reason) {
+  try {
+    if (hitRebuildAt && Date.now() - hitRebuildAt < 1500) return
+    hitRebuildAt = Date.now()
+    hitCanvas = null
+    hitReady = false
+    hitFailed = false
+    setupHitTest(img && img.src ? img.src : IMG_URL)
+    try { if (window.__dshwDbgNote) window.__dshwDbgNote('hit-rebuild:' + String(reason || '')) } catch (err0) {}
+  } catch (err) {}
+}
 function setupHitTest(url) {
   try {
     hitCanvas = document.createElement('canvas')
@@ -21541,6 +21574,7 @@ function setupHitTest(url) {
     hitFailed = false
     var probe = new Image()
     probe.onload = function () {
+      clearTimeout(hitWatchdog)
       try {
         var ctx = hitCanvas.getContext('2d')
         // 按 object-fit:contain + object-position:right bottom 的实际几何绘制，
@@ -21576,11 +21610,21 @@ function setupHitTest(url) {
       }
     }
     probe.onerror = function () {
+      clearTimeout(hitWatchdog)
       // 图片加载失败：不能把整页当成鲸鱼命中区吞掉事件（会全页面点不动），
       // 标记失败，命中判定退回图像矩形区域。
       hitFailed = true
       applyHitClip('')
     }
+    // 图片请求可能挂起（WebView 复用 keep-alive 连接失效），onload / onerror 都不触发 ⇒
+    // hitReady 与 hitFailed 同时为 false ⇒ 命中判定恒为假。超时后降级到矩形命中，保证可交互。
+    var hitWatchdog = setTimeout(function () {
+      try {
+        if (hitReady || hitFailed) return
+        hitFailed = true
+        applyHitClip('')
+      } catch (err) {}
+    }, 2500)
     probe.src = url || IMG_URL
   } catch (err) {}
 }
@@ -22205,9 +22249,21 @@ function resyncSizeCfg() {
 try {
   document.addEventListener('visibilitychange', function () {
     try { if (!document.hidden) resyncSizeCfg() } catch (err) {}
+    // issue #326：回到前台时命中图可能已被回收；已建但读回全透明就重建，
+    // 还没建好（探测挂起）则重新发起，避免一直停在「点不动」的状态。
+    try {
+      if (!document.hidden) {
+        if (hitReady && !hitCanvasAlive()) rebuildHitTest('visibility')
+        else if (!hitReady && !hitFailed) rebuildHitTest('visibility-pending')
+      }
+    } catch (err) {}
   })
 } catch (err) {}
 setInterval(function () { refresh(false); try { loadApiModels(null, true) } catch (err) {} }, REFRESH_MS)
+// issue #326：没有 visibility 事件的宿主也要能自愈，低频复核一次即可（8x8 采样很便宜）。
+setInterval(function () {
+  try { if (!document.hidden && hitReady && !hitCanvasAlive()) rebuildHitTest('periodic') } catch (err) {}
+}, 20000)
 
 // —— 每轮对话消耗检测：轮询 last-turn.json，出现新 seq 时弹消耗金额泡泡 ——
 var LAST_TURN_URL = '/dsh-whale/last-turn.json'
