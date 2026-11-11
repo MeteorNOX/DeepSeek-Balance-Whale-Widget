@@ -19705,9 +19705,33 @@ function setSoundSet(v) {
   saveConfig()
 }
 var SQUISH = 'scaleY(0.88) scaleX(1.05)'
-// 极短轻点的 down/up 可能落在同一帧：补上压扁起点后立即回弹，不延迟松手复位。
-var PRESS_VISUAL_TAP_MS = 32
-var pressVisualStartedAt = 0
+// 按压 Q 弹改由 WAAPI 承载：短按的 pointerup 会反向打断 L570 那条 transition 并缩短时长，
+// 回弹从半途插值起算 ⇒ 过冲段走不到。OUT 首帧恒为完整 SQUISH，与按压时长解耦。
+var PRESS_ANIM_MS = 220
+var PRESS_EASING = 'cubic-bezier(.34,1.56,.64,1)'
+var PRESS_IN_FRAMES = [{ transform: 'scaleY(1) scaleX(1)' }, { transform: SQUISH }]
+var PRESS_OUT_FRAMES = [{ transform: SQUISH }, { transform: 'scaleY(1) scaleX(1)' }]
+var pressInAnim = null, pressOutAnim = null
+var pressWaapi = typeof body.animate === 'function'
+// transitions 在级联里盖过 animations，须关掉 L570 那条过渡，否则它仍从半途值接管。
+if (pressWaapi) body.style.transition = 'none'
+function stopPressAnims() {
+  try { if (pressInAnim) pressInAnim.cancel() } catch (err) {}
+  pressInAnim = null
+  try { if (pressOutAnim) pressOutAnim.cancel() } catch (err) {}
+  pressOutAnim = null
+}
+// animate 存在却调用即抛时退回原行为，避免「过渡已关、又没有动画」。
+function startPressAnim(frames) {
+  if (!pressWaapi) return null
+  try {
+    return body.animate(frames, { duration: PRESS_ANIM_MS, easing: PRESS_EASING, fill: 'none' })
+  } catch (err) {
+    pressWaapi = false
+    body.style.transition = ''
+    return null
+  }
+}
 var pressAudio = null
 var releaseAudio = null
 var pressing = false
@@ -19824,8 +19848,9 @@ function playReleaseAt(delaySec) {
   } catch (err) {}
 }
 function pressDown() {
-  pressVisualStartedAt = performance.now()
-  body.style.transform = SQUISH
+  stopPressAnims()
+  body.style.transform = SQUISH       // 保持态
+  pressInAnim = startPressAnim(PRESS_IN_FRAMES)
   pressing = true
   // v868（用户报"取消勾选按压音效没效果"）：pressOn 以前只是存了个状态、**没接到播放上**。
   //   闸门放在这里（真实点按的唯一入口），试听走 playPress() 直接调用 ⇒ 试听始终有声。
@@ -19833,15 +19858,9 @@ function pressDown() {
   playPress()
 }
 function pressUp() {
-  if (performance.now() - pressVisualStartedAt < PRESS_VISUAL_TAP_MS) {
-    var previousTransition = body.style.transition
-    body.style.transition = 'none'
-    body.style.transform = SQUISH
-    // 提交压扁样式，让同帧松手也能从这里启动原有 CSS 回弹过渡。
-    void body.offsetWidth
-    body.style.transition = previousTransition
-  }
+  stopPressAnims()
   body.style.transform = 'scaleY(1) scaleX(1)'
+  pressOutAnim = startPressAnim(PRESS_OUT_FRAMES)
   pressing = false
   // v868：静音按压时松开音也不响（顺手把 releasePlayed 标记收干净，避免下次误触发）
   if (pressOn === false) {
