@@ -412,11 +412,13 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
 - `/dsh-whale/wait.json` → 200 JSON，含 `{ok:true, pending}`；`pending` 为当前挂起的「提问 / 授权」（`{kind:'question'|'approval', id, ts}`）或 `null` —— 这是「提问提示 / 授权提示」音效与常驻气泡的数据源（默认每秒轮询一次）
+- `/dsh-whale/widget-i18n.js` → 200 JS（中英文文案表；**必须先于** `widget.js` 加载，见「English interface」）
+- `/dsh-whale/lang.json` → 200 JSON `{ok:true, lang:'auto'|'zh'|'en'}`；PUT `{lang}` 写入偏好
 - `/dsh-whale/about.json` → 200 JSON：菜单底部版号那行点开后的「关于 / 自检」面板数据源（版本、通道、文件路径与时间、数据落点、记账/余额/Codex 状态；路径已脱敏，**点开才请求**）
 - `/dsh-whale/update-check.json` → 200 JSON：检查更新（`{ok, current, latest, hasUpdate, source}`）；**点了才联网**，镜像优先（npmmirror → jsdelivr → unpkg → npmjs）+ `npm view` 兜底，宿主侧 10 分钟缓存
 - 浏览器 F5 后右下角出现挂件
 
-> ⚠️ **关于上面这些 `curl`**：全部 **26 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
+> ⚠️ **关于上面这些 `curl`**：全部 **28 个** `/dsh-whale/*` 路由都已接入 **DSH 浏览器信任栅栏**（`connection.requestRejection`）。
 > 因此**不带会话凭据的裸 `curl` 会返回 401**（伪造 `Host` 头则是 403）—— 这是预期行为，不是接口坏了。
 > 想验证接口是否存活，看返回 **401/403** 即说明路由已注册且栅栏在工作；在浏览器里访问同一条路径（带会话）才是 200。
 > 另外**自 0.3.15 起，写请求（`POST`/`PUT`/`PATCH`/`DELETE`）还必须是本机来源**（Host 为 `127.0.0.1`/`localhost`/`[::1]`），否则 403 —— 详见上方「安全边界」。
@@ -467,6 +469,17 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 | `deepseek-v4-pro`（V4 Pro） | 0.15 / 0.30 | 4.5 / 9.0 | 13.5 / 27.0 |
 
 > 旧模型名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，按 Flash 价计费。
+
+## English interface（英文界面）
+
+The widget's **user interface** can be shown in English. Maintainers' docs (this README, CONTRIBUTING, the spec file) are Chinese-only on purpose.
+
+- **Switch it**: menu → **界面语言** (Interface language) → `自动（跟随浏览器）` / `中文` / `English (interface)`. The page reloads once.
+- **Default is automatic**: browsers whose language starts with `zh` get Chinese (unchanged behaviour), everything else gets English. An explicit choice is stored per profile (`$DSH_HOME/.dshw-lang.json`) and wins over the browser language.
+- **Scope**: menu rows, dialogs, panel labels, tooltips, buttons and the widget's own messages. Your own bubble content (random lines, budget/low-balance alert texts) is your data and is shown exactly as you wrote it.
+- **How it works**: every Chinese UI literal is wrapped as `dshwT('原文')` by `tools/i18n-build.mjs`; the English table lives in `assets/whale-widget-i18n.js` (generated from `tools/i18n-zh-en.json` by `tools/i18n-pack.mjs`). Unknown strings fall back to the Chinese original, so a missing translation can never blank the UI.
+- **Zero change for Chinese users**: `dshwT` returns the original string verbatim when the language is Chinese (a test asserts this).
+- **Adding a translation**: add `["中文原文", "English"]` to `tools/i18n-zh-en.json` → `node tools/i18n-pack.mjs` → `node tools/i18n-build.mjs` (needs `acorn`, a devDependency) → `node --test test/i18n.test.mjs`.
 
 ## 开发与维护
 

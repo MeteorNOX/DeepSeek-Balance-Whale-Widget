@@ -33,5 +33,11 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "acorn": "^8.19.0"
+  },
+  "scripts": {
+    "test": "node --test test/i18n.test.mjs"
+  }
 }

@@ -71,6 +71,13 @@ jobs:
       - name: Audit self-test
         run: node tools/ci-audit-selftest.mjs
 
+      # v868：中英文界面文案（i18n）。
+      #   · i18n.test.mjs      只测查表函数（0 依赖）—— 语言判定 / 回退 / 多行文案 / 查不到时返回原文；
+      #   · i18n-dom.test.mjs  用 jsdom 把**真实挂件**跑起来，断言英文界面里没有中文残留、中文界面不变。
+      #     jsdom 不是本仓库的依赖（CI 不装依赖），没装时该文件整组自动跳过，不会把 CI 拖红。
+      - name: i18n tests
+        run: node --test test/i18n.test.mjs test/i18n-dom.test.mjs
+
       # 「发布副本不得含开发机绝对路径」：宿主发布前必须跑一次
       # `_strip-dev-paths.mjs --apply`（它会删掉 RUA_GIF_CANDIDATES / IMAGE_CANDIDATES 等
       # 开发机候选路径）。忘跑过一次 —— 后果是老用户拿到的包会去读不存在的本机路径。
