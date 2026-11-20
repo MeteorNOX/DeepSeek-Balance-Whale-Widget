@@ -22284,6 +22284,11 @@ function pollLastTurn() {
       .then(function (r) { return r.json() })
       .then(function (d) {
         if (!d || !d.ok || typeof d.seq !== 'number') return
+        // 每次判定前用共享 localStorage 重读 seq：任一实例播过后，其他实例不再重复播
+        try {
+          var _stored = Number(localStorage.getItem('dshw-last-seq') || 0)
+          if (isFinite(_stored) && _stored > lastCostSeq) lastCostSeq = _stored
+        } catch (err) {}
         if (!lastCostAligned) {
           // 首次拿到数据：以本地记忆的 seq 为基准，只弹比它更新的轮次
           lastCostAligned = true
