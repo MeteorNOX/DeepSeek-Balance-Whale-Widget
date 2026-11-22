@@ -22180,15 +22180,46 @@ function sizeCfgApply(d) {
     configLoaded = true
     if (configSavePending) { configSavePending = false; try { saveConfig() } catch (err) {} }
 }
-function loadSizeCfg() {
-  return fetch(SIZE_URL, { cache: 'no-store' })
-    .then(function (r) { return r.json() })
-    .then(function (d) { sizeCfgApply(d) })
-    .catch(function () {
-      // 读取失败：绝不能拿内存里的默认值去 PUT（那正是「设置被洗成默认值」）
-      refresh(false)
-      dshwvToast('⚠ 设置读取失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
+function sizeCfgReadOnce() {
+  return fetch(SIZE_URL, { cache: 'no-store' }).then(function (r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status)
+    return r.text().then(function (text) {
+      var body = String(text || '').trim()
+      // 路由未注册 / 被拒绝时可能拿到 SPA 的 HTML 或空 body，不能当成配置 JSON。
+      if (body.charAt(0) !== '{') throw new Error('non-JSON response (HTTP ' + r.status + ')')
+      return JSON.parse(body)
     })
+  })
+}
+function loadSizeCfg() {
+  // 首次读取可能撞上宿主启动 / 热重载窗口（路由还没注册），短退避重试几次。
+  var delays = [300, 800, 2000]
+  function attempt(retry) {
+    return sizeCfgReadOnce()
+      .then(function (d) {
+        try {
+          sizeCfgApply(d)
+        } catch (err) {
+          // 配置已经读到，只是应用时某个 UI/状态操作失败。不能报成“读取失败”，
+          // 也不能因此允许 saveConfig() 用内存默认值去 PUT。
+          console.error('[whale] sizeCfgApply failed', err)
+          dshwvToast('⚠ 设置应用失败，已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
+        }
+      })
+      .catch(function (err) {
+        if (retry < delays.length) {
+          return new Promise(function (resolve) {
+            setTimeout(function () { resolve(attempt(retry + 1)) }, delays[retry])
+          })
+        }
+        // 读取失败：绝不能拿内存里的默认值去 PUT（那正是「设置被洗成默认值」）
+        console.error('[whale] size config read failed', err)
+        refresh(false)
+        var reason = err && err.message ? String(err.message) : '网络错误'
+        dshwvToast('⚠ 设置读取失败（' + reason + '），已暂停保存以免覆盖你的原有设置<br>请刷新页面重试')
+      })
+  }
+  return attempt(0)
 }
 loadSizeCfg()
 // v865：低频补读（回到标签页 / 打开菜单时）—— 2 秒去抖，避免密集事件里反复请求
