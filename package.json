@@ -12,6 +12,11 @@
   "type": "module",
   "main": "lib/index.js",
   "icon": "./icon.png",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./icon": "./icon.png"
+  },
   "files": [
     "lib",
     "assets",
@@ -31,6 +36,13 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
     }
   },
   "license": "MIT"

@@ -23,6 +23,8 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 
 ## 特性
 
+- 🧩 **精选插件入口**（dsh-featured 生态集成）：官方插件页新增「精选插件」tab —— 完整版 dsh-featured 未安装时展示欢迎页并提供一键安装，装完自动让位给完整版；与挂件本体完全解耦。边界：入口 ≠ 上榜，是否收录由 [skillpie.cn](https://skillpie.cn) 决定（约定见 [AI-INTEGRATION.md](https://github.com/skillpie/dsh-plugins/blob/main/dsh-featured/AI-INTEGRATION.md)）
+
 ### 记账与显示
 
 - 🐋 **常驻自启**：随 DSH Web 界面每次打开自动出现（标准 DSH bundle 插件）
@@ -120,7 +122,8 @@ dsh-whale-widget/
 ├── README.md                 # 本文件
 ├── cordis.patch.yml          # 插件挂载声明
 ├── lib/
-│   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务）
+│   ├── index.js              # 宿主侧插件本体（路由 + 记账 + 音效/图片/角色服务 + 精选插件推荐源登记）
+│   ├── client.js             # 浏览器端模块（插件页「精选插件」入口 tab，dsh-featured 生态轻量入口）
 │   └── accounting.mjs        # 记账内核（定点金额运算 + 余额观测/校正账本）
 ├── assets/
 │   ├── whale-widget.js       # 前端挂件本体（由宿主按 mtime 热读取）
@@ -470,7 +473,7 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 
 ## 开发与维护
 
-- 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
+- 仓库里 `lib/index.js` 是宿主本体、`lib/accounting.mjs` 是记账内核（定点金额运算 + 观测/校正账本）、`assets/whale-widget.js` 是前端本体；`lib/client.js` 是浏览器端模块（插件页「精选插件」入口 tab，由 DSH module-loader 加载，与挂件本体互不依赖）；宿主改动（含记账内核）需重启 `dsh web`，仅前端改动硬刷新页面即生效。
 - 完整规格、视觉参数、路由清单、架构结论与生成提示词见 [`whale-widget-prompt.md`](whale-widget-prompt.md)。
 - 本地联调：`dsh plugin --profile web add link:.` 后，改前端 → Ctrl+F5；改宿主 → 重启 `dsh web`。
 
