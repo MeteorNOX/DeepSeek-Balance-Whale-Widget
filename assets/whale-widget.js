@@ -6632,12 +6632,13 @@ function resRenderData(wrap, roles, bubbleImgs, audio) {
     // —— 图片（入口行 + 折叠体；摘要 = 数量，不展开也知道有多少）——
     var imgEnt = resFoldEntry(wrap, 'img', '图片', '角色 ' + roles.length + ' · 泡泡图 ' + bubbleImgs.length, true)
     var anyImg = false
-    // 角色图(默认角色只读展示)
+    // 角色图(默认/内置角色只读展示)
     roles.forEach(function (r) {
       anyImg = true
       var isDefault = r.id === 'default'
-      var tag = resMkTag(isDefault ? '默认角色' : '自定义角色', isDefault)
-      imgEnt.body.appendChild(resImgRow(r.url, r.name || r.id, '', [tag, resMkDel('删除', isDefault, function () { resDelRole(r.id) })]))
+      var locked = isDefault || !!r.builtin
+      var tag = resMkTag(isDefault ? '默认角色' : (r.builtin ? '内置角色' : '自定义角色'), locked)
+      imgEnt.body.appendChild(resImgRow(r.url, r.name || r.id, '', [tag, resMkDel('删除', locked, function () { resDelRole(r.id) })]))
     })
     bubbleImgs.forEach(function (im) {
       anyImg = true
@@ -13535,10 +13536,10 @@ function confirmGifRole() {
         if (d && d.ok && Array.isArray(d.roles)) {
           roleList = d.roles
           renderRolePanel()
-          // 自动切换到刚导入的角色
+          // 自动切换到刚导入的角色（内置/默认角色不参与挑选）
           var newest = null
           for (var i = 0; i < roleList.length; i++) {
-            if (roleList[i].id !== 'default' && (!newest || roleList[i].createdAt > newest.createdAt)) newest = roleList[i]
+            if (roleList[i].id !== 'default' && !roleList[i].builtin && (!newest || roleList[i].createdAt > newest.createdAt)) newest = roleList[i]
           }
           if (newest) applyRole(newest.id, newest.name, roleUrl(newest.id))
         }
@@ -20154,7 +20155,7 @@ function renderRolePanel() {
         togglePin(r.id, !r.pinned)
       })
       item.appendChild(pin)
-      if (r.id !== 'default') {
+      if (r.id !== 'default' && !r.builtin) {
         var del = document.createElement('button')
         del.type = 'button'
         del.className = 'dshwv-roledel'
@@ -20540,10 +20541,10 @@ function confirmCrop() {
         if (d && d.ok && Array.isArray(d.roles)) {
           roleList = d.roles
           renderRolePanel()
-          // 自动切换到刚导入的角色（取最新的非 default 角色）
+          // 自动切换到刚导入的角色（取最新的非 default / 非内置角色）
           var newest = null
           for (var i = 0; i < roleList.length; i++) {
-            if (roleList[i].id !== 'default' && (!newest || roleList[i].createdAt > newest.createdAt)) newest = roleList[i]
+            if (roleList[i].id !== 'default' && !roleList[i].builtin && (!newest || roleList[i].createdAt > newest.createdAt)) newest = roleList[i]
           }
           if (newest) applyRole(newest.id, newest.name, roleUrl(newest.id))
         }
