@@ -32,19 +32,19 @@
 
 ```
 dsh-whale-widget/
-├── package.json                     35 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
+├── package.json                     37 行   DSH bundle 插件元数据（dsh.bundle.patch → cordis.patch.yml）
 ├── cordis.patch.yml                 15 行   插件挂载声明
-├── README.md                       471 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
-├── PROVENANCE.md                    35 行   素材来源与许可范围（动 assets/ 前必读）
+├── README.md                       503 行   安装 / 使用 / 定价 / 完整目录结构（动代码前先读它）
+├── PROVENANCE.md                    38 行   素材来源与许可范围（动 assets/ 前必读）
 ├── whale-widget-prompt.md          202 行   完整规格、视觉参数、路由清单、维护提示词（二次开发入口）
 │
 ├── lib/
-│   ├── index.js                  3,953 行   宿主侧本体：23 条路由 + 记账接线 + 音效/图片/角色服务
-│   └── accounting.mjs              252 行   记账内核：定点金额运算 + 余额观测/校正账本
+│   ├── index.js                  4,953 行   宿主侧本体：26 条路由 + 记账接线 + 音效/图片/角色服务
+│   └── accounting.mjs              289 行   记账内核：定点金额运算 + 余额观测/校正账本
 │
 ├── assets/
-│   ├── whale-widget.js          16,853 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
-│   ├── DSH2.png / DSniang1.png / DSniang02.png   角色图与 README 展示图
+│   ├── whale-widget.js          22,322 行   前端挂件本体（**宿主按 mtime 热读这个单文件**）
+│   ├── DSH2.png / DSniang1.png / DSniang02.png / DSniang-snow.png   角色图与 README 展示图
 │   ├── rua.gif / bubble-petpet.gif / bubble-money1.gif
 │   ├── Ya1.mp3 / Ya2.mp3 / D1.mp3 / D2.mp3  预置音效
 │   └── minecraft-exp-orb.wav / task-end-a.wav
@@ -90,4 +90,4 @@ dsh-whale-widget/
 
 ### 关于那两个超大文件
 
-`assets/whale-widget.js`（16,853 行）和 `lib/index.js`（3,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合
+`assets/whale-widget.js`（22,322 行）和 `lib/index.js`（4,953 行）确实已经很大，我们知道而且正在计划拆分，在拆分落地之前，请按拆分友好的方式写：新逻辑尽量自成一块、少依赖全局状态、不要加深既有耦合

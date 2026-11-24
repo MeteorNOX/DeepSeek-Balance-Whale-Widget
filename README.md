@@ -73,7 +73,7 @@ DeepSeek Harness（DSH）Web 界面右下角的常驻挂件：小鲸鱼气泡图
 - ⏳ **提问音 / 授权音**：DSH 需要你回答或批准时播放；与任务结束音共用同一套音效库，**各自可调音量**，音效行左侧的 `[✓]` 决定「响不响」（不响 = 仍会冒泡提示）
 - 🔉 **音量：一条全局 + 三条按事件**：①区「按压音效」的音量是**全局基准**（按压 / 松开音用它）；②③④ 区（每轮消耗提示 / 提问提示 / 授权提示）各有一条自己的音量滑块，每行都带「试听」。**没动过某个事件的滑块时，它跟随①区音量**（入口行摘要会写明 `跟随按压音量 N%`）；**一旦你拖过那个滑块，就按你设的值播**（摘要只显示百分比）。这样既能"一个总音量管全局"，也能单独压低某类提示音。
 - ✂️ **音频片段管理**：导入时可视化裁剪、试听；资源管理窗口（菜单 → 资源管理 → 「管理」）按 **图片 / 音频 两个可折叠入口**统一查看/试听/删除 —— 入口行右侧直接显示数量（如 `角色 1 · 泡泡图 2`、`音效组 3 · 片段 4`），点一行才展开明细；「导入片段」在音频那一区里；收起/展开时会顺带停掉正在试听的那一段
-- 🐳 **自定义角色**：上传自己的鲸鱼图片（图库管理，可回退默认）
+- 🐳 **角色切换**：内置「小鲸鱼」与「小雪鱼」两个角色，也可上传自己的角色图（图库管理；内置角色只读，不可删）
 - 🖼️ **泡泡图库**：内置 `petpet`、`money1` 两张图，也可上传 png/gif，供图片/随机图片模块使用
 
 ### 自定义 API（多厂商余额 / 额度）
@@ -127,6 +127,7 @@ dsh-whale-widget/
 │   ├── DSH2.png              # README 顶部展示图
 │   ├── DSniang1.png          # 小鲸鱼本体（cut-out，气泡由代码绘制）
 │   ├── DSniang02.png         # 备用整图（兼容旧版手动安装路径）
+│   ├── DSniang-snow.png      # 内置角色图「小雪鱼」（512×512，含透明）
 │   ├── rua.gif               # 随机台词/撒娇动图（可选）
 │   ├── Ya1.mp3 / Ya2.mp3     # 预置音效「小黄鸭」按压 / 松开
 │   ├── D1.mp3 / D2.mp3       # 预置音效「音效1」按压 / 松开
@@ -149,7 +150,7 @@ dsh-whale-widget/
 | `.dshw-api.json` | 自定义 API 模型注册表（厂商 / 凭据名 / 接口字段 / 自定义单价 / 额度与用量累计；**不含密钥**） |
 | `.dshw-usage-archive.json` | 账本归档（超过保留期的逐轮明细与逐日汇总；明细 90 天/2 万条、逐日 365 天） |
 | `.dshw-codex.json` | Codex 本地会话统计缓存（按天/模型聚合 + 文件偏移；**不含任何凭据**） |
-| `whale-roles/` | 自定义角色图 + `roles.json` 索引 |
+| `whale-roles/` | 自定义角色图 + `roles.json` 索引（内置角色的图片随包放在 `assets/`，索引里只留一行记录置顶状态） |
 | `whale-audio/` | 音频片段 `<id>.wav` + `audio.json` 索引（音效组/片段） |
 | `whale-bubble-imgs/` | 泡泡图库图片 + `bubble-imgs.json` 索引 |
 
@@ -408,6 +409,8 @@ curl http://127.0.0.1:3080/dsh-whale/audio.json
 - `/dsh-whale/size.json` → GET 返回配置；PUT 写入
 - `/dsh-whale/widget.js` → 200 JS（前端挂件本体）
 - `/dsh-whale/image.png` → 200 `image/png`
+- `/dsh-whale/roles.json` → 200 JSON，含 `roles`（默认 `小鲸鱼` + 内置 `小雪鱼` + 你上传的自定义角色；内置项的 `builtin` 为 `true`，不可删）
+- `/dsh-whale/role-image.png?id=dsniang-snow` → 200 `image/png`（内置角色图「小雪鱼」，直接读包内 `assets/DSniang-snow.png`）
 - `/dsh-whale/audio.json` → 200，含 `groups` / `fragments`（其中内置片段 `exp_orb` = Minecraft·经验球、`end_a` = A）
 - `/dsh-whale/audio-fragment.wav?id=exp_orb` → 200 `audio/wav`（内置任务结束音；无需用户导入）
 - `/dsh-whale/audio-fragment.wav?id=end_a` → 200 `audio/wav`（内置任务结束音 A）
